@@ -181,7 +181,7 @@ socket.start = function()
 					sock_close(sock)
 					return
 				end
-				local URL, Parameters = Header.uri:match("^(.+)[%?*](.+)")
+				local URL, Parameters = Header.uri:match("(/[^%? ]*)%??(%S-)$")
 				for Pattern, RequestHandler in pairs(application) do 
 					-- RequestHandler is actually just the url pattern in this case.
 					if URL and match(URL, '^'..Pattern:gsub('%(',''):gsub('%)','')..'$') then
