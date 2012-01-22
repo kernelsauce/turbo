@@ -137,8 +137,10 @@ function web.RequestHandler:new(requesthandler)
 				_write_headers(stringified:len())
 				write_to_buffer(stringified)
 			elseif type(data) == 'function' then
-			
+				-- What to do here?
 			end
+		else
+			_write_headers(0)
 		end
 	end
 	

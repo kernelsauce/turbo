@@ -176,8 +176,18 @@ socket.start = function()
 		accept_connection(server, function(sock, events)
 			local HTTP_request, sender, port = sock:recv(1024)
 			local buffer = {} -- Socket write buffer.
+			
+			--
+			-- write_to_buffer function.
+			--
+			write_to_buffer = function(data)
+				buffer[#buffer +1] = data
+			end
+			
 			if HTTP_request and #HTTP_request > 0 then
 				local Header = parse_headers(HTTP_request)
+				local ErrorHandler = web.RequestHandler:new()
+		
 				if not Header.uri then -- TODO: Better invalid.
 					sock_close(sock)
 					return
@@ -187,13 +197,6 @@ socket.start = function()
 					-- RequestHandler is actually just the url pattern in this case.
 					if URL and match(URL, '^'..Pattern:gsub('%(',''):gsub('%)','')..'$') then
 					
-						--
-						-- write_to_buffer function.
-						--
-						write_to_buffer = function(data)
-							buffer[#buffer +1] = data
-						end
-						
 						local method = Header.method and Header.method:lower()
 						if RequestHandler[method] and type(RequestHandler[method]) == 'function' then
 						
@@ -202,33 +205,48 @@ socket.start = function()
 							--
 							local safe_thread = coroutine.create(RequestHandler[method])
 							local _, err_message = coroutine.resume(safe_thread, getmetatable(RequestHandler))
-							if err_message then script_error_handler(err_message) end -- Throw exception from coroutine.
+							if err_message then script_error_handler(err_message) end -- Throw exception from coroutine. Should we not write the buffer maybe?
 							
 						else
+						
 							--
-							-- Give a not implemented status code.
+							-- Method requested not implemented in RequestHandler
+							-- Give 405 Not Implemented status
 							--
+							ErrorHandler:set_status_code(405)
+							ErrorHandler:write();
+							sock:write(concat(buffer)) -- Write from buffer.
 							sock_close(sock)
 							return
 						end
 						
 						--
+						-- RequestHandler finished running.
 						-- Flush buffer.
 						--
 						sock:write(concat(buffer)) -- Write from buffer.
-						sock_close(sock) -- Close socket.
+						sock_close(sock)
 					else
-					
+						print('skaft')
 						--
 						-- No RequestHandler assigned to this URL
+						-- Give 404 Not Found
 						--
+						ErrorHandler:set_status_code(404)
+						ErrorHandler:write();
+						sock:write(concat(buffer)) -- Write from buffer.
 						sock_close(sock)
 					end
 				end
 			else
+			
 				--
-				-- Request missing. Close socket brutally.
+				-- Request missing or garbled request.
+				-- Give 400 Bad Request status.
 				--
+				ErrorHandler:set_status_code(400)
+				ErrorHandler:write();
+				sock:write(concat(buffer)) -- Write from buffer.
 				sock_close(sock)
 			end
 		end)
