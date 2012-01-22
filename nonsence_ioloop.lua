@@ -175,6 +175,7 @@ socket.start = function()
 	local function new_client(server, application)
 		accept_connection(server, function(sock, events)
 			local HTTP_request, sender, port = sock:recv(1024)
+			local buffer = {} -- Socket write buffer.
 			if HTTP_request and #HTTP_request > 0 then
 				local Header = parse_headers(HTTP_request)
 				if not Header.uri then -- TODO: Better invalid.
@@ -185,37 +186,49 @@ socket.start = function()
 				for Pattern, RequestHandler in pairs(application) do 
 					-- RequestHandler is actually just the url pattern in this case.
 					if URL and match(URL, '^'..Pattern:gsub('%(',''):gsub('%)','')..'$') then
-						local buffer = {} -- Socket write buffer.
+					
 						--
 						-- write_to_buffer function.
 						--
 						write_to_buffer = function(data)
 							buffer[#buffer +1] = data
 						end
-						local method = Header.method
-						-- TODO: make this a definable array.
-						if method == 'GET' then
+						
+						local method = Header.method and Header.method:lower()
+						if RequestHandler[method] and type(RequestHandler[method]) == 'function' then
+						
 							--
 							-- Call method inside a coroutine to have a crash safe environment.
 							--
-							local safe_thread = coroutine.create(RequestHandler.get)
+							local safe_thread = coroutine.create(RequestHandler[method])
 							local _, err_message = coroutine.resume(safe_thread, getmetatable(RequestHandler))
-							if err_message then print(err_message) end
-						elseif method == 'POST' then
-							RequestHandler.post(getmetatable(RequestHandler))
-						elseif method == 'PUT' then
-							RequestHandler.put(getmetatable(RequestHandler))
-						elseif method == 'DELETE' then
-							RequestHandler.delete(getmetatable(RequestHandler))
-						elseif method == 'HEAD' then
-							RequestHandler.head(getmetatable(RequestHandler))
+							if err_message then script_error_handler(err_message) end -- Throw exception from coroutine.
+							
+						else
+							--
+							-- Give a not implemented status code.
+							--
+							sock_close(sock)
+							return
 						end
 						
+						--
+						-- Flush buffer.
+						--
 						sock:write(concat(buffer)) -- Write from buffer.
+						sock_close(sock) -- Close socket.
+					else
+					
+						--
+						-- No RequestHandler assigned to this URL
+						--
+						sock_close(sock)
 					end
 				end
-				sock_close(sock)
 			else
+				--
+				-- Request missing. Close socket brutally.
+				--
 				sock_close(sock)
 			end
 		end)
