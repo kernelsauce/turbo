@@ -56,9 +56,9 @@ local http_status_codes = require('nonsence_codes') -- Require codes module for 
 
 local parse_headers, nonsence_applications, split, gmatch, match, 
 concat, xpcall, assert, ipairs, pairs, getmetatable, print, coroutine
-= web.parse_headers, nonsence_applications, escape.split, 
+, find = web.parse_headers, nonsence_applications, escape.split, 
 string.gmatch , string.match, table.concat, xpcall, assert, ipairs, 
-pairs, getmetatable, print, coroutine
+pairs, getmetatable, print, coroutine, string.find
 
 socket.start = function()
 	---*
@@ -193,15 +193,23 @@ socket.start = function()
 				local Header = parse_headers(HTTP_request)
 		
 				if not Header.uri then -- TODO: Better invalid.
+					--
+					-- URI missing. Can not do anything.
+					-- Give 400 Bad Request status.
+					--
+					ErrorHandler:set_status_code(400)
+					ErrorHandler:write();
+					sock:write(concat(buffer)) -- Write from buffer.
 					sock_close(sock)
 					return
 				end
-				local RequestHandler_hit = false
+				
+				local RequestHandler_hit = false -- Flag for matching RequestHandler.
+				
 				local URL, Arguments = Header.uri:match("(/[^%? ]*)%??(%S-)$")
 				for Pattern, RequestHandler in pairs(application) do 
-
-					if URL and match(URL, '^'..Pattern:gsub('%(',''):gsub('%)','')..'$') then
-
+					if URL and match(URL, "^"..Pattern.."$") then -- Check if pattern exists in Application.
+					
 						local method = Header.method and Header.method:lower()
 						if RequestHandler[method] and type(RequestHandler[method]) == 'function' then
 							
@@ -215,7 +223,7 @@ socket.start = function()
 							-- Call method inside a coroutine to have a crash safe environment.
 							--
 							local safe_thread = coroutine.create(RequestHandler[method])
-							local _, err_message = coroutine.resume(safe_thread, getmetatable(RequestHandler))
+							local _, err_message = coroutine.resume(safe_thread, getmetatable(RequestHandler), 'skaft')
 							-- Throw exception from coroutine. Should we not write the buffer maybe?
 							if err_message then script_error_handler(err_message) end
 							
