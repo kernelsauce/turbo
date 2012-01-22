@@ -196,13 +196,16 @@ socket.start = function()
 					sock_close(sock)
 					return
 				end
+				local RequestHandler_hit = false
 				local URL, Arguments = Header.uri:match("(/[^%? ]*)%??(%S-)$")
 				for Pattern, RequestHandler in pairs(application) do 
-					-- RequestHandler is actually just the url pattern in this case.
+
 					if URL and match(URL, '^'..Pattern:gsub('%(',''):gsub('%)','')..'$') then
-					
+
 						local method = Header.method and Header.method:lower()
 						if RequestHandler[method] and type(RequestHandler[method]) == 'function' then
+							
+							RequestHandler_hit = true
 							
 							if Arguments then
 								RequestHandler._set_arguments(getmetatable(RequestHandler), Arguments)
@@ -213,7 +216,8 @@ socket.start = function()
 							--
 							local safe_thread = coroutine.create(RequestHandler[method])
 							local _, err_message = coroutine.resume(safe_thread, getmetatable(RequestHandler))
-							if err_message then script_error_handler(err_message) end -- Throw exception from coroutine. Should we not write the buffer maybe?
+							-- Throw exception from coroutine. Should we not write the buffer maybe?
+							if err_message then script_error_handler(err_message) end
 							
 						else
 						
@@ -234,17 +238,18 @@ socket.start = function()
 						--
 						sock:write(concat(buffer)) -- Write from buffer.
 						sock_close(sock)
-					else
-						--
-						-- No RequestHandler assigned to this URL
-						-- Give 404 Not Found
-						--
-						ErrorHandler:set_status_code(404)
-						ErrorHandler:write();
-						sock:write(concat(buffer)) -- Write from buffer.
-						sock_close(sock)
 					end
 				end
+				if not RequestHandler_hit then
+					--
+					-- No RequestHandler assigned to this URL
+					-- Give 404 Not Found
+					--
+					ErrorHandler:set_status_code(404)
+					ErrorHandler:write();
+					sock:write(concat(buffer)) -- Write from buffer.
+					sock_close(sock)
+				end				
 			else
 			
 				--

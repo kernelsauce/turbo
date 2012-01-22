@@ -54,38 +54,32 @@ local nonsence = require('nonsence') -- Require nonsence.
 --
 local ExampleHandler = nonsence.web.RequestHandler:new() 
 function ExampleHandler:get() -- Handler for GET method requests.
-	
-	dump(self:get_argument('lol'))
-	dump(self:get_arguments())
-	self:write("skaft")
+	self:write( { Result = self:get_arguments() } )
 end
 function ExampleHandler:post() -- Handler for POST method requests.
 	self:write('Hello another world!')
 end
 
 --
+-- Create new Handler with heritage from RequestHandler
+--
+local ItemHandler = nonsence.web.RequestHandler:new() 
+function ItemHandler:get() -- Handler for GET method requests.
+	self:write( { Result = self:get_arguments() } )
+end
+
+--
 -- Create a new application with your RequestHandler as parameter.
 -- 
 local application = nonsence.web.Application:new({ 
-	['/'] = ExampleHandler 
+	['/'] = ExampleHandler,
+	['/item/([0-9]+)'] = ItemHandler
 })
 
 --
 -- Tell the application to listen to defined port.
 --
 application:listen(8888)
-
---
--- Create a second application with your RequestHandler as parameter.
--- 
-local second_application = nonsence.web.Application:new({ 
-	['/'] = ExampleHandler 
-})
-
---
--- Tell the second application to listen to defined port.
---
-second_application:listen(8889)
 
 --
 -- Start the endless IO loop.
