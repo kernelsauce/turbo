@@ -104,6 +104,8 @@ function web.RequestHandler:new(requesthandler)
 	--self.headers.keep_alive = "Keep-Alive: timeout=3, max=199"
 	self.headers.connection  = "Close"
 	self.headers.content_type = "text/html"
+	self.headers.date = os.date("!%a, %d %b %Y %H:%M:%S GMT")
+	self.arguments = {}
 	
 	local function _write_headers(content_length)
 		local headers = self.headers
@@ -122,6 +124,27 @@ function web.RequestHandler:new(requesthandler)
 			self.headers.status_code = code
 		else
 			error('self.status_code() expects type number got: ' .. type(code))
+		end
+	end
+	
+	function self._set_arguments(self, args_string)
+		local args_string = args_string or ''
+		local args_table = {}
+		for key, value in args_string:gmatch("([^=?]*)=?([^&?]*)") do
+			args_table[key] = value
+		end
+		self.arguments = args_table
+	end
+	
+	function self.get_arguments(self)
+		return self.arguments
+	end
+	
+	function self.get_argument(self, key)
+		if self.arguments[key] then
+			return self.arguments[key]
+		else
+			-- Die?
 		end
 	end
 	

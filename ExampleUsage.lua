@@ -54,6 +54,9 @@ local nonsence = require('nonsence') -- Require nonsence.
 --
 local ExampleHandler = nonsence.web.RequestHandler:new() 
 function ExampleHandler:get() -- Handler for GET method requests.
+	
+	dump(self:get_argument('lol'))
+	dump(self:get_arguments())
 	self:write("skaft")
 end
 function ExampleHandler:post() -- Handler for POST method requests.

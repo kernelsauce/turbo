@@ -183,23 +183,31 @@ socket.start = function()
 			write_to_buffer = function(data)
 				buffer[#buffer +1] = data
 			end
+
+			--
+			-- Create a RequestHandler for errors.
+			--
+			local ErrorHandler = web.RequestHandler:new()
 			
 			if HTTP_request and #HTTP_request > 0 then
 				local Header = parse_headers(HTTP_request)
-				local ErrorHandler = web.RequestHandler:new()
 		
 				if not Header.uri then -- TODO: Better invalid.
 					sock_close(sock)
 					return
 				end
-				local URL, Parameters = Header.uri:match("(/[^%? ]*)%??(%S-)$")
+				local URL, Arguments = Header.uri:match("(/[^%? ]*)%??(%S-)$")
 				for Pattern, RequestHandler in pairs(application) do 
 					-- RequestHandler is actually just the url pattern in this case.
 					if URL and match(URL, '^'..Pattern:gsub('%(',''):gsub('%)','')..'$') then
 					
 						local method = Header.method and Header.method:lower()
 						if RequestHandler[method] and type(RequestHandler[method]) == 'function' then
-						
+							
+							if Arguments then
+								RequestHandler._set_arguments(getmetatable(RequestHandler), Arguments)
+							end
+							
 							--
 							-- Call method inside a coroutine to have a crash safe environment.
 							--
