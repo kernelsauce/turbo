@@ -129,11 +129,27 @@ function web.RequestHandler:new(requesthandler)
 	
 	function self._set_arguments(self, args_string)
 		local args_string = args_string or ''
-		local args_table = {}
-		for key, value in args_string:gmatch("([^=?]*)=?([^&?]*)") do
-			args_table[key] = value
+		local arguments = {}
+		local noDoS = 0;
+		for k, v in string.gmatch(args_string, "([^&=]+)=([^&]+)") do
+			noDoS = noDoS + 1;
+			if (noDoS > 256) then break; end -- hashing DoS attack ;O
+			v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return string.char(tonumber(s,16)) end);
+			if (not arguments[k]) then
+				arguments[k] = v;
+			else
+				if ( type(arguments[k]) == "string") then
+					local tmp = arguments[k];
+					arguments[k] = {tmp};
+				end
+				table.insert(arguments[k], v);
+			end
 		end
-		self.arguments = args_table
+
+		--
+		-- Set arguments to RequestHandler.
+		--
+		self.arguments = arguments
 	end
 	
 	function self.get_arguments(self)
