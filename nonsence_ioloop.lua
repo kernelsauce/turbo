@@ -227,7 +227,6 @@ socket.start = function()
 						sock:write(concat(buffer)) -- Write from buffer.
 						sock_close(sock)
 					else
-						print('skaft')
 						--
 						-- No RequestHandler assigned to this URL
 						-- Give 404 Not Found
