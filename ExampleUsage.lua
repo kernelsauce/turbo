@@ -54,7 +54,6 @@ local nonsence = require('nonsence') -- Require nonsence.
 --
 local ExampleHandler = nonsence.web.RequestHandler:new() 
 function ExampleHandler:get(id) -- Handler for GET method requests.
-	dump(id)
 	self:write( { Result = self:get_arguments() } )
 end
 function ExampleHandler:post() -- Handler for POST method requests.
