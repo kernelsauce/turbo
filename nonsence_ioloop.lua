@@ -1,7 +1,7 @@
 --[[
 	
 	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamse < JhnAbrhmsn@gmail.com >
+	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 	
 	This module "IOLoop" is a part of the Nonsence Web server.
 	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
