@@ -30,7 +30,60 @@
 
 --[[
 	
-	IOLoop is a class responsible for managing I/O events through epoll.
+	IOLoop is a class responsible for managing I/O events through file descriptors 
+	with epoll. 
+	
+	Add file descriptors with :add_handler(fd, listen_to_this, handler).
+	Handler will be called when event is triggered. Handlers can also be removed from
+	the I/O Loop with :remove_handler(fd). This will also remove the event from epoll.
+	You can change the event listened for with :update_handler(fd, listen_to_this).
+	
+	You can not have more than one edge-triggered IOLoop as this will block the Lua thread
+	when no events are triggered. Unless you add a timeout to the loop, which is not recommended.
+	
+	Example of very simple TCP server using a IOLoop object:
+
+	--
+	-- Load modules
+	--
+	require('nonsence_ioloop')
+	nixio = require('nixio')
+	
+	local exampleloop = IOLoop:new()
+
+	local sock = nixio.socket('inet', 'stream')
+	local fd = sock:fileno()
+	sock:setblocking(false)
+	assert(sock:setsockopt('socket', 'reuseaddr', 1))
+
+	sock:bind(nil, 8080)
+	assert(sock:listen(1024))
+
+	--
+	-- Handler to run when READ event is fired on 
+	-- file descriptor
+	--
+	function some_handler_that_accepts()
+		-- Accept socket connection.
+		local new_connection = sock:accept()
+		local fd = new_connection:fileno()
+		--
+		-- Handler function when client is ready to read again.
+		--
+		function some_handler_that_reads()
+			new_connection:recv(1024)
+			new_connection:write('IOLoop works!')
+			new_connection:close()
+			--
+			-- Trying out a callback.
+			--
+			exampleloop:add_callback(function() print "This is a callback" end)
+		end	
+		exampleloop:add_handler(fd, READ, some_handler_that_reads) -- Callback/handler passed.
+	end
+
+	exampleloop:add_handler(fd, READ, some_handler_that_accepts)
+	exampleloop:start()
 	
   ]]
 
@@ -57,7 +110,6 @@ READ = Epoll.EPOLLIN
 WRITE = Epoll.EPOLLOUT
 PRI = Epoll.EPOLLPRI
 ERR = Epoll.EPOLLERR
-EPOLLET = Epoll.EPOLLET
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
@@ -66,7 +118,9 @@ IOLoop = newclass('IOLoop')
 function IOLoop:init()	
 	self._events = {}
 	self._handlers = {}
+	self._timeouts = {}
 	self._callbacks = Stack:new() -- New Stack object.
+	self._callback_lock = false
 	self._running = false
 	self._stopped = false
 	self._epoller = Epoll.new() -- New Epoll object.
@@ -120,8 +174,21 @@ function IOLoop:start()
 	local events = {}
 	
 	while true do
+		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
+
+		-- Run callbacks from the self._callbacks stack
+		while self._callbacks:getn() > 0 do
+			self:_run_callback(self._callbacks:pop())
+		end
+		
+		-- If callback did a callback... Then set I/O loop timeout to 0
+		-- to avoid waiting to long.
+		if self._callbacks:getn() > 0 then
+			timeout = 0
+		end
+
 		-- Stop the I/Oloop if flag is set.
 		-- BUT, finish callbacks
 		if self._stopped then 
@@ -130,13 +197,8 @@ function IOLoop:start()
 			break
 		end
 		
-		-- Run callbacks from the self._callbacks stack
-		while self._callbacks:getn() > 0 do
-			self:_run_callback(self._callbacks:pop())
-		end
-		
 		-- Wait for I/O
-		assert(self._epoller:wait(self._events, -1))
+		assert(self._epoller:wait(self._events, poll_timeout))
 
 		-- Do not use ipairs for improved speed.
 		for i=1, #self._events, 2 do
@@ -161,6 +223,9 @@ function IOLoop:close()
 
 	self._running = false
 	self._stopped = true
+	self._events = {}
+	self._callbacks = {}
+	self._handlers = {}
 end
 
 function IOLoop:running()
