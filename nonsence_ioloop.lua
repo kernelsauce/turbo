@@ -99,7 +99,16 @@ assert(require('yacicode'),
 	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
 -------------------------------------------------------------------------
 
+-------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+--
+local xpcall, pcall, random, newclass, pairs, ipairs, os = xpcall, 
+pcall, math.random, newclass, pairs, ipairs, os
+-------------------------------------------------------------------------
+-- Globals
+-- 
 local _poll_implementation = nil
+-------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
 IOLoop = newclass('IOLoop')
@@ -163,7 +172,7 @@ end
 function IOLoop:add_timeout(timestamp, callback)
 	-- Schedule a callback to be called at given timestamp.
 	-- Timestamp is e.g os.time(now)
-	local identifer = math.random(100000000)
+	local identifer = random(100000000)
 	if not self._timeouts[identifier] then
 		self._timeouts[identifer] = _Timeout:new(timestamp, callback)
 	end
@@ -217,7 +226,7 @@ function IOLoop:start()
 		if #self._timeouts > 0 then
 			for _, timeout in ipairs(self._timeouts) do
 				if timeout:timed_out() then
-					_run_callback( timeout:return_callback() )
+					self:_run_callback( timeout:return_callback() )
 				end
 			end
 		end
