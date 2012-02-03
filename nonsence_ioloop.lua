@@ -108,7 +108,7 @@ function IOLoop:init()
 	self._events = {}
 	self._handlers = {}
 	self._timeouts = {}
-	self._callbacks = Stack:new() -- New Stack object.
+	self._callbacks = {}
 	self._callback_lock = false
 	self._running = false
 	self._stopped = false
@@ -140,11 +140,11 @@ end
 
 function IOLoop:add_callback(callback)
 	-- Calls the given callback on the next IOLoop iteration.
-	self._callbacks:push(callback)
+	self._callbacks[#self._callbacks + 1] = callback
 end
 
 function IOLoop:list_callbacks()
-	return self._callbacks:list()
+	return self._callbacks
 end
 
 function IOLoop:_run_callback(callback)
@@ -167,15 +167,23 @@ function IOLoop:start()
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
 
-		-- Run callbacks from the self._callbacks stack
-		while self._callbacks:getn() > 0 do
-			self:_run_callback(self._callbacks:pop())
+		-- Run callbacks from self._callback
+		-- But, assign it to a local and run off that so we don't
+		-- run callbacks from callbacks this iteration.
+		local callbacks = self._callbacks
+		
+		 -- Reset self._callbacks.
+		self._callbacks = {}
+		
+		-- Iterate over callbacks.
+		for _, callback in ipairs(callbacks) do
+			self:_run_callback(callback)
 		end
 		
 		-- If callback did a callback... Then set I/O loop timeout to 0
 		-- to avoid waiting to long.
-		if self._callbacks:getn() > 0 then
-			timeout = 0
+		if #self._callbacks > 0 then
+			poll_timeout = 0
 		end
 
 		-- Stop the I/Oloop if flag is set.
@@ -186,7 +194,7 @@ function IOLoop:start()
 			break
 		end
 		
-		-- Wait for I/O
+		-- Wait for I/O, get events since last iteration.
 		self._events = self._poll:poll(poll_timeout)
 
 		-- Do not use ipairs for improved speed.
