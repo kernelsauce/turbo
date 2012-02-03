@@ -150,8 +150,35 @@ end
 function IOLoop:_run_callback(callback)
 	-- Calls the given callback safe...
 	-- Should not crash anything.
-	-- TODO: add pcall/xpcall
-	callback()
+	xpcall(callback, self._callback_error_handler)
+end
+
+function IOLoop:_callback_error_handler(err)
+	-- Handles errors in _run_callback.
+	-- Verbose printing of error to console.
+	print([[_callback_error_handler caught error: ]], self)
+	return nil
+end
+
+function IOLoop:add_timeout(timestamp, callback)
+	-- Schedule a callback to be called at given timestamp.
+	-- Timestamp is e.g os.time(now)
+	local identifer = math.random(100000000)
+	if not self._timeouts[identifier] then
+		self._timeouts[identifer] = _Timeout:new(timestamp, callback)
+	end
+	return indentifer
+end
+
+function IOLoop:remove_timeout(identifier)
+	-- Remove timeout.
+	-- Use the identifier returned by add_timeout() as arg.
+	if self._timeouts[identifier] then
+		self._timeouts[identifier] = nil
+		return true
+	else
+		return false
+	end
 end
 
 function IOLoop:start()	
@@ -186,8 +213,17 @@ function IOLoop:start()
 			poll_timeout = 0
 		end
 
+		-- Check for pending timeouts that has, well, timed out.
+		if #self._timeouts > 0 then
+			for _, timeout in ipairs(self._timeouts) do
+				if timeout:timed_out() then
+					_run_callback( timeout:return_callback() )
+				end
+			end
+		end
+		
 		-- Stop the I/Oloop if flag is set.
-		-- BUT, finish callbacks
+		-- After the callbacks are now finished.
 		if self._stopped then 
 			self.running = false
 			self.stopped = false
@@ -232,9 +268,29 @@ function IOLoop:running()
 end
 -------------------------------------------------------------------------
 
+-------------------------------------------------------------------------
+_Timeout = newclass('_Timeout')
+-- Timeout class.
+-- Very simplified way of doing timeout callbacks.
+-- Lua's smallest time unit is seconds unfortunately, so this is not
+-- very accurate...
+
+function _Timeout:init(timestamp, callback)
+	self._timestamp = timestamp or error('No timestamp given to _Timeout class')
+	self._callback = callback or error('No callback given to _Timeout class')
+end
+
+function _Timeout:timed_out()
+	return ( time.now() - timestamp < 0 )
+end
+
+function _Timeout:return_callback()
+	return self._callback
+end
+-------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
-_EPoll = newclass(_EPoll)
+_EPoll = newclass('_EPoll')
 -- Epoll-based event loop using the lua-epoll module.
 
 function _EPoll:init()
