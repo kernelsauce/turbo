@@ -93,24 +93,13 @@
 --
 local log = assert(require('nonsence_log'), 
 	[[Missing nonsence_log module]])
-local Epoll = assert(require('epoll'), 
-	[[Missing required module: Lua Epoll. (https://github.com/Neopallium/lua-epoll)]])
 assert(require('stack'), 
 	[[Missing stack module]])
 assert(require('yacicode'), 
 	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
 -------------------------------------------------------------------------
 
--------------------------------------------------------------------------
---
--- Epoll module constants
---
--------------------------------------------------------------------------
-READ = Epoll.EPOLLIN
-WRITE = Epoll.EPOLLOUT
-PRI = Epoll.EPOLLPRI
-ERR = Epoll.EPOLLERR
--------------------------------------------------------------------------
+local _poll_implementation = nil
 
 -------------------------------------------------------------------------
 IOLoop = newclass('IOLoop')
@@ -123,24 +112,24 @@ function IOLoop:init()
 	self._callback_lock = false
 	self._running = false
 	self._stopped = false
-	self._epoller = Epoll.new() -- New Epoll object.
+	self._poll = _poll_implementation == 'epoll' and _EPoll:new() 
 end
 
 function IOLoop:add_handler(file_descriptor, events, handler)
 	-- Register the callback to recieve events for given file descriptor.
 	self._handlers[file_descriptor] = handler
-	return self._epoller:add(file_descriptor, events, file_descriptor)
+	self._poll:register(file_descriptor, events)
 end
 
 function IOLoop:update_handler(file_descriptor, events)
 	-- Change the event we listen for on file descriptor.
-	return self._epoller:mod(file_descriptor, events, file_descriptor)
+	self._poll:modify(file_descriptor, events)
 end
 
 function IOLoop:remove_handler(file_descriptor)
 	-- Stops listening for events on file descriptor.
 	self._handler[file_descriptor] = nil
-	return self._epoller:del(file_descriptor)
+	return self._poll:unregister(file_descriptor)
 end
 
 function IOLoop:_run_handler(file_descriptor)
@@ -198,7 +187,7 @@ function IOLoop:start()
 		end
 		
 		-- Wait for I/O
-		assert(self._epoller:wait(self._events, poll_timeout))
+		self._events = self._poll:poll(poll_timeout)
 
 		-- Do not use ipairs for improved speed.
 		for i=1, #self._events, 2 do
@@ -232,5 +221,58 @@ function IOLoop:running()
 	-- Returns true if the IOLoop is running
 	-- else it will return false.
 	return self._running
+end
+-------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------
+_EPoll = newclass(_EPoll)
+-- Epoll-based event loop using the lua-epoll module.
+
+function _EPoll:init()
+	local Epoll = require('epoll')
+
+	-- Populate global with Epoll module constants
+	READ = Epoll.EPOLLIN
+	WRITE = Epoll.EPOLLOUT
+	PRI = Epoll.EPOLLPRI
+	ERR = Epoll.EPOLLERR
+
+	-- Create a new object from EPoll module.
+	self._epoller = Epoll.new() -- New Epoll object.
+end
+
+function _EPoll:fileno()
+	return self._epoller:fileno()
+end
+
+function _EPoll:register(file_descriptor, events)
+	self._epoller:add(file_descriptor, events, file_descriptor)
+end
+
+function _EPoll:modify(file_descriptor, events)
+	self._epoller:mod(file_descriptor, events, file_descriptor)
+end
+
+function _EPoll:unregister(file_descriptor)
+	self._epoller:del(file_descriptor)
+end
+
+function _EPoll:poll(timeout)
+	local events = {}
+	self._epoller:wait(events, timeout)
+	return events
+end
+-------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------
+-- Check for usable poll modules.
+if pcall(require, 'epoll') then
+	-- Epoll module found.
+	_poll_implementation = 'epoll'
+else
+	-- No poll modules found. Break execution and give error.
+	error([[No poll modules found. Install Lua Epoll. (https://github.com/Neopallium/lua-epoll)]])
 end
 -------------------------------------------------------------------------
