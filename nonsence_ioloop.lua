@@ -46,10 +46,10 @@
 	--
 	-- Load modules
 	--
-	require('nonsence_ioloop')
+	local ioloop = require('nonsence_ioloop')
 	nixio = require('nixio')
 	
-	local exampleloop = IOLoop:new()
+	local exampleloop = ioloop.IOLoop:new()
 
 	local sock = nixio.socket('inet', 'stream')
 	local fd = sock:fileno()
@@ -79,10 +79,10 @@
 			--
 			exampleloop:add_callback(function() print "This is a callback" end)
 		end	
-		exampleloop:add_handler(fd, READ, some_handler_that_reads) -- Callback/handler passed.
+		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_reads) -- Callback/handler passed.
 	end
 
-	exampleloop:add_handler(fd, READ, some_handler_that_accepts)
+	exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
 	exampleloop:start()
 	
   ]]
@@ -144,10 +144,10 @@ function ioloop.IOLoop:remove_handler(file_descriptor)
 	return self._poll:unregister(file_descriptor)
 end
 
-function ioloop.IOLoop:_run_handler(file_descriptor)
+function ioloop.IOLoop:_run_handler(file_descriptor, events)
 	-- Stops listening for events on file descriptor.
 	local handler = self._handlers[file_descriptor]
-	handler()
+	handler(file_descriptor, events)
 end
 
 function ioloop.IOLoop:add_callback(callback)
@@ -242,7 +242,6 @@ function ioloop.IOLoop:start()
 		
 		-- Wait for I/O, get events since last iteration.
 		self._events = self._poll:poll(poll_timeout)
-
 		-- Do not use ipairs for improved speed.
 		for i=1, #self._events, 2 do
 			local file_descriptor = self._events[i]
@@ -253,7 +252,7 @@ function ioloop.IOLoop:start()
 			self._events[i+1] = nil
 			
 			-- Run the handler registered for the file descriptor.
-			self:_run_handler(file_descriptor)
+			self:_run_handler(file_descriptor, event)
 		end
 		
 	end
@@ -306,12 +305,6 @@ _EPoll = newclass('_EPoll')
 function _EPoll:init()
 	local Epoll = require('epoll')
 
-	-- Populate global with Epoll module constants
-	ioloop.READ = Epoll.EPOLLIN
-	ioloop.WRITE = Epoll.EPOLLOUT
-	ioloop.PRI = Epoll.EPOLLPRI
-	ioloop.ERR = Epoll.EPOLLERR
-
 	-- Create a new object from EPoll module.
 	self._epoller = Epoll.new() -- New Epoll object.
 end
@@ -345,6 +338,12 @@ end
 if pcall(require, 'epoll') then
 	-- Epoll module found.
 	_poll_implementation = 'epoll'
+	-- Populate global with Epoll module constants
+	local Epoll = require('epoll')
+	ioloop.READ = Epoll.EPOLLIN
+	ioloop.WRITE = Epoll.EPOLLOUT
+	ioloop.PRI = Epoll.EPOLLPRI
+	ioloop.ERROR = Epoll.EPOLLERR
 else
 	-- No poll modules found. Break execution and give error.
 	error([[No poll modules found. Install Lua Epoll. (https://github.com/Neopallium/lua-epoll)]])

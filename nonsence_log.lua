@@ -118,4 +118,12 @@ log.dump = function(stuff)
 	print(_dump(stuff))
 end
 
+log.warning = function(str)
+	print(str)
+end
+
+log.error = function(str)
+	error(str)
+end
+
 return log

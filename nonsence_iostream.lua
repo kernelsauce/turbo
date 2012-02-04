@@ -43,10 +43,17 @@ assert(require('yacicode'),
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+--
+local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
+bitand = xpcall, pcall, math.random, newclass, pairs, ipairs, os, 
+nixio.bit.bor, nixio.bit.band
+-------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
 -------------------------------------------------------------------------
 
+local dump = log.dump
 
 iostream.IOStream = newclass('IOStream')
 
@@ -78,20 +85,110 @@ function iostream.IOStream:connect(address, port, callback)
 	-- Connect to a address without blocking.
 	-- Address can be a IP or DNS domain.
 	self._connecting = true
-	self.socket:connect()
+	
+	self.socket:connect(address, port)
+	-- Set callback.
 	self._connect_callback = callback
+	self:_add_io_state(ioloop.WRITE)
+end
+
+function iostream.IOStream:_handle_read()
+
+end
+
+function iostream.IOStream:_handle_events(file_descriptor, events)
+	if not self.socket then 
+		-- Connection has been closed. Can not handle events...
+		log.warning([[_handle_events() got events for closed sockets.]])
+		return
+	end
+	
+	-- Handle different events.
+	if bitor(events, ioloop.READ) then
+		self._handle_read()
+	end
+	if not self.socket then 
+		return
+	end
+	if bitor(events, ioloop.WRITE) then
+		self._handle_write()
+	end
+	if not self.socket then 
+		return
+	end
+	if bitor(events, ioloop.ERROR) then
+		-- TODO handle callbacks.
+		local function _close_wrapper()
+			self.close(self)
+		end
+		self.io_loop:add_callback(_close_wrapper)
+		return
+	end
+	
+end
+
+function iostream.IOStream:reading()
+	return ( not not self._read_callback )
+end
+
+function iostream.IOStream:writing()
+	return ( not not self._write_buffer )
+end
+
+function iostream.IOStream:closed()
+	return ( not not self.socket )
+end
+
+function iostream.IOStream:_read_from_socket()
+	-- Reads from the socket.
+	-- Return the data chunk or nil if theres nothing to read.
+	
+	local chunk = self.socket:recv(self.read_chunk_size)
+	
+	if not chunk then 
+		self:close()
+		return nil
+	end
+	
+	return chunk
+end
+
+function iostream.IOStream:_read_to_buffer()
+	-- Read from the socket and append to the read buffer.
+	
+	local chunk = self._read_from_socket()
+	if not chunk then
+		return 0
+	end
+	self._read_buffer = self._read_buffer .. chunk
+	self._read_buffer_size = self._read_buffer:len()
+	if self._read_buffer_size >= self.max_buffer_size then
+		logging.error('Reached maximum read buffer size')
+		self:close()
+		return
+	end
+	return chunk:len()
 end
 
 function iostream.IOStream:_add_io_state(state)
-	-- Add io state to IOLoop.
-	--
-	if not self._socket then
+	-- Add IO state to IOLoop.
+
+	if not self.socket then
 		-- Connection has been closed, can not add state.
 		return
 	end
+
 	if not self._state then
-		self._state = ioloop.ERROR or state
+		self._state = bitor(ioloop.ERROR, state)
+		local function _handle_events_wrapper(file_descriptor, events)
+			self._handle_events(self, file_descriptor, events)
+		end
+		self.io_loop:add_handler(self.socket:fileno(), self._state, _handle_events_wrapper )
+	elseif not bitand(self._state, state) then
+		self._state = bitor(self._state, state)
+		self.io_loop:update_handler(self.socket:fileno(), self._state)
 	end
+	
 end
 
 -------------------------------------------------------------------------
