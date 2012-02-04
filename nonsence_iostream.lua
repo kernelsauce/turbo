@@ -68,7 +68,7 @@ function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_siz
 	self._read_buffer_size = 0
 	self._write_buffer_frozen = false
 	self._read_delimiter = nil
-	self._read_regex = nil
+	self._read_pattern = nil
 	self._read_bytes = nil
 	self._read_until_close = false
 	self._read_callback = nil
@@ -84,6 +84,7 @@ end
 function iostream.IOStream:connect(address, port, callback)
 	-- Connect to a address without blocking.
 	-- Address can be a IP or DNS domain.
+	
 	self._connecting = true
 	
 	self.socket:connect(address, port)
@@ -92,11 +93,30 @@ function iostream.IOStream:connect(address, port, callback)
 	self:_add_io_state(ioloop.WRITE)
 end
 
+function read_until_pattern(pattern, callback)
+	-- Call callback when the given pattern is read.
+	
+	assert(( not self._read_callback ), "Already reading.")
+	self._read_pattern = pattern
+	while true do
+		if self._read_from_buffer() then
+			return
+		end
+		if self._read_to_buffer() == 0 then
+			-- Buffer exhausted. Break.
+			break
+		end
+	end
+	self._add_io_state(ioloop.READ)
+end
+
 function iostream.IOStream:_handle_read()
 
 end
 
 function iostream.IOStream:_handle_events(file_descriptor, events)
+	-- Handle events
+	
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed sockets.]])
