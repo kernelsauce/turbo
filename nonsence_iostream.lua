@@ -93,7 +93,7 @@ function iostream.IOStream:connect(address, port, callback)
 	self:_add_io_state(ioloop.WRITE)
 end
 
-function read_until_pattern(pattern, callback)
+function iostream.IOStream:read_until_pattern(pattern, callback)
 	-- Call callback when the given pattern is read.
 	
 	assert(( not self._read_callback ), "Already reading.")
