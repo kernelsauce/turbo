@@ -38,7 +38,7 @@
 --
 -- Load modules
 --
-assert(require('nonsence_ioloop'), 
+local ioloop = assert(require('nonsence_ioloop'), 
 	[[Missing nonsence_ioloop module]])
 local log = assert(require('nonsence_log'), 
 	[[Missing nonsence_log module]])
@@ -46,7 +46,7 @@ local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
 -------------------------------------------------------------------------
 
-local testloop = IOLoop:new()
+local testloop = ioloop.IOLoop:new()
 
 local host = '*'
 local sock = nixio.socket('inet', 'stream')
@@ -81,8 +81,8 @@ function some_handler_that_accepts()
 		testloop:add_callback(function() print "This is another callback" end)
 
 	end	
-	testloop:add_handler(fd, READ, some_handler_that_reads) -- Callback/handler passed.
+	testloop:add_handler(fd, ioloop.READ, some_handler_that_reads) -- Callback/handler passed.
 end
 
-testloop:add_handler(fd, READ, some_handler_that_accepts)
+testloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
 testloop:start()

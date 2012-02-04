@@ -27,3 +27,74 @@
 	SOFTWARE."
 
   ]]
+  
+-------------------------------------------------------------------------
+--
+-- Load modules
+--
+local log = assert(require('nonsence_log'), 
+	[[Missing nonsence_log module]])
+local nixio = assert(require('nixio'),
+	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
+local ioloop = assert(require('nonsence_ioloop'), 
+	[[Missing nonsence_ioloop module]])
+assert(require('yacicode'), 
+[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
+-------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Table to return on require.
+local iostream = {}
+-------------------------------------------------------------------------
+
+
+iostream.IOStream = newclass('IOStream')
+
+function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
+	self.socket = assert(socket, [[Please provide a socket for IOStream:new()]])
+	self.socket:setblocking(false)
+	self.io_loop = io_loop or ioloop.IOLoop:new()
+	self.max_buffer_size = max_buffer_size or 104857600
+	self.read_chunk_size = read_chunk_size or 4096
+	self._read_buffer = {}
+	self._write_buffer = {}
+	self._read_buffer_size = 0
+	self._write_buffer_frozen = false
+	self._read_delimiter = nil
+	self._read_regex = nil
+	self._read_bytes = nil
+	self._read_until_close = false
+	self._read_callback = nil
+	self._streaming_callback = nil
+	self._write_callback = nil
+	self._close_callback = nil
+	self._connect_callback = nil
+	self._connecting = false
+	self._state = nil
+	self._pending_callbacks = 0
+end
+
+function iostream.IOStream:connect(address, port, callback)
+	-- Connect to a address without blocking.
+	-- Address can be a IP or DNS domain.
+	self._connecting = true
+	self.socket:connect()
+	self._connect_callback = callback
+end
+
+function iostream.IOStream:_add_io_state(state)
+	-- Add io state to IOLoop.
+	--
+	if not self._socket then
+		-- Connection has been closed, can not add state.
+		return
+	end
+	if not self._state then
+		self._state = ioloop.ERROR or state
+	end
+end
+
+-------------------------------------------------------------------------
+-- Return ioloop table to requires.
+return iostream
+-------------------------------------------------------------------------

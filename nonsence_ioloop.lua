@@ -31,7 +31,7 @@
 --[[
 	
 	IOLoop is a class responsible for managing I/O events through file descriptors 
-	with epoll. 
+	with epoll. Heavily influenced by ioloop.py in the Tornado web server.
 	
 	Add file descriptors with :add_handler(fd, listen_to_this, handler).
 	Handler will be called when event is triggered. Handlers can also be removed from
@@ -109,11 +109,14 @@ pcall, math.random, newclass, pairs, ipairs, os
 -- 
 local _poll_implementation = nil
 -------------------------------------------------------------------------
+-- Table to return on require.
+local ioloop = {}
+-------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
-IOLoop = newclass('IOLoop')
+ioloop.IOLoop = newclass('IOLoop')
 
-function IOLoop:init()	
+function ioloop.IOLoop:init()	
 	self._events = {}
 	self._handlers = {}
 	self._timeouts = {}
@@ -124,52 +127,52 @@ function IOLoop:init()
 	self._poll = _poll_implementation == 'epoll' and _EPoll:new() 
 end
 
-function IOLoop:add_handler(file_descriptor, events, handler)
+function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
 	-- Register the callback to recieve events for given file descriptor.
 	self._handlers[file_descriptor] = handler
 	self._poll:register(file_descriptor, events)
 end
 
-function IOLoop:update_handler(file_descriptor, events)
+function ioloop.IOLoop:update_handler(file_descriptor, events)
 	-- Change the event we listen for on file descriptor.
 	self._poll:modify(file_descriptor, events)
 end
 
-function IOLoop:remove_handler(file_descriptor)
+function ioloop.IOLoop:remove_handler(file_descriptor)
 	-- Stops listening for events on file descriptor.
 	self._handler[file_descriptor] = nil
 	return self._poll:unregister(file_descriptor)
 end
 
-function IOLoop:_run_handler(file_descriptor)
+function ioloop.IOLoop:_run_handler(file_descriptor)
 	-- Stops listening for events on file descriptor.
 	local handler = self._handlers[file_descriptor]
 	handler()
 end
 
-function IOLoop:add_callback(callback)
+function ioloop.IOLoop:add_callback(callback)
 	-- Calls the given callback on the next IOLoop iteration.
 	self._callbacks[#self._callbacks + 1] = callback
 end
 
-function IOLoop:list_callbacks()
+function ioloop.IOLoop:list_callbacks()
 	return self._callbacks
 end
 
-function IOLoop:_run_callback(callback)
+function ioloop.IOLoop:_run_callback(callback)
 	-- Calls the given callback safe...
 	-- Should not crash anything.
 	xpcall(callback, self._callback_error_handler)
 end
 
-function IOLoop:_callback_error_handler(err)
+function ioloop.IOLoop:_callback_error_handler(err)
 	-- Handles errors in _run_callback.
 	-- Verbose printing of error to console.
 	print([[_callback_error_handler caught error: ]], self)
 	return nil
 end
 
-function IOLoop:add_timeout(timestamp, callback)
+function ioloop.IOLoop:add_timeout(timestamp, callback)
 	-- Schedule a callback to be called at given timestamp.
 	-- Timestamp is e.g os.time(now)
 	local identifer = random(100000000)
@@ -179,7 +182,7 @@ function IOLoop:add_timeout(timestamp, callback)
 	return indentifer
 end
 
-function IOLoop:remove_timeout(identifier)
+function ioloop.IOLoop:remove_timeout(identifier)
 	-- Remove timeout.
 	-- Use the identifier returned by add_timeout() as arg.
 	if self._timeouts[identifier] then
@@ -190,13 +193,11 @@ function IOLoop:remove_timeout(identifier)
 	end
 end
 
-function IOLoop:start()	
+function ioloop.IOLoop:start()	
 	-- Starts the I/O loop.
 	--
 	-- The loop will run until self:stop() is called.
 	self._running = true
-	
-	local events = {}
 	
 	while true do
 		local poll_timeout = 3600
@@ -258,7 +259,7 @@ function IOLoop:start()
 	end
 end
 
-function IOLoop:close()
+function ioloop.IOLoop:close()
 	-- Close the I/O loop.
 	-- Closes the loop after this iteration is done. Any callbacks
 	-- in the stack will be run before closing.
@@ -270,7 +271,7 @@ function IOLoop:close()
 	self._handlers = {}
 end
 
-function IOLoop:running()
+function ioloop.IOLoop:running()
 	-- Returns true if the IOLoop is running
 	-- else it will return false.
 	return self._running
@@ -306,10 +307,10 @@ function _EPoll:init()
 	local Epoll = require('epoll')
 
 	-- Populate global with Epoll module constants
-	READ = Epoll.EPOLLIN
-	WRITE = Epoll.EPOLLOUT
-	PRI = Epoll.EPOLLPRI
-	ERR = Epoll.EPOLLERR
+	ioloop.READ = Epoll.EPOLLIN
+	ioloop.WRITE = Epoll.EPOLLOUT
+	ioloop.PRI = Epoll.EPOLLPRI
+	ioloop.ERR = Epoll.EPOLLERR
 
 	-- Create a new object from EPoll module.
 	self._epoller = Epoll.new() -- New Epoll object.
@@ -348,4 +349,9 @@ else
 	-- No poll modules found. Break execution and give error.
 	error([[No poll modules found. Install Lua Epoll. (https://github.com/Neopallium/lua-epoll)]])
 end
+-------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Return ioloop table to requires.
+return ioloop
 -------------------------------------------------------------------------
