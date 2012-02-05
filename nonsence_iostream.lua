@@ -46,21 +46,20 @@ assert(require('yacicode'),
 -- Speeding up globals access with locals :>
 --
 local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand = xpcall, pcall, math.random, newclass, pairs, ipairs, os, 
-nixio.bit.bor, nixio.bit.band
+bitand, dump = xpcall, pcall, math.random, newclass, pairs, ipairs, os, 
+nixio.bit.bor, nixio.bit.band, log.dump
 -------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
 -------------------------------------------------------------------------
 
-local dump = log.dump
-
 iostream.IOStream = newclass('IOStream')
 
 function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
+
 	self.socket = assert(socket, [[Please provide a socket for IOStream:new()]])
 	self.socket:setblocking(false)
-	self.io_loop = io_loop or ioloop.IOLoop:new()
+	self.io_loop = io_loop or ioloop.instance()
 	self.max_buffer_size = max_buffer_size or 104857600
 	self.read_chunk_size = read_chunk_size or 4096
 	self._read_buffer = {}
@@ -98,11 +97,13 @@ function iostream.IOStream:read_until_pattern(pattern, callback)
 	
 	assert(( not self._read_callback ), "Already reading.")
 	self._read_pattern = pattern
+	
 	while true do
-		if self._read_from_buffer() then
+		if self:_read_from_buffer() then
 			return
 		end
-		if self._read_to_buffer() == 0 then
+		self:_check_closed()
+		if self:_read_to_buffer() == 0 then
 			-- Buffer exhausted. Break.
 			break
 		end
@@ -110,8 +111,118 @@ function iostream.IOStream:read_until_pattern(pattern, callback)
 	self._add_io_state(ioloop.READ)
 end
 
-function iostream.IOStream:_handle_read()
+function iostream.IOStream:read_until(delimiter, callback)
+	-- Call callback when the given delimiter is read.
+	
+	assert(( not self._read_callback ), "Already reading.")
+	self._read_delimiter = delimiter
+	self._read_callback = callback
+	
+	while true do 
+		if self:_read_from_buffer() then
+			return
+		end
+		self:_check_closed()
+		if self:_read_to_buffer() == 0 then
+			break
+		end
+	end
+	self:_add_io_state(ioloop.READ)
+end
 
+function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
+	-- Call callback when we read the given number of bytes
+	
+	-- If a streaming_callback argument is given, it will be called with
+	-- chunks of data as they become available, and the argument to the
+	-- final call to callback will be empty.
+
+	assert(( not self._read_callback ), "Already reading.")
+	assert(type(num_bytes) == 'number', 'num_bytes argument must be a number')
+	self._read_bytes = num_bytes
+	self._read_callback = callback
+	self._streaming_callback = streaming_callback
+	
+	while true do
+		if self:_read_from_buffer() then
+			return
+		end
+		self:_check_closed()
+		if self:_read_to_buffer() == 0 then 
+			break
+		end
+	end
+	self:_add_io_state(ioloop.READ)
+end
+
+function iostream.IOStream:read_until_close(callback, streaming_callback)
+	-- Reads all data from the socket until it is closed.
+	
+	-- If a streaming_callback argument is given, it will be called with
+	-- chunks of data as they become available, and the argument to the
+	-- final call to callback will be empty.
+	
+	-- This method respects the max_buffer_size set in the IOStream object.
+	
+	assert(( not self._read_callback ), "Already reading.")
+	if self:closed() then
+		self:_run_callback(callback, self:_consume(self._read_buffer_size))
+		return
+	end
+	self._read_until_close = true
+	self._read_callback = callback
+	self._streaming_callback = streaming_callback
+	self:_add_io_state(ioloop.READ)
+end
+
+function iostream.IOStream:write(data, callback)
+	-- Write the given data to this stream.
+
+	-- If callback is given, we call it when all of the buffered write
+	-- data has been successfully written to the stream. If there was
+	-- previously buffered write data and an old write callback, that
+	-- callback is simply overwritten with this new callback.
+	
+	self:_check_closed()
+	if data then
+		self._write_buffer = self._write_buffer .. data
+	end
+	self._write_callback = callback
+	self._handle_write()
+	if self._write_buffer then
+		self:_add_io_state(ioloop.WRITE)
+	end
+	self:_maybe_add_error_listener()
+end	
+
+function iostream.IOStream:set_close_callback(callback)
+	-- Call the given callback when the stream is closed.
+	
+	self._close_callback = callback
+end
+
+function iostream.IOStream:close()
+	-- Close this stream
+	
+	if self.socket then
+		if self:_read_until_close() then
+			local callback = self._read_callback
+			self._read_callback = nil
+			self._read_until_close = false
+			self:_run_callback(callback, self:_consume(self._read_buffer_size))
+		end
+		if self._state then
+			self.io_loop:remove_handler(self.socket:fileno())
+			self._state = nil
+		end
+		self.socket:close()
+		self.socket = nil
+		if self._close_callback and self._pending_callbacks == 0 then
+			local callback = self._close_callback
+			self._close_callback = nil
+			self._run_callback(callback)
+		end
+	end
 end
 
 function iostream.IOStream:_handle_events(file_descriptor, events)
@@ -127,24 +238,55 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	if bitor(events, ioloop.READ) then
 		self._handle_read()
 	end
+	
 	if not self.socket then 
-		return
-	end
-	if bitor(events, ioloop.WRITE) then
-		self._handle_write()
-	end
-	if not self.socket then 
-		return
-	end
-	if bitor(events, ioloop.ERROR) then
-		-- TODO handle callbacks.
-		local function _close_wrapper()
-			self.close(self)
-		end
-		self.io_loop:add_callback(_close_wrapper)
 		return
 	end
 	
+	if bitor(events, ioloop.WRITE) then
+		if self._connecting then 
+			self:_handle_connect()
+		end
+		self:_handle_write()	
+	end
+	
+	if not self.socket then 
+		return
+	end
+	
+	if bitor(events, ioloop.ERROR) then
+		-- We may have queued up a user callback in _handle_read or
+		-- _handle_write, so don't close the IOStream until those
+		-- callbacks have had a chance to run.
+		
+		-- Wrap callback
+		local function _close_wrapper()
+			self.close(self)
+		end
+		
+		self.io_loop:add_callback(_close_wrapper)
+		return
+	end
+		
+	local state = ioloop.ERROR
+	
+	if self:reading() then
+		state = bitor(state, ioloop.READ)
+	end
+	if self:writing() then
+		state = bitor(state, ioloop.WRITE)
+	end
+	if state == ioloop.ERROR then
+		state = bitor(state, ioloop.READ)
+	end
+	if state ~= self._state then
+		self._state = state
+		self.io_loop:update_handler(self.socket:fileno(), self._state)
+	end
+end
+
+function iostream.IOStream:_run_callback()
+
 end
 
 function iostream.IOStream:reading()
