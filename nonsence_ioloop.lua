@@ -156,7 +156,7 @@ end
 function ioloop.IOLoop:remove_handler(file_descriptor)
 	-- Stops listening for events on file descriptor.
 	
-	self._handler[file_descriptor] = nil
+	self._handlers[file_descriptor] = nil
 	return self._poll:unregister(file_descriptor)
 end
 

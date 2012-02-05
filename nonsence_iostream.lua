@@ -40,14 +40,16 @@ local ioloop = assert(require('nonsence_ioloop'),
 	[[Missing nonsence_ioloop module]])
 assert(require('yacicode'), 
 [[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
+assert(require('deque'), 
+[[Missing required module: deque]])
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 --
 local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand, dump = xpcall, pcall, math.random, newclass, pairs, ipairs, os, 
-nixio.bit.bor, nixio.bit.band, log.dump
+bitand, dump, min, max = xpcall, pcall, math.random, newclass, pairs, ipairs, os, 
+nixio.bit.bor, nixio.bit.band, log.dump, math.min, math.max
 -------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
@@ -62,8 +64,8 @@ function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_siz
 	self.io_loop = io_loop or ioloop.instance()
 	self.max_buffer_size = max_buffer_size or 104857600
 	self.read_chunk_size = read_chunk_size or 4096
-	self._read_buffer = {}
-	self._write_buffer = {}
+	self._read_buffer = deque:new()
+	self._write_buffer = deque:new()
 	self._read_buffer_size = 0
 	self._write_buffer_frozen = false
 	self._read_delimiter = nil
@@ -205,7 +207,7 @@ function iostream.IOStream:close()
 	-- Close this stream
 	
 	if self.socket then
-		if self:_read_until_close() then
+		if self._read_until_close then
 			local callback = self._read_callback
 			self._read_callback = nil
 			self._read_until_close = false
@@ -236,7 +238,7 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	
 	-- Handle different events.
 	if bitor(events, ioloop.READ) then
-		self._handle_read()
+		self:_handle_read()
 	end
 	
 	if not self.socket then 
@@ -285,8 +287,31 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	end
 end
 
-function iostream.IOStream:_run_callback()
+function iostream.IOStream:_run_callback(callback)
+	local function wrapper()
+		self._pending_callbacks = self._pending_callbacks - 1
+		local ok, exception = pcall(callback)
+		if not ok then
+			log.error('Error in running callback: ' .. exception)
+		end
+	end
+	self:_maybe_add_error_listener()
+	self._pending_callbacks = self._pending_callbacks + 1
+	self.io_loop:add_callback(wrapper)
+end
 
+function iostream.IOStream:_handle_read()
+	while true do 
+		-- Read from socket until we get EWOULDBLOCK or equivalient.
+		local result = self:_read_to_buffer()
+		if result == 0 then
+			break
+		else
+			if self:_read_from_buffer() then
+				return
+			end
+		end
+	end
 end
 
 function iostream.IOStream:reading()
@@ -318,18 +343,90 @@ end
 function iostream.IOStream:_read_to_buffer()
 	-- Read from the socket and append to the read buffer.
 	
-	local chunk = self._read_from_socket()
+	local chunk = self:_read_from_socket()
 	if not chunk then
 		return 0
 	end
-	self._read_buffer = self._read_buffer .. chunk
-	self._read_buffer_size = self._read_buffer:len()
+	self._read_buffer:append(chunk)
+	self._read_buffer_size = self._read_buffer_size + chunk:len()
 	if self._read_buffer_size >= self.max_buffer_size then
 		logging.error('Reached maximum read buffer size')
 		self:close()
 		return
 	end
 	return chunk:len()
+end
+
+function iostream.IOStream:_read_from_buffer()
+	-- Attempts to complete the currently pending read from the buffer.
+	-- Returns true if the read was completed.
+	
+	if self._read_bytes then
+		if self._streaming_callback ~= nil and self._read_buffer_size then
+			local bytes_to_consume = min(self._ready_bytes, self._read_buffer_size)
+			self._read_bytes = self._read_bytes - bytes_to_consume
+			self._run_callback(self._streaming_callback, 
+				self:_consume(bytes_to_consume))
+		end
+		if self._read_buffer_size >= self._ready_bytes then
+			local num_bytes = self._read_bytes
+			local callback = self._read_callback
+			self._read_callback = nil
+			self._streaming_callback = nil
+			self._read_bytes = nil
+			self:_run_callback(callback, self:_consume(num_bytes))
+			return true
+		end
+		
+	elseif self._read_delimiter then
+		-- TODO: Does this work?!
+		local loc = -1
+		if self._read_buffer then
+			loc = self._read_buffer:getn(0).find(self._read_delimiter)
+		end
+		while loc == -1 and self._read_buffer:len() > 1 do
+			local new_len = max(self._read_buffer:getn(0):len() * 2,
+				self._read_buffer:getn(0):len() +
+				self._read_buffer:getn(1):len())
+			_merge_prefix(self._read_buffer:getn(0):find(self._read_delimiter))
+			if loc ~= -1 then
+				local callback = self._read_callback
+				local delimiter_len = self._read_delimiter:len()
+				self._read_callback = nil
+				self._streaming_callback = nil
+				self._read_delimiter = nil
+				self:_run_callback(callback, self:_consume(loc + delimiter_len))
+				return true
+			end
+		end
+	
+	-- TODO: implement read_until_pattern
+	
+	elseif self._read_until_close then
+			if self._streaming_callback ~= nil and self._read_buffer_size then
+				self:_run_callback(self._streaming_callback, 
+					self:_consume(self._read_buffer_size))
+			end
+	end
+	
+	return false
+end
+
+function iostream.IOStream:_handle_connect()
+	local err = self.socket:getopt('socket', 'error')
+	if err then 
+		log.warning(string.format("Connect error on fd %d: %s", 
+			self.socket:fileno(), err ))
+		self:close()
+		return
+	end
+	if self._connect_callback then
+		local callback = self._connect_callback
+		log.warning('Callback running about to happen')
+		self._connect_callback  = nil
+		self:_run_callback(callback)
+	end
+	self._connecting = false
 end
 
 function iostream.IOStream:_add_io_state(state)

@@ -43,8 +43,19 @@ local ioloop = assert(require('nonsence_ioloop'),
 -------------------------------------------------------------------------
 
 local socket = nixio.socket('inet', 'stream')
-local loop = ioloop.IOLoop:new()
+local loop = ioloop.instance()
 local stream = iostream.IOStream:new(socket, loop)
-stream:connect('vg.no', 80)
+
+function on_headers()
+	print('Step3')
+end
+
+function send_request()
+	print('Step 1')
+	stream:write("GET / HTTP/1.0\r\nHost: vg.no\r\n\r\n")
+	stream:read_until("\r\n\r\n", on_headers)
+end
+
+stream:connect('vg.no', 80, send_request)
 
 loop:start()
