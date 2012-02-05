@@ -113,10 +113,23 @@ local _poll_implementation = nil
 local ioloop = {}
 -------------------------------------------------------------------------
 
+function ioloop.instance()
+	-- Return a global instance of IOLoop.
+	-- Creates one if not existing, otherwise returning the old one.
+	
+	if _G.io_loop_instance then
+		return _G.io_loop_instance
+	else
+		_G.io_loop_instance = ioloop.IOLoop:new()
+		return _G.io_loop_instance
+	end
+end
+
 -------------------------------------------------------------------------
 ioloop.IOLoop = newclass('IOLoop')
 
 function ioloop.IOLoop:init()	
+
 	self._events = {}
 	self._handlers = {}
 	self._timeouts = {}
@@ -129,29 +142,34 @@ end
 
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
 	-- Register the callback to recieve events for given file descriptor.
+	
 	self._handlers[file_descriptor] = handler
 	self._poll:register(file_descriptor, events)
 end
 
 function ioloop.IOLoop:update_handler(file_descriptor, events)
 	-- Change the event we listen for on file descriptor.
+	
 	self._poll:modify(file_descriptor, events)
 end
 
 function ioloop.IOLoop:remove_handler(file_descriptor)
 	-- Stops listening for events on file descriptor.
+	
 	self._handler[file_descriptor] = nil
 	return self._poll:unregister(file_descriptor)
 end
 
 function ioloop.IOLoop:_run_handler(file_descriptor, events)
 	-- Stops listening for events on file descriptor.
+	
 	local handler = self._handlers[file_descriptor]
 	handler(file_descriptor, events)
 end
 
 function ioloop.IOLoop:add_callback(callback)
 	-- Calls the given callback on the next IOLoop iteration.
+	
 	self._callbacks[#self._callbacks + 1] = callback
 end
 
@@ -162,19 +180,22 @@ end
 function ioloop.IOLoop:_run_callback(callback)
 	-- Calls the given callback safe...
 	-- Should not crash anything.
+	
 	xpcall(callback, self._callback_error_handler)
 end
 
 function ioloop.IOLoop:_callback_error_handler(err)
 	-- Handles errors in _run_callback.
 	-- Verbose printing of error to console.
-	print([[_callback_error_handler caught error: ]], self)
+	
+	log.warning([[_callback_error_handler caught error: ]], self)
 	return nil
 end
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
 	-- Schedule a callback to be called at given timestamp.
 	-- Timestamp is e.g os.time(now)
+	
 	local identifer = random(100000000)
 	if not self._timeouts[identifier] then
 		self._timeouts[identifer] = _Timeout:new(timestamp, callback)
@@ -185,6 +206,7 @@ end
 function ioloop.IOLoop:remove_timeout(identifier)
 	-- Remove timeout.
 	-- Use the identifier returned by add_timeout() as arg.
+	
 	if self._timeouts[identifier] then
 		self._timeouts[identifier] = nil
 		return true
@@ -197,6 +219,7 @@ function ioloop.IOLoop:start()
 	-- Starts the I/O loop.
 	--
 	-- The loop will run until self:stop() is called.
+	
 	self._running = true
 	
 	while true do
