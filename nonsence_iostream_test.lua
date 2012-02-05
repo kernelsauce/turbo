@@ -45,7 +45,6 @@ local ioloop = assert(require('nonsence_ioloop'),
 local socket = nixio.socket('inet', 'stream')
 local loop = ioloop.IOLoop:new()
 local stream = iostream.IOStream:new(socket, loop)
-
 stream:connect('vg.no', 80)
 
 loop:start()

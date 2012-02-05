@@ -46,7 +46,7 @@ local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
 -------------------------------------------------------------------------
 
-local testloop = ioloop.IOLoop:new()
+local testloop = ioloop.instance()
 
 local host = '*'
 local sock = nixio.socket('inet', 'stream')
