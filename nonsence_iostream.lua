@@ -110,7 +110,7 @@ function iostream.IOStream:read_until_pattern(pattern, callback)
 			break
 		end
 	end
-	self._add_io_state(ioloop.READ)
+	self:_add_io_state(ioloop.READ)
 end
 
 function iostream.IOStream:read_until(delimiter, callback)
@@ -235,17 +235,16 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 		log.warning([[_handle_events() got events for closed sockets.]])
 		return
 	end
-	
 	-- Handle different events.
-	if bitor(events, ioloop.READ) then
+	if events == ioloop.READ then
 		self:_handle_read()
 	end
 	
 	if not self.socket then 
 		return
 	end
-	
-	if bitor(events, ioloop.WRITE) then
+
+	if events == ioloop.WRITE then
 		if self._connecting then 
 			self:_handle_connect()
 		end
@@ -255,8 +254,8 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	if not self.socket then 
 		return
 	end
-	
-	if bitor(events, ioloop.ERROR) then
+
+	if events == ioloop.ERROR then
 		-- We may have queued up a user callback in _handle_read or
 		-- _handle_write, so don't close the IOStream until those
 		-- callbacks have had a chance to run.
@@ -301,7 +300,9 @@ function iostream.IOStream:_run_callback(callback)
 end
 
 function iostream.IOStream:_handle_read()
+
 	while true do 
+	
 		-- Read from socket until we get EWOULDBLOCK or equivalient.
 		local result = self:_read_to_buffer()
 		if result == 0 then
@@ -413,8 +414,9 @@ function iostream.IOStream:_read_from_buffer()
 end
 
 function iostream.IOStream:_handle_connect()
+
 	local err = self.socket:getopt('socket', 'error')
-	if err then 
+	if not err == 0 then 
 		log.warning(string.format("Connect error on fd %d: %s", 
 			self.socket:fileno(), err ))
 		self:close()
@@ -422,11 +424,36 @@ function iostream.IOStream:_handle_connect()
 	end
 	if self._connect_callback then
 		local callback = self._connect_callback
-		log.warning('Callback running about to happen')
 		self._connect_callback  = nil
 		self:_run_callback(callback)
 	end
 	self._connecting = false
+end
+
+function iostream.IOStream:_handle_write()
+
+	while self._write_buffer:not_empty() do
+		if not self._write_buffer_frozen then
+			_merge_prefix(self._write_buffer, 128 * 1024)
+		end
+		
+		local num_bytes = self.socket:send(self._write_buffer:peekfirst())
+
+		if num_bytes == 0 then
+			self._write_buffer_frozen = true
+			break
+		end
+		
+		self._write_buffer_frozen = false
+		_merge_prefix(self._write_buffer, num_bytes)
+		self._write_buffer:popleft()
+	end
+	
+	if self._write_buffer:size() == 0 and self._write_buffer then
+		local callback = self._write_callback
+		self._write_callback = nil
+		self:_run_callback(callback)
+	end
 end
 
 function iostream.IOStream:_add_io_state(state)
@@ -448,6 +475,63 @@ function iostream.IOStream:_add_io_state(state)
 		self.io_loop:update_handler(self.socket:fileno(), self._state)
 	end
 	
+end
+
+function iostream.IOStream:_consume(loc)
+	if loc == 0 then
+		return ""
+	end
+	_merge_prefix(self._read_buffer, lock)
+	self._read_buffer_size = self._read_buffer_size - loc
+	return self._read_buffer:popleft()
+end
+
+function iostream.IOStream:_check_closed()
+	if not self.socket then
+		log.error("Stream is closed")
+	end
+end
+
+function iostream.IOStream:_maybe_add_error_listener()
+	if self._state == nil and self._pending_callbacks == 0 then
+		if self.socket == nil then
+			local callback = self._close_callback
+				if callback ~= nil then
+					self._close_callback = nil
+					self._run_callback(callback)
+				end
+		else
+			self._add_io_state(ioloop.READ)
+		end
+	end
+end
+
+function _merge_prefix(deque, size)
+	-- Replace the first entries in a deque of strings with a
+	-- single string of up to size bytes.
+	
+	if deque:size() == 1 and deque:peekfirst():len() <= size then
+		return
+	end
+	local prefix = {}
+	local remaining = size
+	
+	while deque:size() > 0 and remaining > 0 do
+		local chunk = deque:popleft()
+		if chunk:len() > remaining then
+			deque:appendleft(chunk:sub(1, remaining))
+			chunk = chunk(remaining, chunk:len())
+		end
+		prefix[#prefix + 1] = chunk
+		remaining = remaining - chunk:len()
+	end
+	
+	if #prefix > 0 then
+		deque:appendleft(concat(prefix))
+	end
+	if deque:size() == 0 then
+		deque:appendleft("")
+	end
 end
 
 -------------------------------------------------------------------------

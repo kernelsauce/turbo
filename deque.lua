@@ -53,14 +53,14 @@ function deque:appendleft(item)
 	insert(self._virtual_queue, 1, item)
 end
 
-function deque:pop(item)
+function deque:pop()
 	local len = #self._virtual_queue
 	local pop = self._virtual_queue[len]
 	remove(self._virtual_queue, len)
 	return pop
 end
 
-function deque:popleft(item)
+function deque:popleft()
 	local pop = self._virtual_queue[1]
 	remove(self._virtual_queue, 1)
 	return pop
@@ -85,6 +85,10 @@ end
 
 function deque:size()
 	return #self._virtual_queue
+end
+
+function deque:not_empty()
+	return #self._virtual_queue == 0 and true or false
 end
 
 --local test = deque:new()

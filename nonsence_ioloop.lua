@@ -162,9 +162,11 @@ end
 
 function ioloop.IOLoop:_run_handler(file_descriptor, events)
 	-- Stops listening for events on file descriptor.
-	
 	local handler = self._handlers[file_descriptor]
 	handler(file_descriptor, events)
+	io.write('Called ' )
+	print(handler)
+	print('     for ' .. file_descriptor .. ' with event: ' .. events)
 end
 
 function ioloop.IOLoop:add_callback(callback)
