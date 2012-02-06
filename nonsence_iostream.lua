@@ -189,11 +189,12 @@ function iostream.IOStream:write(data, callback)
 	
 	self:_check_closed()
 	if data then
-		self._write_buffer = self._write_buffer .. data
+		self._write_buffer:append(data)
 	end
 	self._write_callback = callback
 	self._handle_write()
-	if self._write_buffer then
+	
+	if self._write_buffer:not_empty() then
 		self:_add_io_state(ioloop.WRITE)
 	end
 	self:_maybe_add_error_listener()
@@ -423,7 +424,6 @@ function iostream.IOStream:_handle_connect()
 	end
 	if self._connect_callback then
 		local callback = self._connect_callback
-		print(self._connect_callback)
 		self._connect_callback  = nil
 		self:_run_callback(callback)
 	end
@@ -431,7 +431,7 @@ function iostream.IOStream:_handle_connect()
 end
 
 function iostream.IOStream:_handle_write()
-	
+
 	while self._write_buffer:not_empty() do
 
 		if not self._write_buffer_frozen then
@@ -444,12 +444,11 @@ function iostream.IOStream:_handle_write()
 			self._write_buffer_frozen = true
 			break
 		end
-		
 		self._write_buffer_frozen = false
 		_merge_prefix(self._write_buffer, num_bytes)
 		self._write_buffer:popleft()
 	end
-	
+
 	if self._write_buffer:not_empty() == false and self._write_callback then
 		local callback = self._write_callback
 		self._write_callback = nil
@@ -508,7 +507,6 @@ function iostream.IOStream:_maybe_add_error_listener()
 end
 
 function _merge_prefix(deque, size)
-	error('merge')
 	-- Replace the first entries in a deque of strings with a
 	-- single string of up to size bytes.
 	

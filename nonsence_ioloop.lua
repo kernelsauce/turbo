@@ -190,7 +190,7 @@ function ioloop.IOLoop:_callback_error_handler(err)
 	-- Handles errors in _run_callback.
 	-- Verbose printing of error to console.
 	
-	log.warning([[_callback_error_handler caught error: ]], self)
+	log.warning([[_callback_error_handler caught error: ]] .. err)
 	return nil
 end
 
@@ -225,7 +225,7 @@ function ioloop.IOLoop:start()
 	self._running = true
 	
 	while true do
-		print("\r\nStarted new I/O loop iteration.")
+		log.warning("\r\nStarted new I/O loop iteration.")
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
