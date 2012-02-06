@@ -481,7 +481,7 @@ function iostream.IOStream:_consume(loc)
 	if loc == 0 then
 		return ""
 	end
-	_merge_prefix(self._read_buffer, lock)
+	_merge_prefix(self._read_buffer, loc)
 	self._read_buffer_size = self._read_buffer_size - loc
 	return self._read_buffer:popleft()
 end
