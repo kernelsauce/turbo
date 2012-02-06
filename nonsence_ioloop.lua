@@ -225,6 +225,7 @@ function ioloop.IOLoop:start()
 	self._running = true
 	
 	while true do
+		print("\r\nStarted new I/O loop iteration.")
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)

@@ -88,7 +88,7 @@ function deque:size()
 end
 
 function deque:not_empty()
-	return #self._virtual_queue == 0 and true or false
+	return #self._virtual_queue > 0 and true or false
 end
 
 --local test = deque:new()

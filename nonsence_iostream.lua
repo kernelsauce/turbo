@@ -48,8 +48,10 @@ assert(require('deque'),
 -- Speeding up globals access with locals :>
 --
 local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand, dump, min, max = xpcall, pcall, math.random, newclass, pairs, ipairs, os, 
-nixio.bit.bor, nixio.bit.band, log.dump, math.min, math.max
+bitand, dump, min, max, newclass, assert, deque, concat = xpcall, 
+pcall, math.random, newclass, pairs, ipairs, os, nixio.bit.bor, 
+nixio.bit.band, log.dump, math.min, math.max, newclass, assert, deque
+, table.concat
 -------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
@@ -229,7 +231,7 @@ end
 
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Handle events
-	
+
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed sockets.]])
@@ -272,13 +274,13 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	local state = ioloop.ERROR
 	
 	if self:reading() then
-		state = bitor(state, ioloop.READ)
+		state = ioloop.READ
 	end
 	if self:writing() then
-		state = bitor(state, ioloop.WRITE)
+		state = ioloop.WRITE
 	end
 	if state == ioloop.ERROR then
-		state = bitor(state, ioloop.READ)
+		state = ioloop.READ
 	end
 	if state ~= self._state then
 		self._state = state
@@ -286,13 +288,10 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	end
 end
 
-function iostream.IOStream:_run_callback(callback)
-	local function wrapper()
+function iostream.IOStream:_run_callback(callback, ...)
+	local function wrapper(...)
 		self._pending_callbacks = self._pending_callbacks - 1
-		local ok, exception = pcall(callback)
-		if not ok then
-			log.error('Error in running callback: ' .. exception)
-		end
+		callback(...)
 	end
 	self:_maybe_add_error_listener()
 	self._pending_callbacks = self._pending_callbacks + 1
@@ -366,7 +365,7 @@ function iostream.IOStream:_read_from_buffer()
 		if self._streaming_callback ~= nil and self._read_buffer_size then
 			local bytes_to_consume = min(self._ready_bytes, self._read_buffer_size)
 			self._read_bytes = self._read_bytes - bytes_to_consume
-			self._run_callback(self._streaming_callback, 
+			self:_run_callback(self._streaming_callback, 
 				self:_consume(bytes_to_consume))
 		end
 		if self._read_buffer_size >= self._ready_bytes then
@@ -424,6 +423,7 @@ function iostream.IOStream:_handle_connect()
 	end
 	if self._connect_callback then
 		local callback = self._connect_callback
+		print(self._connect_callback)
 		self._connect_callback  = nil
 		self:_run_callback(callback)
 	end
@@ -431,14 +431,15 @@ function iostream.IOStream:_handle_connect()
 end
 
 function iostream.IOStream:_handle_write()
-
+	
 	while self._write_buffer:not_empty() do
+
 		if not self._write_buffer_frozen then
 			_merge_prefix(self._write_buffer, 128 * 1024)
 		end
 		
 		local num_bytes = self.socket:send(self._write_buffer:peekfirst())
-
+		
 		if num_bytes == 0 then
 			self._write_buffer_frozen = true
 			break
@@ -449,7 +450,7 @@ function iostream.IOStream:_handle_write()
 		self._write_buffer:popleft()
 	end
 	
-	if self._write_buffer:size() == 0 and self._write_buffer then
+	if self._write_buffer:not_empty() == false and self._write_callback then
 		local callback = self._write_callback
 		self._write_callback = nil
 		self:_run_callback(callback)
@@ -465,13 +466,13 @@ function iostream.IOStream:_add_io_state(state)
 	end
 
 	if not self._state then
-		self._state = bitor(ioloop.ERROR, state)
+		self._state = state or ioloop.ERROR
 		local function _handle_events_wrapper(file_descriptor, events)
-			self._handle_events(self, file_descriptor, events)
+			self:_handle_events(file_descriptor, events)
 		end
 		self.io_loop:add_handler(self.socket:fileno(), self._state, _handle_events_wrapper )
-	elseif not bitand(self._state, state) then
-		self._state = bitor(self._state, state)
+	elseif not self._state and state then
+		self._state = state or self._state
 		self.io_loop:update_handler(self.socket:fileno(), self._state)
 	end
 	
@@ -507,6 +508,7 @@ function iostream.IOStream:_maybe_add_error_listener()
 end
 
 function _merge_prefix(deque, size)
+	error('merge')
 	-- Replace the first entries in a deque of strings with a
 	-- single string of up to size bytes.
 	

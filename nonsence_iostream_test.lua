@@ -52,10 +52,12 @@ end
 
 function send_request()
 	print('Step 1')
+	error('Step 1')
 	stream:write("GET / HTTP/1.0\r\nHost: vg.no\r\n\r\n")
 	stream:read_until("\r\n\r\n", on_headers)
 end
 
-stream:connect('http://db.no', 80, send_request)
+print(send_request)
+stream:connect('normandie', 80, send_request)
 
 loop:start()

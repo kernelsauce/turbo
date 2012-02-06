@@ -77,8 +77,11 @@ function some_handler_that_accepts()
 		--
 		-- Test callbacks.
 		--
-		testloop:add_callback(function() print "This is a callback"  end)
-		testloop:add_callback(function() print "This is another callback" end)
+		testloop:add_callback(function() 
+			print "This is a callback"  
+			testloop:add_callback(function() print "This is a callback in a callback" end)
+		end)
+		
 
 	end	
 	testloop:add_handler(fd, ioloop.READ, some_handler_that_reads) -- Callback/handler passed.
