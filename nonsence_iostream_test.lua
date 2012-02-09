@@ -47,14 +47,14 @@ local loop = ioloop.instance()
 local stream = iostream.IOStream:new(socket)
 
 function on_headers()
-	print('Step3')
 	stream:close()
 end
 
 function send_request()
-	stream:write("GET / HTTP/1.0\r\nHost: vg.no\r\n\r\n", on_headers)
+	stream:write("GET / HTTP/1.0\r\nHost: friendfeed.com\r\n\r\n")
+	stream:read_until("\r\n\r\n", on_headers)
 end
 
-stream:connect('normandie', 80, send_request)
+stream:connect("friendfeed.com", 80, send_request)
 
 loop:start()

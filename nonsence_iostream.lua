@@ -117,11 +117,11 @@ end
 
 function iostream.IOStream:read_until(delimiter, callback)
 	-- Call callback when the given delimiter is read.
-	
+
 	assert(( not self._read_callback ), "Already reading.")
 	self._read_delimiter = delimiter
 	self._read_callback = callback
-	
+
 	while true do 
 		if self:_read_from_buffer() then
 			return
@@ -131,6 +131,7 @@ function iostream.IOStream:read_until(delimiter, callback)
 			break
 		end
 	end
+	print('add new handler')
 	self:_add_io_state(ioloop.READ)
 end
 
@@ -192,7 +193,7 @@ function iostream.IOStream:write(data, callback)
 		self._write_buffer:append(data)
 	end
 	self._write_callback = callback
-	self._handle_write()
+	self:_handle_write()
 	
 	if self._write_buffer:not_empty() then
 		self:_add_io_state(ioloop.WRITE)
@@ -232,7 +233,7 @@ end
 
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Handle events
-
+	print('got event: ' .. events)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed sockets.]])
@@ -331,12 +332,13 @@ function iostream.IOStream:_read_from_socket()
 	-- Reads from the socket.
 	-- Return the data chunk or nil if theres nothing to read.
 	
-	local chunk = self.socket:recv(self.read_chunk_size)
-	
-	if not chunk then 
-		self:close()
-		return nil
-	end
+	local chunk = self.socket:read(self.read_chunk_size)
+	-- TODO: Fix this...
+	-- Returns false when theres nothing to read... Should be 0
+	--	if not chunk then 
+	--		self:close()
+	--		return nil
+	--	end
 	
 	return chunk
 end
@@ -361,7 +363,7 @@ end
 function iostream.IOStream:_read_from_buffer()
 	-- Attempts to complete the currently pending read from the buffer.
 	-- Returns true if the read was completed.
-	
+	print('Reading from _read_buffer')
 	if self._read_bytes then
 		if self._streaming_callback ~= nil and self._read_buffer_size then
 			local bytes_to_consume = min(self._ready_bytes, self._read_buffer_size)
@@ -380,16 +382,19 @@ function iostream.IOStream:_read_from_buffer()
 		end
 		
 	elseif self._read_delimiter then
-		-- TODO: Does this work?!
+		-- TODO, this does not work at all...
 		local loc = -1
-		if self._read_buffer then
-			loc = self._read_buffer:getn(0).find(self._read_delimiter)
+		if self._read_buffer:not_empty() then
+			loc = self._read_buffer:peekfirst():find(self._read_delimiter)
 		end
-		while loc == -1 and self._read_buffer:len() > 1 do
+		print(string.find(self._read_buffer:peekfirst(), self._read_delimiter))
+		print('loc is: ' .. loc)
+		while loc == -1 and self._read_buffer:size() > 1 do
 			local new_len = max(self._read_buffer:getn(0):len() * 2,
 				self._read_buffer:getn(0):len() +
 				self._read_buffer:getn(1):len())
 			_merge_prefix(self._read_buffer:getn(0):find(self._read_delimiter))
+						
 			if loc ~= -1 then
 				local callback = self._read_callback
 				local delimiter_len = self._read_delimiter:len()
@@ -458,19 +463,18 @@ end
 
 function iostream.IOStream:_add_io_state(state)
 	-- Add IO state to IOLoop.
-
 	if not self.socket then
 		-- Connection has been closed, can not add state.
 		return
 	end
-
+	
 	if not self._state then
 		self._state = state or ioloop.ERROR
 		local function _handle_events_wrapper(file_descriptor, events)
 			self:_handle_events(file_descriptor, events)
 		end
 		self.io_loop:add_handler(self.socket:fileno(), self._state, _handle_events_wrapper )
-	elseif not self._state and state then
+	elseif self._state and state then
 		self._state = state or self._state
 		self.io_loop:update_handler(self.socket:fileno(), self._state)
 	end

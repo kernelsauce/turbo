@@ -183,7 +183,9 @@ function ioloop.IOLoop:_run_callback(callback)
 	-- Calls the given callback safe...
 	-- Should not crash anything.
 	
-	xpcall(callback, self._callback_error_handler)
+	callback()
+	-- TODO: uncomment when we dont want error on faulty callbacks.
+	-- xpcall(callback, self._callback_error_handler)
 end
 
 function ioloop.IOLoop:_callback_error_handler(err)
@@ -226,6 +228,7 @@ function ioloop.IOLoop:start()
 	
 	while true do
 		log.warning("\r\nStarted new I/O loop iteration.")
+		io.read() -- Single iteration debug.
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
