@@ -91,9 +91,27 @@ function deque:not_empty()
 	return #self._virtual_queue > 0 and true or false
 end
 
-local test = deque:new()
-test:append('Left side..')
-test:appendleft('New left side...')
-print(test:peekfirst())
-print(test:getn(0))
+--dequetest = deque:new()
+--dequetest:append('lille august')
+--print(dequetest:not_empty())
+--print(dequetest:popleft())
+--print(dequetest:popleft())
+--print(dequetest:not_empty())
 
+--dequetest:append('august ja, ')
+--dequetest:appendleft('er en flott liten kar')
+--print(dequetest:not_empty())
+--print(dequetest:peekfirst())
+--print(dequetest:pop())
+--print(dequetest:pop())
+
+--i = 0
+--while i < 10000 do
+	--dequetest:append('august ja, ')
+	--i = i + 1
+--end
+
+--while dequetest:pop() ~= nil do
+	---- lol
+--end
+--print(dequetest:size())

@@ -103,7 +103,11 @@ log.dump = function(stuff)
 end
 
 log.warning = function(str)
-	print(str)
+	print('Warning: ' .. str)
+end
+
+log.notice = function(str)
+	print('Notice: ' .. str)
 end
 
 log.error = function(str)

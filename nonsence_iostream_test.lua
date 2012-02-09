@@ -42,11 +42,13 @@ local ioloop = assert(require('nonsence_ioloop'),
 	[[Missing nonsence_ioloop module]])
 -------------------------------------------------------------------------
 
+log.dump(ioloop)
 local socket = nixio.socket('inet', 'stream')
 local loop = ioloop.instance()
 local stream = iostream.IOStream:new(socket)
 
 function on_headers()
+	print('closing socket....')
 	stream:close()
 end
 
