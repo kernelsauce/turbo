@@ -299,11 +299,11 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 end
 
 function iostream.IOStream:_run_callback(callback, ...)
-
+	local _callback_arguments = ...
 	log.notice('run_callback called')
-	local function wrapper(...)
+	local function wrapper()
 		self._pending_callbacks = self._pending_callbacks - 1
-		callback(...)
+		callback(_callback_arguments)
 	end
 	self:_maybe_add_error_listener()
 	self._pending_callbacks = self._pending_callbacks + 1
