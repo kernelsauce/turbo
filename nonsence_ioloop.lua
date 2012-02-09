@@ -93,8 +93,6 @@
 --
 local log = assert(require('nonsence_log'), 
 	[[Missing nonsence_log module]])
-assert(require('stack'), 
-	[[Missing stack module]])
 assert(require('yacicode'), 
 	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
 -------------------------------------------------------------------------
