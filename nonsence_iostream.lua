@@ -179,6 +179,7 @@ function iostream.IOStream:read_until(delimiter, callback)
 	self._read_callback = callback
 
 	while true do 
+		-- See if we already got the data from a previous read.
 		if self:_read_from_buffer() then
 			return
 		end
@@ -243,6 +244,8 @@ function iostream.IOStream:write(data, callback)
 	-- previously buffered write data and an old write callback, that
 	-- callback is simply overwritten with this new callback.
 	
+	assert((type(data) == 'string'), 
+		[[data argument to write() is not a string]])
 	self:_check_closed()
 	if data then
 		self._write_buffer:append(data)
@@ -270,7 +273,8 @@ function iostream.IOStream:close()
 			local callback = self._read_callback
 			self._read_callback = nil
 			self._read_until_close = false
-			self:_run_callback(callback, self:_consume(self._read_buffer_size))
+			self:_run_callback(callback, 
+				self:_consume(self._read_buffer_size))
 		end
 		if self._state then
 			self.io_loop:remove_handler(self.socket:fileno())
@@ -292,11 +296,12 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
-		log.warning([[_handle_events() got events for closed sockets.]])
+		log.warning([[_handle_events() got events for closed stream ]] ..
+			file_descriptor)
 		return
 	end
 	-- Handle different events.
-	if events == ioloop.READ then
+	if bitand(events, ioloop.READ) ~= 0 then
 		self:_handle_read()
 	end
 	
@@ -304,7 +309,7 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 		return
 	end
 
-	if events == ioloop.WRITE then
+	if bitand(events, ioloop.WRITE) ~= 0 then
 		if self._connecting then 
 			self:_handle_connect()
 		end
@@ -315,7 +320,7 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 		return
 	end
 
-	if events == ioloop.ERROR then
+	if bitand(events, ioloop.ERROR) ~= 0 then
 		-- We may have queued up a user callback in _handle_read or
 		-- _handle_write, so don't close the IOStream until those
 		-- callbacks have had a chance to run.
@@ -332,15 +337,16 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	local state = ioloop.ERROR
 	
 	if self:reading() then
-		state = ioloop.READ
+		state = bitor(state, ioloop.READ)
 	end
 	if self:writing() then
-		state = ioloop.WRITE
+		state = bitor(state, ioloop.WRITE)
 	end
 	if state == ioloop.ERROR then
-		state = ioloop.READ
+		state = bitor(state, ioloop.READ)
 	end
 	if state ~= self._state then
+		assert(self._state, [[_handle_events without self._state]])
 		self._state = state
 		self.io_loop:update_handler(self.socket:fileno(), self._state)
 	end
@@ -401,7 +407,7 @@ function iostream.IOStream:_read_from_socket()
 		return nil
 	end
 	log.dump(chunk, 'chunk')
-	io.read()
+	--io.read()
 	return chunk
 end
 
