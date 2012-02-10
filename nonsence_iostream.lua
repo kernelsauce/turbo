@@ -401,17 +401,15 @@ function iostream.IOStream:_read_from_buffer()
 		
 		if self._read_buffer:not_empty() then
 			loc = find(self._read_buffer:peekfirst(), self._read_delimiter)
-			log.notice('loc in _read_from_buffer is: ' .. loc)
 		end
 		log.notice('loc is now: ' .. loc)
 		log.notice('self._read_buffer size is: ' .. self._read_buffer:size())
 		while loc == -1 and self._read_buffer:size() > 1 do
-			log.notice('loc is now: ' .. loc)
 			local new_len = max(self._read_buffer:getn(0):len() * 2,
 				(self._read_buffer:getn(0):len() +
 				self._read_buffer:getn(1):len()))
-			_merge_prefix(self._read_buffer:getn(0):find(self._read_delimiter))
-			loc = self._read_buffer:peekleft():find(self._read_delimiter)
+			_merge_prefix(self._read_buffer:peekfirst():find(self._read_delimiter))
+			loc = self._read_buffer:peekfirst():find(self._read_delimiter)
 		end
 		if loc ~= -1 then
 			local callback = self._read_callback
@@ -559,7 +557,7 @@ function _merge_prefix(deque, size)
 	end
 	
 	if #prefix > 0 then
-		deque:appendleft(concat(prefix))
+		deque:append(concat(prefix))
 	end
 	if deque:size() == 0 then
 		deque:appendleft("")

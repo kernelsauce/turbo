@@ -107,7 +107,7 @@ log.warning = function(str)
 end
 
 log.notice = function(str)
-	print('Notice: ' .. str)
+	--print('Notice: ' .. str)
 end
 
 log.error = function(str)
