@@ -606,9 +606,9 @@ end
 
 iostream.SSLIOStream = newclass('SSLIOStream', iostream.IOStream)
 --[[
-		SSL wrapper class for IOStream.
+	SSL wrapper class for IOStream.
 		
-		Inherits everything from IOStream class, and should be transparent.
+	Inherits everything from IOStream class, and should be transparent.
   ]]
 
 function iostream.SSLIOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
