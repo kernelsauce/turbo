@@ -43,47 +43,47 @@
 	
 	Example of very simple TCP server using a IOLoop object:
 
-	--
-	-- Load modules
-	--
-	local ioloop = require('nonsence_ioloop')
-	nixio = require('nixio')
-	
-	local exampleloop = ioloop.IOLoop:new()
-
-	local sock = nixio.socket('inet', 'stream')
-	local fd = sock:fileno()
-	sock:setblocking(false)
-	assert(sock:setsockopt('socket', 'reuseaddr', 1))
-
-	sock:bind(nil, 8080)
-	assert(sock:listen(1024))
-
-	--
-	-- Handler to run when READ event is fired on 
-	-- file descriptor
-	--
-	function some_handler_that_accepts()
-		-- Accept socket connection.
-		local new_connection = sock:accept()
-		local fd = new_connection:fileno()
 		--
-		-- Handler function when client is ready to read again.
+		-- Load modules
 		--
-		function some_handler_that_reads()
-			new_connection:recv(1024)
-			new_connection:write('IOLoop works!')
-			new_connection:close()
-			--
-			-- Trying out a callback.
-			--
-			exampleloop:add_callback(function() print "This is a callback" end)
-		end	
-		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_reads) -- Callback/handler passed.
-	end
+		local ioloop = require('nonsence_ioloop')
+		nixio = require('nixio')
+		
+		local exampleloop = ioloop.IOLoop:new()
 
-	exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
-	exampleloop:start()
+		local sock = nixio.socket('inet', 'stream')
+		local fd = sock:fileno()
+		sock:setblocking(false)
+		assert(sock:setsockopt('socket', 'reuseaddr', 1))
+
+		sock:bind(nil, 8080)
+		assert(sock:listen(1024))
+
+		--
+		-- Handler to run when READ event is fired on 
+		-- file descriptor
+		--
+		function some_handler_that_accepts()
+			-- Accept socket connection.
+			local new_connection = sock:accept()
+			local fd = new_connection:fileno()
+			--
+			-- Handler function when client is ready to read again.
+			--
+			function some_handler_that_reads()
+				new_connection:recv(1024)
+				new_connection:write('IOLoop works!')
+				new_connection:close()
+				--
+				-- Trying out a callback.
+				--
+				exampleloop:add_callback(function() print "This is a callback" end)
+			end	
+			exampleloop:add_handler(fd, ioloop.READ, some_handler_that_reads) -- Callback/handler passed.
+		end
+
+		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
+		exampleloop:start()
 	
   ]]
 
@@ -223,7 +223,7 @@ function ioloop.IOLoop:start()
 	
 	while true do
 		log.warning("Started new I/O loop iteration.\r\n\r\n")
-		-- io.read() -- Single iteration debug.
+		 io.read() -- Single iteration debug.
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
