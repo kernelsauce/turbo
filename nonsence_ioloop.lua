@@ -223,7 +223,7 @@ function ioloop.IOLoop:start()
 	
 	while true do
 		log.warning("Started new I/O loop iteration.\r\n\r\n")
-		 io.read() -- Single iteration debug.
+		-- io.read() -- Single iteration debug.
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
