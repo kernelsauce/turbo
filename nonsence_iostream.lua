@@ -604,6 +604,102 @@ function iostream.IOStream:_maybe_add_error_listener()
 	end
 end
 
+iostream.SSLIOStream = newclass('SSLIOStream', iostream.IOStream)
+--[[
+		SSL wrapper class for IOStream.
+		
+		Inherits everything from IOStream class, and should be transparent.
+  ]]
+
+function iostream.SSLIOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
+	-- Init SSLIOStream object.
+	-- With inherit from IOStream class.
+	
+	self.super:init(socket, io_loop, max_buffer_size, read_chunk_size)
+	self._ssl_accepting = true
+	self._handshake_reading = false
+	self._handshake_writing = false	 
+end
+
+function iostream.SSLIOStream:reading()
+	-- Are we reading?
+	-- Check handshake process and also see if the super class
+	-- is reading.
+	return self._handshake_reading or self.super:reading()
+end
+
+function iostream.SSLIOStream:writing()
+	-- Are we writing?
+	-- Check handshake process and also see if the super class
+	-- is writing.
+	return self._handshake_writing or self.super:writing()
+end
+
+function iostream.SSLIOStream:_ssl_wrap_socket(socket)
+	-- Wrap a socket with TLS.
+	
+	self._tls_context = nixio.tls('client')
+	self._nixio_tls = self._tls_context:create(socket)
+	self._tls_connection = self._nixio_tls.connection
+	self.socket = self._nixio_tls.socket
+end
+
+function iostream.SSLIOStream:_do_ssl_handshake()
+	-- Do a SSL handshake.
+	
+	local success, err = pcall(self._nixio_tls:connect())
+	
+	if not success then 
+		log.warning('Error in SSL handshaking on socket: ' .. 
+			self.socket:fileno() .. ' with error: ' .. err)
+	elseif success then 
+		self._ssl_accepting = false
+		self.super:_handle_connect()
+	end
+end
+
+function iostream.SSLIOStream:_handle_read()
+	-- Make sure handshake is done when handling reads.
+	
+	if self._ssl_accepting then
+		self:_do_ssl_handshake()
+		return
+	end
+	self.super:_handle_connect()
+end
+
+function iostream.SSLIOStream:_handle_write()
+	-- Make sure handshake is done when handling writes.
+	
+	if self._ssl_accepting then
+		self:_do_ssl_handshake()
+		return
+	end
+	self.super:_handle_write()
+end
+
+function iostream.SSLIOStream:_handle_connect()
+	-- Redefine connection handling to support ssl.
+
+	self:_ssl_wrap_socket(self.socket)
+end
+
+function iostream.SSLIOStream:_read_from_socket()
+
+	if self._ssl_accepting then
+		-- If the handshake has not been completed do not allow
+		-- any reads to be done...
+		return nil
+	end
+	local chunk = self._tls_connection.read(self.read_chunk_size)
+	
+	if not chunk then
+		self:close()
+	end
+	
+	return chunk
+end
+
 function _merge_prefix(deque, size)
 	-- Replace the first entries in a deque of strings with a
 	-- single string of up to size bytes.
