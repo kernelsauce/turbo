@@ -45,11 +45,34 @@ local ioloop = assert(require('nonsence_ioloop'),
 local socket = nixio.socket('inet', 'stream')
 local loop = ioloop.instance()
 local stream = iostream.IOStream:new(socket)
-local stream2 = iostream.IOStream:new(socket)
+
+local parse_headers = function(raw_headers)
+	local HTTPHeader = raw_headers
+	if HTTPHeader then
+		-- Fetch HTTP Method.
+		local method, uri = HTTPHeader:match("([%a*%-*]+)%s+(.-)%s")
+		-- Fetch all header values by key and value
+		local request_header_table = {}	
+		for key, value  in HTTPHeader:gmatch("([%a*%-*]+):%s?(.-)[\r?\n]+") do
+			request_header_table[key] = value
+		end
+	return { method = method, uri = uri, extras = request_header_table }
+	end
+end
+
+function on_body(data)
+	print('body: \r\n\r\n' .. data)
+
+	stream:close()
+	loop:close()
+end
 
 function on_headers(data)
-	log.dump(data)
-	stream:close()
+	print('headers: ' .. data .. '\r\n\r\n')
+	local headers = parse_headers(data)
+	local length = tonumber(headers.extras['Content-Length'])
+	log.warning('Parsed headers, now read: ' .. length)
+	stream:read_bytes(length, on_body)
 end
 
 function send_request()
