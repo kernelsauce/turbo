@@ -28,6 +28,45 @@
 
   ]]
 
+-------------------------------------------------------------------------
+--
+-- Load modules
+--
+local log = assert(require('nonsence_log'), 
+	[[Missing nonsence_log module]])
+assert(require('yacicode'), 
+	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
+-------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+--
+local xpcall, pcall, random, newclass, pairs, ipairs, os = xpcall, 
+pcall, math.random, newclass, pairs, ipairs, os
+-------------------------------------------------------------------------
+-- Globals
+-- 
+local _poll_implementation = nil
+-------------------------------------------------------------------------
+-- Table to return on require.
+local ioloop = {}
+-------------------------------------------------------------------------
+
+function ioloop.instance()
+	-- Return a global instance of IOLoop.
+	-- Creates one if not existing, otherwise returning the old one.
+	
+	if _G.io_loop_instance then
+		return _G.io_loop_instance
+	else
+		_G.io_loop_instance = ioloop.IOLoop:new()
+		return _G.io_loop_instance
+	end
+end
+
+-------------------------------------------------------------------------
+
+ioloop.IOLoop = newclass('IOLoop')
 --[[
 	
 	IOLoop is a class responsible for managing I/O events through file descriptors 
@@ -84,47 +123,8 @@
 
 		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
 		exampleloop:start()
-	
+
   ]]
-
--------------------------------------------------------------------------
---
--- Load modules
---
-local log = assert(require('nonsence_log'), 
-	[[Missing nonsence_log module]])
-assert(require('yacicode'), 
-	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
--------------------------------------------------------------------------
-
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
---
-local xpcall, pcall, random, newclass, pairs, ipairs, os = xpcall, 
-pcall, math.random, newclass, pairs, ipairs, os
--------------------------------------------------------------------------
--- Globals
--- 
-local _poll_implementation = nil
--------------------------------------------------------------------------
--- Table to return on require.
-local ioloop = {}
--------------------------------------------------------------------------
-
-function ioloop.instance()
-	-- Return a global instance of IOLoop.
-	-- Creates one if not existing, otherwise returning the old one.
-	
-	if _G.io_loop_instance then
-		return _G.io_loop_instance
-	else
-		_G.io_loop_instance = ioloop.IOLoop:new()
-		return _G.io_loop_instance
-	end
-end
-
--------------------------------------------------------------------------
-ioloop.IOLoop = newclass('IOLoop')
 
 function ioloop.IOLoop:init()	
 
