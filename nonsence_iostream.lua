@@ -293,7 +293,7 @@ end
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Handle events
 	
-	log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
+	-- log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed stream ]] ..
@@ -406,8 +406,7 @@ function iostream.IOStream:_read_from_socket()
 		self:close()
 		return nil
 	end
-	log.dump(chunk, 'chunk')
-	--io.read()
+
 	return chunk
 end
 
