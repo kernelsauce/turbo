@@ -27,7 +27,67 @@
 	SOFTWARE."
 
   ]]
-  
+ 
+ --[[
+ 
+	Abstraction layer for asyncronous socket I/O using IOLoop.
+	
+	A simple HTTP web server implemented using the IOStream  and 
+	IOLoop classes:
+	
+		--
+		-- Load modules
+		--
+		local log = assert(require('nonsence_log'), 
+			[[Missing nonsence_log module]])
+		local nixio = assert(require('nixio'),
+			[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
+		local iostream = assert(require('nonsence_iostream'), 
+			[[Missing nonsence_iostream module]])
+		local ioloop = assert(require('nonsence_ioloop'), 
+			[[Missing nonsence_ioloop module]])		
+
+		local socket = nixio.socket('inet', 'stream')
+		local loop = ioloop.instance()
+		local stream = iostream.IOStream:new(socket)
+
+		local parse_headers = function(raw_headers)
+			local HTTPHeader = raw_headers
+			if HTTPHeader then
+				-- Fetch HTTP Method.
+				local method, uri = HTTPHeader:match("([%a*%-*]+)%s+(.-)%s")
+				-- Fetch all header values by key and value
+				local request_header_table = {}	
+				for key, value  in HTTPHeader:gmatch("([%a*%-*]+):%s?(.-)[\r?\n]+") do
+					request_header_table[key] = value
+				end
+			return { method = method, uri = uri, extras = request_header_table }
+			end
+		end
+
+		function on_body(data)
+			print(data)
+			stream:close()
+			loop:close()
+		end
+
+		function on_headers(data)
+			local headers = parse_headers(data)
+			local length = tonumber(headers.extras['Content-Length'])
+			stream:read_bytes(length, on_body)
+		end
+
+		function send_request()
+			stream:write("GET / HTTP/1.0\r\nHost: someplace.com\r\n\r\n")
+			stream:read_until("\r\n\r\n", on_headers)
+		end
+
+		stream:connect("someplace.com", 80, send_request)
+
+		loop:start()
+ 
+   ]]
+   
 -------------------------------------------------------------------------
 --
 -- Load modules
@@ -232,7 +292,8 @@ end
 
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Handle events
-
+	
+	log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed sockets.]])
@@ -265,7 +326,7 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 		
 		-- Wrap callback
 		local function _close_wrapper()
-			self.close(self)
+			self:close()
 		end
 		
 		self.io_loop:add_callback(_close_wrapper)
@@ -333,14 +394,18 @@ function iostream.IOStream:_read_from_socket()
 	-- Reads from the socket.
 	-- Return the data chunk or nil if theres nothing to read.
 	
-	local chunk = self.socket:read(self.read_chunk_size)
-	-- TODO: Fix this...
-	-- Returns false when theres nothing to read... Should be 0
-	--	if not chunk then 
-	--		self:close()
-	--		return nil
-	--	end
+	local chunk = self.socket:recv(self.read_chunk_size)
 	
+	if chunk == false then
+		return nil
+	end
+	
+	if chunk == nil then
+		self:close()
+		return nil
+	end
+	log.dump(chunk, 'chunk')
+	io.read()
 	return chunk
 end
 
