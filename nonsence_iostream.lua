@@ -38,14 +38,10 @@
 		--
 		-- Load modules
 		--
-		local log = assert(require('nonsence_log'), 
-			[[Missing nonsence_log module]])
-		local nixio = assert(require('nixio'),
-			[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-		local iostream = assert(require('nonsence_iostream'), 
-			[[Missing nonsence_iostream module]])
-		local ioloop = assert(require('nonsence_ioloop'), 
-			[[Missing nonsence_ioloop module]])		
+		local log = assert(require('nonsence_log'))
+		local nixio = assert(require('nixio'))
+		local iostream = assert(require('nonsence_iostream'))
+		local ioloop = assert(require('nonsence_ioloop'))		
 
 		local socket = nixio.socket('inet', 'stream')
 		local loop = ioloop.instance()
