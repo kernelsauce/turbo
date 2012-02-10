@@ -27,10 +27,65 @@
 	SOFTWARE."
 
   ]]
- 
- --[[
- 
-	Abstraction layer for asyncronous socket I/O using IOLoop.
+   
+-------------------------------------------------------------------------
+--
+-- Load modules
+--
+local log = assert(require('nonsence_log'), 
+	[[Missing nonsence_log module]])
+local nixio = assert(require('nixio'),
+	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
+local ioloop = assert(require('nonsence_ioloop'), 
+	[[Missing nonsence_ioloop module]])
+assert(require('yacicode'), 
+	[[Missing required module: Yet Another class Implementation 
+		http://lua-users.org/wiki/YetAnotherClassImplementation]])
+assert(require('deque'), 
+	[[Missing required module: deque]])
+-------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+--
+local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
+bitand, dump, min, max, newclass, assert, deque, concat, find = xpcall, 
+pcall, math.random, newclass, pairs, ipairs, os, nixio.bit.bor, 
+nixio.bit.band, log.dump, math.min, math.max, newclass, assert, deque
+, table.concat, string.find
+-------------------------------------------------------------------------
+-- Table to return on require.
+local iostream = {}
+-------------------------------------------------------------------------
+
+iostream.IOStream = newclass('IOStream')
+--[[	
+	A utility class for I/O on a non-blocking socket.
+	
+	Supported methods are:
+		new(socket, io_loop, max_buffer_size, read_chunk_size)
+			Create a new IOStream object with given socket object.
+			Optionals are a IOLoop object (if not given, the global instance
+			will be used), max buffer size and read chunk size (both in bytes).
+		connect(host, port, callback)
+			Connect to a given host with given port. Run given callback
+			after connected. The socket given in new(), can already be
+			connected.
+		write(string, callback)
+			Write to socket. Must be connected. Callback function 
+			will be run after the write is done.
+		close()
+			Close socket, and remove all its remains.
+		set_close_callback(callback)
+			Set a callback function to run after socket has been closed.
+		read_until(delimiter, callback)
+			Delimiter pattern/string to read until and then run
+			callback. Note: The read buffer will still contain the rest
+			of data recieved on socket.
+		read_bytes(number)
+			Reads given bytes from read buffer.
+		read_until_close()
+			Reads all data from the read buffer.
 	
 	A simple HTTP web server implemented using the IOStream  and 
 	IOLoop classes:
@@ -81,42 +136,12 @@
 		stream:connect("someplace.com", 80, send_request)
 
 		loop:start()
- 
-   ]]
-   
--------------------------------------------------------------------------
---
--- Load modules
---
-local log = assert(require('nonsence_log'), 
-	[[Missing nonsence_log module]])
-local nixio = assert(require('nixio'),
-	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local ioloop = assert(require('nonsence_ioloop'), 
-	[[Missing nonsence_ioloop module]])
-assert(require('yacicode'), 
-[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
-assert(require('deque'), 
-[[Missing required module: deque]])
--------------------------------------------------------------------------
-
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
---
-local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand, dump, min, max, newclass, assert, deque, concat, find = xpcall, 
-pcall, math.random, newclass, pairs, ipairs, os, nixio.bit.bor, 
-nixio.bit.band, log.dump, math.min, math.max, newclass, assert, deque
-, table.concat, string.find
--------------------------------------------------------------------------
--- Table to return on require.
-local iostream = {}
--------------------------------------------------------------------------
-
-iostream.IOStream = newclass('IOStream')
+	
+  ]]
 
 function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
-
+	-- Init IOStream object.
+	
 	self.socket = assert(socket, [[Please provide a socket for IOStream:new()]])
 	self.socket:setblocking(false)
 	self.io_loop = io_loop or ioloop.instance()
@@ -260,13 +285,14 @@ function iostream.IOStream:write(data, callback)
 end	
 
 function iostream.IOStream:set_close_callback(callback)
-	-- Call the given callback when the stream is closed.
+	-- Call the given callback when the stream is closed via
+	-- the :close() method.
 	
 	self._close_callback = callback
 end
 
 function iostream.IOStream:close()
-	-- Close this stream
+	-- Close this stream and clean up its mess in the IOLoop.
 	
 	if self.socket then
 		if self._read_until_close then
@@ -291,7 +317,7 @@ function iostream.IOStream:close()
 end
 
 function iostream.IOStream:_handle_events(file_descriptor, events)
-	-- Handle events
+	-- Main event handler for the IOStream.
 	
 	-- log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
 	if not self.socket then 

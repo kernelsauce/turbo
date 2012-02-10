@@ -76,10 +76,10 @@ function on_headers(data)
 end
 
 function send_request()
-	stream:write("GET / HTTP/1.0\r\nHost: friendfeed.com\r\n\r\n")
+	stream:write("GET / HTTP/1.0\r\nHost: dagbladet.no\r\n\r\n")
 	stream:read_until("\r\n\r\n", on_headers)
 end
 
-stream:connect("friendfeed.com", 80, send_request)
+stream:connect("dagbladet.no", 80, send_request)
 
 loop:start()
