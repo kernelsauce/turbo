@@ -731,6 +731,6 @@ function _merge_prefix(deque, size)
 end
 
 -------------------------------------------------------------------------
--- Return ioloop table to requires.
+-- Return iostream table to requires.
 return iostream
 -------------------------------------------------------------------------

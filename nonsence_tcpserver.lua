@@ -52,6 +52,124 @@ tcpserver.TCPServer = newclass('TCPServer')
 
   ]]
 
-function tcpserver.TCPServer:init()
+function tcpserver.TCPServer:init(io_loop, ssl_options)
 
+	self.io_loop = io_loop
+	self.ssl_options = ssl_options
+	self._sockets = {}
+	self._pending_sockets = {}
+	self._started = false
 end
+
+function tcpserver.TCPServer:listen(port, address)
+	assert(port, [[Please specify port for listen() method]])
+	local sockets = bind_sockets(port, address)
+	self:add_sockets(sockets)
+end
+
+function tcpserver.TCPServer:add_sockets(sockets)
+	
+	if not self.io_loop then
+		self.io_loop = ioloop.instance()
+	end
+	
+	local function wrapper(connection, address)
+		self:_handle_connection(connection, address)
+	end
+	
+	for _, sock in ipairs(sockets) do
+		self._sockets[sock:fileno()] = sock
+		add_accept_handler(sock, wrapper, io_loop)
+	end
+end
+
+function tcpserver.TCPServer:add_socket(socket)
+	
+	self:add_sockets({ socket })
+end
+
+function tcpserver.TCPServer:bind(port, address, backlog)
+	
+	local backlog = backlog or 128
+	local sockets = bind_sockets(port, address, backlog)
+	if self._started then
+		self:add_sockets(sockets)
+	else
+		self._pending_sockets[#self._pending_sockets + 1] = sockets
+	end
+end
+
+function tcpserver.TCPServer:start(num_processes)
+	-- TODO: forking?
+	
+	assert(( not self._started ), 
+		[[Running started on a already started TCPServer]])
+	self._started = true
+	if num_processes ~= 1 then
+		nixio.fork()
+	end
+	sockets = self._pending_sockets
+	self._pending_sockets = {}
+	self:add_sockets(sockets)
+end
+
+function tcpserver.TCPServer:stop()
+
+	for file_descriptor, socket in pairs(self._sockets) do
+		self.io_loop:remove_handler(file_descriptor)
+		socket:close()
+	end
+end
+
+function tcpserver.TCPServer:handle_stream(stream, address)
+
+	error('handle_stream method not implemented in this object')
+end
+
+function tcpserver.TCPServer:_handle_connection(connection, address)
+	-- TODO implement SSL
+	local stream = iostream.IOStream:new(connection, io_loop)
+	self:handle_stream(stream, address)
+end
+
+function bind_sockets(port, address, backlog)
+	
+	local backlog = backlog or 128
+	
+	local address = address or nil
+	if address == '' then address = nil end
+	local sockets = {}
+	local socket = nixio.socket('inet', 'stream')
+	assert(socket:setsockopt('socket', 'reuseaddr', 1))
+	socket:bind(address, port)
+	socket:listen(backlog)
+	sockets[#sockets + 1] = socket
+	return sockets
+end
+
+function add_accept_handler(socket, callback, io_loop)
+	local io_loop = io_loop or ioloop.instance()
+	
+	local function accept_handler(file_descriptor, events)
+		while true do 
+			--Socket.accept ():
+			--Accept a connection on the socket.
+			--Return values:	
+			--Socket Object
+			--Peer IP-Address
+			--Peer Port
+			local connection, address = socket:accept()
+			if not connection then
+				return
+			end
+			callback(connection, address)
+		end
+	end
+	-- ioloop.IOLoop:add_handler(file_descriptor, events, handler)
+	io_loop:add_handler(socket:fileno(), ioloop.READ, accept_handler)
+end
+
+-------------------------------------------------------------------------
+-- Return iostream table to requires.
+return tcpserver
+-------------------------------------------------------------------------
