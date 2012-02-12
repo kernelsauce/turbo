@@ -293,8 +293,8 @@ end
 
 function iostream.IOStream:close()
 	-- Close this stream and clean up its mess in the IOLoop.
-	
-	if self.socket then
+
+	if self.socket ~= nil then
 		if self._read_until_close then
 			local callback = self._read_callback
 			self._read_callback = nil
@@ -302,7 +302,7 @@ function iostream.IOStream:close()
 			self:_run_callback(callback, 
 				self:_consume(self._read_buffer_size))
 		end
-		if self._state then
+		if self._state ~= nil then
 			self.io_loop:remove_handler(self.socket:fileno())
 			self._state = nil
 		end
@@ -319,7 +319,7 @@ end
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Main event handler for the IOStream.
 	
-	-- log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
+	--log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed stream ]] ..
@@ -422,17 +422,19 @@ function iostream.IOStream:_read_from_socket()
 	-- Reads from the socket.
 	-- Return the data chunk or nil if theres nothing to read.
 	
-	local chunk = self.socket:recv(self.read_chunk_size)
-	
-	if chunk == false then
-		return nil
+	local chunk, errorno = self.socket:recv(self.read_chunk_size)
+	if errorno then
+		if errorno == nixio.const.EWOULDBLOCK  or
+			errorno == nixio.const.EAGAIN then
+			return nil
+		end
 	end
 	
-	if chunk == nil then
+	if not chunk then
 		self:close()
 		return nil
 	end
-
+	
 	return chunk
 end
 
@@ -596,10 +598,10 @@ function iostream.IOStream:_maybe_add_error_listener()
 			local callback = self._close_callback
 				if callback ~= nil then
 					self._close_callback = nil
-					self._run_callback(callback)
+					self:_run_callback(callback)
 				end
 		else
-			self._add_io_state(ioloop.READ)
+			self:_add_io_state(ioloop.READ)
 		end
 	end
 end
