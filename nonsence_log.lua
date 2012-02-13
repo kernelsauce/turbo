@@ -31,6 +31,32 @@
 
 local log = {}
 
+log.dump = function(stuff, description)
+	-- Usefull table printer for debug.
+	
+	print(_dump(stuff, description))
+end
+
+log.warning = function(str)
+	-- Prints a warning to stdout.
+	
+	print("[" .. os.date("%X", os.time()) .. '] Warning: ' .. str)
+end
+
+log.notice = function(str)
+	-- Prints a notice to stdout.
+	
+	print("[" .. os.date("%X", os.time()) .. '] Notice: ' .. str)
+end
+
+log.error = function(str)
+	-- Running log.error means throwing a error.
+	-- It will stop execution if not caught by either pcall
+	-- or xpcall.
+	
+	error(str)
+end
+
 local _dump = function (t, name, indent)
    local cart     -- a container
    local autoref  -- for self references
@@ -96,22 +122,6 @@ local _dump = function (t, name, indent)
    cart, autoref = "", ""
    addtocart(t, name, indent)
    return cart .. autoref
-end
-
-log.dump = function(stuff)
-	print(_dump(stuff))
-end
-
-log.warning = function(str)
-	print('Warning: ' .. str)
-end
-
-log.notice = function(str)
-	--print('Notice: ' .. str)
-end
-
-log.error = function(str)
-	error(str)
 end
 
 return log
