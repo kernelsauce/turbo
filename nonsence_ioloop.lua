@@ -34,6 +34,8 @@
 --
 local log = assert(require('nonsence_log'), 
 	[[Missing nonsence_log module]])
+local nixio = assert(require('nixio'),
+	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
 assert(require('yacicode'), 
 	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
 -------------------------------------------------------------------------
@@ -128,7 +130,6 @@ ioloop.IOLoop = newclass('IOLoop')
 
 function ioloop.IOLoop:init()	
 
-	self._events = {}
 	self._handlers = {}
 	self._timeouts = {}
 	self._callbacks = {}
@@ -174,21 +175,18 @@ function ioloop.IOLoop:list_callbacks()
 	return self._callbacks
 end
 
+function error_handler(err)
+	-- Handles errors in _run_callback.
+	-- Verbose printing of error to console.
+	log.warning([[_callback_error_handler caught error: ]] .. err)
+end
+
 function ioloop.IOLoop:_run_callback(callback)
 	-- Calls the given callback safe...
 	-- Should not crash anything.
 	
-	callback()
-	-- TODO: uncomment when we dont want error on faulty callbacks.
-	-- xpcall(callback, self._callback_error_handler)
-end
-
-function ioloop.IOLoop:_callback_error_handler(err)
-	-- Handles errors in _run_callback.
-	-- Verbose printing of error to console.
-	
-	log.warning([[_callback_error_handler caught error: ]] .. err)
-	return nil
+	-- callback()
+	xpcall(callback, error_handler)
 end
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
@@ -222,8 +220,7 @@ function ioloop.IOLoop:start()
 	self._running = true
 	
 	while true do
-		-- log.notice("Started new I/O loop iteration.\r\n\r\n")
-		-- io.read() -- Single iteration debug.
+		-- log.warning("Started new I/O loop iteration.\r\n\r\n")
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
@@ -232,7 +229,7 @@ function ioloop.IOLoop:start()
 		-- But, assign it to a local and run off that so we don't
 		-- run callbacks from callbacks this iteration.
 		local callbacks = self._callbacks
-		
+
 		 -- Reset self._callbacks.
 		self._callbacks = {}
 		
@@ -265,15 +262,15 @@ function ioloop.IOLoop:start()
 		end
 		
 		-- Wait for I/O, get events since last iteration.
-		self._events = self._poll:poll(poll_timeout)
+		local events = self._poll:poll(poll_timeout)
 		-- Do not use ipairs for improved speed.
-		for i=1, #self._events, 2 do
-			local file_descriptor = self._events[i]
-			local event = self._events[i+1]
+		for i=1, #events, 2 do
+			local file_descriptor = events[i]
+			local event = events[i+1]
 			
 			-- Remove event from table.
-			self._events[i] = nil
-			self._events[i+1] = nil
+			events[i] = nil
+			events[i+1] = nil
 			
 			-- Run the handler registered for the file descriptor.
 			self:_run_handler(file_descriptor, event)
@@ -289,7 +286,6 @@ function ioloop.IOLoop:close()
 
 	self._running = false
 	self._stopped = true
-	self._events = {}
 	self._callbacks = {}
 	self._handlers = {}
 end
