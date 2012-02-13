@@ -38,11 +38,11 @@ local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
 local ioloop = assert(require('ioloop'), 
 	[[Missing ioloop module]])
-assert(require('yacicode'), 
-	[[Missing required module: Yet Another class Implementation 
-		http://lua-users.org/wiki/YetAnotherClassImplementation]])
 local deque = assert(require('deque'), 
 	[[Missing required module: deque]])
+assert(require('yacicode'), 
+	[[Missing required module: Yet Another class Implementation 
+	http://lua-users.org/wiki/YetAnotherClassImplementation]])
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
