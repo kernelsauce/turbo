@@ -41,11 +41,47 @@ local iostream = assert(require('iostream'),
 local ioloop = assert(require('ioloop'), 
 	[[Missing ioloop module]])
 -------------------------------------------------------------------------
-
+-------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+-- 
+local IOStream, dump, nixsocket, assert, newclass, ipairs, pairs = 
+iostream.IOStream, log.dump, nixio.socket, assert, newclass, ipairs, 
+pairs
+-------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -- Table to return on require.
 local tcpserver = {}
 -------------------------------------------------------------------------
+
+local function bind_sockets(port, address, backlog)
+	
+	local backlog = backlog or 128
+	local address = address or nil
+	if address == '' then address = nil end
+	local sockets = {}
+	local socket = nixsocket('inet', 'stream')
+	assert(socket:setsockopt('socket', 'reuseaddr', 1))
+	socket:setblocking(false)
+	socket:bind(address, port)
+	socket:listen(backlog)
+	sockets[#sockets + 1] = socket
+	return sockets
+end
+
+local function add_accept_handler(socket, callback, io_loop)
+
+	local io_loop = io_loop or ioloop.instance()
+	local function accept_handler(file_descriptor, events)
+		while true do 
+			local connection, address, port = socket:accept()
+			if not connection then
+				break
+			end
+			callback(connection, address)
+		end
+	end
+	io_loop:add_handler(socket:fileno(), ioloop.READ, accept_handler)
+end
 
 tcpserver.TCPServer = newclass('TCPServer')
 
@@ -77,7 +113,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
 	
 	for _, sock in ipairs(sockets) do
 		self._sockets[sock:fileno()] = sock
-		add_accept_handler(sock, wrapper, io_loop)
+		add_accept_handler(sock, wrapper, self.io_loop)
 	end
 end
 
@@ -106,7 +142,7 @@ function tcpserver.TCPServer:start(num_processes)
 	if num_processes ~= 1 then
 		nixio.fork()
 	end
-	sockets = self._pending_sockets
+	local sockets = self._pending_sockets
 	self._pending_sockets = {}
 	self:add_sockets(sockets)
 end
@@ -126,38 +162,8 @@ end
 
 function tcpserver.TCPServer:_handle_connection(connection, address)
 	-- TODO implement SSL
-	local stream = iostream.IOStream:new(connection, io_loop)
+	local stream = IOStream:new(connection, self.io_loop)
 	self:handle_stream(stream, address)
-end
-
-function bind_sockets(port, address, backlog)
-	
-	local backlog = backlog or 128
-	local address = address or nil
-	if address == '' then address = nil end
-	local sockets = {}
-	local socket = nixio.socket('inet', 'stream')
-	assert(socket:setsockopt('socket', 'reuseaddr', 1))
-	socket:setblocking(false)
-	socket:bind(address, port)
-	socket:listen(backlog)
-	sockets[#sockets + 1] = socket
-	return sockets
-end
-
-function add_accept_handler(socket, callback, io_loop)
-
-	local io_loop = io_loop or ioloop.instance()
-	local function accept_handler(file_descriptor, events)
-		while true do 
-			local connection, address, port = socket:accept()
-			if not connection then
-				break
-			end
-			callback(connection, address)
-		end
-	end
-	io_loop:add_handler(socket:fileno(), ioloop.READ, accept_handler)
 end
 
 -------------------------------------------------------------------------
