@@ -49,10 +49,10 @@ assert(require('deque'),
 -- Speeding up globals access with locals :>
 --
 local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand, dump, min, max, newclass, assert, deque, concat, find = xpcall, 
+bitand, dump, min, max, newclass, assert, deque, concat, find, EWOULDBLOCK, EAGAIN = xpcall, 
 pcall, math.random, newclass, pairs, ipairs, os, nixio.bit.bor, 
 nixio.bit.band, log.dump, math.min, math.max, newclass, assert, deque
-, table.concat, string.find
+, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN
 -------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
@@ -319,13 +319,14 @@ end
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Main event handler for the IOStream.
 	
-	--log.warning('got ' .. events .. ' for fd ' .. file_descriptor)
+	-- log.warning('Got ' .. events .. ' for FD: ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed stream ]] ..
 			file_descriptor)
 		return
 	end
+	
 	-- Handle different events.
 	if bitand(events, ioloop.READ) ~= 0 then
 		self:_handle_read()
@@ -424,8 +425,8 @@ function iostream.IOStream:_read_from_socket()
 	
 	local chunk, errorno = self.socket:recv(self.read_chunk_size)
 	if errorno then
-		if errorno == nixio.const.EWOULDBLOCK  or
-			errorno == nixio.const.EAGAIN then
+		if errorno == EWOULDBLOCK  or
+			errorno == EAGAIN then
 			return nil
 		end
 	end
@@ -434,7 +435,7 @@ function iostream.IOStream:_read_from_socket()
 		self:close()
 		return nil
 	end
-	
+
 	return chunk
 end
 
