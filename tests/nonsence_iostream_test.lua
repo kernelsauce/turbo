@@ -27,7 +27,9 @@
 	SOFTWARE."
 
   ]]
-  
+
+package.path = package.path.. ";../nonsence/?.lua"  
+
 -------------------------------------------------------------------------
 --
 -- Load modules
