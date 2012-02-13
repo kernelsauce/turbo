@@ -35,7 +35,7 @@
   ]]
 
 assert(require('yacicode'), 
-[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
+	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
 
 deque = newclass('Deque')
 
@@ -91,27 +91,3 @@ function deque:not_empty()
 	return #self._virtual_queue > 0 and true or false
 end
 
---dequetest = deque:new()
---dequetest:append('lille august')
---print(dequetest:not_empty())
---print(dequetest:popleft())
---print(dequetest:popleft())
---print(dequetest:not_empty())
-
---dequetest:append('august ja, ')
---dequetest:appendleft('er en flott liten kar')
---print(dequetest:not_empty())
---print(dequetest:peekfirst())
---print(dequetest:pop())
---print(dequetest:pop())
-
---i = 0
---while i < 10000 do
-	--dequetest:append('august ja, ')
-	--i = i + 1
---end
-
---while dequetest:pop() ~= nil do
-	---- lol
---end
---print(dequetest:size())
