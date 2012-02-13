@@ -38,12 +38,12 @@
 --
 -- Load modules
 --
-local ioloop = assert(require('nonsence_ioloop'), 
-	[[Missing nonsence_ioloop module]])
-local tcpserver = assert(require('nonsence_tcpserver'), 
-	[[Missing nonsence_tcpserver module]])
-local log = assert(require('nonsence_log'), 
-	[[Missing nonsence_log module]])
+local ioloop = assert(require('ioloop'), 
+	[[Missing ioloop module]])
+local tcpserver = assert(require('tcpserver'), 
+	[[Missing tcpserver module]])
+local log = assert(require('log'), 
+	[[Missing log module]])
 -------------------------------------------------------------------------
 
 local io_loop = ioloop.instance()

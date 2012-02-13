@@ -32,8 +32,8 @@
 --
 -- Load modules
 --
-local log = assert(require('nonsence_log'), 
-	[[Missing nonsence_log module]])
+local log = assert(require('log'), 
+	[[Missing log module]])
 local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
 assert(require('yacicode'), 

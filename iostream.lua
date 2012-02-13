@@ -32,12 +32,12 @@
 --
 -- Load modules
 --
-local log = assert(require('nonsence_log'), 
-	[[Missing nonsence_log module]])
+local log = assert(require('log'), 
+	[[Missing log module]])
 local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local ioloop = assert(require('nonsence_ioloop'), 
-	[[Missing nonsence_ioloop module]])
+local ioloop = assert(require('ioloop'), 
+	[[Missing ioloop module]])
 assert(require('yacicode'), 
 	[[Missing required module: Yet Another class Implementation 
 		http://lua-users.org/wiki/YetAnotherClassImplementation]])
