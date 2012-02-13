@@ -218,9 +218,11 @@ function ioloop.IOLoop:start()
 	-- The loop will run until self:stop() is called.
 	
 	self._running = true
-	
+	log.notice([[IOLoop started running]])
 	while true do
-		-- log.warning("Started new I/O loop iteration.\r\n\r\n")
+		--log.warning("Callbacks in queue: " .. #self._callbacks)
+		--log.warning("Started new I/O loop iteration.\r\n\r\n")
+
 		local poll_timeout = 3600
 		-- log.dump('I/O loop Iteration started')
 		-- log.dump(self._handlers, self._handlers)
@@ -358,6 +360,7 @@ end
 -- Check for usable poll modules.
 if pcall(require, 'epoll') then
 	-- Epoll module found.
+	log.notice([[Picked epoll module as poll module.]])
 	_poll_implementation = 'epoll'
 	-- Populate global with Epoll module constants
 	local Epoll = require('epoll')
