@@ -170,7 +170,7 @@ function iostream.IOStream:connect(address, port, callback)
 	-- Address can be a IP or DNS domain.
 	
 	self._connecting = true
-	
+	-- TODO: Add error handler
 	self.socket:connect(address, port)
 	-- Set callback.
 	self._connect_callback = callback
@@ -202,7 +202,6 @@ function iostream.IOStream:read_until(delimiter, callback)
 	assert(( not self._read_callback ), "Already reading.")
 	self._read_delimiter = delimiter
 	self._read_callback = callback
-
 	while true do 
 		-- See if we already got the data from a previous read.
 		if self:_read_from_buffer() then
@@ -228,7 +227,6 @@ function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
 	self._read_bytes = num_bytes
 	self._read_callback = callback
 	self._streaming_callback = streaming_callback
-	
 	while true do
 		if self:_read_from_buffer() then
 			return
@@ -269,7 +267,7 @@ function iostream.IOStream:write(data, callback)
 	-- previously buffered write data and an old write callback, that
 	-- callback is simply overwritten with this new callback.
 	
-	assert((type(data) == 'string'), 
+	assert((type(data) == 'string'),
 		[[data argument to write() is not a string]])
 	self:_check_closed()
 	if data then
@@ -294,7 +292,7 @@ end
 function iostream.IOStream:close()
 	-- Close this stream and clean up its mess in the IOLoop.
 
-	if self.socket ~= nil then
+	if self.socket then
 		if self._read_until_close then
 			local callback = self._read_callback
 			self._read_callback = nil
@@ -302,7 +300,7 @@ function iostream.IOStream:close()
 			self:_run_callback(callback, 
 				self:_consume(self._read_buffer_size))
 		end
-		if self._state ~= nil then
+		if self._state then
 			self.io_loop:remove_handler(self.socket:fileno())
 			self._state = nil
 		end
@@ -311,7 +309,7 @@ function iostream.IOStream:close()
 		if self._close_callback and self._pending_callbacks == 0 then
 			local callback = self._close_callback
 			self._close_callback = nil
-			self._run_callback(callback)
+			self:_run_callback(callback)
 		end
 	end
 end
@@ -319,7 +317,7 @@ end
 function iostream.IOStream:_handle_events(file_descriptor, events)
 	-- Main event handler for the IOStream.
 	
-	-- log.warning('Got ' .. events .. ' for FD: ' .. file_descriptor)
+	--log.warning('Got ' .. events .. ' for FD: ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
 		log.warning([[_handle_events() got events for closed stream ]] ..
@@ -327,56 +325,64 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 		return
 	end
 	
-	-- Handle different events.
-	if bitand(events, ioloop.READ) ~= 0 then
-		self:_handle_read()
-	end
-	
-	if not self.socket then 
-		return
-	end
-
-	if bitand(events, ioloop.WRITE) ~= 0 then
-		if self._connecting then 
-			self:_handle_connect()
-		end
-		self:_handle_write()	
-	end
-	
-	if not self.socket then 
-		return
-	end
-
-	if bitand(events, ioloop.ERROR) ~= 0 then
-		-- We may have queued up a user callback in _handle_read or
-		-- _handle_write, so don't close the IOStream until those
-		-- callbacks have had a chance to run.
-		
-		-- Wrap callback
-		local function _close_wrapper()
-			self:close()
+	local function _protected_handle_events()
+		-- Handle different events.
+		if bitand(events, ioloop.READ) ~= 0 then
+			self:_handle_read()
 		end
 		
-		self.io_loop:add_callback(_close_wrapper)
-		return
-	end
+		if not self.socket then 
+			return
+		end
+
+		if bitand(events, ioloop.WRITE) ~= 0 then
+			if self._connecting then 
+				self:_handle_connect()
+			end
+			self:_handle_write()	
+		end
 		
-	local state = ioloop.ERROR
+		if not self.socket then 
+			return
+		end
+
+		if bitand(events, ioloop.ERROR) ~= 0 then
+			-- We may have queued up a user callback in _handle_read or
+			-- _handle_write, so don't close the IOStream until those
+			-- callbacks have had a chance to run.
+			
+			-- Wrap callback
+			local function _close_wrapper()
+				self:close()
+			end
+			self.io_loop:add_callback(_close_wrapper)
+			return
+		end
+			
+		local state = ioloop.ERROR
+		
+		if self:reading() then
+			state = bitor(state, ioloop.READ)
+		end
+		if self:writing() then
+			state = bitor(state, ioloop.WRITE)
+		end
+		if state == ioloop.ERROR then
+			state = bitor(state, ioloop.READ)
+		end
+		if state ~= self._state then
+			assert(self._state, [[_handle_events without self._state]])
+			self._state = state
+			self.io_loop:update_handler(self.socket:fileno(), self._state)
+		end
+	end
 	
-	if self:reading() then
-		state = bitor(state, ioloop.READ)
+	local function _handle_events_error_handler(err)
+		log.warning(err)
+		self:close()
 	end
-	if self:writing() then
-		state = bitor(state, ioloop.WRITE)
-	end
-	if state == ioloop.ERROR then
-		state = bitor(state, ioloop.READ)
-	end
-	if state ~= self._state then
-		assert(self._state, [[_handle_events without self._state]])
-		self._state = state
-		self.io_loop:update_handler(self.socket:fileno(), self._state)
-	end
+	
+	xpcall(_protected_handle_events, _handle_events_error_handler)
 end
 
 function iostream.IOStream:_run_callback(callback, ...)
@@ -394,7 +400,6 @@ end
 function iostream.IOStream:_handle_read()
 
 	while true do 
-	
 		-- Read from socket until we get EWOULDBLOCK or equivalient.
 		local result = self:_read_to_buffer()
 		if result == 0 then
@@ -408,15 +413,15 @@ function iostream.IOStream:_handle_read()
 end
 
 function iostream.IOStream:reading()
-	return ( not not self._read_callback )
+	return self._read_callback and true or false
 end
 
 function iostream.IOStream:writing()
-	return ( not not self._write_buffer )
+	return self._write_buffer:not_empty()
 end
 
 function iostream.IOStream:closed()
-	return ( not not self.socket )
+	return self.socket and false or true
 end
 
 function iostream.IOStream:_read_from_socket()
@@ -428,10 +433,17 @@ function iostream.IOStream:_read_from_socket()
 		if errorno == EWOULDBLOCK  or
 			errorno == EAGAIN then
 			return nil
+		else
+			error('Socket error on: '  .. errorno)
 		end
 	end
 	
 	if not chunk then
+		self:close()
+		return nil
+	end
+	
+	if chunk == "" then
 		self:close()
 		return nil
 	end
@@ -713,7 +725,7 @@ function _merge_prefix(deque, size)
 	local prefix = {}
 	local remaining = size
 	
-	while deque:size() > 0 and remaining > 0 do
+	while deque:size() >= 1 and remaining >= 1 do
 		local chunk = deque:popleft()
 		if chunk:len() > remaining then
 			deque:appendleft(chunk:sub(remaining))
@@ -723,11 +735,8 @@ function _merge_prefix(deque, size)
 		remaining = remaining - chunk:len()
 	end
 	
-	if #prefix > 0 then
+	if #prefix >= 1 then
 		deque:appendleft(concat(prefix))
-	end
-	if deque:size() == 0 then
-		deque:appendleft("")
 	end
 
 	return deque
