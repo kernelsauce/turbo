@@ -48,9 +48,6 @@ local tcpserver = {}
 -------------------------------------------------------------------------
 
 tcpserver.TCPServer = newclass('TCPServer')
---[[
-
-  ]]
 
 function tcpserver.TCPServer:init(io_loop, ssl_options)
 
@@ -64,6 +61,7 @@ end
 function tcpserver.TCPServer:listen(port, address)
 	assert(port, [[Please specify port for listen() method]])
 	local sockets = bind_sockets(port, address)
+	log.notice("TCPServer listening on port: " .. port)
 	self:add_sockets(sockets)
 end
 
@@ -135,7 +133,6 @@ end
 function bind_sockets(port, address, backlog)
 	
 	local backlog = backlog or 128
-	
 	local address = address or nil
 	if address == '' then address = nil end
 	local sockets = {}
@@ -149,15 +146,9 @@ function bind_sockets(port, address, backlog)
 end
 
 function add_accept_handler(socket, callback, io_loop)
+
 	local io_loop = io_loop or ioloop.instance()
-	
 	local function accept_handler(file_descriptor, events)
-		--Socket.accept ():
-		--Accept a connection on the socket.
-		--Return values:	
-		--Socket Object
-		--Peer IP-Address
-		--Peer Port
 		while true do 
 			local connection, address, port = socket:accept()
 			if not connection then
@@ -166,8 +157,6 @@ function add_accept_handler(socket, callback, io_loop)
 			callback(connection, address)
 		end
 	end
-	-- ioloop.IOLoop:add_handler(file_descriptor, events, handler)
-	log.dump(socket:fileno(), 'fileno for listen socket')
 	io_loop:add_handler(socket:fileno(), ioloop.READ, accept_handler)
 end
 
