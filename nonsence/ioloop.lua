@@ -37,7 +37,8 @@ local log = assert(require('log'),
 local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
 assert(require('yacicode'), 
-	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
+	[[Missing required module: Yet Another class Implementation 
+	http://lua-users.org/wiki/YetAnotherClassImplementation]])
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
@@ -175,7 +176,7 @@ function ioloop.IOLoop:list_callbacks()
 	return self._callbacks
 end
 
-function error_handler(err)
+local function error_handler(err)
 	-- Handles errors in _run_callback.
 	-- Verbose printing of error to console.
 	log.warning([[_callback_error_handler caught error: ]] .. err)
@@ -193,11 +194,11 @@ function ioloop.IOLoop:add_timeout(timestamp, callback)
 	-- Schedule a callback to be called at given timestamp.
 	-- Timestamp is e.g os.time(now)
 	
-	local identifer = random(100000000)
+	local identifier = random(100000000)
 	if not self._timeouts[identifier] then
-		self._timeouts[identifer] = _Timeout:new(timestamp, callback)
+		self._timeouts[identifier] = _Timeout:new(timestamp, callback)
 	end
-	return indentifer
+	return identifier
 end
 
 function ioloop.IOLoop:remove_timeout(identifier)
