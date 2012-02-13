@@ -37,7 +37,7 @@
 assert(require('yacicode'), 
 	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
 
-deque = newclass('Deque')
+local deque = newclass('Deque')
 
 local insert, remove = table.insert, table.remove
 
@@ -91,3 +91,4 @@ function deque:not_empty()
 	return #self._virtual_queue > 0 and true or false
 end
 
+return deque
