@@ -41,7 +41,7 @@ local ioloop = assert(require('ioloop'),
 assert(require('yacicode'), 
 	[[Missing required module: Yet Another class Implementation 
 		http://lua-users.org/wiki/YetAnotherClassImplementation]])
-assert(require('deque'), 
+local deque = assert(require('deque'), 
 	[[Missing required module: deque]])
 -------------------------------------------------------------------------
 
@@ -49,10 +49,11 @@ assert(require('deque'),
 -- Speeding up globals access with locals :>
 --
 local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand, dump, min, max, newclass, assert, deque, concat, find, EWOULDBLOCK, EAGAIN = xpcall, 
-pcall, math.random, newclass, pairs, ipairs, os, nixio.bit.bor, 
-nixio.bit.band, log.dump, math.min, math.max, newclass, assert, deque
-, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN
+bitand, dump, min, max, newclass, assert, deque, concat, find, EWOULDBLOCK,
+EAGAIN, type, error = xpcall,pcall, math.random, newclass, pairs, ipairs, os, 
+nixio.bit.bor, nixio.bit.band, log.dump, math.min, math.max, newclass, assert, 
+deque, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN, 
+type, error
 -------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
@@ -139,6 +140,33 @@ iostream.IOStream = newclass('IOStream')
 	
   ]]
 
+local function _merge_prefix(deque, size)
+	-- Replace the first entries in a deque of strings with a
+	-- single string of up to size bytes.
+
+	if deque:size() == 1 and deque:peekfirst():len() <= size then
+		return deque
+	end
+	local prefix = {}
+	local remaining = size
+	
+	while deque:size() >= 1 and remaining >= 1 do
+		local chunk = deque:popleft()
+		if chunk:len() > remaining then
+			deque:appendleft(chunk:sub(remaining))
+			chunk = chunk:sub(1, remaining)
+		end
+		prefix[#prefix + 1] = chunk
+		remaining = remaining - chunk:len()
+	end
+	
+	if #prefix >= 1 then
+		deque:appendleft(concat(prefix))
+	end
+
+	return deque
+end
+  
 function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
 	-- Init IOStream object.
 	
@@ -461,7 +489,7 @@ function iostream.IOStream:_read_to_buffer()
 	self._read_buffer:append(chunk)
 	self._read_buffer_size = self._read_buffer_size + chunk:len()
 	if self._read_buffer_size >= self.max_buffer_size then
-		logging.error('Reached maximum read buffer size')
+		log.error('Reached maximum read buffer size')
 		self:close()
 		return
 	end
@@ -713,33 +741,6 @@ function iostream.SSLIOStream:_read_from_socket()
 	end
 	
 	return chunk
-end
-
-function _merge_prefix(deque, size)
-	-- Replace the first entries in a deque of strings with a
-	-- single string of up to size bytes.
-
-	if deque:size() == 1 and deque:peekfirst():len() <= size then
-		return deque
-	end
-	local prefix = {}
-	local remaining = size
-	
-	while deque:size() >= 1 and remaining >= 1 do
-		local chunk = deque:popleft()
-		if chunk:len() > remaining then
-			deque:appendleft(chunk:sub(remaining))
-			chunk = chunk:sub(1, remaining)
-		end
-		prefix[#prefix + 1] = chunk
-		remaining = remaining - chunk:len()
-	end
-	
-	if #prefix >= 1 then
-		deque:appendleft(concat(prefix))
-	end
-
-	return deque
 end
 
 -------------------------------------------------------------------------
