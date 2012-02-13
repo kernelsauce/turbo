@@ -54,7 +54,7 @@ tcpserver.TCPServer = newclass('TCPServer')
 
 function tcpserver.TCPServer:init(io_loop, ssl_options)
 
-	self.io_loop = io_loop
+	self.io_loop = io_loop or ioloop.instance()
 	self.ssl_options = ssl_options
 	self._sockets = {}
 	self._pending_sockets = {}
@@ -141,6 +141,7 @@ function bind_sockets(port, address, backlog)
 	local sockets = {}
 	local socket = nixio.socket('inet', 'stream')
 	assert(socket:setsockopt('socket', 'reuseaddr', 1))
+	socket:setblocking(false)
 	socket:bind(address, port)
 	socket:listen(backlog)
 	sockets[#sockets + 1] = socket
@@ -151,21 +152,22 @@ function add_accept_handler(socket, callback, io_loop)
 	local io_loop = io_loop or ioloop.instance()
 	
 	local function accept_handler(file_descriptor, events)
+		--Socket.accept ():
+		--Accept a connection on the socket.
+		--Return values:	
+		--Socket Object
+		--Peer IP-Address
+		--Peer Port
 		while true do 
-			--Socket.accept ():
-			--Accept a connection on the socket.
-			--Return values:	
-			--Socket Object
-			--Peer IP-Address
-			--Peer Port
-			local connection, address = socket:accept()
+			local connection, address, port = socket:accept()
 			if not connection then
-				return
+				break
 			end
 			callback(connection, address)
 		end
 	end
 	-- ioloop.IOLoop:add_handler(file_descriptor, events, handler)
+	log.dump(socket:fileno(), 'fileno for listen socket')
 	io_loop:add_handler(socket:fileno(), ioloop.READ, accept_handler)
 end
 
