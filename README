@@ -1,7 +1,8 @@
 -- == Nonsence Asynchronous event based Lua Web server == --
+
 Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-Much of the design principals are borrowed from the Tornado web server, which can  be fetched from here: https://github.com/facebook/tornado
+Much of the design principals are borrowed from the Tornado web server, which can be fetched from here: https://github.com/facebook/tornado
 
 Supported poll implementations at this point:
 epoll
@@ -16,7 +17,8 @@ Lua Epoll. (https://github.com/Neopallium/lua-epoll)
 	Epoll interface :)
 	
 
-Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
+
+Nonsence is licensed under the MIT license
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
