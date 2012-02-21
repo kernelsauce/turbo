@@ -80,9 +80,6 @@ ioloop.IOLoop = class('IOLoop')
 	the I/O Loop with :remove_handler(fd). This will also remove the event from epoll.
 	You can change the event listened for with :update_handler(fd, listen_to_this).
 	
-	You can not have more than one edge-triggered IOLoop as this will block the Lua thread
-	when no events are triggered. Unless you add a timeout to the loop, which is not recommended.
-	
 	Example of very simple TCP server using a IOLoop object:
 
 		--
