@@ -6,6 +6,9 @@
 	This module "IOLoop" is a part of the Nonsence Web server.
 	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
 	
+	It has been greatly inspired by the Tornado web server also available on GitHub:
+	< https://github.com/facebook/tornado/tree/master/tornado >	
+
 	Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
 
 	"Permission is hereby granted, free of charge, to any person obtaining a copy of
