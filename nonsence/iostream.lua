@@ -3,8 +3,11 @@
 	Nonsence Asynchronous event based Lua Web server.
 	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 	
-	This module "IOLoop" is a part of the Nonsence Web server.
+	This module "IOStream" is a part of the Nonsence Web server.
 	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
+	
+	It has been greatly inspired by the Tornado web server also available on GitHub:
+	< https://github.com/facebook/tornado/tree/master/tornado >
 	
 	Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
 
