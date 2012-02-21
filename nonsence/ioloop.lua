@@ -36,16 +36,16 @@ local log = assert(require('log'),
 	[[Missing log module]])
 local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-assert(require('yacicode'), 
-	[[Missing required module: Yet Another class Implementation 
-	http://lua-users.org/wiki/YetAnotherClassImplementation]])
+assert(require('middleclass'), 
+	[[Missing required module: MiddleClass 
+	https://github.com/kikito/middleclass]])
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 --
-local xpcall, pcall, random, newclass, pairs, ipairs, os = xpcall, 
-pcall, math.random, newclass, pairs, ipairs, os
+local xpcall, pcall, random, class, pairs, ipairs, os = xpcall, 
+pcall, math.random, class, pairs, ipairs, os
 -------------------------------------------------------------------------
 -- Globals
 -- 
@@ -69,7 +69,7 @@ end
 
 -------------------------------------------------------------------------
 
-ioloop.IOLoop = newclass('IOLoop')
+ioloop.IOLoop = class('IOLoop')
 --[[
 	
 	IOLoop is a class responsible for managing I/O events through file descriptors 
@@ -301,7 +301,7 @@ end
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
-_Timeout = newclass('_Timeout')
+_Timeout = class('_Timeout')
 -- Timeout class.
 -- Very simplified way of doing timeout callbacks.
 -- Lua's smallest time unit is seconds unfortunately, so this is not
@@ -322,7 +322,7 @@ end
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
-_EPoll = newclass('_EPoll')
+_EPoll = class('_EPoll')
 -- Epoll-based event loop using the lua-epoll module.
 
 function _EPoll:init()

@@ -40,12 +40,15 @@ local iostream = assert(require('iostream'),
 	[[Missing iostream module]])
 local ioloop = assert(require('ioloop'), 
 	[[Missing ioloop module]])
+assert(require('middleclass'), 
+	[[Missing required module: MiddleClass 
+	https://github.com/kikito/middleclass]])
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 -- 
-local IOStream, dump, nixsocket, assert, newclass, ipairs, pairs = 
-iostream.IOStream, log.dump, nixio.socket, assert, newclass, ipairs, 
+local IOStream, dump, nixsocket, assert, class, ipairs, pairs = 
+iostream.IOStream, log.dump, nixio.socket, assert, class, ipairs, 
 pairs
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
@@ -83,7 +86,7 @@ local function add_accept_handler(socket, callback, io_loop)
 	io_loop:add_handler(socket:fileno(), ioloop.READ, accept_handler)
 end
 
-tcpserver.TCPServer = newclass('TCPServer')
+tcpserver.TCPServer = class('TCPServer')
 
 function tcpserver.TCPServer:init(io_loop, ssl_options)
 

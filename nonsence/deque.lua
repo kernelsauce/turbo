@@ -34,10 +34,11 @@
 	
   ]]
 
-assert(require('yacicode'), 
-	[[Missing required module: Yet Another class Implementation http://lua-users.org/wiki/YetAnotherClassImplementation]])
+assert(require('middleclass'), 
+	[[Missing required module: MiddleClass 
+	https://github.com/kikito/middleclass]])
 
-local deque = newclass('Deque')
+local deque = class('Deque')
 
 local insert, remove = table.insert, table.remove
 

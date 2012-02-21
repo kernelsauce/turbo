@@ -40,18 +40,18 @@ local ioloop = assert(require('ioloop'),
 	[[Missing ioloop module]])
 local deque = assert(require('deque'), 
 	[[Missing required module: deque]])
-assert(require('yacicode'), 
-	[[Missing required module: Yet Another class Implementation 
-	http://lua-users.org/wiki/YetAnotherClassImplementation]])
+assert(require('middleclass'), 
+	[[Missing required module: MiddleClass 
+	https://github.com/kikito/middleclass]])
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 --
-local xpcall, pcall, random, newclass, pairs, ipairs, os, bitor, 
-bitand, dump, min, max, newclass, assert, deque, concat, find, EWOULDBLOCK,
-EAGAIN, type, error = xpcall,pcall, math.random, newclass, pairs, ipairs, os, 
-nixio.bit.bor, nixio.bit.band, log.dump, math.min, math.max, newclass, assert, 
+local xpcall, pcall, random, class, pairs, ipairs, os, bitor, 
+bitand, dump, min, max, class, assert, deque, concat, find, EWOULDBLOCK,
+EAGAIN, type, error = xpcall,pcall, math.random, class, pairs, ipairs, os, 
+nixio.bit.bor, nixio.bit.band, log.dump, math.min, math.max, class, assert, 
 deque, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN, 
 type, error
 -------------------------------------------------------------------------
@@ -59,7 +59,7 @@ type, error
 local iostream = {}
 -------------------------------------------------------------------------
 
-iostream.IOStream = newclass('IOStream')
+iostream.IOStream = class('IOStream')
 --[[	
 	A utility class for I/O on a non-blocking socket.
 	
@@ -167,10 +167,10 @@ local function _merge_prefix(deque, size)
 	return deque
 end
   
-function iostream.IOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
+function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_chunk_size)
 	-- Init IOStream object.
 	
-	self.socket = assert(socket, [[Please provide a socket for IOStream:new()]])
+	self.socket = assert(provided_socket, [[Please provide a socket for IOStream:new()]])
 	self.socket:setblocking(false)
 	self.io_loop = io_loop or ioloop.instance()
 	self.max_buffer_size = max_buffer_size or 104857600
@@ -647,7 +647,7 @@ function iostream.IOStream:_maybe_add_error_listener()
 	end
 end
 
-iostream.SSLIOStream = newclass('SSLIOStream', iostream.IOStream)
+iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
 --[[
 	SSL wrapper class for IOStream.
 		
