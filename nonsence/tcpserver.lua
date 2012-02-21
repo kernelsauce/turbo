@@ -3,8 +3,11 @@
 	Nonsence Asynchronous event based Lua Web server.
 	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 	
-	This module "IOLoop" is a part of the Nonsence Web server.
+	This module "TCPServer" is a part of the Nonsence Web server.
 	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
+	
+	It has been greatly inspired by the Tornado web server also available on GitHub:
+	< https://github.com/facebook/tornado/tree/master/tornado >
 	
 	Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
 
@@ -29,9 +32,8 @@
   ]]
   
 -------------------------------------------------------------------------
---
 -- Load modules
---
+
 local log = assert(require('log'), 
 	[[Missing log module]])
 local nixio = assert(require('nixio'),
@@ -46,17 +48,22 @@ assert(require('middleclass'),
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
--- 
+
 local IOStream, dump, nixsocket, assert, class, ipairs, pairs = 
 iostream.IOStream, log.dump, nixio.socket, assert, class, ipairs, 
 pairs
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -- Table to return on require.
+
 local tcpserver = {}
 -------------------------------------------------------------------------
 
 local function bind_sockets(port, address, backlog)
+	-- Binds sockets to port and address.
+	-- If not address is defined then * will be used.
+	-- If no backlog size is given in bytes then 128 bytes will
+	-- be used.
 	
 	local backlog = backlog or 128
 	local address = address or nil
@@ -72,7 +79,10 @@ local function bind_sockets(port, address, backlog)
 end
 
 local function add_accept_handler(socket, callback, io_loop)
-
+	-- Add accept handler for socket with given callback.
+	-- Either supply a IOLoop object, or the global instance
+	-- will be used...
+	
 	local io_loop = io_loop or ioloop.instance()
 	local function accept_handler(file_descriptor, events)
 		while true do 
@@ -89,15 +99,19 @@ end
 tcpserver.TCPServer = class('TCPServer')
 
 function tcpserver.TCPServer:init(io_loop, ssl_options)
-
+	-- Init method for TCPServer class.
+	
 	self.io_loop = io_loop or ioloop.instance()
-	self.ssl_options = ssl_options
+	--self.ssl_options = ssl_options
 	self._sockets = {}
 	self._pending_sockets = {}
 	self._started = false
 end
 
 function tcpserver.TCPServer:listen(port, address)
+	-- Start listening on port and address.
+	-- If no address is supplied, * will be used.
+
 	assert(port, [[Please specify port for listen() method]])
 	local sockets = bind_sockets(port, address)
 	log.notice("TCPServer listening on port: " .. port)
@@ -105,6 +119,7 @@ function tcpserver.TCPServer:listen(port, address)
 end
 
 function tcpserver.TCPServer:add_sockets(sockets)
+	-- Add multiple sockets in a table.
 	
 	if not self.io_loop then
 		self.io_loop = ioloop.instance()
@@ -121,6 +136,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
 end
 
 function tcpserver.TCPServer:add_socket(socket)
+	-- Add a single socket.
 	
 	self:add_sockets({ socket })
 end
@@ -137,7 +153,9 @@ function tcpserver.TCPServer:bind(port, address, backlog)
 end
 
 function tcpserver.TCPServer:start(num_processes)
+	-- Start the TCPServer.
 	-- TODO: forking?
+	-- Do we really want forking. This might work.
 	
 	assert(( not self._started ), 
 		[[Running started on a already started TCPServer]])
@@ -151,6 +169,7 @@ function tcpserver.TCPServer:start(num_processes)
 end
 
 function tcpserver.TCPServer:stop()
+	-- Stop the TCPServer and clean up its mess.
 
 	for file_descriptor, socket in pairs(self._sockets) do
 		self.io_loop:remove_handler(file_descriptor)
@@ -159,12 +178,16 @@ function tcpserver.TCPServer:stop()
 end
 
 function tcpserver.TCPServer:handle_stream(stream, address)
-
+	-- What to do with a new stream/connection.
+	-- This method should be redefined when inheriting from
+	-- the TCPServer class.
+	
 	error('handle_stream method not implemented in this object')
 end
 
 function tcpserver.TCPServer:_handle_connection(connection, address)
-	-- TODO implement SSL
+	-- Handle new connection.
+	
 	local stream = IOStream:new(connection, self.io_loop)
 	self:handle_stream(stream, address)
 end
