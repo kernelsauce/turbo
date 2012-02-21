@@ -3,7 +3,7 @@
 	Nonsence Asynchronous event based Lua Web server.
 	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 	
-	This module "IOLoop" is a part of the Nonsence Web server.
+	This module "log" is a part of the Nonsence Web server.
 	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
 	
 	Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
