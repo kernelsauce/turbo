@@ -48,8 +48,8 @@ assert(require('middleclass'),
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 --
-local status_codes, time, date, insert, type = status_codes, os.time, 
-os.date, table.insert, type
+local status_codes, time, date, insert, type, char = status_codes, os.time, 
+os.date, table.insert, type, string.char
 -------------------------------------------------------------------------
 -- Table to return on require.
 local httputil = {}
@@ -63,9 +63,15 @@ local httputil = {}
 	
 	Methods:
 	set_status_code(code)		Set the HTTP status code.
+	get_status_code()		Get the current status code.
 	add(key, value)			Add given key with value.
 	remove(key)			Removes the given key.
 	get(key)			Returns the given keys value.
+	set_version(version)		Set the HTTP version.
+	get_version()			Get the HTTP version.
+	get_argument(key)		Get the argument by key.
+	get_arguments()			Get all arguments.
+	__tostring()			Stringify the HTTP Header.
 	
 --]]
 httputil.HTTPHeaders = class("HTTPHeaders")
@@ -146,7 +152,7 @@ function httputil.HTTPHeaders:_parse_arguments(uri)
 	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
 		noDoS = noDoS + 1;
 		if (noDoS > 256) then break; end -- hashing DoS attack ;O
-		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return string.char(tonumber(s,16)) end);
+		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
 		if (not arguments[k]) then
 			arguments[k] = v;
 		else
