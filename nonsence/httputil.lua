@@ -48,7 +48,8 @@ assert(require('middleclass'),
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 --
-local status_codes, time, date = status_codes, os.time, os.date
+local status_codes, time, date, insert, type = status_codes, os.time, 
+os.date, table.insert, type
 -------------------------------------------------------------------------
 -- Table to return on require.
 local httputil = {}
@@ -142,7 +143,7 @@ function httputil.HTTPHeaders:_parse_arguments(uri)
 	local arguments_string = uri:match("?(.+)")
 	local arguments = {}
 	local noDoS = 0;
-	for k, v in string.gmatch(arguments_string, "([^&=]+)=([^&]+)") do
+	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
 		noDoS = noDoS + 1;
 		if (noDoS > 256) then break; end -- hashing DoS attack ;O
 		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return string.char(tonumber(s,16)) end);
@@ -153,7 +154,7 @@ function httputil.HTTPHeaders:_parse_arguments(uri)
 				local tmp = arguments[k];
 				arguments[k] = {tmp};
 			end
-			table.insert(arguments[k], v);
+			insert(arguments[k], v);
 		end
 	end
 	self._arguments = arguments
