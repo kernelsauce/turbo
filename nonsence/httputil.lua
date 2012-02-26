@@ -113,13 +113,14 @@ function httputil.HTTPHeaders:set_status_code(code)
 	-- Applies most probably for response headers.
 	
 	assert(type(code) == "number", [[method set_status_code requires int.]])
+	assert(status_codes[code], [[Invalid HTTP status code given: ]] .. code)
 	self.status_code = code
 end
 
 function httputil.HTTPHeaders:get_status_code()
 	-- Get the current status code.
 	
-	return self.status_code or nil
+	return self.status_code or nil, status_codes[self.status_code]
 end
 
 function httputil.HTTPHeaders:_parse_line(line)
