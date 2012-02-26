@@ -44,9 +44,9 @@ local nonsence = assert(require('nonsence'),
 -- Request headers parsing.
 --
 local do_tests_n_times = 30000
-for do_tests = 0, do_tests_n_times, 1 do
+for do_tests = 1, do_tests_n_times, 1 do
 	local raw_headers = 
-		"GET /test/test.gif?param1=something HTTP/1.1\r\n"..
+		"GET /test/test.gif?param1=something&param2=somethingelse HTTP/1.1\r\n"..
 		"Host: somehost.no\r\n"..
 		"Connection: keep-alive\r\n"..
 		"Cache-Control: max-age=0\r\n"..
@@ -71,9 +71,12 @@ for do_tests = 0, do_tests_n_times, 1 do
 	assert(headers:get("Accept-Language") == "en-US,en;q=0.8", "Test failed: Error in field:Accept-Language")
 	assert(headers:get("Accept-Charset") == "ISO-8859-1,utf-8;q=0.7,*;q=0.3", "Test failed: Error in field:Accept-Charset")
 	assert(headers.method == "GET", "Test failed: method field invalid")
-	assert(headers.uri == "/test/test.gif?param1=something", "Test failed: uri field invalid")
+	assert(headers.uri == "/test/test.gif?param1=something&param2=somethingelse", "Test failed: uri field invalid")
 	assert(headers.url == "/test/test.gif", "Test failed: url field invalid")
 	assert(headers.version == "HTTP/1.1", "Test failed: version field invalid")
+	assert(headers:get_argument("param1") == "something", "Test failed: could not get argument param1")
+	assert(headers:get_argument("param2") == "somethingelse", "Test failed: could not get argument param2")
+	assert(type(headers:get_arguments()) == 'table', "Test failed: No arguments table passed from get_arguments() method")
 end
 print("\r\nHTTPHeaders:init(raw_headers) parsed " .. do_tests_n_times .. " headers without errors.")
 
@@ -81,7 +84,7 @@ print("\r\nHTTPHeaders:init(raw_headers) parsed " .. do_tests_n_times .. " heade
 -- Response headers assembling test
 --
 local do_tests_n_times = 30000
-for do_tests = 0, do_tests_n_times, 1 do
+for do_tests = 1, do_tests_n_times, 1 do
 	local headers = nonsence.httputil.HTTPHeaders:new()
 	headers:set_status_code(304)
 	headers:set_version("HTTP/1.1")
@@ -92,3 +95,5 @@ for do_tests = 0, do_tests_n_times, 1 do
 	assert(headers:__tostring():len() == 140)
 end
 print("\r\nHTTPHeaders:__tostring() assembled " .. do_tests_n_times .. " headers without errors.")
+
+print("\r\nAll tests passed")
