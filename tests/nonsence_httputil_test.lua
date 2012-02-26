@@ -40,21 +40,38 @@ local nonsence = assert(require('nonsence'),
 	[[Missing httputil module]])
 -------------------------------------------------------------------------
 
-local raw_headers = 
-"GET /shaft/djisjdio/sdfko/lol.gif HTTP/1.1\r\n"..
-"Host: www.vg.no\r\n"..
-"Connection: keep-alive\r\n"..
-"Cache-Control: max-age=0\r\n"..
-"User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
-"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
-"Accept-Encoding: gzip,deflate,sdch\r\n"..
-"Accept-Language: en-US,en;q=0.8\r\n"..
-"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
+-- Test headers
+local do_tests_n_times = 30000
 
-local headers = nonsence.httputil.HTTPHeaders:new(raw_headers)
+for do_tests = 0, do_tests_n_times, 1 do
+	local raw_headers = 
+		"GET /test/test.gif?param1=something HTTP/1.1\r\n"..
+		"Host: somehost.no\r\n"..
+		"Connection: keep-alive\r\n"..
+		"Cache-Control: max-age=0\r\n"..
+		"User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
+		"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
+		"Accept-Encoding: gzip,deflate,sdch\r\n"..
+		"Accept-Language: en-US,en;q=0.8\r\n"..
+		"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
 
-dump(headers._header_table)
-dump(headers.method)
-dump(headers.uri)
-dump(headers.url)
-dump(headers.version)
+	local headers = nonsence.httputil.HTTPHeaders:new(raw_headers)
+
+	assert(type(headers._header_table) == "table", "Test failed: _header_table not a table!")
+	assert(headers:get("Host") == "somehost.no", "Test failed: Error in field:Host")
+	assert(headers:get("Connection") == "keep-alive", "Test failed: Error in field:Connection")
+	assert(headers:get("Cache-Control") == "max-age=0", "Test failed: Error in field:Cache-Control")
+	assert(headers:get("User-Agent") == 
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11", 
+		"Test failed: Error in field:User-Agent")
+	assert(headers:get("Accept") == "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", 
+		"Test failed: Error in field:Accept")
+	assert(headers:get("Accept-Encoding") == "gzip,deflate,sdch", "Test failed: Error in field:Accept-Encoding")
+	assert(headers:get("Accept-Language") == "en-US,en;q=0.8", "Test failed: Error in field:Accept-Language")
+	assert(headers:get("Accept-Charset") == "ISO-8859-1,utf-8;q=0.7,*;q=0.3", "Test failed: Error in field:Accept-Charset")
+	assert(headers.method == "GET", "Test failed: method field invalid")
+	assert(headers.uri == "/test/test.gif?param1=something", "Test failed: uri field invalid")
+	assert(headers.url == "/test/test.gif", "Test failed: url field invalid")
+	assert(headers.version == "HTTP/1.1", "Test failed: version field invalid")
+end
+print("\r\nHTTPHeaders:init(raw_headers) parsed " .. do_tests_n_times .. " headers without errors.")
