@@ -81,6 +81,7 @@ function httputil.HTTPHeaders:init(raw_request_headers)
 	self.version = nil
 	self.status_code = nil
 	self.version = nil
+	self._arguments = {}
 	self._header_table = {}
 	if type(raw_request_headers) == "string" then
 		self:update(raw_request_headers)
@@ -137,6 +138,39 @@ function httputil.HTTPHeaders:_parse_method_uri(line)
 	return method, uri, url, version
 end
 
+function httputil.HTTPHeaders:_parse_arguments(uri)
+	local arguments_string = uri:match("?(.+)")
+	local arguments = {}
+	local noDoS = 0;
+	for k, v in string.gmatch(arguments_string, "([^&=]+)=([^&]+)") do
+		noDoS = noDoS + 1;
+		if (noDoS > 256) then break; end -- hashing DoS attack ;O
+		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return string.char(tonumber(s,16)) end);
+		if (not arguments[k]) then
+			arguments[k] = v;
+		else
+			if ( type(arguments[k]) == "string") then
+				local tmp = arguments[k];
+				arguments[k] = {tmp};
+			end
+			table.insert(arguments[k], v);
+		end
+	end
+	self._arguments = arguments
+end
+
+function httputil.HTTPHeaders:get_argument(argument)
+	-- Get one argument of the header.
+	
+	return self._arguments[argument] or nil
+end
+
+function httputil.HTTPHeaders:get_arguments()
+	-- Get all arguments of the header.
+	
+	return self._arguments or nil
+end
+
 function httputil.HTTPHeaders:get(key)
 	-- Get given key from headers.
 	
@@ -162,13 +196,14 @@ function httputil.HTTPHeaders:remove(key)
 end
 
 function httputil.HTTPHeaders:update(raw_headers)
-	-- Update the header dictonary with raw headers.
+	-- Update the header object with raw headers.
 	-- Typically used when parsing a HTTP request header.
 	
 	-- Parse method, URI and HTTP version.
 	local method, uri, url, version = self:_parse_method_uri(raw_headers:match("[^\r\n]+"))
 	self.method = method
 	self.uri = uri
+	self:_parse_arguments(uri)
 	self.url = url
 	self.version = version
 	
