@@ -36,10 +36,19 @@ local log = assert(require('log'),
 	[[Missing log module]])
 local nixio = assert(require('nixio'),
 	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
+local status_codes = assert(require('http_response_codes'),
+	[[Missing http_status_codes module]])
+local deque = assert(require('deque'), 
+	[[Missing required module: deque]])
 assert(require('middleclass'), 
 	[[Missing required module: MiddleClass 
 	https://github.com/kikito/middleclass]])
 -------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+--
+local status_codes = status_codes
 -------------------------------------------------------------------------
 -- Table to return on require.
 local httputil = {}
@@ -60,34 +69,49 @@ local httputil = {}
 --]]
 httputil.HTTPHeaders = class("HTTPHeaders")
 
-function httputil.HTTPHeaders:init(raw_headers)
+function httputil.HTTPHeaders:init(raw_request_headers)
 	-- Init HTTPHeaders object.
 	-- Pass headers as parameters to parse them into
 	-- the returned object.
 	
-	self._raw_headers = raw_headers
+	self._raw_headers = raw_request_headers
 	self.uri = nil
 	self.url = nil
 	self.method = nil
 	self.version = nil
+	self.status_code = nil
+	self.version = nil
 	self._header_table = {}
-	if type(raw_headers) == "string" then
-		self:update(raw_headers)
+	if type(raw_request_headers) == "string" then
+		self:update(raw_request_headers)
 	end
 end
 
+function httputil.HTTPHeaders:set_version(version)
+	-- Set the HTTP version.
+	-- Applies most probably for response headers.
+	
+	assert(type(version) == "string", [[method set_version requires string.]])
+	self.version = version
+end
+
+function httputil.HTTPHeaders:get_version()
+	-- Get the current HTTP version.
+	
+	return self.version or nil
+end
 function httputil.HTTPHeaders:set_status_code(code)
 	-- Set the status code.
 	-- Applies most probably for response headers.
 	
 	assert(type(code) == "number", [[method set_status_code requires int.]])
-	self._header_table.status_code = code
+	self.status_code = code
 end
 
 function httputil.HTTPHeaders:get_status_code()
 	-- Get the current status code.
 	
-	return self._header_table.status_code or nil
+	return self.status_code or nil
 end
 
 function httputil.HTTPHeaders:_parse_line(line)
@@ -160,8 +184,11 @@ end
 function httputil.HTTPHeaders:__tostring()
 	-- Assembles HTTP headers based on the information
 	-- in the object.
-
+	
 	local buffer = deque:new()
+	buffer:append(self.version .. " ")
+	buffer:append(self.status_code .. " " .. status_codes[self.status_code])
+	buffer:append("\r\n")
 	for key, value in pairs(self._header_table) do
 		buffer:append(key .. ": " .. value .. "\r\n")
 	end
