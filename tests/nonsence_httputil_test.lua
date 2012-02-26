@@ -40,9 +40,10 @@ local nonsence = assert(require('nonsence'),
 	[[Missing httputil module]])
 -------------------------------------------------------------------------
 
--- Test headers
-local do_tests_n_times = 30000
-
+--
+-- Request headers parsing.
+--
+local do_tests_n_times = 0
 for do_tests = 0, do_tests_n_times, 1 do
 	local raw_headers = 
 		"GET /test/test.gif?param1=something HTTP/1.1\r\n"..
@@ -75,3 +76,22 @@ for do_tests = 0, do_tests_n_times, 1 do
 	assert(headers.version == "HTTP/1.1", "Test failed: version field invalid")
 end
 print("\r\nHTTPHeaders:init(raw_headers) parsed " .. do_tests_n_times .. " headers without errors.")
+
+--
+-- Response headers assembling test
+--
+local do_tests_n_times = 1
+for do_tests = 0, do_tests_n_times, 1 do
+	local headers = nonsence.httputil.HTTPHeaders:new()
+	headers:set_status_code(304)
+	headers:set_version("HTTP/1.1")
+	headers:add("Server", "Nonsence/1.0")
+	headers:add("Accept-Ranges", "bytes")
+	headers:add("Date", "Sun, 26 Feb 2012 09:57:02 GMT")
+	headers:add("Connection", "keep-alive")
+	headers:add("Age", "0")
+	print(headers)
+	assert(headers:__tostring() == "HTTP/1.1 304 Not Modified\r\nConnection: keep-alive\r\nDate: Sun, 26 Feb 2012 09:57:02 GMT\r\nAccept-Ranges: bytes\r\nAge: 0\r\nServer: Nonsence/1.0\r\n",
+		"Error in assembling of HTTP headers")
+end
+print("\r\nHTTPHeaders:__tostring() assembled " .. do_tests_n_times .. " headers without errors.")
