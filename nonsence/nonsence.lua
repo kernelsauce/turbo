@@ -27,14 +27,17 @@
   ]]
 
 local nonsence = {}
-_G.nonsence_applications = {}
 
-nonsence.log = require('nonsence_log')
+require('deque')
+require('middleclass')
+
+nonsence.log = require('log')
 _G.dump = nonsence.log.dump -- Set dump function in global
-nonsence.mime = require('nonsence_mime')
-nonsence.escape = require('nonsence_escape')
-nonsence.template = require('nonsence_template')
-nonsence.web = require('nonsence_web')
-nonsence.ioloop = require('nonsence_ioloop')
+
+nonsence.ioloop = require('ioloop')
+nonsence.escape = {}
+nonsence.escape.json = require('json')
+nonsence.httputil = require('httputil')
+nonsence.iostream = require('iostream')
 
 return nonsence
