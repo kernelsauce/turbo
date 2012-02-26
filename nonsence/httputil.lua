@@ -189,6 +189,9 @@ function httputil.HTTPHeaders:__tostring()
 	buffer:append(self.version .. " ")
 	buffer:append(self.status_code .. " " .. status_codes[self.status_code])
 	buffer:append("\r\n")
+	if not self:get("Date") then
+		self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
+	end
 	for key, value in pairs(self._header_table) do
 		buffer:append(key .. ": " .. value .. "\r\n")
 	end
