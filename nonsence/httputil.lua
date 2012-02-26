@@ -3,7 +3,7 @@
 	Nonsence Asynchronous event based Lua Web server.
 	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 	
-	This module "IOLoop" is a part of the Nonsence Web server.
+	This module "httputil" is a part of the Nonsence Web server.
 	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
 	
 	Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
@@ -48,7 +48,7 @@ assert(require('middleclass'),
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 --
-local status_codes = status_codes
+local status_codes, time, date = status_codes, os.time, os.date
 -------------------------------------------------------------------------
 -- Table to return on require.
 local httputil = {}
@@ -190,7 +190,7 @@ function httputil.HTTPHeaders:__tostring()
 	buffer:append(self.status_code .. " " .. status_codes[self.status_code])
 	buffer:append("\r\n")
 	if not self:get("Date") then
-		self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
+		self:add("Date", date("!%a, %d %b %Y %X GMT", time()))
 	end
 	for key, value in pairs(self._header_table) do
 		buffer:append(key .. ": " .. value .. "\r\n")
