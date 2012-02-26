@@ -40,7 +40,7 @@ assert(require('middleclass'),
 
 local deque = class('Deque')
 
-local insert, remove = table.insert, table.remove
+local insert, remove, concat = table.insert, table.remove, table.concat
 
 function deque:init()
 	self._virtual_queue = {}
@@ -90,6 +90,10 @@ end
 
 function deque:not_empty()
 	return #self._virtual_queue > 0 and true or false
+end
+
+function deque:concat()
+	return concat(self._virtual_queue)
 end
 
 return deque
