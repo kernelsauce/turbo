@@ -60,7 +60,7 @@ local httputil = {}
 --]]
 httputil.HTTPHeaders = class("HTTPHeaders")
 
-function httputil.HTTPHeaders:initialize(raw_headers)
+function httputil.HTTPHeaders:init(raw_headers)
 	-- Init HTTPHeaders object.
 	-- Pass headers as parameters to parse them into
 	-- the returned object.
