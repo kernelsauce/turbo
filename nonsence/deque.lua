@@ -57,7 +57,7 @@ end
 function deque:pop()
 	local len = #self._virtual_queue
 	local pop = self._virtual_queue[len]
-	remove(self._virtual_queue, len)
+	self._virtual_queue[len] = nil
 	return pop
 end
 
