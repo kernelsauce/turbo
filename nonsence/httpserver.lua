@@ -42,6 +42,8 @@ local httputil = assert(require('httputil'),
 	[[Missing httputil module]])
 local ioloop = assert(require('ioloop'), 
 	[[Missing ioloop module]])
+local iostream = assert(require('iostream'), 
+	[[Missing iostream module]])
 assert(require('middleclass'), 
 	[[Missing required module: MiddleClass 
 	https://github.com/kikito/middleclass]])
@@ -80,38 +82,49 @@ end
 
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
-function httpserver.HTTPServer:init(request_callback, no_keep_alive, io_loop)
-	-- HTTPServer with heritage from TCPServer
-
+function httpserver.HTTPServer:init(request_callback, no_keep_alive, io_loop, xheaders,
+	ssl_options, kwargs)
+	--[[ 
+	
+		HTTPServer with heritage from TCPServer.
+		
+	  ]]
+	
 	self.request_callback = request_callback
 	self.no_keep_alive = no_keep_alive or false
 	self.xheaders = xheaders or false
 	-- Init superclass TCPServer.
-	self.super:init(io_loop)
+	tcpserver.TCPServer:init(io_loop, ssl_options, kwargs)
 end
 
 function httpserver.HTTPServer:handle_stream(stream, address)
 	-- Redefine handle_stream method from super class TCPServer
 	
-	HTTPConnection:new(stream, address, self.request_callback,
+	httpserver.HTTPConnection:new(stream, address, self.request_callback,
 		self.no_keep_alive, self.xheaders)
 end
-
-httpserver._BadRequest = class("BadRequest")
 
 httpserver.HTTPConnection = class('HTTPConnection')
 
 function httpserver.HTTPConnection:init(stream, address, request_callback,
 	no_keep_alive, xheaders)
-	
+
 	self.stream = stream
 	self.address = address
-	self.request_callback = request_callback
-	self.no_keep_alive = no_keep_alive
-	self.xheaders = xheaders
+	local function _wrapped_request_callback(data)
+		-- This is needed to retain the context.
+		request_callback(data)
+	end
+	self.request_callback = _wrapped_request_callback
+	self.no_keep_alive = no_keep_alive or false
+	self.xheaders = xheaders or false
 	self._request = nil
 	self._request_finished = false
-	self._header_callback = self._on_headers
+	local function _wrapped_header_callback(data)
+		-- This is needed to retain the context.
+		self:_on_headers(data)
+	end
+	self._header_callback = _wrapped_header_callback
 	self.stream:read_until("\r\n\r\n", self._header_callback)
 	self._write_callback = nil
 end
@@ -119,11 +132,15 @@ end
 function httpserver.HTTPConnection:write(chunk, callback)
 	-- Writes a chunk of output to the stream.
 	
-	local callback = callback or nil
+	local callback = callback
 	assert(self._request, "Request closed")
+
 	if not self.stream:closed() then
 		self._write_callback = callback
-		self.stream:write(chunk, self._on_write_complete)
+		local function _on_write_complete_wrap()
+			self:_on_write_complete()
+		end
+		self.stream:write(chunk, _on_write_complete_wrap)
 	end
 end
 
@@ -138,7 +155,7 @@ end
 
 function httpserver.HTTPConnection:_on_write_complete()
 	-- Run callback on complete.
-	
+
 	if self._write_callback then
 		local callback = self._write_callback
 		self._write_callback = nil
@@ -151,6 +168,8 @@ end
 
 function httpserver.HTTPConnection:_finish_request()
 	-- Finish request.
+	
+	local disconnect = false
 	
 	if self.no_keep_alive then
 		disconnect = true
@@ -180,10 +199,11 @@ end
 
 function httpserver.HTTPConnection:_on_headers(data)
 	local headers = httputil.HTTPHeaders:new(data)
-	self._request = HTTPRequest:new(headers.method, headers.uri, {
+	self._request = httpserver.HTTPRequest:new(headers.method, headers.uri, {
+		version = headers.version,
 		connection = self,
 		headers = headers,
-		remote_ip = self.address[1]})
+		remote_ip = self.address})
 	local content_length = headers:get("Content-Length")
 	if content_length then
 		content_length = tonumber(content_length)
@@ -198,7 +218,7 @@ function httpserver.HTTPConnection:_on_headers(data)
 		return
 	end
 	
-	self.request_callback(self._request)
+	self:request_callback(self._request)
 	-- TODO we need error handling here??
 end
 
@@ -219,12 +239,12 @@ end
 
 httpserver.HTTPRequest = class('HTTPRequest')
 
-function httpserver.HTTPRequest:new(method, uri, args)
+function httpserver.HTTPRequest:init(method, uri, args)
 	
 	local headers, body, remote_ip, protocol, host, files, 
 	version, connection = nil, nil, nil, nil, nil, nil, "HTTP/1.0",
 	nil
-	
+
 	if type(args) == "table" then
 		version = args.version or version
 		headers = args.headers
@@ -239,7 +259,7 @@ function httpserver.HTTPRequest:new(method, uri, args)
 	self.method = method
 	self.uri = uri
 	self.version = args.version or version
-	self.headers = headers or httputil.HTTPHeaders:new()		
+	self.headers = headers or httputil.HTTPHeaders:new()	
 	self.body = body or ""
 
 	if connection and connection.xheaders then
@@ -271,10 +291,11 @@ function httpserver.HTTPRequest:new(method, uri, args)
 	self._start_time = os.time()
 	self._finish_time = nil
 	
+	--local scheme, netloc, path, query, fragment = urlparse.urlsplit(native_str(uri))
+	
 	-- TODO: parse scheme, netloc, path, query fragment
-	self.path = path
-	self.query = query
-	local arguments
+	self.path = self.headers.url
+	self.arguments = self.headers:get_arguments()
 end
 
 -- TODO: implement cookies() method
@@ -284,7 +305,7 @@ function httpserver.HTTPRequest:supports_http_1_1()
 end
 
 function httpserver.HTTPRequest:write(chunk, callback)
-	local callback = callback or nil
+	local callback = callback
 	assert(type(chunk) == "string")
 	self.connection:write(chunk, callback)
 end
@@ -308,7 +329,7 @@ end
 
 function httpserver.HTTPRequest:_valid_ip(ip)
 	local ip = ip or ''
-	return ip:find("[%d+\.]+") or nil
+	return ip:find("[%d+%.]+") or nil
 end
 
 return httpserver
