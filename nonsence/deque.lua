@@ -85,7 +85,7 @@ function deque:getn(k)
 end
 
 function deque:size()
-	return #self._virtual_queue
+	return #self._virtual_queue or 0
 end
 
 function deque:not_empty()
