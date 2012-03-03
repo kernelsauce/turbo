@@ -38,6 +38,7 @@ nonsence.ioloop = require('ioloop')
 nonsence.escape = {}
 nonsence.escape.json = require('json')
 nonsence.httputil = require('httputil')
+nonsence.httpserver = require('httpserver')
 nonsence.iostream = require('iostream')
 
 return nonsence
