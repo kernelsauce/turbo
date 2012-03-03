@@ -180,6 +180,7 @@ local function error_handler(err)
 	-- Handles errors in _run_callback.
 	-- Verbose printing of error to console.
 	log.warning([[_callback_error_handler caught error: ]] .. err)
+	print(debug.traceback())
 end
 
 function ioloop.IOLoop:_run_callback(callback)
