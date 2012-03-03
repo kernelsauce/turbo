@@ -290,10 +290,6 @@ function httpserver.HTTPRequest:init(method, uri, args)
 	self.connection = connection 
 	self._start_time = os.time()
 	self._finish_time = nil
-	
-	--local scheme, netloc, path, query, fragment = urlparse.urlsplit(native_str(uri))
-	
-	-- TODO: parse scheme, netloc, path, query fragment
 	self.path = self.headers.url
 	self.arguments = self.headers:get_arguments()
 end
