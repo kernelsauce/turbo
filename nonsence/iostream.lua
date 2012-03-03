@@ -452,7 +452,8 @@ function iostream.IOStream:writing()
 end
 
 function iostream.IOStream:closed()
-	return self.socket and false or true
+	if self.socket then return false 
+	else return true end
 end
 
 function iostream.IOStream:_read_from_socket()
