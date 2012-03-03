@@ -71,6 +71,8 @@ local httputil = {}
 	get_version()			Get the HTTP version.
 	get_argument(key)		Get the argument by key.
 	get_arguments()			Get all arguments.
+	
+	Metamethods:
 	__tostring()			Stringify the HTTP Header.
 	
 --]]
@@ -120,7 +122,7 @@ end
 function httputil.HTTPHeaders:get_status_code()
 	-- Get the current status code.
 	
-	return self.status_code or nil, status_codes[self.status_code]
+	return self.status_code or nil, status_codes[self.status_code] or nil
 end
 
 function httputil.HTTPHeaders:_parse_line(line)
@@ -150,6 +152,7 @@ function httputil.HTTPHeaders:_parse_arguments(uri)
 	local arguments_string = uri:match("?(.+)")
 	local arguments = {}
 	local noDoS = 0;
+	if not arguments_string then return end
 	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
 		noDoS = noDoS + 1;
 		if (noDoS > 256) then break; end -- hashing DoS attack ;O
