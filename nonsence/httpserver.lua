@@ -51,7 +51,9 @@ assert(require('middleclass'),
 -------------------------------------------------------------------------
 -- Speeding up globals access with locals :>
 -- 
-
+local class, instanceOf, assert, ostime, type, char, insert, tonumber
+= class, instanceOf, assert, os.time, type, char, table.insert, 
+tonumber
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -- Table to return on require.
@@ -288,7 +290,7 @@ function httpserver.HTTPRequest:init(method, uri, args)
 	self.host = host or self.headers:get("Host") or "127.0.0.1"
 	self.files = files or {}
 	self.connection = connection 
-	self._start_time = os.time()
+	self._start_time = ostime()
 	self._finish_time = nil
 	self.path = self.headers.url
 	self.arguments = self.headers:get_arguments()
@@ -308,7 +310,7 @@ end
 
 function httpserver.HTTPRequest:finish()
 	self.connection:finish()
-	self._finish_time = os.time()
+	self._finish_time = ostime()
 end
 
 function httpserver.HTTPRequest:full_url()
@@ -317,7 +319,7 @@ end
 
 function httpserver.HTTPRequest:request_time()
 	if not self._finish_time then
-		return os.time() - self._start_time
+		return ostime() - self._start_time
 	else
 		return self._finish_time - self._start_time
 	end
