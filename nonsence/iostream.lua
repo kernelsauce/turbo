@@ -147,7 +147,7 @@ local function _merge_prefix(deque, size)
 	-- Replace the first entries in a deque of strings with a
 	-- single string of up to size bytes.
 
-	if deque:size() == 1 and deque:peekfirst():len() <= size then
+	if deque:size() == 1 and deque:peekfirst():len() or 0 <= size then
 		return deque
 	end
 	local prefix = {}
