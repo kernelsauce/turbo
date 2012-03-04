@@ -32,6 +32,7 @@
 -------------------------------------------------------------------------
 -- Load modules
 local ffi = require("ffi")
+local log = require("log")
 -------------------------------------------------------------------------
 -- Table to be returned
 local epoll = {}
@@ -65,7 +66,7 @@ ffi.cdef[[
 	struct epoll_event {
 		uint32_t     events;      /* Epoll events */
 		epoll_data_t data;        /* User data variable */
-	};
+	} __attribute__ ((__packed__));
 
 	typedef struct epoll_event epoll_event;
 
@@ -89,9 +90,18 @@ function epoll.epoll_ctl(epfd, op, fd, epoll_events)
 end
 
 function epoll.epoll_wait(epfd, maxevents, timeout)
-	local events = ffi.new("epoll_event")
-	ffi.C.epoll_wait(epfd, events, maxevents, timeout)
-	return events
+	local events = ffi.new("struct epoll_event[24]")
+	local num_events = ffi.C.epoll_wait(epfd, events, maxevents, timeout)
+	local events_t = {}
+	for i=1, num_events do
+		if events[i].data.fd != 0 then
+			events_t[#events_t + 1 ] = events[i].data.fd
+			events_t[#events_t + 1 ] = events[i].events
+		end
+	end
+	events = nil
+	log.dump(events_t)
+	return events_t
 end
 
 return epoll
