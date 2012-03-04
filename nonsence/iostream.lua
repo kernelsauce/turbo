@@ -146,27 +146,27 @@ iostream.IOStream = class('IOStream')
 local function _merge_prefix(deque, size)
 	-- Replace the first entries in a deque of strings with a
 	-- single string of up to size bytes.
-
-	if deque:size() == 1 and deque:peekfirst():len() or 0 <= size then
-		return deque
-	end
-	local prefix = {}
-	local remaining = size
-	
-	while deque:size() >= 1 and remaining >= 1 do
-		local chunk = deque:popleft()
-		if chunk:len() > remaining then
-			deque:appendleft(chunk:sub(remaining))
-			chunk = chunk:sub(1, remaining)
+	if size then
+		if deque:size() == 1 and deque:peekfirst():len() <= size then
+			return deque
 		end
-		prefix[#prefix + 1] = chunk
-		remaining = remaining - chunk:len()
-	end
-	
-	if #prefix >= 1 then
-		deque:appendleft(concat(prefix))
-	end
+		local prefix = {}
+		local remaining = size
 
+		while deque:size() >= 1 and remaining >= 1 do
+			local chunk = deque:popleft()
+			if chunk:len() > remaining then
+				deque:appendleft(chunk:sub(remaining))
+				chunk = chunk:sub(1, remaining)
+			end
+			prefix[#prefix + 1] = chunk
+			remaining = remaining - chunk:len()
+		end
+
+		if #prefix >= 1 then
+			deque:appendleft(concat(prefix))
+		end
+	end
 	return deque
 end
   
@@ -582,7 +582,6 @@ function iostream.IOStream:_handle_write()
 		end
 		
 		local num_bytes = self.socket:send(self._write_buffer:peekfirst())
-		
 		if num_bytes == 0 then
 			self._write_buffer_frozen = true
 			break
