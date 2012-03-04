@@ -39,7 +39,7 @@ local epoll = {}
 -------------------------------------------------------------------------
 -- Epoll defines from epoll.h
 --
-MAX_EVENTS = 24
+MAX_EVENTS = 2000
 epoll.EPOLL_CTL_ADD = 1 --	/* Add a file decriptor to the interface */
 epoll.EPOLL_CTL_DEL = 2 --	/* Remove a file decriptor from the interface */
 epoll.EPOLL_CTL_MOD = 3 --	/* Change file decriptor epoll_event structure */
