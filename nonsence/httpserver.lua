@@ -52,35 +52,13 @@ assert(require('middleclass'),
 -- Speeding up globals access with locals :>
 -- 
 local class, instanceOf, assert, ostime, type, char, insert, tonumber
-= class, instanceOf, assert, os.time, type, char, table.insert, 
-tonumber
+, _parse_post_arguments = class, instanceOf, assert, os.time, type, 
+char, table.insert, tonumber, httputil.parse_post_arguments
 -------------------------------------------------------------------------
 -------------------------------------------------------------------------
 -- Table to return on require.
 local httpserver = {}
 -------------------------------------------------------------------------
-
-local function _parse_post_arguments(data)
-	assert(type(data) == "string", "data into _parse_post_arguments() not a string.")
-	local arguments_string = data:match("?(.+)")
-	local arguments = {}
-	local noDoS = 0;
-	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
-		noDoS = noDoS + 1;
-		if (noDoS > 256) then break; end -- hashing DoS attack ;O
-		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
-		if (not arguments[k]) then
-			arguments[k] = v;
-		else
-			if ( type(arguments[k]) == "string") then
-				local tmp = arguments[k];
-				arguments[k] = {tmp};
-			end
-			insert(arguments[k], v);
-		end
-	end
-	return arguments
-end
 
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
@@ -90,6 +68,24 @@ function httpserver.HTTPServer:init(request_callback, no_keep_alive, io_loop, xh
 	
 		HTTPServer with heritage from TCPServer.
 		
+		Example usage:
+		
+		local httpserver = require('httpserver')
+		local ioloop = require('ioloop')
+		local ioloop_instance = ioloop.instance()
+
+		-- Request handler function
+		function handle_request(request)
+			local message = "You requested: " .. request._request.path
+			request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() .."\r\n\r\n")
+			request:write(message)
+			request:finish()
+		end
+
+		http_server = httpserver.HTTPServer:new(handle_request)
+		http_server:listen(8888)
+		ioloop_instance:start()
+
 	  ]]
 	
 	self.request_callback = request_callback
@@ -113,18 +109,18 @@ function httpserver.HTTPConnection:init(stream, address, request_callback,
 
 	self.stream = stream
 	self.address = address
-	local function _wrapped_request_callback(data)
+	local function _wrapped_request_callback(RequestObject)
 		-- This is needed to retain the context.
-		request_callback(data)
+		request_callback(RequestObject)
 	end
 	self.request_callback = _wrapped_request_callback
 	self.no_keep_alive = no_keep_alive or false
 	self.xheaders = xheaders or false
 	self._request = nil
 	self._request_finished = false
-	local function _wrapped_header_callback(data)
+	local function _wrapped_header_callback(RequestObject)
 		-- This is needed to retain the context.
-		self:_on_headers(data)
+		self:_on_headers(RequestObject)
 	end
 	self._header_callback = _wrapped_header_callback
 	self.stream:read_until("\r\n\r\n", self._header_callback)
