@@ -90,17 +90,16 @@ function epoll.epoll_ctl(epfd, op, fd, epoll_events)
 end
 
 function epoll.epoll_wait(epfd, maxevents, timeout)
-	local events = ffi.new("struct epoll_event[24]")
+	local events = ffi.new("struct epoll_event[".. MAX_EVENTS.."]")
 	local num_events = ffi.C.epoll_wait(epfd, events, maxevents, timeout)
 	local events_t = {}
-	for i=1, num_events do
-		if events[i].data.fd != 0 then
+	for i=0, num_events do
+		if events[i].data.fd > 0 then
 			events_t[#events_t + 1 ] = events[i].data.fd
 			events_t[#events_t + 1 ] = events[i].events
 		end
 	end
 	events = nil
-	log.dump(events_t)
 	return events_t
 end
 
