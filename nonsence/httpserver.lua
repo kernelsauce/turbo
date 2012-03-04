@@ -61,32 +61,32 @@ local httpserver = {}
 -------------------------------------------------------------------------
 
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
+--[[ 
 
+	HTTPServer with heritage from TCPServer.
+	
+	Example usage:
+	
+	local httpserver = require('httpserver')
+	local ioloop = require('ioloop')
+	local ioloop_instance = ioloop.instance()
+
+	-- Request handler function
+	function handle_request(request)
+		local message = "You requested: " .. request._request.path
+		request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() .."\r\n\r\n")
+		request:write(message)
+		request:finish()
+	end
+
+	http_server = httpserver.HTTPServer:new(handle_request)
+	http_server:listen(8888)
+	ioloop_instance:start()
+
+  ]]
+	  
 function httpserver.HTTPServer:init(request_callback, no_keep_alive, io_loop, xheaders,
 	ssl_options, kwargs)
-	--[[ 
-	
-		HTTPServer with heritage from TCPServer.
-		
-		Example usage:
-		
-		local httpserver = require('httpserver')
-		local ioloop = require('ioloop')
-		local ioloop_instance = ioloop.instance()
-
-		-- Request handler function
-		function handle_request(request)
-			local message = "You requested: " .. request._request.path
-			request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() .."\r\n\r\n")
-			request:write(message)
-			request:finish()
-		end
-
-		http_server = httpserver.HTTPServer:new(handle_request)
-		http_server:listen(8888)
-		ioloop_instance:start()
-
-	  ]]
 	
 	self.request_callback = request_callback
 	self.no_keep_alive = no_keep_alive or false
