@@ -244,4 +244,26 @@ function httputil.HTTPHeaders:__tostring()
 	return buffer:concat()
 end
 
+function httputil.parse_post_arguments(data)
+	assert(type(data) == "string", "data into _parse_post_arguments() not a string.")
+	local arguments_string = data:match("?(.+)")
+	local arguments = {}
+	local noDoS = 0;
+	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
+		noDoS = noDoS + 1;
+		if (noDoS > 256) then break; end -- hashing DoS attack ;O
+		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
+		if (not arguments[k]) then
+			arguments[k] = v;
+		else
+			if ( type(arguments[k]) == "string") then
+				local tmp = arguments[k];
+				arguments[k] = {tmp};
+			end
+			insert(arguments[k], v);
+		end
+	end
+	return arguments
+end
+
 return httputil
