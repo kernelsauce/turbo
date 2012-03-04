@@ -39,7 +39,7 @@ local epoll = {}
 -------------------------------------------------------------------------
 -- Epoll defines from epoll.h
 --
-MAX_EVENTS = 2000
+MAX_EVENTS = 24
 epoll.EPOLL_CTL_ADD = 1 --	/* Add a file decriptor to the interface */
 epoll.EPOLL_CTL_DEL = 2 --	/* Remove a file decriptor from the interface */
 epoll.EPOLL_CTL_MOD = 3 --	/* Change file decriptor epoll_event structure */
@@ -89,9 +89,9 @@ function epoll.epoll_ctl(epfd, op, fd, epoll_events)
 	return rc
 end
 
-function epoll.epoll_wait(epfd, maxevents, timeout)
+function epoll.epoll_wait(epfd, timeout)
 	local events = ffi.new("struct epoll_event[".. MAX_EVENTS.."]")
-	local num_events = ffi.C.epoll_wait(epfd, events, maxevents, timeout)
+	local num_events = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
 	local events_t = {}
 	for i=0, num_events do
 		if events[i].data.fd > 0 then
