@@ -137,7 +137,11 @@ function ioloop.IOLoop:init()
 	self._callback_lock = false
 	self._running = false
 	self._stopped = false
-	self._poll = _poll_implementation == 'epoll' and _EPoll:new() 
+	if _poll_implementation == 'epoll' then
+		self._poll = _EPoll:new() 
+	elseif _poll_implementation == 'epoll_ffi' then
+		self._poll = _EPoll_FFI:new()
+	end
 end
 
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
@@ -179,8 +183,8 @@ end
 local function error_handler(err)
 	-- Handles errors in _run_callback.
 	-- Verbose printing of error to console.
-	log.warning([[_callback_error_handler caught error: ]] .. err)
-	print(debug.traceback())
+	log.error([[_callback_error_handler caught error: ]] .. err)
+	log.error(debug.traceback())
 end
 
 function ioloop.IOLoop:_run_callback(callback)
@@ -323,6 +327,44 @@ end
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
+_EPoll_FFI = class('_EPoll')
+-- Epoll-based event loop using the epoll_ffi module.
+
+function _EPoll_FFI:init()
+	-- Create a new object from EPoll module.
+	self._epoll_ffi = require('epoll_ffi')
+	self._epoll_fd = self._epoll_ffi.epoll_create() -- New epoll, store its fd.
+end
+
+function _EPoll_FFI:fileno()
+	return self._epoll_fd
+end
+
+function _EPoll_FFI:register(file_descriptor, events)
+	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_ADD, 
+		file_descriptor, events)
+end
+
+function _EPoll_FFI:modify(file_descriptor, events)
+	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_MOD, 
+		file_descriptor, events)
+end
+
+function _EPoll_FFI:unregister(file_descriptor)
+	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_DEL, 
+		file_descriptor)	
+end
+
+function _EPoll_FFI:poll(timeout)
+	local events_cdata = self._epoll_ffi.epoll_wait(self._epoll_fd, 100, timeout)
+	if events_cdata.data.fd == 0 then 
+		return {}
+	else
+		return { events_cdata.data.fd, events_cdata.events }
+	end
+end
+
+-------------------------------------------------------------------------
 _EPoll = class('_EPoll')
 -- Epoll-based event loop using the lua-epoll module.
 
@@ -342,7 +384,6 @@ function _EPoll:register(file_descriptor, events)
 end
 
 function _EPoll:modify(file_descriptor, events)
-	log.notice('EPoll:modify called with events: ' .. events)
 	self._epoller:mod(file_descriptor, events, file_descriptor)
 end
 
@@ -360,7 +401,18 @@ end
 
 -------------------------------------------------------------------------
 -- Check for usable poll modules.
-if pcall(require, 'epoll') then
+if pcall(require, 'epoll_ffi') then
+	-- Epoll FFI module found and loaded.
+	log.notice([[Picked epoll_ffi module as poll module.]])
+	_poll_implementation = 'epoll_ffi'
+	local Epoll = require('epoll_ffi')
+	-- Populate global with Epoll module constants
+	ioloop.READ = Epoll.EPOLL_EVENTS.EPOLLIN
+	ioloop.WRITE = Epoll.EPOLL_EVENTS.EPOLLOUT
+	ioloop.PRI = Epoll.EPOLL_EVENTS.EPOLLPRI
+	ioloop.ERROR = Epoll.EPOLL_EVENTS.EPOLLERR
+	
+elseif pcall(require, 'epoll') then
 	-- Epoll module found.
 	log.notice([[Picked epoll module as poll module.]])
 	_poll_implementation = 'epoll'
