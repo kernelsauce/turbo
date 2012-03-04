@@ -356,12 +356,8 @@ function _EPoll_FFI:unregister(file_descriptor)
 end
 
 function _EPoll_FFI:poll(timeout)
-	local events_cdata = self._epoll_ffi.epoll_wait(self._epoll_fd, 100, timeout)
-	if events_cdata.data.fd == 0 then 
-		return {}
-	else
-		return { events_cdata.data.fd, events_cdata.events }
-	end
+	local events = self._epoll_ffi.epoll_wait(self._epoll_fd, 100, timeout)
+	return events
 end
 
 -------------------------------------------------------------------------
