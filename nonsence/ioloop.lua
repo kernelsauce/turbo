@@ -356,7 +356,7 @@ function _EPoll_FFI:unregister(file_descriptor)
 end
 
 function _EPoll_FFI:poll(timeout)
-	local events = self._epoll_ffi.epoll_wait(self._epoll_fd, 100, timeout)
+	local events = self._epoll_ffi.epoll_wait(self._epoll_fd, timeout)
 	return events
 end
 
