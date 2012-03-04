@@ -352,7 +352,7 @@ end
 
 function _EPoll_FFI:unregister(file_descriptor)
 	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_DEL, 
-		file_descriptor)	
+		file_descriptor, 0)	
 end
 
 function _EPoll_FFI:poll(timeout)
