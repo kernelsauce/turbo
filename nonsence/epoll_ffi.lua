@@ -91,7 +91,7 @@ function epoll.epoll_create()
 		
 		Returns the int of the created epoll and -1 on error with errno.
 			
-      ]]
+	--]]
 	return ffi.C.epoll_create(MAX_EVENTS)
 end
 
@@ -119,7 +119,7 @@ function epoll.epoll_ctl(epfd, op, fd, epoll_events)
 			
 		Returns 0 on success and -1 on error together with errno.
 			
-      ]]     
+    --]]     
 	local events = ffi.new("epoll_event", epoll_events)
 	-- Add file_descriptor to data union.
 	events.data.fd = fd
@@ -149,7 +149,7 @@ function epoll.epoll_wait(epfd, timeout)
 		Returns number of file descriptors ready for the requested 
 		I/O or -1 on error and errno is set.
        
-      ]]
+    --]]
     
 	local events = ffi.new("struct epoll_event[".. MAX_EVENTS.."]")
 	local num_events, errno = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
@@ -166,7 +166,7 @@ function epoll.epoll_wait(epfd, timeout)
 		[fd, events, fd, events]
 		The number preceeding after the fd is the events for the fd.
 		
-	  ]]
+	--]]
 	  
 	local events_t = {}
 	
