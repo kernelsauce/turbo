@@ -88,6 +88,8 @@ function epoll.epoll_create()
 			be greater than zero. (The kernel dynamically sizes the 
 			required data structures without needing this initial 
 			hint.)
+		
+		Returns the int of the created epoll and -1 on error with errno.
 			
       ]]
 	return ffi.C.epoll_create(MAX_EVENTS)
@@ -101,16 +103,21 @@ function epoll.epoll_ctl(epfd, op, fd, epoll_events)
 		From man epoll:
 		
 		EPOLL_CTL_ADD
-			Register the target file descriptor fd on the epoll instance referred
-			to by the file descriptor epfd and associate the event event with the
-			internal file linked to fd.
+			Register the target file descriptor fd on the epoll 
+			instance referred to by the file descriptor epfd and 
+			associate the event event with the internal file linked 
+			to fd.
 
 		EPOLL_CTL_MOD
-			Change the event event associated with the target file descriptor fd.
+			Change the event event associated with the target file 
+			descriptor fd.
 
 		EPOLL_CTL_DEL
-			Remove (deregister) the target file descriptor fd from the epoll
-			instance referred to by epfd.  The event is ignored and can be NULL.
+			Remove (deregister) the target file descriptor fd from 
+			the epoll instance referred to by epfd.  The event is 
+			ignored and can be NULL.
+			
+		Returns 0 on success and -1 on error together with errno.
 			
       ]]     
 	local events = ffi.new("epoll_event", epoll_events)
@@ -126,15 +133,21 @@ function epoll.epoll_wait(epfd, timeout)
 		
 		From man epoll:
 		
-		The epoll_wait() system call waits for events on the epoll instance referred
-		to by the file descriptor epfd.  The memory area pointed to by events will
-		contain the events that will be available for the caller.  Up to maxevents are
-		returned by epoll_wait().  The maxevents argument must be greater than zero.
+		The epoll_wait() system call waits for events on the epoll 
+		instance referred to by the file descriptor epfd.  The 
+		memory area pointed to by events will contain the events 
+		that will be available for the caller.  Up to maxevents are 
+		returned by epoll_wait().  The maxevents argument must be 
+		greater than zero.
 
-		The call waits for a maximum time of timeout milliseconds.  Specifying a
-		timeout of -1 makes epoll_wait() wait indefinitely, while specifying a timeout
-		equal to zero makes epoll_wait() to return immediately even if no events are
+		The call waits for a maximum time of timeout milliseconds.  
+		Specifying a timeout of -1 makes epoll_wait() wait 
+		indefinitely, while specifying a timeout equal to zero makes 
+		epoll_wait() to return immediately even if no events are 
 		available (return code equal to zero).
+       
+		Returns number of file descriptors ready for the requested 
+		I/O or -1 on error and errno is set.
        
       ]]
     
@@ -148,7 +161,11 @@ function epoll.epoll_wait(epfd, timeout)
 	--[[ 
 	
 		From CDATA to Lua table that will be easier to use. 
-	
+		
+		The table is structured as such:
+		[fd, events, fd, events]
+		The number preceeding after the fd is the events for the fd.
+		
 	  ]]
 	  
 	local events_t = {}
