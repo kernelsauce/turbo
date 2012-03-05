@@ -34,15 +34,15 @@
 local ffi = require("ffi")
 local log = require("log")
 -------------------------------------------------------------------------
--- Table to be returned
+-- Module tabel to be returned
 local epoll = {}
+
 -------------------------------------------------------------------------
--- Epoll defines from epoll.h
---
-MAX_EVENTS = 100
-epoll.EPOLL_CTL_ADD = 1 --	/* Add a file decriptor to the interface */
-epoll.EPOLL_CTL_DEL = 2 --	/* Remove a file decriptor from the interface */
-epoll.EPOLL_CTL_MOD = 3 --	/* Change file decriptor epoll_event structure */
+-- From epoll.h
+
+epoll.EPOLL_CTL_ADD = 1 -- Add a file decriptor to the interface
+epoll.EPOLL_CTL_DEL = 2 -- Remove a file decriptor from the interface
+epoll.EPOLL_CTL_MOD = 3 -- Change file decriptor epoll_event structure
 epoll.EPOLL_EVENTS = {
 	['EPOLLIN']  = 0x001,
 	['EPOLLPRI'] = 0x002,
@@ -50,10 +50,7 @@ epoll.EPOLL_EVENTS = {
 	['EPOLLERR'] = 0x008,
 	['EPOLLHUP'] = 0x0010,
 }
--------------------------------------------------------------------------
 
--------------------------------------------------------------------------	
--- C defs.
 ffi.cdef[[
 
 	typedef union epoll_data {
@@ -77,29 +74,92 @@ ffi.cdef[[
 ]]
 -------------------------------------------------------------------------
 
+local MAX_EVENTS = 100
+
 function epoll.epoll_create()
-	local epfd = ffi.C.epoll_create(MAX_EVENTS)
-	return epfd
+	--[[ 
+	
+		Create a new epoll "instance".
+		
+		From man epoll:
+		
+		Note on int MAX_EVENTS:
+			Since Linux 2.6.8, the size argument is unused, but must 
+			be greater than zero. (The kernel dynamically sizes the 
+			required data structures without needing this initial 
+			hint.)
+			
+      ]]
+	return ffi.C.epoll_create(MAX_EVENTS)
 end
 
 function epoll.epoll_ctl(epfd, op, fd, epoll_events)
+	--[[
+	
+		Control a epoll instance.
+		
+		From man epoll:
+		
+		EPOLL_CTL_ADD
+			Register the target file descriptor fd on the epoll instance referred
+			to by the file descriptor epfd and associate the event event with the
+			internal file linked to fd.
+
+		EPOLL_CTL_MOD
+			Change the event event associated with the target file descriptor fd.
+
+		EPOLL_CTL_DEL
+			Remove (deregister) the target file descriptor fd from the epoll
+			instance referred to by epfd.  The event is ignored and can be NULL.
+			
+      ]]     
 	local events = ffi.new("epoll_event", epoll_events)
+	-- Add file_descriptor to data union.
 	events.data.fd = fd
-	local rc = ffi.C.epoll_ctl(epfd, op, fd, events)
-	return rc
+	return ffi.C.epoll_ctl(epfd, op, fd, events)
 end
 
 function epoll.epoll_wait(epfd, timeout)
+	--[[
+	
+		Wait for events on a epoll instance.
+		
+		From man epoll:
+		
+		The epoll_wait() system call waits for events on the epoll instance referred
+		to by the file descriptor epfd.  The memory area pointed to by events will
+		contain the events that will be available for the caller.  Up to maxevents are
+		returned by epoll_wait().  The maxevents argument must be greater than zero.
+
+		The call waits for a maximum time of timeout milliseconds.  Specifying a
+		timeout of -1 makes epoll_wait() wait indefinitely, while specifying a timeout
+		equal to zero makes epoll_wait() to return immediately even if no events are
+		available (return code equal to zero).
+       
+      ]]
+    
 	local events = ffi.new("struct epoll_event[".. MAX_EVENTS.."]")
-	local num_events = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
+	local num_events, errno = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
+	-- epoll_wait() returned error...
+	if num_events == -1 then
+		error(errno)
+	end
+	
+	--[[ 
+	
+		From CDATA to Lua table that will be easier to use. 
+	
+	  ]]
+	  
 	local events_t = {}
+	
 	for i=0, num_events do
 		if events[i].data.fd > 0 then
 			events_t[#events_t + 1 ] = events[i].data.fd
 			events_t[#events_t + 1 ] = events[i].events
 		end
 	end
-	events = nil
+	
 	return events_t
 end
 
