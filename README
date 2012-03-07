@@ -5,16 +5,18 @@ Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 Much of the design principals are borrowed from the Tornado web server, which can be fetched from here: https://github.com/facebook/tornado
 
 Supported poll implementations at this point:
+epoll_ffi (if you are running LuaJIT)
 epoll
 
 Planned poll implementation support
 kqueue
 
-Required C modules:
+Required C modules when running with Lua or LuaJIT:
 Nixio (https://github.com/Neopallium/nixio)
 	Used for socket handling and bit operations.
+
+Required C modules if you are running Lua (without the JIT):
 Lua Epoll. (https://github.com/Neopallium/lua-epoll)
-	Epoll interface :)
 	
 
 
