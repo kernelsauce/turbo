@@ -46,6 +46,8 @@ local deque = assert(require('deque'),
 assert(require('middleclass'), 
 	[[Missing required module: MiddleClass 
 	https://github.com/kikito/middleclass]])
+-- Use bit module in LuaJIT if available, else nixio will be used (slower).
+local bit = pcall(require, 'bit') and require('bit') or nixio.bit
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
@@ -54,9 +56,10 @@ assert(require('middleclass'),
 local xpcall, pcall, random, class, pairs, ipairs, os, bitor, 
 bitand, dump, min, max, class, assert, deque, concat, find, EWOULDBLOCK,
 EAGAIN, type, error = xpcall,pcall, math.random, class, pairs, ipairs, os, 
-nixio.bit.bor, nixio.bit.band, log.dump, math.min, math.max, class, assert, 
+bit.bor, bit.band, log.dump, math.min, math.max, class, assert, 
 deque, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN, 
 type, error
+
 -------------------------------------------------------------------------
 -- Table to return on require.
 local iostream = {}
