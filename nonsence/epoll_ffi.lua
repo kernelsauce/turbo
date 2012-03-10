@@ -172,9 +172,7 @@ function epoll.epoll_wait(epfd, timeout)
 	if num_events == 0 then
 		return events_t
 	end
-	if events[0].data.fd == 0 and events[0].data.events == 0 then
-		return events_t
-	end
+
 	for i=0, num_events do
 		local fd = events[i].data.fd
 		if fd == 0 then
