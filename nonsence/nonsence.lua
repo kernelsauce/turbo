@@ -35,10 +35,10 @@ nonsence.log = require('log')
 _G.dump = nonsence.log.dump -- Set dump function in global
 
 nonsence.ioloop = require('ioloop')
-nonsence.escape = {}
-nonsence.escape.json = require('json')
+nonsence.escape = require('escape')
 nonsence.httputil = require('httputil')
 nonsence.httpserver = require('httpserver')
 nonsence.iostream = require('iostream')
+nonsence.web = require('web')
 
 return nonsence
