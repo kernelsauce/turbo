@@ -152,10 +152,10 @@ function epoll.epoll_wait(epfd, timeout)
     --]]
     
 	local events = ffi.new("struct epoll_event[".. MAX_EVENTS.."]")
-	local num_events, errno = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
+	local num_events = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
 	-- epoll_wait() returned error...
 	if num_events == -1 then
-		error(errno)
+		return ffi.errno()
 	end
 	
 	--[[ 
@@ -169,11 +169,20 @@ function epoll.epoll_wait(epfd, timeout)
 	--]]
 	  
 	local events_t = {}
-	
+	if num_events == 0 then
+		return events_t
+	end
+	if events[0].data.fd == 0 and events[0].data.events == 0 then
+		return events_t
+	end
 	for i=0, num_events do
-		if events[i].data.fd > 0 then
-			events_t[#events_t + 1 ] = events[i].data.fd
-			events_t[#events_t + 1 ] = events[i].events
+		local fd = events[i].data.fd
+		if fd == 0 then
+			-- Termination of array.
+			break
+		end
+		if events[i].events then
+			events_t[#events_t + 1 ] = {fd, events[i].events} 
 		end
 	end
 	
