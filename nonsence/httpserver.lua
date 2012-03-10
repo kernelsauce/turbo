@@ -65,7 +65,12 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
 	HTTPServer with heritage from TCPServer.
 	
-	Example usage:
+	Supported methods are:
+	new(request_callback, no_keep_alive, io_loop, xheaders, ssl_options,  kwargs)
+		Create a new server object. request_callback parameter is a function to be called on 
+		a request.
+		
+	Example usage of HTTPServer (together with IOLoop):
 	
 	local httpserver = require('httpserver')
 	local ioloop = require('ioloop')
@@ -103,6 +108,25 @@ function httpserver.HTTPServer:handle_stream(stream, address)
 end
 
 httpserver.HTTPConnection = class('HTTPConnection')
+--[[ 
+
+	HTTPConnection class.
+	
+	Represents a running connection to the server. Basically a helper
+	class to HTTPServer.
+	
+	Supported methods are:
+	new(stream, address, request_callback, no_keep_alive, xheaders)
+		Create a new server object. request_callback parameter is a function to be called on 
+		a request.
+		
+	write(chunk, callback)
+		Writes to the connection and calls callback on complete.
+	
+	finish()
+		Finish the request. Closes the stream.
+	
+  ]]
 
 function httpserver.HTTPConnection:init(stream, address, request_callback,
 	no_keep_alive, xheaders)
@@ -129,6 +153,7 @@ end
 
 function httpserver.HTTPConnection:write(chunk, callback)
 	-- Writes a chunk of output to the stream.
+	-- Callback is done after the chunk is written.
 	
 	local callback = callback
 	assert(self._request, "Request closed")
@@ -144,6 +169,7 @@ end
 
 function httpserver.HTTPConnection:finish()
 	-- Finishes the request
+	
 	assert(self._request, "Request closed")
 	self._request_finished = true
 	if not self.stream:writing() then
@@ -236,7 +262,45 @@ function httpserver.HTTPConnection:_on_request_body(data)
 end
 
 httpserver.HTTPRequest = class('HTTPRequest')
+--[[ 
 
+	HTTPRequest class.
+	
+	Represents a HTTP request to the server. 
+	
+	Supported methods are:
+		new(method, uri, {
+			version,
+			headers,
+			body,
+			remote_ip,
+			protocol,
+			host,
+			files, 
+			connection
+		})
+			Generate a HTTPRequest object. HTTP headers are parsed
+			magically if headers are supplied with kwargs table.
+			
+		supports_http_1_1()
+			Returns true if requester supports HTTP 1.1.
+			
+		write(chunk, callback.)
+			Write chunk to the connection that made the request. Call
+			callback when write is done.
+			
+		finish()
+			Finish the request. Close connection.
+			
+		full_url()
+			Return the full URL that the user requested.
+			
+		request_time()
+			Return the time used to handle the request or the 
+			time up to now if request not finished.
+			
+  ]]
+  
 function httpserver.HTTPRequest:init(method, uri, args)
 	
 	local headers, body, remote_ip, protocol, host, files, 
