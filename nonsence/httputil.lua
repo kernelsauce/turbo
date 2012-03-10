@@ -267,46 +267,4 @@ function httputil.parse_post_arguments(data)
 	return arguments
 end
 
-function httputil.unescape(s)
-	-- From LuaSocket:
-	-- Encodes a string into its escaped hexadecimal representation
-	
-    return gsub(s, "%%(%x%x)", function(hex)
-        return char(tonumber(hex, 16))
-    end)
-end
-
-function httputil.escape(s)
-	-- From LuaSocket:
-	-- Encodes a string into its escaped hexadecimal representation
-	
-    return gsub(s, "([^A-Za-z0-9_])", function(c)
-        return format("%%%02x", byte(c))
-    end)
-end
-
-local function make_set(t)
-	local s = {}
-	for i,v in ipairs(t) do
-		s[t[i]] = 1
-	end
-	return s
-end
-
-function httputil.protect_segment(s)
-	-- From LuaSocket:
-	-- Protects a path segment, to prevent it from interfering with the
-	
-	-- These are allowed withing a path segment, along with alphanum
-	-- other characters must be escaped
-	local segment_set = make_set {
-		"-", "_", ".", "!", "~", "*", "'", "(",
-		")", ":", "@", "&", "=", "+", "$", ",",
-	}
-	return gsub(s, "([^A-Za-z0-9_])", function (c)
-		if segment_set[c] then return c
-		else return format("%%%02x", byte(c)) end
-	end)
-end
-
 return httputil
