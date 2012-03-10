@@ -45,17 +45,46 @@ assert(require('middleclass'),
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
--- Speeding up globals access with locals :>
---
-local xpcall, pcall, random, class, pairs, ipairs, os = xpcall, 
-pcall, math.random, class, pairs, ipairs, os
--------------------------------------------------------------------------
--- Globals
--- 
-local _poll_implementation = nil
--------------------------------------------------------------------------
 -- Table to return on require.
 local ioloop = {}
+-------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Check for usable poll modules.
+local _poll_implementation = nil
+if pcall(require, 'epoll_ffi') then
+	-- Epoll FFI module found and loaded.
+	log.notice([[Picked epoll_ffi module as poll module.]])
+	_poll_implementation = 'epoll_ffi'
+	epoll_ffi = require('epoll_ffi')
+	-- Populate global with Epoll module constants
+	ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
+	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
+	ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
+	ioloop.ERROR = epoll_ffi.EPOLL_EVENTS.EPOLLERR
+	
+elseif pcall(require, 'epoll') then
+	-- Epoll module found.
+	log.notice([[Picked epoll module as poll module.]])
+	_poll_implementation = 'epoll'
+	-- Populate global with Epoll module constants
+	Epoll = require('epoll')
+	ioloop.READ = Epoll.EPOLLIN
+	ioloop.WRITE = Epoll.EPOLLOUT
+	ioloop.PRI = Epoll.EPOLLPRI
+	ioloop.ERROR = Epoll.EPOLLERR
+else
+	-- No poll modules found. Break execution and give error.
+	error([[No poll modules found. Either use LuaJIT, which supports the
+	Epoll FFI module that is bundled or get Lua Epoll from (https://github.com/Neopallium/lua-epoll)]])
+end
+-------------------------------------------------------------------------
+
+-------------------------------------------------------------------------
+-- Speeding up globals access with locals :>
+--
+local xpcall, pcall, random, class, pairs, ipairs, os, epoll_ffi, Epoll = xpcall, 
+pcall, math.random, class, pairs, ipairs, os, epoll_ffi, Epoll
 -------------------------------------------------------------------------
 
 function ioloop.instance()
@@ -165,7 +194,8 @@ function ioloop.IOLoop:remove_handler(file_descriptor)
 end
 
 function ioloop.IOLoop:_run_handler(file_descriptor, events)
-	-- Stops listening for events on file descriptor.
+	-- Runs the handler for the file descriptor.
+	
 	local handler = self._handlers[file_descriptor]
 	handler(file_descriptor, events)
 end
@@ -273,15 +303,9 @@ function ioloop.IOLoop:start()
 		local events = self._poll:poll(poll_timeout)
 		-- Do not use ipairs for improved speed.
 		for i=1, #events, 2 do
-			local file_descriptor = events[i]
-			local event = events[i+1]
-			
-			-- Remove event from table.
-			events[i] = nil
-			events[i+1] = nil
 			
 			-- Run the handler registered for the file descriptor.
-			self:_run_handler(file_descriptor, event)
+			self:_run_handler(events[i][1], events[i][2])
 		end
 		
 	end
@@ -327,13 +351,13 @@ end
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
-_EPoll_FFI = class('_EPoll')
+_EPoll_FFI = class('_EPoll_FFI')
 -- Epoll-based event loop using the epoll_ffi module.
 
 function _EPoll_FFI:init()
 	-- Create a new object from EPoll module.
-	self._epoll_ffi = require('epoll_ffi')
-	self._epoll_fd = self._epoll_ffi.epoll_create() -- New epoll, store its fd.
+	
+	self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
 end
 
 function _EPoll_FFI:fileno()
@@ -341,23 +365,22 @@ function _EPoll_FFI:fileno()
 end
 
 function _EPoll_FFI:register(file_descriptor, events)
-	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_ADD, 
+	epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD, 
 		file_descriptor, events)
 end
 
 function _EPoll_FFI:modify(file_descriptor, events)
-	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_MOD, 
+	epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD, 
 		file_descriptor, events)
 end
 
 function _EPoll_FFI:unregister(file_descriptor)
-	self._epoll_ffi.epoll_ctl(self._epoll_fd, self._epoll_ffi.EPOLL_CTL_DEL, 
+	epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
 		file_descriptor, 0)	
 end
 
 function _EPoll_FFI:poll(timeout)
-	local events = self._epoll_ffi.epoll_wait(self._epoll_fd, timeout)
-	return events
+	return epoll_ffi.epoll_wait(self._epoll_fd, timeout)
 end
 
 -------------------------------------------------------------------------
@@ -365,9 +388,8 @@ _EPoll = class('_EPoll')
 -- Epoll-based event loop using the lua-epoll module.
 
 function _EPoll:init()
-	local Epoll = require('epoll')
-
 	-- Create a new object from EPoll module.
+	
 	self._epoller = Epoll.new() -- New Epoll object.
 end
 
@@ -389,38 +411,14 @@ end
 
 function _EPoll:poll(timeout)
 	local events = {}
+	local events_t = {}
 	self._epoller:wait(events, timeout)
-	return events
-end
--------------------------------------------------------------------------
-
-
--------------------------------------------------------------------------
--- Check for usable poll modules.
-if pcall(require, 'epoll_ffi') then
-	-- Epoll FFI module found and loaded.
-	log.notice([[Picked epoll_ffi module as poll module.]])
-	_poll_implementation = 'epoll_ffi'
-	local Epoll = require('epoll_ffi')
-	-- Populate global with Epoll module constants
-	ioloop.READ = Epoll.EPOLL_EVENTS.EPOLLIN
-	ioloop.WRITE = Epoll.EPOLL_EVENTS.EPOLLOUT
-	ioloop.PRI = Epoll.EPOLL_EVENTS.EPOLLPRI
-	ioloop.ERROR = Epoll.EPOLL_EVENTS.EPOLLERR
-	
-elseif pcall(require, 'epoll') then
-	-- Epoll module found.
-	log.notice([[Picked epoll module as poll module.]])
-	_poll_implementation = 'epoll'
-	-- Populate global with Epoll module constants
-	local Epoll = require('epoll')
-	ioloop.READ = Epoll.EPOLLIN
-	ioloop.WRITE = Epoll.EPOLLOUT
-	ioloop.PRI = Epoll.EPOLLPRI
-	ioloop.ERROR = Epoll.EPOLLERR
-else
-	-- No poll modules found. Break execution and give error.
-	error([[No poll modules found. Install Lua Epoll. (https://github.com/Neopallium/lua-epoll)]])
+	for i = 1, #events, 2 do 
+		events_t[#events_t + 1] = {events[i], events[i+1]}
+		events[i] = nil
+		events[i+1] = nil
+	end
+	return events_t
 end
 -------------------------------------------------------------------------
 
