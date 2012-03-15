@@ -2,25 +2,10 @@
 
 Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-Much of the design principals are borrowed from the Tornado web server, which can be fetched from here: https://github.com/facebook/tornado
+Much of the design principals are borrowed from the Tornado web server: https://github.com/facebook/tornado
+Tornado is licensed under Apache License 2.0 which you can review here: http://www.apache.org/licenses/LICENSE-2.0.html
 
-Supported poll implementations at this point:
-epoll_ffi (if you are running LuaJIT)
-epoll
-
-Planned poll implementation support
-kqueue
-
-Required C modules when running with Lua or LuaJIT:
-Nixio (https://github.com/Neopallium/nixio)
-	Used for socket handling and bit operations.
-
-Required C modules if you are running Lua (without the JIT):
-Lua Epoll. (https://github.com/Neopallium/lua-epoll)
-	
-
-
-Nonsence is licensed under the MIT license
+Nonsence itself is licensed under the MIT license:
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -39,3 +24,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."
+
+Supported poll implementations at this point:
+epoll_ffi (if you are running LuaJIT)
+epoll
+
+Planned poll implementation support
+kqueue (through LuaJIT FFI and a C module)
+select (for Windows developers)
+
+Required C modules when running with Lua or LuaJIT:
+	Nixio (https://github.com/Neopallium/nixio)
+	Used for socket handling and bit operations (LuaJIT bit operations are used).
+
+Required C modules if you are running Lua (without the JIT):
+	Lua Epoll. (https://github.com/Neopallium/lua-epoll)
