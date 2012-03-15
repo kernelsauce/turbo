@@ -197,7 +197,9 @@ function ioloop.IOLoop:_run_handler(file_descriptor, events)
 	-- Runs the handler for the file descriptor.
 	
 	local handler = self._handlers[file_descriptor]
-	handler(file_descriptor, events)
+	if type(handler) == 'function' then
+		handler(file_descriptor, events)
+	end
 end
 
 function ioloop.IOLoop:add_callback(callback)
@@ -302,7 +304,7 @@ function ioloop.IOLoop:start()
 		-- Wait for I/O, get events since last iteration.
 		local events = self._poll:poll(poll_timeout)
 		-- Do not use ipairs for improved speed.
-		for i=1, #events, 2 do
+		for i=1, #events do
 			
 			-- Run the handler registered for the file descriptor.
 			self:_run_handler(events[i][1], events[i][2])
