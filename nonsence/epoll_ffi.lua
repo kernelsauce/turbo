@@ -4,9 +4,20 @@
 	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 	
 	This module "epoll_ffi" is a part of the Nonsence Web server.
-	< https://github.com/JohnAbrahamsen/nonsence-ng/ >
+	For the complete stack hereby called "software package" please see:
 	
-	Nonsence is licensed under the MIT license < http://www.opensource.org/licenses/mit-license.php >:
+	https://github.com/JohnAbrahamsen/nonsence-ng/
+	
+	Many of the modules in the software package are derivatives of the 
+	Tornado web server. Tornado is licensed under Apache 2.0 license.
+	For more details on Tornado please see:
+	
+	http://www.tornadoweb.org/
+	
+	However, this module, epoll_ffi is not a derivate of Tornado and are
+	hereby licensed under the MIT license.
+	
+	http://www.opensource.org/licenses/mit-license.php >:
 
 	"Permission is hereby granted, free of charge, to any person obtaining a copy of
 	this software and associated documentation files (the "Software"), to deal in
@@ -26,7 +37,6 @@
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 	SOFTWARE."
 
-	
   ]]
 
 -------------------------------------------------------------------------
@@ -183,7 +193,7 @@ function epoll.epoll_wait(epfd, timeout)
 			events_t[#events_t + 1 ] = {fd, events[i].events} 
 		end
 	end
-	
+
 	return events_t
 end
 

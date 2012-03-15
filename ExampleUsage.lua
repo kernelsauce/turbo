@@ -1,49 +1,68 @@
 --[[
+	
+	Nonsence Asynchronous event based Lua Web server.
+	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+	
+	https://github.com/JohnAbrahamsen/nonsence-ng/
+	
+	Many of the modules in the software package are derivatives of the 
+	Tornado web server. Tornado is also licensed under Apache 2.0 license.
+	For more details on Tornado please see:
+	
+	http://www.tornadoweb.org/
+	
+	
+	Copyright 2011 John Abrahamsen
 
-	"Nonsence" Lua web server
-	Author: John Abrahamsen (jhnabrhmsn@gmail.com).
-	License: MIT.
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
-	The ultra fast cached web server written in Lua.
+	http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 
 
-        .;''-.
-      .' |    `._
-     /`  ;       `'.
-   .'     \         \
-  ,'\|    `|         |
-  | -'_     \ `'.__,J
- ;'   `.     `'.__.'
- |      `"-.___ ,'
- '-,           /
- |.-`-.______-|
- }      __.--'L
- ;   _,-  _.-"`\         ___
- `7-;"   '  _,,--._  ,-'`__ `.
-  |/      ,'-     .7'.-"--.7 |        _.-'
-  ;     ,'      .' .'  .-. \/       .'
-   ;   /       / .'.-     ` |__   .'
-    \ |      .' /  |    \_)-   `'/   _.-'``
-     _,.--../ .'     \_) '`_      \'`
-   '`f-'``'.`\;;'    ''`  '-`      |
-      \`.__. ;;;,   )              /
-       `-._,|;;;,, /\            ,'
-        / /<_;;;;'   `-._    _,-'
-       | '- /;;;;;,      `t'` \. I like nonsence.
-       `'-'`_.|,';;;,      '._/| It wakes up the brain cells!
-       ,_.-'  \ |;;;;;    `-._/
-             / `;\ |;;;,  `"     - Theodor Seuss Geisel -
-           .'     `'`\;;, /
-          '           ;;;'|
-              .--.    ;.:`\    _.--,
-             |    `'./;' _ '_.'     |
-              \_     `"7f `)       /
-              |`   _.-'`t-'`"-.,__.'
-              `'-'`/;;  | |   \ mx
-                  ;;;  ,' |    `
-                      /   '
+			.;''-.
+		      .' |    `._
+		     /`  ;       `'.
+		   .'     \         \
+		  ,'\|    `|         |
+		  | -'_     \ `'.__,J
+		 ;'   `.     `'.__.'
+		 |      `"-.___ ,'
+		 '-,           /
+		 |.-`-.______-|
+		 }      __.--'L
+		 ;   _,-  _.-"`\         ___
+		 `7-;"   '  _,,--._  ,-'`__ `.
+		  |/      ,'-     .7'.-"--.7 |        _.-'
+		  ;     ,'      .' .'  .-. \/       .'
+		   ;   /       / .'.-     ` |__   .'
+		    \ |      .' /  |    \_)-   `'/   _.-'``
+		     _,.--../ .'     \_) '`_      \'`
+		   '`f-'``'.`\;;'    ''`  '-`      |
+		      \`.__. ;;;,   )              /
+		       `-._,|;;;,, /\            ,'
+			/ /<_;;;;'   `-._    _,-'
+		       | '- /;;;;;,      `t'` \. I like nonsence.
+		       `'-'`_.|,';;;,      '._/| It wakes up the brain cells!
+		       ,_.-'  \ |;;;;;    `-._/
+			     / `;\ |;;;,  `"     - Theodor Seuss Geisel -
+			   .'     `'`\;;, /
+			  '           ;;;'|
+			      .--.    ;.:`\    _.--,
+			     |    `'./;' _ '_.'     |
+			      \_     `"7f `)       /
+			      |`   _.-'`t-'`"-.,__.'
+			      `'-'`/;;  | |   \ mx
+				  ;;;  ,' |    `
+				      /   '
 
-	Purpose: To show noobs how to use this web server.
 	
 ]]--
 
