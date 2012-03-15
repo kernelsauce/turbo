@@ -1,29 +1,12 @@
 -- == Nonsence Asynchronous event based Lua Web server == --
 
+Nonsence Asynchronous event based Lua Web server. Currently being developed as a Lua alternative to 
+NodeJS / Tornado and all the other event servers out there
+
 Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-Much of the design principals are borrowed from the Tornado web server: https://github.com/facebook/tornado
-Tornado is licensed under Apache License 2.0 which you can review here: http://www.apache.org/licenses/LICENSE-2.0.html
+WARNING: This software package is still under heavy development.
 
-Nonsence itself is licensed under the MIT license:
-
-"Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE."
 
 Supported poll implementations at this point:
 epoll_ffi (if you are running LuaJIT)
@@ -39,3 +22,31 @@ Required C modules when running with Lua or LuaJIT:
 
 Required C modules if you are running Lua (without the JIT):
 	Lua Epoll. (https://github.com/Neopallium/lua-epoll)
+
+
+Many of the modules in the software package are derivatives of the 
+Tornado web server. Tornado is also licensed under Apache 2.0 license.
+For more details on Tornado please see:
+
+http://www.tornadoweb.org/
+
+Some of the modules in this software package are licensed under
+both the MIT and Apache 2.0 License. Modules that are dual licensed 
+clearly states this.
+
+Copyright 2011 John Abrahamsen
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+
