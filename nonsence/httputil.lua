@@ -205,7 +205,7 @@ function httputil.HTTPHeaders:add(key, value)
 
 	assert(type(key) == "string", 
 		[[method add key parameter must be a string.]])
-	assert(type(value) == "string", 
+	assert((type(value) == "string" or type(value) == "number"), 
 		[[method add value parameters must be a string.]])
 	self._header_table[key] = value
 end
@@ -253,6 +253,7 @@ function httputil.HTTPHeaders:__tostring()
 	for key, value in pairs(self._header_table) do
 		buffer:append(key .. ": " .. value .. "\r\n")
 	end
+	buffer:append("\r\n\r\n")
 	return buffer:concat()
 end
 
