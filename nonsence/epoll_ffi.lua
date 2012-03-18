@@ -173,7 +173,7 @@ function epoll.epoll_wait(epfd, timeout)
 		From CDATA to Lua table that will be easier to use. 
 		
 		The table is structured as such:
-		[fd, events, fd, events]
+		[{fd, events[i].events},{fd, events[i].events}]
 		The number preceeding after the fd is the events for the fd.
 		
 	--]]
@@ -187,6 +187,10 @@ function epoll.epoll_wait(epfd, timeout)
 		local fd = events[i].data.fd
 		if fd == 0 then
 			-- Termination of array.
+			break
+		elseif fd == -1 then
+			-- Error on fd.
+			ffi.errno()
 			break
 		end
 		if events[i].events then
