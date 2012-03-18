@@ -86,7 +86,7 @@ for do_tests = 1, do_tests_n_times, 1 do
 	headers:add("Accept-Ranges", "bytes")
 	headers:add("Connection", "keep-alive")
 	headers:add("Age", "0")
-	assert(headers:__tostring():len() == 140)
+	assert(headers:__tostring():len() == 148, headers:__tostring():len())
 end
 print("\r\nHTTPHeaders:__tostring() assembled " .. do_tests_n_times .. " headers without errors.")
 
