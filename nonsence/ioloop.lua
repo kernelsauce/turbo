@@ -197,9 +197,8 @@ function ioloop.IOLoop:_run_handler(file_descriptor, events)
 	-- Runs the handler for the file descriptor.
 	
 	local handler = self._handlers[file_descriptor]
-	if type(handler) == 'function' then
-		handler(file_descriptor, events)
-	end
+	handler(file_descriptor, events)
+
 end
 
 function ioloop.IOLoop:add_callback(callback)
