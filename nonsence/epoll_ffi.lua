@@ -102,7 +102,12 @@ function epoll.epoll_create()
 		Returns the int of the created epoll and -1 on error with errno.
 			
 	--]]
-	return ffi.C.epoll_create(MAX_EVENTS)
+	local epoll_fd = ffi.C.epoll_create(MAX_EVENTS)
+	if epoll_fd == -1 then
+		return
+		print("epoll_create() error: ", ffi.errno())
+	end
+	return epoll_fd
 end
 
 function epoll.epoll_ctl(epfd, op, fd, epoll_events)
@@ -165,6 +170,7 @@ function epoll.epoll_wait(epfd, timeout)
 	local num_events = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
 	-- epoll_wait() returned error...
 	if num_events == -1 then
+		print("epoll_wait() -> num_events error: ", ffi.errno())
 		return ffi.errno()
 	end
 	
@@ -183,14 +189,11 @@ function epoll.epoll_wait(epfd, timeout)
 		return events_t
 	end
 
-	for i=0, num_events do
+	for i=0, num_events - 1 do
 		local fd = events[i].data.fd
-		if fd == 0 then
-			-- Termination of array.
-			break
-		elseif fd == -1 then
+		if fd == -1 then
 			-- Error on fd.
-			ffi.errno()
+			print("epoll_wait() -> fd error: ", ffi.errno())
 			break
 		end
 		if events[i].events then
