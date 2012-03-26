@@ -53,17 +53,17 @@ function web.RequestHandler:init(application, request, kwargs)
 	self._finished = false
 	self._auto_finish = true
 	self._transforms = nil
-	print("RequestHandler inited")
-	self:clear()
+
+	--self:clear()
 	
-	local function _on_close_callback()
-		self:on_connection_close()
-	end
+	--local function _on_close_callback()
+		--self:on_connection_close()
+	--end
 	
-	if self.request:get("Connection") then
-		self.request.connection.stream:set_close_callback(_on_close_callback)
-	end
-	self:on_creation(kwargs)
+	--if self.request:get("Connection") then
+		--self.request.connection.stream:set_close_callback(_on_close_callback)
+	--end
+	--self:on_creation(kwargs)
 end
 
 function web.RequestHandler:on_create(kwargs)
@@ -157,7 +157,7 @@ function web.RequestHandler:get_argument(name, default, strip)
 end
 
 function web.RequestHandler:_execute()
-	print("shaft")
+	print("_exceute ran")
 end
 
 web.Application = class("Application")
@@ -200,15 +200,16 @@ function web.Application:__call(request)
 	local handlers = self:_get_request_handlers(request)
 	
 	if handlers then
-		handler = function() 
-			handlers:new(self, request)
-		end
+		handler = handlers:new(self, request)
+		
 	elseif not handlers and self.default_host then 
 		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+		
 	else
 		handler = web.ErrorHandler:new(request, 404)
+		
 	end
-	
+
 	handler:_execute()
 	return handler
 end

@@ -35,12 +35,22 @@ local nonsence = assert(require('nonsence'),
 -------------------------------------------------------------------------
 local ioloop_instance = nonsence.ioloop.instance()
 
-function handle_request(request)
-	message = "You requested: " .. request._request.headers.uri
-	request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() .."\r\n\r\n")
+function handle_request(request)	
+	local message = "You requested: " .. request._request.headers.uri
+	
+	local headers = nonsence.httputil.HTTPHeaders:new()
+
+	headers:set_status_code(200)
+	headers:set_version("HTTP/1.1")
+	headers:add("Cache-Control", "Cache-Control:private, max-age=0, must-revalidate")
+	headers:add("Connection", "keep-alive")
+	headers:add("Content-Type", "text/html; charset=utf-8")
+	headers:add("Server", "Nonsence v0.1")
+	headers:add("Content-Length", message:len() + 2)
+	
+	request:write(headers:__tostring())
 	request:write(message)
 	request:finish()
-
 end
 
 http_server = nonsence.httpserver.HTTPServer:new(handle_request)

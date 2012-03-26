@@ -64,14 +64,17 @@
 				      /   '
 
 	
-]]--
+  ]]
 
-local nonsence = require('nonsence') -- Require nonsence.
+package.path = package.path .. ";./nonsence/?.lua" -- Put base dir in path.
+local nonsence = require('nonsence')
 
---
--- Create new Handler with heritage from RequestHandler
---
-local ExampleHandler = nonsence.web.RequestHandler:new() 
+--[[
+	
+	Create new Handler with heritage from RequestHandler
+  
+  ]]
+local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
 function ExampleHandler:get(id) -- Handler for GET method requests.
 	self:write( { Result = self:get_arguments() } )
 end
@@ -79,28 +82,32 @@ function ExampleHandler:post() -- Handler for POST method requests.
 	self:write('Hello another world!')
 end
 
---
--- Create new Handler with heritage from RequestHandler
---
-local ItemHandler = nonsence.web.RequestHandler:new() 
+--[[
+	
+	Create new Handler with heritage from RequestHandler
+	
+  ]]
+local ItemHandler = class("ItemHandler", nonsence.web.RequestHandler) 
 function ItemHandler:get() -- Handler for GET method requests.
 	self:write( { Result = self:get_arguments() } )
 end
 
---
--- Create a new application with your RequestHandler as parameter.
--- 
+--[[
+	
+	Create a new application with your RequestHandler as parameter.
+	
+  ]]
 local application = nonsence.web.Application:new({ 
-	['/'] = ExampleHandler,
+	['/test'] = ExampleHandler,
 	['/item/([0-9]+)/([0-9]+)'] = ItemHandler
 })
 
---
--- Tell the application to listen to defined port.
---
+--[[
+
+	Listen to port 8888
+	and initiate the global ioloop.
+
+  ]]
 application:listen(8888)
 
---
--- Start the endless IO loop.
---
-nonsence.ioloop.start()
+nonsence.ioloop.instance():start()
