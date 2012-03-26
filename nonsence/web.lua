@@ -31,8 +31,6 @@
 
   ]]
 
-local httpserver = pcall(require, 'httpserver') and require('httpserver') or 
-	error('Missing module httpserver')
 local log = pcall(require, 'log') and require('log') or 
 	error('Missing module log')
 assert(require('middleclass'), 
@@ -48,14 +46,14 @@ web.RequestHandler = class("RequestHandler")
 		
   ]]
 
-function web.RequestHandler:initialize(application, request, kwargs)
+function web.RequestHandler:init(application, request, kwargs)
 	self.application = application
 	self.request = request
 	self._headers_written = false
 	self._finished = false
 	self._auto_finish = true
 	self._transforms = nil
-	
+	print("RequestHandler inited")
 	self:clear()
 	
 	local function _on_close_callback()
@@ -79,12 +77,12 @@ function web.RequestHandler:on_create(kwargs)
 	  ]]
 end
 
-function web.RequestHandler:head(self, args, kwargs) HTTPError:new(405) end
-function web.RequestHandler:get(self, args, kwargs) HTTPError:new(405) end
-function web.RequestHandler:post(self, args, kwargs) HTTPError:new(405) end
-function web.RequestHandler:delete(self, args, kwargs) HTTPError:new(405) end
-function web.RequestHandler:put(self, args, kwargs) HTTPError:new(405) end
-function web.RequestHandler:options(self, args, kwargs) HTTPError:new(405) end
+function web.RequestHandler:head(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:get(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:post(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:delete(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:put(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:options(self, args, kwargs) error(HTTPError:new(405)) end
 
 function web.RequestHandler:prepare()
 	--[[
@@ -142,6 +140,77 @@ function web.RequestHandler:add_header(key, value)
 	-- Add the given response header key and value to the response.
 
 	self.headers:add(key, value)
+end
+
+function web.RequestHandler:get_argument(name, default, strip)
+	-- Returns the value of the argument with the given name.
+	-- If default value is not given the argument is considered to be
+	-- required and will result in a 400 Bad Request if the argument
+	-- does not exist.
+	
+	local args = self.get_arguments(name, strip)
+	if not args and default then
+		return default
+	else
+		error(HTTPError:new(400))
+	end
+end
+
+function web.RequestHandler:_execute()
+	print("shaft")
+end
+
+web.Application = class("Application")
+
+function web.Application:init(handlers, default_host)
+	self.handlers = handlers
+	self.default_host = default_host
+end
+
+function web.Application:listen(port, address, kwargs)
+	-- Starts the HTTP server for this application on the given port.
+	
+	local httpserver = pcall(require, 'httpserver') and require('httpserver') or 
+		error('Missing module httpserver')
+	local server = httpserver.HTTPServer:new(self, kwargs)
+	server:listen(port, address)
+end
+
+function web.Application:_get_request_handlers(request)
+	-- Find a matching request handler for the request object.
+	-- Simply match the URI against the pattern matches supplied
+	-- to the Application class.
+
+	-- TODO: is a check for this tables presence needed?
+	local path = request._request.path and request._request.path:lower()
+	if not path then 
+		path = "/"
+	end
+	for pattern, handlers in pairs(self.handlers) do 
+		if path:match(pattern) then
+			return handlers
+		end
+	end
+end
+
+function web.Application:__call(request)
+	-- Handler for HTTP request.
+
+	local handler
+	local handlers = self:_get_request_handlers(request)
+	
+	if handlers then
+		handler = function() 
+			handlers:new(self, request)
+		end
+	elseif not handlers and self.default_host then 
+		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+	else
+		handler = web.ErrorHandler:new(request, 404)
+	end
+	
+	handler:_execute()
+	return handler
 end
 
 return web
