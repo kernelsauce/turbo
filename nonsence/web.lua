@@ -200,24 +200,38 @@ function web.Application:_get_request_handlers(request)
 end
 
 function web.Application:__call(request)
-	-- Handler for HTTP request.
 
-	local handler
-	local handlers = self:_get_request_handlers(request)
-	
-	if handlers then
-		handler = handlers:new(self, request)
-		
-	elseif not handlers and self.default_host then 
-		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
-		
-	else
-		handler = web.ErrorHandler:new(request, 404)
-		
+	local function error_handler(err)
+		-- Handles errors in _run_callback.
+		-- Verbose printing of error to console.
+		log.error([[_callback_error_handler caught error: ]] .. err)
+		log.error(debug.traceback())
 	end
+	
+	
+	local function __call_safe()
+		-- Handler for HTTP request.
 
-	handler:_execute()
-	return handler
+		local handler
+		local handlers = self:_get_request_handlers(request)
+		
+		if handlers then
+			handler = handlers:new(self, request)
+			
+		elseif not handlers and self.default_host then 
+			handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+			
+		else
+			handler = web.ErrorHandler:new(request, 404)
+			
+		end
+
+		handler:_execute()
+		return handler
+	end
+	
+	xpcall(__call_safe, error_handler)
+	
 end
 
 return web
