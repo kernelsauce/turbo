@@ -1,94 +1,95 @@
 --[[
 	
-	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-	
-	This module "httputil" is a part of the Nonsence Web server.
-	For the complete stack hereby called "software package" please see:
-	
-	https://github.com/JohnAbrahamsen/nonsence-ng/
-	
-	Many of the modules in the software package are derivatives of the 
-	Tornado web server. Tornado is licensed under Apache 2.0 license.
-	For more details on Tornado please see:
-	
-	http://www.tornadoweb.org/
-	
-	However, this module, httputil is not a derivate of Tornado and are
-	hereby licensed under the MIT license.
-	
-	http://www.opensource.org/licenses/mit-license.php >:
+		Nonsence Asynchronous event based Lua Web server.
+		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+		
+		This module "httputil" is a part of the Nonsence Web server.
+		For the complete stack hereby called "software package" please see:
+		
+		https://github.com/JohnAbrahamsen/nonsence-ng/
+		
+		Many of the modules in the software package are derivatives of the 
+		Tornado web server. Tornado is licensed under Apache 2.0 license.
+		For more details on Tornado please see:
+		
+		http://www.tornadoweb.org/
+		
+		However, this module, httputil is not a derivate of Tornado and are
+		hereby licensed under the MIT license.
+		
+		http://www.opensource.org/licenses/mit-license.php >:
 
-	"Permission is hereby granted, free of charge, to any person obtaining a copy of
-	this software and associated documentation files (the "Software"), to deal in
-	the Software without restriction, including without limitation the rights to
-	use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-	of the Software, and to permit persons to whom the Software is furnished to do
-	so, subject to the following conditions:
+		"Permission is hereby granted, free of charge, to any person obtaining a copy of
+		this software and associated documentation files (the "Software"), to deal in
+		the Software without restriction, including without limitation the rights to
+		use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+		of the Software, and to permit persons to whom the Software is furnished to do
+		so, subject to the following conditions:
 
-	The above copyright notice and this permission notice shall be included in all
-	copies or substantial portions of the Software.
+		The above copyright notice and this permission notice shall be included in all
+		copies or substantial portions of the Software.
 
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-	SOFTWARE."
+		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+		SOFTWARE."
 
   ]]
 
--------------------------------------------------------------------------
---
--- Load modules
---
-local log = assert(require('log'), 
-	[[Missing log module]])
-local nixio = assert(require('nixio'),
-	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local status_codes = assert(require('http_response_codes'),
-	[[Missing http_status_codes module]])
-local deque = assert(require('deque'), 
-	[[Missing required module: deque]])
-assert(require('middleclass'), 
-	[[Missing required module: MiddleClass 
-	https://github.com/kikito/middleclass]])
--------------------------------------------------------------------------
+--[[
 
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
---
-local status_codes, time, date, insert, type, char, gsub, byte, 
-ipairs, format = status_codes, os.time, os.date, table.insert, type, 
-string.char, string.gsub, string.byte, ipairs, string.format
--------------------------------------------------------------------------
--- Table to return on require.
-local httputil = {}
--------------------------------------------------------------------------
+		Load modules
+		
+  ]]
+  
+local log, status_codes, deque = require('log'),
+require('http_response_codes'),require('deque')
+
+require('middleclass')
 
 --[[
 
-	HTTPHeaders Class
-	
-	Class for creation and parsing of HTTP headers.
-	
-	Methods:
-	set_status_code(code)		Set the HTTP status code.
-	get_status_code()		Get the current status code.
-	add(key, value)			Add given key with value.
-	remove(key)			Removes the given key.
-	get(key)			Returns the given keys value.
-	set_version(version)		Set the HTTP version.
-	get_version()			Get the HTTP version.
-	get_argument(key)		Get the argument by key.
-	get_arguments()			Get all arguments.
-	
-	Metamethods:
-	__tostring()			Stringify the HTTP Header.
+		Localize frequently used functions and constants :>
+		
+  ]]
+
+local status_codes, time, date, insert, type, char, gsub, byte, 
+ipairs, format = status_codes, os.time, os.date, table.insert, type, 
+string.char, string.gsub, string.byte, ipairs, string.format
+
+--[[ 
+
+		Declare module table to return on requires.
+		
+  ]]
+
+local httputil = {}
+
+httputil.HTTPHeaders = class("HTTPHeaders")
+--[[
+
+		HTTPHeaders Class
+		
+		Class for creation and parsing of HTTP headers.
+		
+		Methods:
+		set_status_code(code)		Set the HTTP status code.
+		get_status_code()		Get the current status code.
+		add(key, value)			Add given key with value.
+		remove(key)			Removes the given key.
+		get(key)			Returns the given keys value.
+		set_version(version)		Set the HTTP version.
+		get_version()			Get the HTTP version.
+		get_argument(key)		Get the argument by key.
+		get_arguments()			Get all arguments.
+		
+		Metamethods:
+		__tostring()			Stringify the HTTP Header.
 	
 --]]
-httputil.HTTPHeaders = class("HTTPHeaders")
 
 function httputil.HTTPHeaders:init(raw_request_headers)
 	-- Init HTTPHeaders object.

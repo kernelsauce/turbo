@@ -31,8 +31,8 @@
 
   ]]
 
-local log = pcall(require, 'log') and require('log') or error('Missing module log')
-local util = pcall(require, 'util') and require('util') or error('Missing module util')
+local log = require('log')
+local util = require('util') 
 require('middleclass')
 
 local is_in = util.is_in
@@ -186,7 +186,7 @@ function web.RequestHandler:_execute()
 	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
 			error(HTTPError:new(405))
 	  end
-	  
+	  dump("before error")
 	  error("should fail but doesnt")
 	  self:prepare()
 	  if not self._finished then
@@ -235,38 +235,24 @@ function web.Application:_get_request_handlers(request)
 end
 
 function web.Application:__call(request)
+	-- Handler for HTTP request.
 
-	local function error_handler(err)
-		-- Handles errors in _run_callback.
-		-- Verbose printing of error to console.
-		log.error([[_callback_error_handler caught error: ]] .. err)
-		log.error(debug.traceback())
-	end
+	local handler
+	local handlers = self:_get_request_handlers(request)
 	
-	
-	local function __call_safe()
-		-- Handler for HTTP request.
-
-		local handler
-		local handlers = self:_get_request_handlers(request)
+	if handlers then
+		handler = handlers:new(self, request)
 		
-		if handlers then
-			handler = handlers:new(self, request)
-			
-		elseif not handlers and self.default_host then 
-			handler = web.RedirectHandler:new("http://" + self.default_host + "/")
-			
-		else
-			handler = web.ErrorHandler:new(request, 404)
-			
-		end
-
-		handler:_execute()
-		return handler
+	elseif not handlers and self.default_host then 
+		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+		
+	else
+		handler = web.ErrorHandler:new(request, 404)
+		
 	end
-	
-	xpcall(__call_safe, error_handler)
-	
+
+	handler:_execute()
+	return handler
 end
 
 return web

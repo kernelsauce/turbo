@@ -1,63 +1,62 @@
 --[[
 	
-	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-	
-	This module "tcpserver" is a part of the Nonsence Web server.
-	For the complete stack hereby called "software package" please see:
-	
-	https://github.com/JohnAbrahamsen/nonsence-ng/
-	
-	Many of the modules in the software package are derivatives of the 
-	Tornado web server. Tornado is also licensed under Apache 2.0 license.
-	For more details on Tornado please see:
-	
-	http://www.tornadoweb.org/
-	
-	
-	Copyright 2011 John Abrahamsen
+		Nonsence Asynchronous event based Lua Web server.
+		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+		
+		This module "tcpserver" is a part of the Nonsence Web server.
+		For the complete stack hereby called "software package" please see:
+		
+		https://github.com/JohnAbrahamsen/nonsence-ng/
+		
+		Many of the modules in the software package are derivatives of the 
+		Tornado web server. Tornado is also licensed under Apache 2.0 license.
+		For more details on Tornado please see:
+		
+		http://www.tornadoweb.org/
+		
+		
+		Copyright 2011 John Abrahamsen
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+		Licensed under the Apache License, Version 2.0 (the "License");
+		you may not use this file except in compliance with the License.
+		You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+		Unless required by applicable law or agreed to in writing, software
+		distributed under the License is distributed on an "AS IS" BASIS,
+		WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		See the License for the specific language governing permissions and
+		limitations under the License.
 
   ]]
   
--------------------------------------------------------------------------
--- Load modules
+--[[
 
-local log = assert(require('log'), 
-	[[Missing log module]])
-local nixio = assert(require('nixio'),
-	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local iostream = assert(require('iostream'), 
-	[[Missing iostream module]])
-local ioloop = assert(require('ioloop'), 
-	[[Missing ioloop module]])
-assert(require('middleclass'), 
-	[[Missing required module: MiddleClass 
-	https://github.com/kikito/middleclass]])
--------------------------------------------------------------------------
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
+		Load modules
+		
+  ]]
 
+local log,nixio,iostream,ioloop = require('log'),require('nixio'),
+require('iostream'),require('ioloop') require('middleclass')
+
+--[[
+
+		Localize frequently used functions and constants :>
+		
+  ]]
+  
 local IOStream, dump, nixsocket, assert, class, ipairs, pairs = 
 iostream.IOStream, log.dump, nixio.socket, assert, class, ipairs, 
 pairs
--------------------------------------------------------------------------
--------------------------------------------------------------------------
--- Table to return on require.
+
+--[[ 
+
+		Declare module table to return on requires.
+		
+  ]]
 
 local tcpserver = {}
--------------------------------------------------------------------------
 
 local function bind_sockets(port, address, backlog)
 	-- Binds sockets to port and address.
@@ -192,7 +191,4 @@ function tcpserver.TCPServer:_handle_connection(connection, address)
 	self:handle_stream(stream, address)
 end
 
--------------------------------------------------------------------------
--- Return iostream table to requires.
 return tcpserver
--------------------------------------------------------------------------

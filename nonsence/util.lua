@@ -36,9 +36,9 @@ local util = {}
 function util.is_in(value_to_check, table_to_check)
 	--[[
 	
-			is_in(value, table)
-			
-			Description: Returns true if value exists in table.
+		is_in(value, table)
+		
+		Description: Returns true if value exists in table.
 			
 	  ]]
 

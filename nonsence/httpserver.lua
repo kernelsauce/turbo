@@ -1,95 +1,103 @@
 --[[
 	
-	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-	
-	This module "httpserver" is a part of the Nonsence Web server.
-	For the complete stack hereby called "software package" please see:
-	
-	https://github.com/JohnAbrahamsen/nonsence-ng/
-	
-	Many of the modules in the software package are derivatives of the 
-	Tornado web server. Tornado is also licensed under Apache 2.0 license.
-	For more details on Tornado please see:
-	
-	http://www.tornadoweb.org/
-	
-	
-	Copyright 2011 John Abrahamsen
+		Nonsence Asynchronous event based Lua Web server.
+		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+		
+		This module "httpserver" is a part of the Nonsence Web server.
+		
+		Contents:
+			class HTTPServer, which inherits from TCPServer is a simple
+			asynchronous HTTP server implemented in Lua.
+			
+			class HTTPConnection represent a live HTTP connection to a client.
+			
+			class HTTPRequest represent a HTTP request, either from a sender
+			or a recievers perspective.
+		
+		For the complete stack hereby called "software package" please see:
+		
+		https://github.com/JohnAbrahamsen/nonsence-ng/
+		
+		Many of the modules in the software package are derivatives of the 
+		Tornado web server. Tornado is also licensed under Apache 2.0 license.
+		For more details on Tornado please see:
+		
+		http://www.tornadoweb.org/
+		
+		
+		Copyright 2011 John Abrahamsen
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+		Licensed under the Apache License, Version 2.0 (the "License");
+		you may not use this file except in compliance with the License.
+		You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+		Unless required by applicable law or agreed to in writing, software
+		distributed under the License is distributed on an "AS IS" BASIS,
+		WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		See the License for the specific language governing permissions and
+		limitations under the License.
 
   ]]
   
--------------------------------------------------------------------------
---
--- Load modules
---
-local log = assert(require('log'), 
-	[[Missing log module]])
-local nixio = assert(require('nixio'),
-	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local tcpserver = assert(require('tcpserver'), 
-	[[Missing tcpserver module]])
-local httputil = assert(require('httputil'), 
-	[[Missing httputil module]])
-local ioloop = assert(require('ioloop'), 
-	[[Missing ioloop module]])
-local iostream = assert(require('iostream'), 
-	[[Missing iostream module]])
-assert(require('middleclass'), 
-	[[Missing required module: MiddleClass 
-	https://github.com/kikito/middleclass]])
--------------------------------------------------------------------------
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
--- 
+--[[
+
+		Load modules
+
+  ]]
+
+local log,nixio,tcpserver,httputil,ioloop,iostream = require('log'), 
+require('nixio'), require('tcpserver'), require('httputil'), 
+require('ioloop'), require('iostream')
+
+require('middleclass')
+
+--[[
+
+		Localize frequently used functions :>
+		
+  ]]
+  
 local class, instanceOf, assert, ostime, type, char, insert, tonumber
 , _parse_post_arguments = class, instanceOf, assert, os.time, type, 
 char, table.insert, tonumber, httputil.parse_post_arguments
--------------------------------------------------------------------------
--------------------------------------------------------------------------
--- Table to return on require.
+
+--[[ 
+
+		Declare module table to return on requires.
+		
+  ]]
+  
 local httpserver = {}
--------------------------------------------------------------------------
 
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 --[[ 
 
-	HTTPServer with heritage from TCPServer.
-	
-	Supported methods are:
-	new(request_callback, no_keep_alive, io_loop, xheaders, ssl_options,  kwargs)
-		Create a new server object. request_callback parameter is a function to be called on 
-		a request.
+		HTTPServer with heritage from TCPServer.
 		
-	Example usage of HTTPServer (together with IOLoop):
-	
-	local httpserver = require('httpserver')
-	local ioloop = require('ioloop')
-	local ioloop_instance = ioloop.instance()
+		Supported methods are:
+		new(request_callback, no_keep_alive, io_loop, xheaders, ssl_options,  kwargs)
+			Create a new server object. request_callback parameter is a function to be called on 
+			a request.
+			
+		Example usage of HTTPServer (together with IOLoop):
+		
+		local httpserver = require('httpserver')
+		local ioloop = require('ioloop')
+		local ioloop_instance = ioloop.instance()
 
-	-- Request handler function
-	function handle_request(request)
-		local message = "You requested: " .. request._request.path
-		request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() .."\r\n\r\n")
-		request:write(message)
-		request:finish()
-	end
+		-- Request handler function
+		function handle_request(request)
+			local message = "You requested: " .. request._request.path
+			request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() .."\r\n\r\n")
+			request:write(message)
+			request:finish()
+		end
 
-	http_server = httpserver.HTTPServer:new(handle_request)
-	http_server:listen(8888)
-	ioloop_instance:start()
+		http_server = httpserver.HTTPServer:new(handle_request)
+		http_server:listen(8888)
+		ioloop_instance:start()
 
   ]]
 	  
@@ -113,21 +121,21 @@ end
 httpserver.HTTPConnection = class('HTTPConnection')
 --[[ 
 
-	HTTPConnection class.
-	
-	Represents a running connection to the server. Basically a helper
-	class to HTTPServer.
-	
-	Supported methods are:
-	new(stream, address, request_callback, no_keep_alive, xheaders)
-		Create a new server object. request_callback parameter is a function to be called on 
-		a request.
+		HTTPConnection class.
 		
-	write(chunk, callback)
-		Writes to the connection and calls callback on complete.
-	
-	finish()
-		Finish the request. Closes the stream.
+		Represents a running connection to the server. Basically a helper
+		class to HTTPServer.
+		
+		Supported methods are:
+		new(stream, address, request_callback, no_keep_alive, xheaders)
+			Create a new server object. request_callback parameter is a function to be called on 
+			a request.
+			
+		write(chunk, callback)
+			Writes to the connection and calls callback on complete.
+		
+		finish()
+			Finish the request. Closes the stream.
 	
   ]]
 
@@ -267,40 +275,40 @@ end
 httpserver.HTTPRequest = class('HTTPRequest')
 --[[ 
 
-	HTTPRequest class.
-	
-	Represents a HTTP request to the server. 
-	
-	Supported methods are:
-		new(method, uri, {
-			version,
-			headers,
-			body,
-			remote_ip,
-			protocol,
-			host,
-			files, 
-			connection
-		})
-			Generate a HTTPRequest object. HTTP headers are parsed
-			magically if headers are supplied with kwargs table.
-			
-		supports_http_1_1()
-			Returns true if requester supports HTTP 1.1.
-			
-		write(chunk, callback.)
-			Write chunk to the connection that made the request. Call
-			callback when write is done.
-			
-		finish()
-			Finish the request. Close connection.
-			
-		full_url()
-			Return the full URL that the user requested.
-			
-		request_time()
-			Return the time used to handle the request or the 
-			time up to now if request not finished.
+		HTTPRequest class.
+		
+		Represents a HTTP request to the server. 
+		
+		Supported methods are:
+			new(method, uri, {
+				version,
+				headers,
+				body,
+				remote_ip,
+				protocol,
+				host,
+				files, 
+				connection
+			})
+				Generate a HTTPRequest object. HTTP headers are parsed
+				magically if headers are supplied with kwargs table.
+				
+			supports_http_1_1()
+				Returns true if requester supports HTTP 1.1.
+				
+			write(chunk, callback.)
+				Write chunk to the connection that made the request. Call
+				callback when write is done.
+				
+			finish()
+				Finish the request. Close connection.
+				
+			full_url()
+				Return the full URL that the user requested.
+				
+			request_time()
+				Return the time used to handle the request or the 
+				time up to now if request not finished.
 			
   ]]
   
@@ -358,8 +366,6 @@ function httpserver.HTTPRequest:init(method, uri, args)
 	self.path = self.headers.url
 	self.arguments = self.headers:get_arguments()
 end
-
--- TODO: implement cookies() method
 
 function httpserver.HTTPRequest:supports_http_1_1()
 	return self.version == "HTTP/1.1"

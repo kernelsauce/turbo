@@ -1,58 +1,55 @@
 --[[
 	
-	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-	
-	This module "iostream" is a part of the Nonsence Web server.
-	For the complete stack hereby called "software package" please see:
-	
-	https://github.com/JohnAbrahamsen/nonsence-ng/
-	
-	Many of the modules in the software package are derivatives of the 
-	Tornado web server. Tornado is also licensed under Apache 2.0 license.
-	For more details on Tornado please see:
-	
-	http://www.tornadoweb.org/
-	
-	
-	Copyright 2011 John Abrahamsen
+		Nonsence Asynchronous event based Lua Web server.
+		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+		
+		This module "iostream" is a part of the Nonsence Web server.
+		For the complete stack hereby called "software package" please see:
+		
+		https://github.com/JohnAbrahamsen/nonsence-ng/
+		
+		Many of the modules in the software package are derivatives of the 
+		Tornado web server. Tornado is also licensed under Apache 2.0 license.
+		For more details on Tornado please see:
+		
+		http://www.tornadoweb.org/
+		
+		
+		Copyright 2011 John Abrahamsen
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+		Licensed under the Apache License, Version 2.0 (the "License");
+		you may not use this file except in compliance with the License.
+		You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+		Unless required by applicable law or agreed to in writing, software
+		distributed under the License is distributed on an "AS IS" BASIS,
+		WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		See the License for the specific language governing permissions and
+		limitations under the License.
 
   ]]
    
--------------------------------------------------------------------------
---
--- Load modules
---
-local log = assert(require('log'), 
-	[[Missing log module]])
-local nixio = assert(require('nixio'),
-	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local ioloop = assert(require('ioloop'), 
-	[[Missing ioloop module]])
-local deque = assert(require('deque'), 
-	[[Missing required module: deque]])
-assert(require('middleclass'), 
-	[[Missing required module: MiddleClass 
-	https://github.com/kikito/middleclass]])
--- Use bit module in LuaJIT if available, else nixio will be used (slower).
-local bit = pcall(require, 'bit') and require('bit') or nixio.bit
--------------------------------------------------------------------------
+--[[
 
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
---
+		Load modules
+		Use bit module in LuaJIT if available, else nixio will be used 
+		(slower).
+		
+  ]]
+  
+local log, nixio, ioloop, deque = require('log'), require('nixio') , 
+require('ioloop'),require('deque')
+local bit = pcall(require, 'bit') and require('bit') or nixio.bit	
+require('middleclass')
+
+--[[
+
+		Localize frequently used functions and constants :>
+		
+  ]]
+  
 local xpcall, pcall, random, class, pairs, ipairs, os, bitor, 
 bitand, dump, min, max, class, assert, deque, concat, find, EWOULDBLOCK,
 EAGAIN, type, error = xpcall,pcall, math.random, class, pairs, ipairs, os, 
@@ -60,89 +57,92 @@ bit.bor, bit.band, log.dump, math.min, math.max, class, assert,
 deque, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN, 
 type, error
 
--------------------------------------------------------------------------
--- Table to return on require.
+--[[ 
+
+		Declare module table to return on requires.
+		
+  ]]
+  
 local iostream = {}
--------------------------------------------------------------------------
 
 iostream.IOStream = class('IOStream')
 --[[	
-	A utility class for I/O on a non-blocking socket.
-	
-	Supported methods are:
-		new(socket, io_loop, max_buffer_size, read_chunk_size)
-			Create a new IOStream object with given socket object.
-			Optionals are a IOLoop object (if not given, the global instance
-			will be used), max buffer size and read chunk size (both in bytes).
-		connect(host, port, callback)
-			Connect to a given host with given port. Run given callback
-			after connected. The socket given in new(), can already be
-			connected.
-		write(string, callback)
-			Write to socket. Must be connected. Callback function 
-			will be run after the write is done.
-		close()
-			Close socket, and remove all its remains.
-		set_close_callback(callback)
-			Set a callback function to run after socket has been closed.
-		read_until(delimiter, callback)
-			Delimiter pattern/string to read until and then run
-			callback. Note: The read buffer will still contain the rest
-			of data recieved on socket.
-		read_bytes(number)
-			Reads given bytes from read buffer.
-		read_until_close()
-			Reads all data from the read buffer.
-	
-	A simple HTTP web server implemented using the IOStream  and 
-	IOLoop classes:
-	
-		--
-		-- Load modules
-		--
-		local log = assert(require('nonsence_log'))
-		local nixio = assert(require('nixio'))
-		local iostream = assert(require('nonsence_iostream'))
-		local ioloop = assert(require('nonsence_ioloop'))		
+		A utility class for I/O on a non-blocking socket.
+		
+		Supported methods are:
+			new(socket, io_loop, max_buffer_size, read_chunk_size)
+				Create a new IOStream object with given socket object.
+				Optionals are a IOLoop object (if not given, the global instance
+				will be used), max buffer size and read chunk size (both in bytes).
+			connect(host, port, callback)
+				Connect to a given host with given port. Run given callback
+				after connected. The socket given in new(), can already be
+				connected.
+			write(string, callback)
+				Write to socket. Must be connected. Callback function 
+				will be run after the write is done.
+			close()
+				Close socket, and remove all its remains.
+			set_close_callback(callback)
+				Set a callback function to run after socket has been closed.
+			read_until(delimiter, callback)
+				Delimiter pattern/string to read until and then run
+				callback. Note: The read buffer will still contain the rest
+				of data recieved on socket.
+			read_bytes(number)
+				Reads given bytes from read buffer.
+			read_until_close()
+				Reads all data from the read buffer.
+		
+		A simple HTTP web server implemented using the IOStream  and 
+		IOLoop classes:
+		
+			--
+			-- Load modules
+			--
+			local log = assert(require('nonsence_log'))
+			local nixio = assert(require('nixio'))
+			local iostream = assert(require('nonsence_iostream'))
+			local ioloop = assert(require('nonsence_ioloop'))		
 
-		local socket = nixio.socket('inet', 'stream')
-		local loop = ioloop.instance()
-		local stream = iostream.IOStream:new(socket)
+			local socket = nixio.socket('inet', 'stream')
+			local loop = ioloop.instance()
+			local stream = iostream.IOStream:new(socket)
 
-		local parse_headers = function(raw_headers)
-			local HTTPHeader = raw_headers
-			if HTTPHeader then
-				-- Fetch HTTP Method.
-				local method, uri = HTTPHeader:match("([%a*%-*]+)%s+(.-)%s")
-				-- Fetch all header values by key and value
-				local request_header_table = {}	
-				for key, value  in HTTPHeader:gmatch("([%a*%-*]+):%s?(.-)[\r?\n]+") do
-					request_header_table[key] = value
+			local parse_headers = function(raw_headers)
+				local HTTPHeader = raw_headers
+				if HTTPHeader then
+					-- Fetch HTTP Method.
+					local method, uri = HTTPHeader:match("([%a*%-*]+)%s+(.-)%s")
+					-- Fetch all header values by key and value
+					local request_header_table = {}	
+					for key, value  in HTTPHeader:gmatch("([%a*%-*]+):%s?(.-)[\r?\n]+") do
+						request_header_table[key] = value
+					end
+				return { method = method, uri = uri, extras = request_header_table }
 				end
-			return { method = method, uri = uri, extras = request_header_table }
 			end
-		end
 
-		function on_body(data)
-			print(data)
-			stream:close()
-			loop:close()
-		end
+			function on_body(data)
+				print(data)
+				stream:close()
+				loop:close()
+			end
 
-		function on_headers(data)
-			local headers = parse_headers(data)
-			local length = tonumber(headers.extras['Content-Length'])
-			stream:read_bytes(length, on_body)
-		end
+			function on_headers(data)
+				local headers = parse_headers(data)
+				local length = tonumber(headers.extras['Content-Length'])
+				stream:read_bytes(length, on_body)
+			end
 
-		function send_request()
-			stream:write("GET / HTTP/1.0\r\nHost: someplace.com\r\n\r\n")
-			stream:read_until("\r\n\r\n", on_headers)
-		end
+			function send_request()
+				stream:write("GET / HTTP/1.0\r\nHost: someplace.com\r\n\r\n")
+				stream:read_until("\r\n\r\n", on_headers)
+			end
 
-		stream:connect("someplace.com", 80, send_request)
+			stream:connect("someplace.com", 80, send_request)
 
-		loop:start()
+			loop:start()
 	
   ]]
 
@@ -749,7 +749,4 @@ function iostream.SSLIOStream:_read_from_socket()
 	return chunk
 end
 
--------------------------------------------------------------------------
--- Return iostream table to requires.
 return iostream
--------------------------------------------------------------------------
