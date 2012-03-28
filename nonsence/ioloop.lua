@@ -54,7 +54,7 @@ local ioloop = {}
 local _poll_implementation = nil
 if pcall(require, 'epoll_ffi') then
 	-- Epoll FFI module found and loaded.
-	log.notice([[Picked epoll_ffi module as poll module.]])
+	log.notice([[ioloop module => Picked epoll_ffi module as poll module.]])
 	_poll_implementation = 'epoll_ffi'
 	epoll_ffi = require('epoll_ffi')
 	-- Populate global with Epoll module constants
@@ -65,7 +65,7 @@ if pcall(require, 'epoll_ffi') then
 	
 elseif pcall(require, 'epoll') then
 	-- Epoll module found.
-	log.notice([[Picked epoll module as poll module.]])
+	log.notice([[ioloop module => Picked epoll module as poll module.]])
 	_poll_implementation = 'epoll'
 	-- Populate global with Epoll module constants
 	Epoll = require('epoll')
@@ -198,7 +198,6 @@ function ioloop.IOLoop:_run_handler(file_descriptor, events)
 	
 	local handler = self._handlers[file_descriptor]
 	handler(file_descriptor, events)
-
 end
 
 function ioloop.IOLoop:add_callback(callback)
@@ -255,7 +254,7 @@ function ioloop.IOLoop:start()
 	-- The loop will run until self:stop() is called.
 	
 	self._running = true
-	log.notice([[IOLoop started running]])
+	log.notice([[ioloop module => IOLoop started running]])
 	while true do
 		--log.warning("Callbacks in queue: " .. #self._callbacks)
 		--log.warning("Started new I/O loop iteration.\r\n\r\n")
@@ -359,6 +358,7 @@ function _EPoll_FFI:init()
 	-- Create a new object from EPoll module.
 	
 	self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
+	log.notice([[ioloop module => epoll_create returned file descriptor ]] .. self._epoll_fd)
 end
 
 function _EPoll_FFI:fileno()

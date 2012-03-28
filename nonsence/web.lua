@@ -31,18 +31,19 @@
 
   ]]
 
-local log = pcall(require, 'log') and require('log') or 
-	error('Missing module log')
-assert(require('middleclass'), 
-	[[Missing required module: MiddleClass 
-	https://github.com/kikito/middleclass]])
+local log = pcall(require, 'log') and require('log') or error('Missing module log')
+require('middleclass')
 		
 local web = {}
 
 web.RequestHandler = class("RequestHandler")
 --[[
 
-	Request handler class.
+	RequestHandler class.
+	Decides what the heck to do with incoming requests that matches its
+	corresponding pattern / patterns.
+	
+	All request handler classes should inherit from this one.
 		
   ]]
 
@@ -53,17 +54,18 @@ function web.RequestHandler:init(application, request, kwargs)
 	self._finished = false
 	self._auto_finish = true
 	self._transforms = nil
+	self:clear()
+	
+	local function _on_close_callback()
+		self:on_connection_close()
+	end
 
-	--self:clear()
-	
-	--local function _on_close_callback()
-		--self:on_connection_close()
-	--end
-	
-	--if self.request:get("Connection") then
-		--self.request.connection.stream:set_close_callback(_on_close_callback)
-	--end
-	--self:on_creation(kwargs)
+
+	if self.request._request.headers:get("Connection") then
+		self.request.stream:set_close_callback(_on_close_callback)
+	end
+
+	self:on_create(kwargs)
 end
 
 function web.RequestHandler:on_create(kwargs)
@@ -119,8 +121,12 @@ function web.RequestHandler:clear()
 end
 
 function web.RequestHandler:set_default_headers()
-	-- Redefine this method to set HTTP headers at the beginning of
-	-- the request.
+	--[[ 
+	
+		Redefine this method to set HTTP headers at the beginning of
+		the request.
+		
+	  ]]
 end
 
 function web.RequestHandler:set_status(status_code)

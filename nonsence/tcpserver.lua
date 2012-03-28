@@ -114,7 +114,7 @@ function tcpserver.TCPServer:listen(port, address)
 
 	assert(port, [[Please specify port for listen() method]])
 	local sockets = bind_sockets(port, address)
-	log.notice("TCPServer listening on port: " .. port)
+	log.notice("tcpserver module => TCPServer listening on port: " .. port)
 	self:add_sockets(sockets)
 end
 
