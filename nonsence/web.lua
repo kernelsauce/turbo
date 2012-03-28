@@ -1,53 +1,57 @@
 --[[
 	
-	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-	
-	This module "web" is a part of the Nonsence Web server.
-	For the complete stack hereby called "software package" please see:
-	
-	https://github.com/JohnAbrahamsen/nonsence-ng/
-	
-	Many of the modules in the software package are derivatives of the 
-	Tornado web server. Tornado is also licensed under Apache 2.0 license.
-	For more details on Tornado please see:
-	
-	http://www.tornadoweb.org/
-	
-	
-	Copyright 2011 John Abrahamsen
+		Nonsence Asynchronous event based Lua Web server.
+		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+		
+		This module "web" is a part of the Nonsence Web server.
+		For the complete stack hereby called "software package" please see:
+		
+		https://github.com/JohnAbrahamsen/nonsence-ng/
+		
+		Many of the modules in the software package are derivatives of the 
+		Tornado web server. Tornado is also licensed under Apache 2.0 license.
+		For more details on Tornado please see:
+		
+		http://www.tornadoweb.org/
+		
+		
+		Copyright 2011 John Abrahamsen
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+		Licensed under the Apache License, Version 2.0 (the "License");
+		you may not use this file except in compliance with the License.
+		You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+		Unless required by applicable law or agreed to in writing, software
+		distributed under the License is distributed on an "AS IS" BASIS,
+		WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		See the License for the specific language governing permissions and
+		limitations under the License.
 
   ]]
 
 local log = pcall(require, 'log') and require('log') or error('Missing module log')
+local util = pcall(require, 'util') and require('util') or error('Missing module util')
 require('middleclass')
-		
+
+local is_in = util.is_in
+
 local web = {}
 
 web.RequestHandler = class("RequestHandler")
 --[[
 
-	RequestHandler class.
-	Decides what the heck to do with incoming requests that matches its
-	corresponding pattern / patterns.
-	
-	All request handler classes should inherit from this one.
+		RequestHandler class.
+		Decides what the heck to do with incoming requests that matches its
+		corresponding pattern / patterns.
+		
+		All request handler classes should inherit from this one.
 		
   ]]
 
 function web.RequestHandler:init(application, request, kwargs)
+	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 	self.application = application
 	self.request = request
 	self._headers_written = false
@@ -71,10 +75,10 @@ end
 function web.RequestHandler:on_create(kwargs)
 	--[[
 	 
-		Please redefine this class if you want to do something
-		straight after the class has been created.
-		
-		Parameter can be either a table with kwargs, or a single parameter.
+			Please redefine this class if you want to do something
+			straight after the class has been created.
+			
+			Parameter can be either a table with kwargs, or a single parameter.
 		
 	  ]]
 end
@@ -89,8 +93,8 @@ function web.RequestHandler:options(self, args, kwargs) error(HTTPError:new(405)
 function web.RequestHandler:prepare()
 	--[[
 	
-		Redefine this method after your likings.
-		Called before get/post/put etc. methods on a request.
+			Redefine this method after your likings.
+			Called before get/post/put etc. methods on a request.
 		
 	  ]]
 end
@@ -98,9 +102,9 @@ end
 function web.RequestHandler:on_finish()
 	--[[ 
 	
-		Redefine this method after your likings.
-		Called after the end of a request.
-		Usage of this method could be something like a clean up etc.
+			Redefine this method after your likings.
+			Called after the end of a request.
+			Usage of this method could be something like a clean up etc.
 		
 	  ]]
 end
@@ -108,8 +112,8 @@ end
 function web.RequestHandler:on_connection_close()
 	--[[
 		
-		Called in asynchronous handlers when the connection is closed.
-		Use it to clean up the mess after the connection :-).
+			Called in asynchronous handlers when the connection is closed.
+			Use it to clean up the mess after the connection :-).
 		
 	  ]]
 end
@@ -123,8 +127,8 @@ end
 function web.RequestHandler:set_default_headers()
 	--[[ 
 	
-		Redefine this method to set HTTP headers at the beginning of
-		the request.
+			Redefine this method to set HTTP headers at the beginning of
+			the request.
 		
 	  ]]
 end
@@ -149,10 +153,14 @@ function web.RequestHandler:add_header(key, value)
 end
 
 function web.RequestHandler:get_argument(name, default, strip)
-	-- Returns the value of the argument with the given name.
-	-- If default value is not given the argument is considered to be
-	-- required and will result in a 400 Bad Request if the argument
-	-- does not exist.
+	--[[
+	 
+			Returns the value of the argument with the given name.
+			If default value is not given the argument is considered to be
+			required and will result in a 400 Bad Request if the argument
+			does not exist.
+			
+	  ]]
 	
 	local args = self.get_arguments(name, strip)
 	if not args and default then
@@ -163,7 +171,29 @@ function web.RequestHandler:get_argument(name, default, strip)
 end
 
 function web.RequestHandler:_execute()
-	print("_exceute ran")
+	--[[
+	
+			Main execution of the RequestHandler class.
+			
+			Here we do different things:
+			- Match HTTP method against methods in the class e.g GET,
+			POST, HEAD, PUT...
+			- Pass any arguments from the pattern match in the Application
+			class.
+	
+	  ]]
+	  
+	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
+			error(HTTPError:new(405))
+	  end
+	  
+	  error("should fail but doesnt")
+	  self:prepare()
+	  if not self._finished then
+			self[self.request._request.method:lower()](self, args, kwargs)
+	  end
+	  self:finish()
+		
 end
 
 web.Application = class("Application")
@@ -183,11 +213,16 @@ function web.Application:listen(port, address, kwargs)
 end
 
 function web.Application:_get_request_handlers(request)
-	-- Find a matching request handler for the request object.
-	-- Simply match the URI against the pattern matches supplied
-	-- to the Application class.
-
-	-- TODO: is a check for this tables presence needed?
+	--[[
+	
+			Find a matching request handler for the request object.
+			Simply match the URI against the pattern matches supplied
+			to the Application class.
+			
+			TODO: is a check for this tables presence needed?
+			
+	  ]]
+	  
 	local path = request._request.path and request._request.path:lower()
 	if not path then 
 		path = "/"
