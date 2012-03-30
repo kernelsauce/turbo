@@ -131,7 +131,7 @@ log.error = function(str)
 	-- It will stop execution if not caught by either pcall
 	-- or xpcall.
 	
-	error(str)
+	print("[" .. os.date("%X", os.time()) .. '] Error: ' .. str)
 end
 
 return log
