@@ -186,8 +186,7 @@ function web.RequestHandler:_execute()
 	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
 			error(HTTPError:new(405))
 	  end
-	  dump("before error")
-	  error("should fail but doesnt")
+
 	  self:prepare()
 	  if not self._finished then
 			self[self.request._request.method:lower()](self, args, kwargs)
