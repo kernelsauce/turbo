@@ -42,6 +42,8 @@
 local json = require('json')
 local escape = {}
 
+local gsub = string.gsub
+
 escape.json_encode = json.encode
 escape.json_decode = json.decode
 
