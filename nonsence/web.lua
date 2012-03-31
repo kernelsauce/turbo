@@ -31,8 +31,9 @@
 
   ]]
 
-local log = require('log')
-local util = require('util') 
+local log, util, httputil, deque = require('log'), require('util'), 
+require("httputil"), require("deque")
+
 require('middleclass')
 
 local is_in = util.is_in
@@ -123,9 +124,22 @@ function web.RequestHandler:on_connection_close()
 end
 
 function web.RequestHandler:clear()
-	-- Reset all headers and content for this request.
-	-- TODO make this function :P
+	--[[
+			
+			Reset all headers and content for this request.
+			Ran on class initialization.
 	
+	  ]]
+	
+	self.headers = httputil.HTTPHeaders:new()
+	self:set_default_headers()
+	if not self.request._request:supports_http_1_1() then
+		if self.request.headers:get("Connection") == "Keep-Alive" then
+			self:set_header("Connection", "Keep-Alive")
+		end
+	end
+	self._write_buffer = deque:new()
+	self._status_code = 200
 end
 
 function web.RequestHandler:set_default_headers()
@@ -135,6 +149,45 @@ function web.RequestHandler:set_default_headers()
 			the request.
 		
 	  ]]
+end
+
+function web.RequestHandler:add_header(name, value)
+	--[[
+	
+			Add the given name and value pair to the HTTP response 
+			headers.
+			
+			self.headers are a instance of the HTTPHeaders class which
+			does all the hard work in this case.
+	
+	  ]]
+	
+	self.headers:add(name, value)
+end
+
+function web.RequestHandler:set_header(name, value)
+	--[[
+	
+			Set the given name and value pair to the HTTP response 
+			headers.
+			
+			Returns true on success.
+			
+	  ]]
+	
+	self.headers:set(name, value)
+end
+
+function web.RequestHandler:add_header(key, value)
+	-- Add the given response header key and value to the response.
+
+	self.headers:add(key, value)
+end
+
+function web.RequestHandler:get_header(key)
+	-- Returns the current value set to given key.
+	
+	return self.headers:get(key)
 end
 
 function web.RequestHandler:set_status(status_code)
@@ -148,12 +201,6 @@ function web.RequestHandler:get_status()
 	-- Returns the status code currently set for our response.
 	
 	return self._status_code
-end
-
-function web.RequestHandler:add_header(key, value)
-	-- Add the given response header key and value to the response.
-
-	self.headers:add(key, value)
 end
 
 function web.RequestHandler:get_argument(name, default, strip)
@@ -201,7 +248,6 @@ function web.RequestHandler:get_arguments(name, strip)
 	return values
 end
 
-
 function web.RequestHandler:_execute()
 	--[[
 	
@@ -225,6 +271,97 @@ function web.RequestHandler:_execute()
 	  end
 	  self:finish()
 		
+end
+
+function web.RequestHandler:write(chunk)
+	--[[
+	
+			Writes the given chunk to the output buffer.
+			
+			To write the output to the network, use the flush() method.
+			
+			If the given chunk is a Lua table, it will be automatically
+			stringifed to JSON.
+			
+	  ]]
+	  
+	local chunk = chunk
+	
+	if self._finished then
+		error("write() method was called after finish().")
+	end
+	
+	if type(chunk) == "table" then
+		chunk = escape.json_encode(chunk)
+	end
+	
+	self._write_buffer:append(chunk)
+end
+
+function web.RequestHandler:flush(callback)
+	--[[
+	
+			Flushes the current output buffer to the IO stream.
+			
+			If callback is given it will be run when the buffer has 
+			been written to the socket. Note that only one callback flush
+			callback can be present per request. Giving a new callback
+			before the pending has been run leads to discarding of the
+			current pending callback.
+	
+			For HEAD method request the chunk is ignored and only headers
+			are written to the socket.
+			
+	  ]]
+	  
+	local headers
+	local chunk = self._write_buffer:concat() or ''
+	self._write_buffer = deque:new()
+	
+	if not self._headers_written then
+		self._headers_written = true
+		headers = self.headers:__tostring()
+	end
+	
+	if self.request.method == "HEAD" then
+		if headers then 
+			self.request:write(headers, callback)
+		end
+	end
+	
+	if headers or chunk then
+		self.request:write(headers .. chunk, callback)
+	end
+end
+
+function web.RequestHandler:finish(chunk)
+	--[[
+	
+			Finishes the HTTP request.
+			Cleaning up of different messes etc.
+	
+	  ]]
+	
+	assert((not self._finished), 
+		[[finish called twice. Something terrible has happened]])
+	
+	if chunk then
+		self:write(chunk)
+	end
+
+	if not self._headers_written then
+		if not self.headers:get("Content-Length") then
+			self.headers:add("Content-Length", self._write_buffer:concat():len() + 2)
+		end
+		self.headers:set_status_code(self._status_code)
+		self.headers:set_version("HTTP/1.1")
+	end
+	
+	self:flush()
+	self.request:finish()
+	--self:_log()
+	self._finished = true
+	self:on_finish()
 end
 
 --[[
