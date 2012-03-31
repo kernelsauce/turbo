@@ -58,6 +58,7 @@ function web.RequestHandler:init(application, request, kwargs)
 	self._finished = false
 	self._auto_finish = true
 	self._transforms = nil
+	self.arguments = {}
 	self:clear()
 	
 	local function _on_close_callback()
@@ -72,6 +73,16 @@ function web.RequestHandler:init(application, request, kwargs)
 	self:on_create(kwargs)
 end
 
+function web.RequestHandler:settings()
+	--[[
+	
+			Returns the applications settings.
+			
+	  ]]
+	  
+	  return self.application.settings
+end
+
 function web.RequestHandler:on_create(kwargs)
 	--[[
 	 
@@ -82,13 +93,6 @@ function web.RequestHandler:on_create(kwargs)
 		
 	  ]]
 end
-
-function web.RequestHandler:head(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:get(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:post(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:delete(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:put(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:options(self, args, kwargs) error(HTTPError:new(405)) end
 
 function web.RequestHandler:prepare()
 	--[[
@@ -160,15 +164,43 @@ function web.RequestHandler:get_argument(name, default, strip)
 			required and will result in a 400 Bad Request if the argument
 			does not exist.
 			
+			TOOD: implement strip.
+			
 	  ]]
 	
-	local args = self.get_arguments(name, strip)
-	if not args and default then
+	local args = self:get_arguments(name, strip)
+	if type(args) == "string" then
+		return args
+	elseif type(args) == "table" and #args > 0 then 
+		return args[1]
+	elseif default then
 		return default
 	else
 		error(HTTPError:new(400))
 	end
 end
+
+function web.RequestHandler:get_arguments(name, strip)
+	--[[
+	 
+			Returns the values of the argument with the given name.
+			Will return a empty table if argument does not exist.
+			
+			TOOD: implement strip.
+			
+	  ]]
+	  
+	local values = {}
+	
+	if self.request.arguments[name] then
+		values = self.request.arguments[name]
+
+	elseif self.request._request.arguments[name] then
+		values = self.request._request.arguments[name]
+	end
+	return values
+end
+
 
 function web.RequestHandler:_execute()
 	--[[
@@ -193,6 +225,31 @@ function web.RequestHandler:_execute()
 	  end
 	  self:finish()
 		
+end
+
+--[[
+
+		Standard methods for RequestHandler class. If not redefined
+		they will provide a 405 response code (Method Not Allowed)
+
+  ]]
+function web.RequestHandler:head(self, args, kwargs) 
+	error(HTTPError:new(405))
+end
+function web.RequestHandler:get(self, args, kwargs)
+	error(HTTPError:new(405))
+end
+function web.RequestHandler:post(self, args, kwargs)
+	error(HTTPError:new(405)) 
+end
+function web.RequestHandler:delete(self, args, kwargs) 
+	error(HTTPError:new(405)) 
+end
+function web.RequestHandler:put(self, args, kwargs) 
+	error(HTTPError:new(405)) 
+end
+function web.RequestHandler:options(self, args, kwargs)
+	error(HTTPError:new(405))
 end
 
 web.Application = class("Application")
