@@ -299,7 +299,7 @@ function httputil.parse_multipart_data(data)
 	local data = escape.unescape(data)
 	
 	for key, ctype, name, value in 
-		data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([^\"]+)%c+([^%c]+)") do
+		data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([%w]+)\"%c+([^%c]+)") do
 		
 		if ctype == "form-data" then
 			if arguments[name] then
