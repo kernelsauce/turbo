@@ -45,8 +45,8 @@
 		
   ]]
   
-local log, status_codes, deque = require('log'),
-require('http_response_codes'),require('deque')
+local log, status_codes, deque, escape = require('log'),
+require('http_response_codes'),require('deque'), require('escape')
 
 require('middleclass')
 
@@ -57,8 +57,8 @@ require('middleclass')
   ]]
 
 local status_codes, time, date, insert, type, char, gsub, byte, 
-ipairs, format = status_codes, os.time, os.date, table.insert, type, 
-string.char, string.gsub, string.byte, ipairs, string.format
+ipairs, format, strlower = status_codes, os.time, os.date, table.insert, type, 
+string.char, string.gsub, string.byte, ipairs, string.format, string.lower
 
 --[[ 
 
@@ -273,7 +273,7 @@ function httputil.parse_post_arguments(data)
 	local noDoS = 0;
 	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
 		noDoS = noDoS + 1;
-		if (noDoS > 256) then break; end -- hashing DoS attack ;O
+		if (noDoS > 256) then break; end
 		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
 		if (not arguments[k]) then
 			arguments[k] = v;
@@ -285,6 +285,32 @@ function httputil.parse_post_arguments(data)
 			insert(arguments[k], v);
 		end
 	end
+	return arguments
+end	
+
+function httputil.parse_multipart_data(data)
+	--[[
+	
+			Parse multipart form data.
+	
+	  ]]
+	  
+	local arguments = {}
+	local data = escape.unescape(data)
+	
+	for key, ctype, name, value in 
+		data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([^\"]+)%c+([^%c]+)") do
+		
+		if ctype == "form-data" then
+			if arguments[name] then
+				arguments[name][#arguments[name] +1] = value
+			else
+				arguments[name] = { value }
+			end
+		end
+		
+	end
+	
 	return arguments
 end
 
