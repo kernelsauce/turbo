@@ -103,7 +103,7 @@ function deque:not_empty()
 end
 
 function deque:concat()
-	return concat(self._virtual_queue)
+	return concat(self._virtual_queue) or ''
 end
 
 return deque
