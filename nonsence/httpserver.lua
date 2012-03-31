@@ -60,8 +60,8 @@ require('middleclass')
   ]]
   
 local class, instanceOf, assert, ostime, type, char, insert, tonumber
-, _parse_post_arguments = class, instanceOf, assert, os.time, type, 
-char, table.insert, tonumber, httputil.parse_post_arguments
+, _parse_post_arguments, find = class, instanceOf, assert, os.time, type, 
+char, table.insert, tonumber, httputil.parse_post_arguments, string.find
 
 --[[ 
 
@@ -153,6 +153,7 @@ function httpserver.HTTPConnection:init(stream, address, request_callback,
 	self.xheaders = xheaders or false
 	self._request = nil
 	self._request_finished = false
+	self.arguments = {}
 	local function _wrapped_header_callback(RequestObject)
 		-- This is needed to retain the context.
 		self:_on_headers(RequestObject)
@@ -249,7 +250,8 @@ function httpserver.HTTPConnection:_on_headers(data)
 		if headers:get("Expect") == "100-continue" then 
 			self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
 		end
-		self.stream:read_bytes(content_length, self._on_request_body)
+
+		self.stream:read_bytes(content_length, function(data) self:_on_request_body(data) end)
 		return
 	end
 	
@@ -260,13 +262,16 @@ end
 function httpserver.HTTPConnection:_on_request_body(data)
 	self._request.body = data
 	local content_type = self._request.headers:get("Content-Type")
-	if content_type:match("application/x-www-form-urlencoded") then
-		local arguments = _parse_post_arguments(self._request.body)
-		if #arguments > 0 then
-			self._request.arguments = arguments
+	
+	if content_type then
+		if content_type:find("x-www-form-urlencoded", 1, true) then
+			local arguments = _parse_post_arguments(self._request.body)
+			if #arguments > 0 then
+				self._request.arguments = arguments
+			end
+		elseif content_type:find("multipart/form-data", 1, true) then
+			self.arguments = httputil.parse_multipart_data(self._request.body) or {}
 		end
-	elseif content_type:match("multipart/form-data") then
-		-- TODO parse multipart data.
 	end
 	
 	self:request_callback(self._request)
