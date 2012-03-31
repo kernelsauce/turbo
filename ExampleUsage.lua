@@ -76,20 +76,10 @@ local nonsence = require('nonsence')
   ]]
 local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
 function ExampleHandler:get(id) -- Handler for GET method requests.
-	self:write( { Result = self:get_arguments() } )
+	self:write('Hello another world!')
 end
 function ExampleHandler:post() -- Handler for POST method requests.
 	self:write('Hello another world!')
-end
-
---[[
-	
-	Create new Handler with heritage from RequestHandler
-	
-  ]]
-local ItemHandler = class("ItemHandler", nonsence.web.RequestHandler) 
-function ItemHandler:get() -- Handler for GET method requests.
-	self:write( { Result = self:get_arguments() } )
 end
 
 --[[
@@ -98,8 +88,7 @@ end
 	
   ]]
 local application = nonsence.web.Application:new({ 
-	['/test'] = ExampleHandler,
-	['/item/([0-9]+)/([0-9]+)'] = ItemHandler
+	['/test'] = ExampleHandler
 })
 
 --[[
