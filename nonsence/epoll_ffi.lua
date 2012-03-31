@@ -45,7 +45,7 @@
 		
   ]]
   
-local ffi, log = require("ffi"), require("log"), 
+local ffi, log = require("ffi"), require("log")
 
 
 --[[ 
