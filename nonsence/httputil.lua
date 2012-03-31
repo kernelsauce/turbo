@@ -216,7 +216,22 @@ function httputil.HTTPHeaders:add(key, value)
 		[[method add key parameter must be a string.]])
 	assert((type(value) == "string" or type(value) == "number"), 
 		[[method add value parameters must be a string.]])
+	assert((not self._header_table[key]), 
+		[[trying to add a value to a existing key]])
 	self._header_table[key] = value
+end
+
+function httputil.HTTPHeaders:set(key, value)
+	-- Set a key with value to the headers.
+	-- If key exists then the value is overwritten.
+	-- If key does not exists a new is created with its value.
+	
+	assert(type(key) == "string", 
+		[[method add key parameter must be a string.]])
+	assert((type(value) == "string" or type(value) == "number"), 
+		[[method add value parameters must be a string.]])
+	
+	self._header_table[key]	= value
 end
 
 function httputil.HTTPHeaders:remove(key)
