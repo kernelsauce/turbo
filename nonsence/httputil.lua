@@ -185,13 +185,21 @@ end
 
 function httputil.HTTPHeaders:get_argument(argument)
 	-- Get one argument of the header.
-	
-	return self._arguments[argument] or nil
+	local arguments = self:get_arguments()
+	if arguments then
+		if type(arguments[argument]) == "table" then
+			return arguments[argument]
+		
+		elseif type(arguments[argument]) == "string" then
+			return { arguments[argument] }
+			
+		end
+	end
 end
 
 function httputil.HTTPHeaders:get_arguments()
 	-- Get all arguments of the header.
-	
+
 	return self._arguments or nil
 end
 
