@@ -205,17 +205,18 @@ function ioloop.IOLoop:list_callbacks()
 	return self._callbacks
 end
 
+local function error_handler(err)
+	-- Handles errors in _run_callback.
+	-- Verbose printing of error to console.
+	log.error([[_callback_error_handler caught error: ]] .. err)
+	log.error(debug.traceback())
+end
+
 function ioloop.IOLoop:_run_callback(callback)
 	-- Calls the given callback safe...
 	-- Should not crash anything.
 	
 	-- callback()
-	local function error_handler(err)
-		-- Handles errors in _run_callback.
-		-- Verbose printing of error to console.
-		log.error([[_callback_error_handler caught error: ]] .. err)
-		log.error(debug.traceback())
-	end
 	xpcall(callback, error_handler)
 end
 
