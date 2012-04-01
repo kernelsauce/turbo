@@ -1,7 +1,7 @@
 Nonsence
 ========
-Asynchronous event based Lua Web server
----------------------------------------
+
+<b>Asynchronous event based Lua Web server</b>
 
 Currently being developed as a Lua alternative to NodeJS / Tornado and all the other event servers out there
 
