@@ -7,7 +7,7 @@ Currently being developed as a Lua alternative to NodeJS / Tornado and all the o
 
 Author: John Abrahamsen <JhnAbrhmsn@gmail.com> with inspiration from the Tornado web server.
 
-<b>Example usage:</b>
+<b>Making a Hello World server:</b>
 
 	local nonsence = require('nonsence')
 
