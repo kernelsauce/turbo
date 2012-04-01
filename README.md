@@ -1,11 +1,14 @@
--- == Nonsence Asynchronous event based Lua Web server == --
+Nonsence
+========
+Asynchronous event based Lua Web server
+---------------------------------------
 
-Nonsence Asynchronous event based Lua Web server. Currently being developed as a Lua alternative to 
-NodeJS / Tornado and all the other event servers out there
+Currently being developed as a Lua alternative to NodeJS / Tornado and all the other event servers out there
 
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+Author: John Abrahamsen <JhnAbrhmsn@gmail.com>
 
 Example usage:
+--------------
 
 	local nonsence = require('nonsence')
 
@@ -68,24 +71,30 @@ Example usage:
 
 
 
-WARNING: This software package is still under heavy development.
+<big>WARNING: This software package is still under heavy development.</big>
 
 
-Supported poll implementations at this point:
-epoll_ffi (if you are running LuaJIT)
-epoll
 
-Planned poll implementation support
-kqueue (through LuaJIT FFI and a C module)
-select (for Windows developers)
+<u>Supported poll implementations at this point:</u>
 
-Required C modules when running with Lua or LuaJIT:
-	Nixio (https://github.com/Neopallium/nixio)
-	Used for socket handling and bit operations (LuaJIT bit operations are used).
+* epoll_ffi (if you are running LuaJIT)
+* epoll
 
-Required C modules if you are running Lua (without the JIT):
-	Lua Epoll. (https://github.com/Neopallium/lua-epoll)
+<u>Planned poll implementation support</u>
 
+* kqueue (through LuaJIT FFI and a C module)
+* select (for Windows developers)
+
+<u>Required C modules when running with Lua or LuaJIT:</u>
+
+* Nixio (https://github.com/Neopallium/nixio): Used for socket handling and bit operations (LuaJIT bit operations are used).
+
+<u>Required C modules if you are running Lua (without the JIT):</u>
+
+* Lua Epoll. (https://github.com/Neopallium/lua-epoll)
+
+License
+-------
 
 Many of the modules in the software package are derivatives of the 
 Tornado web server. Tornado is also licensed under Apache 2.0 license.
