@@ -277,7 +277,7 @@ function httputil.HTTPHeaders:__tostring()
 	for key, value in pairs(self._header_table) do
 		buffer:append(key .. ": " .. value .. "\r\n")
 	end
-	buffer:append("\r\n\r\n")
+	buffer:append("\r\n")
 	return buffer:concat()
 end
 
