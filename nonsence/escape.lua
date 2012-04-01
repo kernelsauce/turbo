@@ -39,13 +39,18 @@
 
   ]]
 
-local json = require('json')
+local json = require('JSON')
 local escape = {}
 
 local gsub = string.gsub
 
-escape.json_encode = json.encode
-escape.json_decode = json.decode
+function escape.json_encode(lua_table_or_value)
+	return json:encode(lua_table_or_value)
+end
+
+function escape.json_decode(json_string_literal)
+	return json:decode(json_string_literal)
+end
 
 function escape.unescape(s)
 	-- From LuaSocket:
