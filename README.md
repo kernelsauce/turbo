@@ -70,7 +70,7 @@ Author: John Abrahamsen <JhnAbrhmsn@gmail.com> with inspiration from the Tornado
 
 Why did I do this?
 ---
-Because Lua is a under rated, compact, easy to learn, FAST and easy to embed. Lua deserves a proper scalable non-blocking Web server.
+Because Lua is a under rated, compact, easy to learn, FAST and easy to embed language. Lua deserves a proper scalable non-blocking Web server.
 
 With LuaJIT we have a jitted Lua interpreter that makes Lua the fastest dynamic language out there. Why not reap the benefits of this amazing interpreter for the Web?
 
