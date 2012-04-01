@@ -11,9 +11,7 @@ Author: John Abrahamsen <JhnAbrhmsn@gmail.com> with inspiration from the Tornado
 
 	local nonsence = require('nonsence')
 
-
 	local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
-
 
 	function ExampleHandler:get()
 		self:write("Hello world!")
@@ -23,7 +21,6 @@ Author: John Abrahamsen <JhnAbrhmsn@gmail.com> with inspiration from the Tornado
 		local posted_value = self:get_argument('somevalue')
 		self:write('You posted: ' .. posted_value)
 	end
-
 
 	local application = nonsence.web.Application:new({ 
 		['/$'] = ExampleHandler
