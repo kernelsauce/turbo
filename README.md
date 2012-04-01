@@ -42,6 +42,8 @@ Usage
 
 <big>WARNING: This software package is still under heavy development. Basic functionality is in place, there is no documentation for web.lua yet!</big>
 
+All of the modules of Nonsence are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+
 <u>Supported poll implementations at this point:</u>
 
 * epoll_ffi (if you are running LuaJIT)
@@ -54,11 +56,11 @@ Usage
 
 <u>Required C modules when running with Lua or LuaJIT:</u>
 
-* Nixio (https://github.com/Neopallium/nixio): Used for socket handling and bit operations (LuaJIT bit operations are used).
+* Nixio <https://github.com/Neopallium/nixio>: Used for socket handling and bit operations (LuaJIT bit operations are used).
 
 <u>Required C modules if you are running Lua (without the JIT):</u>
 
-* Lua Epoll. (https://github.com/Neopallium/lua-epoll)
+* Lua Epoll. <https://github.com/Neopallium/lua-epoll>
 
 License
 -------
@@ -67,7 +69,7 @@ Many of the modules in the software package are derivatives of the
 Tornado web server. Tornado is also licensed under Apache 2.0 license.
 For more details on Tornado please see:
 
-http://www.tornadoweb.org/
+<http://www.tornadoweb.org/>
 
 Some of the modules in this software package are licensed under
 both the MIT and Apache 2.0 License. Modules that are dual licensed 
