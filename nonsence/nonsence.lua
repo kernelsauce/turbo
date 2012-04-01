@@ -36,14 +36,18 @@ local nonsence = {}
 require('deque')
 require('middleclass')
 
-nonsence.log = require('log')
-_G.dump = nonsence.log.dump -- Set dump function in global
 
+nonsence.log = require('log')
 nonsence.ioloop = require('ioloop')
 nonsence.escape = require('escape')
 nonsence.httputil = require('httputil')
 nonsence.httpserver = require('httpserver')
 nonsence.iostream = require('iostream')
 nonsence.web = require('web')
+nonsence.util = require('util')
+
+-- Add some usefull functions to namespace.
+_G.dump = nonsence.log.dump
+_G.join = nonsence.util.join
 
 return nonsence
