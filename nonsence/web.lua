@@ -351,7 +351,7 @@ function web.RequestHandler:finish(chunk)
 
 	if not self._headers_written then
 		if not self.headers:get("Content-Length") then
-			self.headers:add("Content-Length", self._write_buffer:concat():len() + 2)
+			self.headers:add("Content-Length", self._write_buffer:concat():len())
 		end
 		self.headers:set_status_code(self._status_code)
 		self.headers:set_version("HTTP/1.1")
