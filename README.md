@@ -3,9 +3,9 @@ Nonsence
 
 <b>Asynchronous event based Lua Web server</b>
 
-Currently being developed as a Lua alternative to NodeJS / Tornado and all the other event servers out there
+Currently being developed as a Lua alternative to NodeJS / Tornado and all the other event servers out there. 
 
-Author: John Abrahamsen <JhnAbrhmsn@gmail.com>
+Author: John Abrahamsen <JhnAbrhmsn@gmail.com> with inspiration from the Tornado web server.
 
 <b>Example usage:</b>
 
@@ -68,11 +68,16 @@ Author: John Abrahamsen <JhnAbrhmsn@gmail.com>
 
 	nonsence.ioloop.instance():start() -- Start global IO loop.
 
+Why did I do this?
+---
+Because Lua is a under rated, compact, easy to learn, FAST and easy to embed. Lua deserves a proper scalable non-blocking Web server.
+
+With LuaJIT we have a jitted Lua interpreter that makes Lua the fastest dynamic language out there. Why not reap the benefits of this amazing interpreter for the Web?
 
 
-<big>WARNING: This software package is still under heavy development.</big>
-
-
+Usage
+-----
+<big>WARNING: This software package is still under heavy development. Basic functionality is in place, there is no documentation for web.lua yet!</big>
 
 <u>Supported poll implementations at this point:</u>
 
