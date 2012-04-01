@@ -31,15 +31,67 @@
 
   ]]
 
+function string:split(sSeparator, nMax, bRegexp)
+	--[[
+	
+			Extends the string library with a split method
+			
+	  ]]
+	
+	assert(sSeparator ~= '')
+	assert(nMax == nil or nMax >= 1)
+
+	local aRecord = {}
+
+	if self:len() > 0 then
+		local bPlain = not bRegexp
+		nMax = nMax or -1
+
+		local nField=1 nStart=1
+		local nFirst,nLast = self:find(sSeparator, nStart, bPlain)
+		while nFirst and nMax ~= 0 do
+			aRecord[nField] = self:sub(nStart, nFirst-1)
+			nField = nField+1
+			nStart = nLast+1
+			nFirst,nLast = self:find(sSeparator, nStart, bPlain)
+			nMax = nMax-1
+		end
+		aRecord[nField] = self:sub(nStart)
+	end
+
+	return aRecord
+end
+
 local util = {}
+
+function util.join(delimiter, list)
+	--[[
+	
+			join(delimiter, list)
+			
+			Description: Function to join a list into a string with 
+			given delimiter.
+	
+	  ]]
+	  
+	local len = getn(list)
+	if len == 0 then 
+	return "" 
+	end
+	local string = list[1]
+	for i = 2, len do 
+	string = string .. delimiter .. list[i] 
+	end
+	return string
+end
 
 function util.is_in(value_to_check, table_to_check)
 	--[[
 	
-		is_in(value, table)
-		
-		Description: Returns true if value exists in table.
+			is_in(value, table)
 			
+			Description: Returns true if value exists in table.
+				
 	  ]]
 
 	if not value_to_check or not table_to_check then return nil end
