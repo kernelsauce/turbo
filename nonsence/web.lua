@@ -31,8 +31,8 @@
 
   ]]
 
-local log, util, httputil, deque = require('log'), require('util'), 
-require("httputil"), require("deque")
+local log, util, httputil, deque, escape = require('log'), require('util'), 
+require("httputil"), require("deque"), require("escape")
 
 require('middleclass')
 
