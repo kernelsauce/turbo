@@ -7,8 +7,7 @@ Currently being developed as a Lua alternative to NodeJS / Tornado and all the o
 
 Author: John Abrahamsen <JhnAbrhmsn@gmail.com>
 
-Example usage:
---------------
+<b>Example usage:</b>
 
 	local nonsence = require('nonsence')
 
