@@ -49,6 +49,8 @@ on my Lenovo Thinkpad W510 yields these numbers:
 * Nonsence w/ Lua (with hello world app): 5848 requests/sec
 * Tornado (with demo hello world app): 1939 requests/sec
 
+Don't believe me? Try it yourself and see :).
+
 Usage
 -----
 
