@@ -36,6 +36,18 @@ Because Lua is a under rated, compact, easy to learn, FAST, easy to extend and e
 
 With LuaJIT we have a jitted Lua interpreter that makes Lua the fastest dynamic language out there. Why not reap the benefits of this amazing interpreter for the Web?
 
+Performance
+-----------
+So all this bragging, but nothing to back it up?!
+Running:
+
+	ab -n 100000 -c 500 127.0.0.1:8888/
+
+on my Lenovo Thinkpad W510 yields these numbers:
+
+* Nonsence w/ LuaJIT (with hello world app): 8158 requests/sec
+* Nonsence w/ Lua (with hello world app): 5848 requests/sec
+* Tornado (with demo hello world app): 1939 requests/sec
 
 Usage
 -----
