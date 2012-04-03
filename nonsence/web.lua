@@ -54,6 +54,7 @@ web.RequestHandler = class("RequestHandler")
 function web.RequestHandler:init(application, request, kwargs)
 	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 	self.application = application
+	self.application_name = "Nonsence v0.1b"
 	self.request = request
 	self._headers_written = false
 	self._finished = false
@@ -134,7 +135,7 @@ function web.RequestHandler:clear()
 	self.headers = httputil.HTTPHeaders:new()
 	self:set_default_headers()
 	if not self.request._request:supports_http_1_1() then
-		if self.request.headers:get("Connection") == "Keep-Alive" then
+		if self.request._request.headers:get("Connection") == "keep-alive" then
 			self:set_header("Connection", "Keep-Alive")
 		end
 	end
@@ -356,6 +357,7 @@ function web.RequestHandler:finish(chunk)
 		self.headers:set_status_code(self._status_code)
 		self.headers:set_version("HTTP/1.1")
 	end
+	self.headers:set("Server", self.application_name)
 	
 	self:flush()
 	self.request:finish()
