@@ -134,6 +134,8 @@ function web.RequestHandler:clear()
 	
 	self.headers = httputil.HTTPHeaders:new()
 	self:set_default_headers()
+	self:set_header("Content-Type", "text/html; charset=UTF-8")
+	self:set_header("Server", self.application_name)
 	if not self.request._request:supports_http_1_1() then
 		if self.request._request.headers:get("Connection") == "keep-alive" then
 			self:set_header("Connection", "Keep-Alive")
@@ -293,6 +295,7 @@ function web.RequestHandler:write(chunk)
 	end
 	
 	if type(chunk) == "table" then
+		self:set_header("Content-Type", "application/json; charset=UTF-8")
 		chunk = escape.json_encode(chunk)
 	end
 	
@@ -351,13 +354,12 @@ function web.RequestHandler:finish(chunk)
 	end
 
 	if not self._headers_written then
-		if not self.headers:get("Content-Length") then
-			self.headers:add("Content-Length", self._write_buffer:concat():len())
+		if not self:get_header("Content-Length") then
+			self:set_header("Content-Length", self._write_buffer:concat():len())
 		end
 		self.headers:set_status_code(self._status_code)
 		self.headers:set_version("HTTP/1.1")
 	end
-	self.headers:set("Server", self.application_name)
 	
 	self:flush()
 	self.request:finish()
