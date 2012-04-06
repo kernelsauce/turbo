@@ -358,77 +358,63 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 			file_descriptor)
 		return
 	end
-	
-	local function _protected_handle_events()
-		-- Handle different events.
-		if bitand(events, ioloop.READ) ~= 0 then
-			self:_handle_read()
-		end
-		
-		if not self.socket then 
-			return
-		end
 
-		if bitand(events, ioloop.WRITE) ~= 0 then
-			if self._connecting then 
-				self:_handle_connect()
-			end
-			self:_handle_write()	
-		end
-		
-		if not self.socket then 
-			return
-		end
-
-		if bitand(events, ioloop.ERROR) ~= 0 then
-			-- We may have queued up a user callback in _handle_read or
-			-- _handle_write, so don't close the IOStream until those
-			-- callbacks have had a chance to run.
-			
-			-- Wrap callback
-			local function _close_wrapper()
-				self:close()
-			end
-			self.io_loop:add_callback(_close_wrapper)
-			return
-		end
-			
-		local state = ioloop.ERROR
-		
-		if self:reading() then
-			state = bitor(state, ioloop.READ)
-		end
-		if self:writing() then
-			state = bitor(state, ioloop.WRITE)
-		end
-		if state == ioloop.ERROR then
-			state = bitor(state, ioloop.READ)
-		end
-		if state ~= self._state then
-			assert(self._state, [[_handle_events without self._state]])
-			self._state = state
-			self.io_loop:update_handler(self.socket:fileno(), self._state)
-		end
+	-- Handle different events.
+	if bitand(events, ioloop.READ) ~= 0 then
+		self:_handle_read()
 	end
 	
-	local function _handle_events_error_handler(err)
-		log.warning(err)
-		self:close()
+	if not self.socket then 
+		return
+	end
+
+	if bitand(events, ioloop.WRITE) ~= 0 then
+		if self._connecting then 
+			self:_handle_connect()
+		end
+		self:_handle_write()	
 	end
 	
-	xpcall(_protected_handle_events, _handle_events_error_handler)
+	if not self.socket then 
+		return
+	end
+
+	if bitand(events, ioloop.ERROR) ~= 0 then
+		-- We may have queued up a user callback in _handle_read or
+		-- _handle_write, so don't close the IOStream until those
+		-- callbacks have had a chance to run.
+		
+		self.io_loop:add_callback(function() self:close() end)
+		return
+	end
+		
+	local state = ioloop.ERROR
+	
+	if self:reading() then
+		state = bitor(state, ioloop.READ)
+	end
+	if self:writing() then
+		state = bitor(state, ioloop.WRITE)
+	end
+	if state == ioloop.ERROR then
+		state = bitor(state, ioloop.READ)
+	end
+	if state ~= self._state then
+		assert(self._state, [[_handle_events without self._state]])
+		self._state = state
+		self.io_loop:update_handler(self.socket:fileno(), self._state)
+	end
 end
 
 function iostream.IOStream:_run_callback(callback, ...)
 	
 	local _callback_arguments = ...
-	local function wrapper()
-		self._pending_callbacks = self._pending_callbacks - 1
-		callback(_callback_arguments)
-	end
 	self:_maybe_add_error_listener()
 	self._pending_callbacks = self._pending_callbacks + 1
-	self.io_loop:add_callback(wrapper)
+	self.io_loop:add_callback(function() 
+		self._pending_callbacks = self._pending_callbacks - 1
+		callback(_callback_arguments)
+	end)
 end
 
 function iostream.IOStream:_handle_read()
