@@ -597,10 +597,10 @@ function iostream.IOStream:_add_io_state(state)
 	
 	if not self._state then
 		self._state = bitor(ioloop.ERROR, state)
-		local function _handle_events_wrapper(file_descriptor, events)
-			self:_handle_events(file_descriptor, events)
-		end
-		self.io_loop:add_handler(self.socket:fileno(), self._state, _handle_events_wrapper )
+		self.io_loop:add_handler(self.socket:fileno(), self._state, 
+			function(file_descriptor, events) 
+				self:_handle_events(file_descriptor, events)
+			end )
 	elseif bitand(self._state, state) == 0 then
 		self._state = bitor(self._state, state)
 		self.io_loop:update_handler(self.socket:fileno(), self._state)
