@@ -124,13 +124,10 @@ function tcpserver.TCPServer:add_sockets(sockets)
 		self.io_loop = ioloop.instance()
 	end
 	
-	local function wrapper(connection, address)
-		self:_handle_connection(connection, address)
-	end
-	
 	for _, sock in ipairs(sockets) do
 		self._sockets[sock:fileno()] = sock
-		add_accept_handler(sock, wrapper, self.io_loop)
+		add_accept_handler(sock, function(connection,address) 
+		self:_handle_connection(connection, address) end, self.io_loop)
 	end
 end
 
