@@ -548,7 +548,7 @@ end
 function iostream.IOStream:_handle_connect()
 
 	local err = self.socket:getopt('socket', 'error')
-	if not err == 0 then 
+	if err ~= 0 then 
 		log.warning(string.format("Connect error on fd %d: %s", 
 			self.socket:fileno(), err ))
 		self:close()
