@@ -36,7 +36,7 @@ require("httputil"), require("deque"), require("escape")
 
 require('middleclass')
 
-local is_in = util.is_in
+local is_in, type = util.is_in, type
 
 local web = {}
 
@@ -54,7 +54,6 @@ web.RequestHandler = class("RequestHandler")
 function web.RequestHandler:init(application, request, kwargs)
 	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 	self.application = application
-	self.application_name = "Nonsence v0.1b"
 	self.request = request
 	self._headers_written = false
 	self._finished = false
@@ -135,7 +134,7 @@ function web.RequestHandler:clear()
 	self.headers = httputil.HTTPHeaders:new()
 	self:set_default_headers()
 	self:set_header("Content-Type", "text/html; charset=UTF-8")
-	self:set_header("Server", self.application_name)
+	self:set_header("Server", self.application.application_name)
 	if not self.request._request:supports_http_1_1() then
 		if self.request._request.headers:get("Connection") == "keep-alive" then
 			self:set_header("Connection", "Keep-Alive")
@@ -398,6 +397,17 @@ web.Application = class("Application")
 function web.Application:init(handlers, default_host)
 	self.handlers = handlers
 	self.default_host = default_host
+	self.application_name = "Nonsence v0.1b"
+end
+
+function web.Application:set_server_name(name)
+	-- Sets the server name.
+	self.application_name = name
+end
+
+function web.Application:get_server_name(name)
+	-- Returns the server name.
+	return self.application_name
 end
 
 function web.Application:listen(port, address, kwargs)
