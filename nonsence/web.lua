@@ -66,7 +66,6 @@ function web.RequestHandler:init(application, request, kwargs)
 		self:on_connection_close()
 	end
 
-
 	if self.request._request.headers:get("Connection") then
 		self.request.stream:set_close_callback(_on_close_callback)
 	end
@@ -136,7 +135,7 @@ function web.RequestHandler:clear()
 	self:set_header("Content-Type", "text/html; charset=UTF-8")
 	self:set_header("Server", self.application.application_name)
 	if not self.request._request:supports_http_1_1() then
-		if self.request._request.headers:get("Connection") == "keep-alive" then
+		if self.request._request.headers:get("Connection") == "Keep-Alive" then
 			self:set_header("Connection", "Keep-Alive")
 		end
 	end
@@ -250,29 +249,17 @@ function web.RequestHandler:get_arguments(name, strip)
 	return values
 end
 
-function web.RequestHandler:_execute()
-	--[[
+function web.RequestHandler:redirect(url, permanent)
+	if self._headers_written then
+		error("Cannot redirect after headers have been written")
+	end
 	
-			Main execution of the RequestHandler class.
-			
-			Here we do different things:
-			- Match HTTP method against methods in the class e.g GET,
-			POST, HEAD, PUT...
-			- Pass any arguments from the pattern match in the Application
-			class.
+	local status = permanent and 302 or 301
+	self:set_status(status)
 	
-	  ]]
-	  
-	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
-			error(HTTPError:new(405))
-	  end
-
-	  self:prepare()
-	  if not self._finished then
-			self[self.request._request.method:lower()](self, args, kwargs)
-	  end
-	  self:finish()
-		
+	self:set_header("Location", url)
+	
+	self:finish()
 end
 
 function web.RequestHandler:write(chunk)
@@ -390,6 +377,31 @@ function web.RequestHandler:put(self, args, kwargs)
 end
 function web.RequestHandler:options(self, args, kwargs)
 	error(HTTPError:new(405))
+end
+
+function web.RequestHandler:_execute()
+	--[[
+	
+			Main execution of the RequestHandler class.
+			
+			Here we do different things:
+			- Match HTTP method against methods in the class e.g GET,
+			POST, HEAD, PUT...
+			- Pass any arguments from the pattern match in the Application
+			class.
+	
+	  ]]
+	  
+	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
+			error(HTTPError:new(405))
+	  end
+
+	  self:prepare()
+	  if not self._finished then
+			self[self.request._request.method:lower()](self, args, kwargs)
+	  end
+	  self:finish()
+		
 end
 
 web.Application = class("Application")
