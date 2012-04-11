@@ -29,89 +29,10 @@
 	See the License for the specific language governing permissions and
 	limitations under the License.
 
-  ]]
 
--------------------------------------------------------------------------
---
--- Load modules
---
-local log, nixio = require('log'), require('nixio')
-require('middleclass')
--------------------------------------------------------------------------
-
--------------------------------------------------------------------------
--- Table to return on require.
-local ioloop = {}
--------------------------------------------------------------------------
-
--------------------------------------------------------------------------
--- Check for usable poll modules.
-local _poll_implementation = nil
-if pcall(require, 'epoll_ffi') then
-	-- Epoll FFI module found and loaded.
-	log.notice([[ioloop module => Picked epoll_ffi module as poll module.]])
-	_poll_implementation = 'epoll_ffi'
-	epoll_ffi = require('epoll_ffi')
-	-- Populate global with Epoll module constants
-	ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
-	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
-	ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
-	ioloop.ERROR = epoll_ffi.EPOLL_EVENTS.EPOLLERR
 	
-elseif pcall(require, 'epoll') then
-	-- Epoll module found.
-	log.notice([[ioloop module => Picked epoll module as poll module.]])
-	_poll_implementation = 'epoll'
-	-- Populate global with Epoll module constants
-	Epoll = require('epoll')
-	ioloop.READ = Epoll.EPOLLIN
-	ioloop.WRITE = Epoll.EPOLLOUT
-	ioloop.PRI = Epoll.EPOLLPRI
-	ioloop.ERROR = Epoll.EPOLLERR
-else
-	-- No poll modules found. Break execution and give error.
-	error([[No poll modules found. Either use LuaJIT, which supports the
-	Epoll FFI module that is bundled or get Lua Epoll from (https://github.com/Neopallium/lua-epoll)]])
-end
--------------------------------------------------------------------------
-
--------------------------------------------------------------------------
--- Speeding up globals access with locals :>
---
-local xpcall, pcall, random, class, pairs, ipairs, os, epoll_ffi, Epoll = xpcall, 
-pcall, math.random, class, pairs, ipairs, os, epoll_ffi, Epoll
--------------------------------------------------------------------------
-
-function ioloop.instance()
-	-- Return a global instance of IOLoop.
-	-- Creates one if not existing, otherwise returning the old one.
+	Example of very simple TCP server using a IOLoop instance:
 	
-	if _G.io_loop_instance then
-		return _G.io_loop_instance
-	else
-		_G.io_loop_instance = ioloop.IOLoop:new()
-		return _G.io_loop_instance
-	end
-end
-
--------------------------------------------------------------------------
-
-ioloop.IOLoop = class('IOLoop')
---[[
-	
-	IOLoop is a class responsible for managing I/O events through file descriptors 
-	with epoll. Heavily influenced by ioloop.py in the Tornado web server.
-	
-	Add file descriptors with :add_handler(fd, listen_to_this, handler).
-	Handler will be called when event is triggered. Handlers can also be removed from
-	the I/O Loop with :remove_handler(fd). This will also remove the event from epoll.
-	You can change the event listened for with :update_handler(fd, listen_to_this).
-	
-	Example of very simple TCP server using a IOLoop object:
-
-		--
-		-- Load modules
-		--
 		local ioloop = require('nonsence_ioloop')
 		nixio = require('nixio')
 		
@@ -153,8 +74,96 @@ ioloop.IOLoop = class('IOLoop')
 
   ]]
 
-function ioloop.IOLoop:init()	
 
+------------------------
+-- Load modules       --
+------------------------
+local log, nixio = require('log'), require('nixio')
+require('middleclass')
+require('ansicolors')
+
+------------------------
+-- Module table       --
+------------------------
+local ioloop = {}
+
+------------------------
+-- Poll module picker --
+------------------------
+local _poll_implementation = nil
+
+--[[ 
+
+	If you are running LuaJIT and Linux then we will use the included
+	Epoll FFI. Else we will fallback to the lua-epoll module.
+  
+  ]]
+  
+if pcall(require, 'epoll_ffi') then
+	-- Epoll FFI module found and loaded.
+	log.notice(ansicolors.magenta..[[ioloop module => Picked epoll_ffi module as poll module.]]..ansicolors.reset)
+	_poll_implementation = 'epoll_ffi'
+	epoll_ffi = require('epoll_ffi')
+	-- Populate global with Epoll module constants
+	ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
+	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
+	ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
+	ioloop.ERROR = epoll_ffi.EPOLL_EVENTS.EPOLLERR
+	
+elseif pcall(require, 'epoll') then
+	-- Epoll module found.
+	log.notice(ansicolors.green..[[ioloop module => Picked epoll module as poll module.]]..ansicolors.reset)
+	_poll_implementation = 'epoll'
+	-- Populate global with Epoll module constants
+	Epoll = require('epoll')
+	ioloop.READ = Epoll.EPOLLIN
+	ioloop.WRITE = Epoll.EPOLLOUT
+	ioloop.PRI = Epoll.EPOLLPRI
+	ioloop.ERROR = Epoll.EPOLLERR
+else
+	-- No poll modules found. Break execution and give error.
+	error([[No poll modules found. Either use LuaJIT, which supports the
+	Epoll FFI module that is bundled or get Lua Epoll from (https://github.com/Neopallium/lua-epoll)]])
+end
+
+------------------------
+-- Localizing         --
+------------------------
+local xpcall, pcall, random, class, pairs, ipairs, os, epoll_ffi, 
+Epoll = xpcall, pcall, math.random, class, pairs, ipairs, os, 
+epoll_ffi, Epoll
+
+
+--- Return the global IOLoop instance. If no global IOLoop instance exists, 
+--- a new one will be created and set in global.
+-- @return IOLoop class instance
+-- @see ioloop.IOLoop
+function ioloop.instance()
+	if _G.io_loop_instance then
+		return _G.io_loop_instance
+	else
+		_G.io_loop_instance = ioloop.IOLoop:new()
+		return _G.io_loop_instance
+	end
+end
+
+ioloop.IOLoop = class('IOLoop')
+
+--- Create a new instance of IOLoop.
+--
+-- IOLoop is a class responsible for managing I/O events through file descriptors 
+-- with epoll. Heavily influenced by ioloop.py in the Tornado web server.
+-- Add file descriptors with :add_handler(fd, listen_to_this, handler).
+-- Handler will be called when event is triggered. Handlers can also be removed from
+-- the I/O Loop with :remove_handler(fd). This will also remove the event from epoll.
+-- You can change the event listened for with :update_handler(fd, listen_to_this).
+--
+-- Warning: Only one instance of IOLoop can ever run at the same time!
+--
+-- @name ioloop.IOLoop:new
+-- @usage local ioloop = ioloop.IOLoop:new()
+-- @return IOLoop class instance.
+function ioloop.IOLoop:init()	
 	self._handlers = {}
 	self._timeouts = {}
 	self._callbacks = {}
@@ -168,62 +177,68 @@ function ioloop.IOLoop:init()
 	end
 end
 
+--- Add event handler (function) to IOLoop instance
+-- @param file_descriptor File descriptor [2] to add handler for.
+-- @param events Events [ioloop.READ or ioloop.WRITE...] that will trigger handler function.
+-- @param handler Function to be called when events happen on file_descriptor.
+-- @see ioloop.IOLoop:update_handler()
+-- @see ioloop.IOLoop:remove_handler()
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
-	-- Register the callback to recieve events for given file descriptor.
-	
 	self._handlers[file_descriptor] = handler
 	self._poll:register(file_descriptor, events)
 end
 
+--- Change the event we listen for on file descriptor.
+-- @param file_descriptor File descriptor [2] to change events on.
+-- @param events Events [ioloop.READ or ioloop.WRITE...] that will trigger handler function.
 function ioloop.IOLoop:update_handler(file_descriptor, events)
-	-- Change the event we listen for on file descriptor.
-	
 	self._poll:modify(file_descriptor, events)
 end
 
-function ioloop.IOLoop:remove_handler(file_descriptor)
-	-- Stops listening for events on file descriptor.
-	
+--- Stops listening for events on file descriptor.
+-- @param file_descriptor File descriptor [2] to stop listening for events on.
+function ioloop.IOLoop:remove_handler(file_descriptor)	
 	self._handlers[file_descriptor] = nil
 	return self._poll:unregister(file_descriptor)
 end
 
+-- Internal method that runs the handler for the file descriptor.
+-- @param file_descriptor File descriptor that triggered the handler.
+-- @param events Events that triggered the handler.
 function ioloop.IOLoop:_run_handler(file_descriptor, events)
-	-- Runs the handler for the file descriptor.
-	
-	local handler = self._handlers[file_descriptor]
-	handler(file_descriptor, events)
+	self._handlers[file_descriptor](file_descriptor, events)
 end
 
-function ioloop.IOLoop:add_callback(callback)
-	-- Calls the given callback on the next IOLoop iteration.
-	
+--- Calls the given callback on the next IOLoop iteration.
+-- @param callback Function to be called.
+function ioloop.IOLoop:add_callback(callback)	
 	self._callbacks[#self._callbacks + 1] = callback
 end
 
+--- Lists pending callbacks that will be called on next IOLoop iteration.
+-- @return List with callbacks.
 function ioloop.IOLoop:list_callbacks()
 	return self._callbacks
 end
 
+-- Internal function to handle errors in callbacks, logs everything.
+-- @param err Error message
 local function error_handler(err)
-	-- Handles errors in _run_callback.
-	-- Verbose printing of error to console.
-	log.error([[_callback_error_handler caught error: ]] .. err)
+	log.error(ansicolors.onwhite .. err .. ansicolors.reset)
 	log.error(debug.traceback())
 end
 
-function ioloop.IOLoop:_run_callback(callback)
-	-- Calls the given callback safe...
-	-- Should not crash anything.
-	
-	-- callback()
+-- Internal method to do protected call for the given callback.
+function ioloop.IOLoop:_run_callback(callback)	
 	xpcall(callback, error_handler)
 end
 
+--- Schedule a callback to be called at after given timestamp.
+-- @param timestamp A Lua timestamp. E.g os.time().
+-- @param callback A function to be called after timestamp is reached.
+-- @return Unique identifier for the scheduled callback.
+-- @see ioloop.IOLoop:remove_timeout()
 function ioloop.IOLoop:add_timeout(timestamp, callback)
-	-- Schedule a callback to be called at given timestamp.
-	-- Timestamp is e.g os.time(now)
-	
 	local identifier = random(100000000)
 	if not self._timeouts[identifier] then
 		self._timeouts[identifier] = _Timeout:new(timestamp, callback)
@@ -231,10 +246,10 @@ function ioloop.IOLoop:add_timeout(timestamp, callback)
 	return identifier
 end
 
-function ioloop.IOLoop:remove_timeout(identifier)
-	-- Remove timeout.
-	-- Use the identifier returned by add_timeout() as arg.
-	
+--- Remove scheduled callback.
+-- @param identifier Unique identifier for the scheduled callback.
+-- @return true on success else false.
+function ioloop.IOLoop:remove_timeout(identifier)	
 	if self._timeouts[identifier] then
 		self._timeouts[identifier] = nil
 		return true
@@ -243,11 +258,10 @@ function ioloop.IOLoop:remove_timeout(identifier)
 	end
 end
 
+--- Starts the I/O loop.
+-- The loop will run until self:stop() is called.
+-- @see ioloop.IOLoop:stop()
 function ioloop.IOLoop:start()	
-	-- Starts the I/O loop.
-	--
-	-- The loop will run until self:stop() is called.
-	
 	self._running = true
 	log.notice([[ioloop module => IOLoop started running]])
 	while true do
@@ -306,31 +320,28 @@ function ioloop.IOLoop:start()
 	end
 end
 
+--- Close the I/O loop.
+-- Closes the loop after current iteration is done. Any callbacks
+-- in the stack will be run before closing.
 function ioloop.IOLoop:close()
-	-- Close the I/O loop.
-	-- Closes the loop after this iteration is done. Any callbacks
-	-- in the stack will be run before closing.
-
 	self._running = false
 	self._stopped = true
 	self._callbacks = {}
 	self._handlers = {}
 end
 
+--- Is the IOLoop running?
+-- @return Returns true if the IOLoop is running else it will return false.
 function ioloop.IOLoop:running()
-	-- Returns true if the IOLoop is running
-	-- else it will return false.
 	return self._running
 end
 -------------------------------------------------------------------------
 
 -------------------------------------------------------------------------
 _Timeout = class('_Timeout')
--- Timeout class.
--- Very simplified way of doing timeout callbacks.
--- Lua's smallest time unit is seconds unfortunately, so this is not
--- very accurate...
 
+-- Internal timeout class.
+-- Very simplified way of doing timeout callbacks.
 function _Timeout:init(timestamp, callback)
 	self._timestamp = timestamp or error('No timestamp given to _Timeout class')
 	self._callback = callback or error('No callback given to _Timeout class')
@@ -347,13 +358,12 @@ end
 
 -------------------------------------------------------------------------
 _EPoll_FFI = class('_EPoll_FFI')
--- Epoll-based event loop using the epoll_ffi module.
 
+-- Internal class for epoll-based event loop using the epoll_ffi module.
 function _EPoll_FFI:init()
-	-- Create a new object from EPoll module.
-	
+	-- Create a new epoll and store its fd to self.
 	self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
-	log.notice([[ioloop module => epoll_create returned file descriptor ]] .. self._epoll_fd)
+	--log.notice([[ioloop module => epoll_create returned file descriptor ]] .. self._epoll_fd)
 end
 
 function _EPoll_FFI:fileno()
@@ -381,11 +391,10 @@ end
 
 -------------------------------------------------------------------------
 _EPoll = class('_EPoll')
--- Epoll-based event loop using the lua-epoll module.
 
+-- Internal class for epoll-based event loop using the lua-epoll module.
 function _EPoll:init()
 	-- Create a new object from EPoll module.
-	
 	self._epoller = Epoll.new() -- New Epoll object.
 end
 
