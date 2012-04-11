@@ -43,15 +43,15 @@ local web = {}
 web.RequestHandler = class("RequestHandler")
 --[[
 
-		RequestHandler class.
-		Decides what the heck to do with incoming requests that matches its
+		Class: RequestHandler class.
+		Descrition: Decides what the heck to do with incoming requests that matches its
 		corresponding pattern / patterns.
 		
-		All request handler classes should inherit from this one.
+		Notes: All request handler classes should inherit from this one.
 		
   ]]
 
-function web.RequestHandler:init(application, request, kwargs)
+function web.RequestHandler:init(application, request, url_args, kwargs)
 	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 	self.application = application
 	self.request = request
@@ -59,6 +59,7 @@ function web.RequestHandler:init(application, request, kwargs)
 	self._finished = false
 	self._auto_finish = true
 	self._transforms = nil
+	self._url_args = url_args
 	self.arguments = {}
 	self:clear()
 	
@@ -379,7 +380,7 @@ function web.RequestHandler:options(self, args, kwargs)
 	error(HTTPError:new(405))
 end
 
-function web.RequestHandler:_execute()
+function web.RequestHandler:_execute(args)
 	--[[
 	
 			Main execution of the RequestHandler class.
@@ -398,10 +399,16 @@ function web.RequestHandler:_execute()
 
 	  self:prepare()
 	  if not self._finished then
-			self[self.request._request.method:lower()](self, args, kwargs)
+			self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
 	  end
 	  self:finish()
 		
+end
+
+web.StaticHandler = class("StaticHandler", web.RequestHandler)
+
+function web.StaticHandler:init()
+	
 end
 
 web.Application = class("Application")
@@ -446,9 +453,15 @@ function web.Application:_get_request_handlers(request)
 	if not path then 
 		path = "/"
 	end
+	
+	local function pack(...)
+		return arg
+	end
+	
 	for pattern, handlers in pairs(self.handlers) do 
 		if path:match(pattern) then
-			return handlers
+			local args = pack(path:match(pattern))
+			return handlers, args
 		end
 	end
 end
@@ -457,10 +470,10 @@ function web.Application:__call(request)
 	-- Handler for HTTP request.
 
 	local handler
-	local handlers = self:_get_request_handlers(request)
+	local handlers, args = self:_get_request_handlers(request)
 	
 	if handlers then
-		handler = handlers:new(self, request)
+		handler = handlers:new(self, request, args)
 		
 	elseif not handlers and self.default_host then 
 		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
