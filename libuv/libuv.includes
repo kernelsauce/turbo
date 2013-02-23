@@ -1,0 +1,6 @@
+/src/nonsence-ng/libuv/include
+/src/nonsence-ng/libuv/include/uv-private
+/src/nonsence-ng/libuv/src
+/src/nonsence-ng/libuv/src/unix
+/src/nonsence-ng/libuv/src/win
+/src/nonsence-ng/libuv/test
