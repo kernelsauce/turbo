@@ -224,7 +224,7 @@ function web.RequestHandler:flush(callback)
 		headers = self.headers:__tostring()
 	end
 	
-	if self.request.method == "HEAD" then
+	if self.request._request.headers.method == "HEAD" then
 		if headers then 
 			self.request:write(headers, callback)
 		end
@@ -238,8 +238,7 @@ end
 --[[ Finishes the HTTP request.
 Cleaning up of different messes etc.    ]]
 function web.RequestHandler:finish(chunk)	
-	assert((not self._finished), 
-		[[finish() called twice. Something terrible has happened]])
+	assert((not self._finished), [[finish() called twice. Something terrible has happened]])
 	
 	if chunk then
 		self:write(chunk)
@@ -252,17 +251,21 @@ function web.RequestHandler:finish(chunk)
 		self.headers:set_status_code(self._status_code)
 		self.headers:set_version("HTTP/1.1")
 	end
-
+	
 	if self._status_code == 200 then
-		log.success(string.format([[[web.lua] %d %s %s]], 
+		log.success(string.format([[[web.lua] %d %s %s %s (%s)]], 
 			self._status_code, 
-			response_codes[self._status_code], 
-			self.request._request.headers.url))
+			response_codes[self._status_code],
+			self.request._request.headers.method,
+			self.request._request.headers.url,
+			self.request._request.remote_ip))
 	else
-		log.warning(string.format([[[web.lua] %d %s %s]], 
+		log.warning(string.format([[[web.lua] %d %s %s %s (%s)]], 
 			self._status_code, 
-			response_codes[self._status_code], 
-			self.request._request.headers.url))
+			response_codes[self._status_code],
+			self.request._request.headers.method,
+			self.request._request.headers.url,
+			self.request._request.remote_ip))
 	end
 	
 	self:flush()
@@ -377,6 +380,28 @@ function web.StaticFileHandler:get(path)
 end
 
 
+function web.StaticFileHandler:head(path)
+	if #self._url_args == 0 or self._url_args[1]:len() == 0 then
+		error(web.HTTPError(404))
+	end
+
+	local filename = self._url_args[1]
+	if filename:match("%.%.") then -- Prevent dir traversing.
+		error(web.HTTPError(401))
+	end
+
+	local full_path = string.format("%s%s", self.path, filename)
+	local rc, buf = STATIC_CACHE:get_file(full_path)
+	if rc == 0 then
+		local rc, mime_type = self:get_mime()
+		if rc == 0 then
+			self:set_header("Content-Type", mime_type)
+		end
+		self:set_header("Content-Length", buf:len())
+	else
+		error(web.HTTPError(404)) -- Not found
+	end
+end
 
 
 --[[ Class to handout HTTP errors.  ]]
