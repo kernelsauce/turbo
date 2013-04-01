@@ -1,154 +1,45 @@
---[[
-	
-		Nonsence Asynchronous event based Lua Web server.
-		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-		
-		This module "iostream" is a part of the Nonsence Web server.
-		For the complete stack hereby called "software package" please see:
-		
-		https://github.com/JohnAbrahamsen/nonsence-ng/
-		
-		Many of the modules in the software package are derivatives of the 
-		Tornado web server. Tornado is also licensed under Apache 2.0 license.
-		For more details on Tornado please see:
-		
-		http://www.tornadoweb.org/
-		
-		
-		Copyright 2011 John Abrahamsen
+--[[ Nonsence Asynchronous event based Lua Web server.
+Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-		Licensed under the Apache License, Version 2.0 (the "License");
-		you may not use this file except in compliance with the License.
-		You may obtain a copy of the License at
+This module "iostream" is a part of the Nonsence Web server.
+For the complete stack hereby called "software package" please see:
 
-		http://www.apache.org/licenses/LICENSE-2.0
+https://github.com/JohnAbrahamsen/nonsence-ng/
 
-		Unless required by applicable law or agreed to in writing, software
-		distributed under the License is distributed on an "AS IS" BASIS,
-		WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-		See the License for the specific language governing permissions and
-		limitations under the License.
+Many of the modules in the software package are derivatives of the 
+Tornado web server. Tornado is also licensed under Apache 2.0 license.
+For more details on Tornado please see:
 
-  ]]
+http://www.tornadoweb.org/
+
+
+Copyright 2011 John Abrahamsen
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.		]]
    
---[[
-
-		Load modules
-		Use bit module in LuaJIT if available, else nixio will be used 
-		(slower).
-		
-  ]]
   
-local log, nixio, ioloop, deque = require('log'), require('nixio') , 
-require('ioloop'),require('deque')
+local log, nixio, ioloop, deque = require('log'), require('nixio') , require('ioloop'),require('deque')
 local bit = pcall(require, 'bit') and require('bit') or nixio.bit	
 require('middleclass')
 
---[[
-
-		Localize frequently used functions and constants :>
-		
-  ]]
   
-local xpcall, pcall, random, class, pairs, ipairs, os, bitor, 
-bitand, dump, min, max, class, assert, deque, concat, find, EWOULDBLOCK,
-EAGAIN, type, error = xpcall,pcall, math.random, class, pairs, ipairs, os, 
-bit.bor, bit.band, log.dump, math.min, math.max, class, assert, 
-deque, table.concat, string.find, nixio.const.EWOULDBLOCK, nixio.const.EAGAIN, 
-type, error
+local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max  
+local  EWOULDBLOCK, EAGAIN =  nixio.const.EWOULDBLOCK, nixio.const.EAGAIN
 
---[[ 
+local iostream = {} -- iostream namespace
 
-		Declare module table to return on requires.
-		
-  ]]
-  
-local iostream = {}
-
-iostream.IOStream = class('IOStream')
---[[	
-		A utility class for I/O on a non-blocking socket.
-		
-		Supported methods are:
-			new(socket, io_loop, max_buffer_size, read_chunk_size)
-				Create a new IOStream object with given socket object.
-				Optionals are a IOLoop object (if not given, the global instance
-				will be used), max buffer size and read chunk size (both in bytes).
-			connect(host, port, callback)
-				Connect to a given host with given port. Run given callback
-				after connected. The socket given in new(), can already be
-				connected.
-			write(string, callback)
-				Write to socket. Must be connected. Callback function 
-				will be run after the write is done.
-			close()
-				Close socket, and remove all its remains.
-			set_close_callback(callback)
-				Set a callback function to run after socket has been closed.
-			read_until(delimiter, callback)
-				Delimiter pattern/string to read until and then run
-				callback. Note: The read buffer will still contain the rest
-				of data recieved on socket.
-			read_bytes(number)
-				Reads given bytes from read buffer.
-			read_until_close()
-				Reads all data from the read buffer.
-		
-		A simple HTTP web server implemented using the IOStream  and 
-		IOLoop classes:
-		
-			--
-			-- Load modules
-			--
-			local log = assert(require('nonsence_log'))
-			local nixio = assert(require('nixio'))
-			local iostream = assert(require('nonsence_iostream'))
-			local ioloop = assert(require('nonsence_ioloop'))		
-
-			local socket = nixio.socket('inet', 'stream')
-			local loop = ioloop.instance()
-			local stream = iostream.IOStream:new(socket)
-
-			local parse_headers = function(raw_headers)
-				local HTTPHeader = raw_headers
-				if HTTPHeader then
-					-- Fetch HTTP Method.
-					local method, uri = HTTPHeader:match("([%a*%-*]+)%s+(.-)%s")
-					-- Fetch all header values by key and value
-					local request_header_table = {}	
-					for key, value  in HTTPHeader:gmatch("([%a*%-*]+):%s?(.-)[\r?\n]+") do
-						request_header_table[key] = value
-					end
-				return { method = method, uri = uri, extras = request_header_table }
-				end
-			end
-
-			function on_body(data)
-				print(data)
-				stream:close()
-				loop:close()
-			end
-
-			function on_headers(data)
-				local headers = parse_headers(data)
-				local length = tonumber(headers.extras['Content-Length'])
-				stream:read_bytes(length, on_body)
-			end
-
-			function send_request()
-				stream:write("GET / HTTP/1.0\r\nHost: someplace.com\r\n\r\n")
-				stream:read_until("\r\n\r\n", on_headers)
-			end
-
-			stream:connect("someplace.com", 80, send_request)
-
-			loop:start()
-	
-  ]]
-
+--[[ Replace the first entries in a deque of strings with a single string of up to size bytes.         ]]
 local function _merge_prefix(deque, size)
-	-- Replace the first entries in a deque of strings with a
-	-- single string of up to size bytes.
 	if size then
 		if deque:size() == 1 and deque:peekfirst():len() <= size then
 			return deque
@@ -167,15 +58,93 @@ local function _merge_prefix(deque, size)
 		end
 
 		if #prefix >= 1 then
-			deque:appendleft(concat(prefix))
+			deque:appendleft(table.concat(prefix))
 		end
 	end
 	return deque
 end
+
+--[[ A utility class for I/O on a non-blocking socket.
+
+Supported methods are:
+	new(socket, io_loop, max_buffer_size, read_chunk_size)
+		Create a new IOStream object with given socket object.
+		Optionals are a IOLoop object (if not given, the global instance
+		will be used), max buffer size and read chunk size (both in bytes).
+	connect(host, port, callback)
+		Connect to a given host with given port. Run given callback
+		after connected. The socket given in new(), can already be
+		connected.
+	write(string, callback)
+		Write to socket. Must be connected. Callback function 
+		will be run after the write is done.
+	close()
+		Close socket, and remove all its remains.
+	set_close_callback(callback)
+		Set a callback function to run after socket has been closed.
+	read_until(delimiter, callback)
+		Delimiter pattern/string to read until and then run
+		callback. Note: The read buffer will still contain the rest
+		of data recieved on socket.
+	read_bytes(number)
+		Reads given bytes from read buffer.
+	read_until_close()
+		Reads all data from the read buffer.
+
+A simple HTTP web server implemented using the IOStream  and 
+IOLoop classes:
+
+	--
+	-- Load modules
+	--
+	local log = assert(require('nonsence_log'))
+	local nixio = assert(require('nixio'))
+	local iostream = assert(require('nonsence_iostream'))
+	local ioloop = assert(require('nonsence_ioloop'))		
+
+	local socket = nixio.socket('inet', 'stream')
+	local loop = ioloop.instance()
+	local stream = iostream.IOStream:new(socket)
+
+	local parse_headers = function(raw_headers)
+		local HTTPHeader = raw_headers
+		if HTTPHeader then
+			-- Fetch HTTP Method.
+			local method, uri = HTTPHeader:match("([%a*%-*]+)%s+(.-)%s")
+			-- Fetch all header values by key and value
+			local request_header_table = {}	
+			for key, value  in HTTPHeader:gmatch("([%a*%-*]+):%s?(.-)[\r?\n]+") do
+				request_header_table[key] = value
+			end
+		return { method = method, uri = uri, extras = request_header_table }
+		end
+	end
+
+	function on_body(data)
+		print(data)
+		stream:close()
+		loop:close()
+	end
+
+	function on_headers(data)
+		local headers = parse_headers(data)
+		local length = tonumber(headers.extras['Content-Length'])
+		stream:read_bytes(length, on_body)
+	end
+
+	function send_request()
+		stream:write("GET / HTTP/1.0\r\nHost: someplace.com\r\n\r\n")
+		stream:read_until("\r\n\r\n", on_headers)
+	end
+
+	stream:connect("someplace.com", 80, send_request)
+
+	loop:start()  	]]
+iostream.IOStream = class('IOStream')
+
+
   
 function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_chunk_size)
-	-- Init IOStream object.
-	
 	self.socket = assert(provided_socket, [[Please provide a socket for IOStream:new()]])
 	self.socket:setblocking(false)
 	self.io_loop = io_loop or ioloop.instance()
@@ -199,10 +168,8 @@ function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_
 	self._pending_callbacks = 0
 end
 
-function iostream.IOStream:connect(address, port, callback)
-	-- Connect to a address without blocking.
-	-- Address can be a IP or DNS domain.
-	
+--[[ Connect to a address without blocking.  		]]
+function iostream.IOStream:connect(address, port, callback)	
 	self._connecting = true
 	-- TODO: Add error handler
 	self.socket:connect(address, port)
@@ -211,9 +178,8 @@ function iostream.IOStream:connect(address, port, callback)
 	self:_add_io_state(ioloop.WRITE)
 end
 
---function iostream.IOStream:read_until_pattern(pattern, callback)
-	-- Call callback when the given pattern is read.
-	
+--[[ Call callback when the given pattern is read.   ]]
+--function iostream.IOStream:read_until_pattern(pattern, callback)	
 	--assert(( not self._read_callback ), "Already reading.")
 	--self._read_pattern = pattern
 	
@@ -230,9 +196,8 @@ end
 	--self:_add_io_state(ioloop.READ)
 --end
 
+--[[ Call callback when the given delimiter is read.        ]]
 function iostream.IOStream:read_until(delimiter, callback)
-	-- Call callback when the given delimiter is read.
-
 	assert(( not self._read_callback ), "Already reading.")
 	self._read_delimiter = delimiter
 	self._read_callback = callback
@@ -249,13 +214,11 @@ function iostream.IOStream:read_until(delimiter, callback)
 	self:_add_io_state(ioloop.READ)
 end
 
-function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
-	-- Call callback when we read the given number of bytes
-	
-	-- If a streaming_callback argument is given, it will be called with
-	-- chunks of data as they become available, and the argument to the
-	-- final call to callback will be empty.
 
+--[[ Call callback when we read the given number of bytes
+If a streaming_callback argument is given, it will be called with chunks of data as they become available, 
+and the argument to the final call to callback will be empty.  ]]
+function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
 	assert(( not self._read_callback ), "Already reading.")
 	assert(type(num_bytes) == 'number', 'num_bytes argument must be a number')
 	self._read_bytes = num_bytes
@@ -273,15 +236,15 @@ function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
 	self:_add_io_state(ioloop.READ)
 end
 
-function iostream.IOStream:read_until_close(callback, streaming_callback)
-	-- Reads all data from the socket until it is closed.
-	
-	-- If a streaming_callback argument is given, it will be called with
-	-- chunks of data as they become available, and the argument to the
-	-- final call to callback will be empty.
-	
-	-- This method respects the max_buffer_size set in the IOStream object.
-	
+
+--[[ Reads all data from the socket until it is closed.
+
+If a streaming_callback argument is given, it will be called with
+chunks of data as they become available, and the argument to the
+final call to callback will be empty.
+
+This method respects the max_buffer_size set in the IOStream object.   ]]
+function iostream.IOStream:read_until_close(callback, streaming_callback)	
 	assert(( not self._read_callback ), "Already reading.")
 	if self:closed() then
 		self:_run_callback(callback, self:_consume(self._read_buffer_size))
@@ -293,14 +256,13 @@ function iostream.IOStream:read_until_close(callback, streaming_callback)
 	self:_add_io_state(ioloop.READ)
 end
 
-function iostream.IOStream:write(data, callback)
-	-- Write the given data to this stream.
+--[[ Write the given data to this stream.
 
-	-- If callback is given, we call it when all of the buffered write
-	-- data has been successfully written to the stream. If there was
-	-- previously buffered write data and an old write callback, that
-	-- callback is simply overwritten with this new callback.
-	
+If callback is given, we call it when all of the buffered write
+data has been successfully written to the stream. If there was
+previously buffered write data and an old write callback, that
+callback is simply overwritten with this new callback.    ]]
+function iostream.IOStream:write(data, callback)	
 	assert((type(data) == 'string'),
 		[[data argument to write() is not a string]])
 	self:_check_closed()
@@ -316,16 +278,14 @@ function iostream.IOStream:write(data, callback)
 	self:_maybe_add_error_listener()
 end	
 
+--[[ Sets the given callback to be called via the :close() method on close.		]]
 function iostream.IOStream:set_close_callback(callback)
-	-- Call the given callback when the stream is closed via
-	-- the :close() method.
-	
 	self._close_callback = callback
 end
 
-function iostream.IOStream:close()
-	-- Close this stream and clean up its mess in the IOLoop.
 
+--[[ Close this stream and clean up.      ]]
+function iostream.IOStream:close()
 	if self.socket then
 		if self._read_until_close then
 			local callback = self._read_callback
@@ -348,9 +308,9 @@ function iostream.IOStream:close()
 	end
 end
 
-function iostream.IOStream:_handle_events(file_descriptor, events)
-	-- Main event handler for the IOStream.
-	
+
+--[[ Main event handler for the IOStream.     ]]
+function iostream.IOStream:_handle_events(file_descriptor, events)	
 	--log.warning('Got ' .. events .. ' for FD: ' .. file_descriptor)
 	if not self.socket then 
 		-- Connection has been closed. Can not handle events...
@@ -407,7 +367,6 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 end
 
 function iostream.IOStream:_run_callback(callback, ...)
-	
 	local _callback_arguments = ...
 	self:_maybe_add_error_listener()
 	self._pending_callbacks = self._pending_callbacks + 1
@@ -418,7 +377,6 @@ function iostream.IOStream:_run_callback(callback, ...)
 end
 
 function iostream.IOStream:_handle_read()
-
 	while true do 
 		-- Read from socket until we get EWOULDBLOCK or equivalient.
 		local result = self:_read_to_buffer()
@@ -432,23 +390,27 @@ function iostream.IOStream:_handle_read()
 	end
 end
 
+--[[ Are the stream currently being read from?   ]]
 function iostream.IOStream:reading()
 	return self._read_callback and true or false
 end
 
+--[[ Are the stream currently being written too.   ]]
 function iostream.IOStream:writing()
 	return self._write_buffer:not_empty()
 end
 
+
+--[[ Is the stream closed?       ]]
 function iostream.IOStream:closed()
 	if self.socket then return false 
 	else return true end
 end
 
+
+--[[ Reads from the socket.
+Return the data chunk or nil if theres nothing to read.      ]]	
 function iostream.IOStream:_read_from_socket()
-	-- Reads from the socket.
-	-- Return the data chunk or nil if theres nothing to read.
-	
 	local chunk, errorno = self.socket:recv(self.read_chunk_size)
 	if errorno then
 		if errorno == EWOULDBLOCK  or
@@ -472,9 +434,9 @@ function iostream.IOStream:_read_from_socket()
 	return chunk
 end
 
-function iostream.IOStream:_read_to_buffer()
-	-- Read from the socket and append to the read buffer.
-	
+
+--[[ Read from the socket and append to the read buffer.      ]]
+function iostream.IOStream:_read_to_buffer()	
 	local chunk = self:_read_from_socket()
 	if not chunk then
 		return 0
@@ -489,10 +451,10 @@ function iostream.IOStream:_read_to_buffer()
 	return chunk:len()
 end
 
-function iostream.IOStream:_read_from_buffer()
-	-- Attempts to complete the currently pending read from the buffer.
-	-- Returns true if the read was completed.
-	
+
+--[[ Attempts to complete the currently pending read from the buffer.
+Returns true if the read was completed.        ]]
+function iostream.IOStream:_read_from_buffer()	
 	if self._read_bytes ~= nil then
 		if self._streaming_callback ~= nil and self._read_buffer_size then
 			local bytes_to_consume = min(self._read_bytes, self._read_buffer_size)
@@ -546,7 +508,6 @@ function iostream.IOStream:_read_from_buffer()
 end
 
 function iostream.IOStream:_handle_connect()
-
 	local err = self.socket:getopt('socket', 'error')
 	if err ~= 0 then 
 		log.warning(string.format("Connect error on fd %d: %s", 
@@ -587,9 +548,8 @@ function iostream.IOStream:_handle_write()
 	end
 end
 
-function iostream.IOStream:_add_io_state(state)
-	-- Add IO state to IOLoop.
-	
+--[[ Add IO state to IOLoop.         ]]
+function iostream.IOStream:_add_io_state(state)	
 	if not self.socket then
 		-- Connection has been closed, can not add state.
 		return
@@ -639,49 +599,43 @@ function iostream.IOStream:_maybe_add_error_listener()
 	end
 end
 
+
+--[[ SSL wrapper class for IOStream.
+Inherits everything from IOStream class, and should be transparent.         ]]
 iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
---[[
-	SSL wrapper class for IOStream.
-		
-	Inherits everything from IOStream class, and should be transparent.
-  ]]
 
 function iostream.SSLIOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
-	-- Init SSLIOStream object.
-	-- With inherit from IOStream class.
-	
 	self.super:init(socket, io_loop, max_buffer_size, read_chunk_size)
 	self._ssl_accepting = true
 	self._handshake_reading = false
 	self._handshake_writing = false	 
 end
 
+
+--[[ Are we reading?
+Check handshake process and also see if the super class
+is reading.        ]]
 function iostream.SSLIOStream:reading()
-	-- Are we reading?
-	-- Check handshake process and also see if the super class
-	-- is reading.
 	return self._handshake_reading or self.super:reading()
 end
 
+
+--[[ Are we writing?
+Check handshake process and also see if the super class is writing.		]]
 function iostream.SSLIOStream:writing()
-	-- Are we writing?
-	-- Check handshake process and also see if the super class
-	-- is writing.
 	return self._handshake_writing or self.super:writing()
 end
 
+--[[ Wrap a socket with TLS.	]]
 function iostream.SSLIOStream:_ssl_wrap_socket(socket)
-	-- Wrap a socket with TLS.
-	
 	self._tls_context = nixio.tls('client')
 	self._nixio_tls = self._tls_context:create(socket)
 	self._tls_connection = self._nixio_tls.connection
 	self.socket = self._nixio_tls.socket
 end
 
-function iostream.SSLIOStream:_do_ssl_handshake()
-	-- Do a SSL handshake.
-	
+--[[ Do a SSL handshake.       ]]
+function iostream.SSLIOStream:_do_ssl_handshake()	
 	local success, err = pcall(self._nixio_tls:connect())
 	
 	if not success then 
@@ -693,9 +647,8 @@ function iostream.SSLIOStream:_do_ssl_handshake()
 	end
 end
 
-function iostream.SSLIOStream:_handle_read()
-	-- Make sure handshake is done when handling reads.
-	
+--[[ Make sure handshake is done when handling reads.       ]]
+function iostream.SSLIOStream:_handle_read()	
 	if self._ssl_accepting then
 		self:_do_ssl_handshake()
 		return
@@ -703,9 +656,9 @@ function iostream.SSLIOStream:_handle_read()
 	self.super:_handle_connect()
 end
 
-function iostream.SSLIOStream:_handle_write()
-	-- Make sure handshake is done when handling writes.
-	
+
+--[[ Make sure handshake is done when handling writes.   ]]
+function iostream.SSLIOStream:_handle_write()	
 	if self._ssl_accepting then
 		self:_do_ssl_handshake()
 		return
@@ -713,14 +666,13 @@ function iostream.SSLIOStream:_handle_write()
 	self.super:_handle_write()
 end
 
-function iostream.SSLIOStream:_handle_connect()
-	-- Redefine connection handling to support ssl.
 
+--[[ Redefine connection handling to support ssl.      ]]
+function iostream.SSLIOStream:_handle_connect()
 	self:_ssl_wrap_socket(self.socket)
 end
 
 function iostream.SSLIOStream:_read_from_socket()
-
 	if self._ssl_accepting then
 		-- If the handshake has not been completed do not allow
 		-- any reads to be done...

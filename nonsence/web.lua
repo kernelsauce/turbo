@@ -1,35 +1,31 @@
---[[
-	
-		Nonsence Asynchronous event based Lua Web server.
-		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-		
-		This module "web" is a part of the Nonsence Web server.
-		For the complete stack hereby called "software package" please see:
-		
-		https://github.com/JohnAbrahamsen/nonsence-ng/
-		
-		Many of the modules in the software package are derivatives of the 
-		Tornado web server. Tornado is also licensed under Apache 2.0 license.
-		For more details on Tornado please see:
-		
-		http://www.tornadoweb.org/
-		
-		
-		Copyright 2011 John Abrahamsen
+--[[ Nonsence Asynchronous event based Lua Web server.
+Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-		Licensed under the Apache License, Version 2.0 (the "License");
-		you may not use this file except in compliance with the License.
-		You may obtain a copy of the License at
+This module "web" is a part of the Nonsence Web server.
+For the complete stack hereby called "software package" please see:
 
-		http://www.apache.org/licenses/LICENSE-2.0
+https://github.com/JohnAbrahamsen/nonsence-ng/
 
-		Unless required by applicable law or agreed to in writing, software
-		distributed under the License is distributed on an "AS IS" BASIS,
-		WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-		See the License for the specific language governing permissions and
-		limitations under the License.
+Many of the modules in the software package are derivatives of the 
+Tornado web server. Tornado is also licensed under Apache 2.0 license.
+For more details on Tornado please see:
 
-  ]]
+http://www.tornadoweb.org/
+
+
+Copyright 2011 John Abrahamsen
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.        ]]
 
 local log, util, httputil, deque, escape = require('log'), require('util'), 
 require("httputil"), require("deque"), require("escape")
@@ -38,18 +34,16 @@ require('middleclass')
 
 local is_in, type = util.is_in, type
 
-local web = {}
+local web = {} -- web namespace
 
+
+--[[ RequestHandler class.
+
+Decides what the heck to do with incoming requests that matches its
+corresponding pattern / patterns.
+		
+All request handler classes should inherit from this one.   ]]
 web.RequestHandler = class("RequestHandler")
---[[
-
-		Class: RequestHandler class.
-		Descrition: Decides what the heck to do with incoming requests that matches its
-		corresponding pattern / patterns.
-		
-		Notes: All request handler classes should inherit from this one.
-		
-  ]]
 
 function web.RequestHandler:init(application, request, url_args, kwargs)
 	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
@@ -74,63 +68,39 @@ function web.RequestHandler:init(application, request, url_args, kwargs)
 	self:on_create(kwargs)
 end
 
-function web.RequestHandler:settings()
-	--[[
-	
-			Returns the applications settings.
-			
-	  ]]
-	  
-	  return self.application.settings
-end
+--[[ Returns the applications settings.          ]] --
+function web.RequestHandler:settings() return self.application.settings end
 
-function web.RequestHandler:on_create(kwargs)
-	--[[
-	 
-			Please redefine this class if you want to do something
-			straight after the class has been created.
-			
-			Parameter can be either a table with kwargs, or a single parameter.
-		
-	  ]]
-end
 
-function web.RequestHandler:prepare()
-	--[[
-	
-			Redefine this method after your likings.
-			Called before get/post/put etc. methods on a request.
-		
-	  ]]
-end
+--[[ Please redefine this class if you want to do something straight after the class has been created.
+Parameter can be either a table with kwargs, or a single parameter.      ]]
+function web.RequestHandler:on_create(kwargs) end
 
-function web.RequestHandler:on_finish()
-	--[[ 
-	
-			Redefine this method after your likings.
-			Called after the end of a request.
-			Usage of this method could be something like a clean up etc.
-		
-	  ]]
-end
+--[[ Redefine this method after your likings.
+Called before get/post/put etc. methods on a request.    ]]
+function web.RequestHandler:prepare() end
 
-function web.RequestHandler:on_connection_close()
-	--[[
-		
-			Called in asynchronous handlers when the connection is closed.
-			Use it to clean up the mess after the connection :-).
-		
-	  ]]
-end
+--[[ Redefine this method after your likings.
+Called after the end of a request.
+Usage of this method could be something like a clean up etc.  ]]
+function web.RequestHandler:on_finish() end
 
+--[[ Called in asynchronous handlers when the connection is closed.
+Use it to clean up the mess after the connection :-).     ]]
+function web.RequestHandler:on_connection_close() end
+
+--[[ Standard methods for RequestHandler class. 
+If not redefined they will provide a 405 response code (Method Not Allowed)    ]]
+function web.RequestHandler:head(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:get(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:post(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:delete(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:put(self, args, kwargs) error(HTTPError:new(405)) end
+function web.RequestHandler:options(self, args, kwargs)	error(HTTPError:new(405)) end
+
+--[[ Reset all headers and content for this request.
+Run on class initialization.		]]
 function web.RequestHandler:clear()
-	--[[
-			
-			Reset all headers and content for this request.
-			Ran on class initialization.
-	
-	  ]]
-	
 	self.headers = httputil.HTTPHeaders:new()
 	self:set_default_headers()
 	self:set_header("Content-Type", "text/html; charset=UTF-8")
@@ -144,79 +114,37 @@ function web.RequestHandler:clear()
 	self._status_code = 200
 end
 
-function web.RequestHandler:set_default_headers()
-	--[[ 
-	
-			Redefine this method to set HTTP headers at the beginning of
-			the request.
-		
-	  ]]
-end
+--[[ Redefine this method to set HTTP headers at the beginning of the request.    ]]
+function web.RequestHandler:set_default_headers() end
 
-function web.RequestHandler:add_header(name, value)
-	--[[
-	
-			Add the given name and value pair to the HTTP response 
-			headers.
-			
-			self.headers are a instance of the HTTPHeaders class which
-			does all the hard work in this case.
-	
-	  ]]
-	
-	self.headers:add(name, value)
-end
+--[[ Add the given name and value pair to the HTTP response  headers.
+self.headers are a instance of the HTTPHeaders class which does all the hard work in this case.   ]]
+function web.RequestHandler:add_header(name, value)	self.headers:add(name, value) end
 
-function web.RequestHandler:set_header(name, value)
-	--[[
-	
-			Set the given name and value pair to the HTTP response 
-			headers.
-			
-			Returns true on success.
-			
-	  ]]
-	
-	self.headers:set(name, value)
-end
+--[[ Set the given name and value pair to the HTTP response  headers.
+Returns true on success.]]
+function web.RequestHandler:set_header(name, value)	self.headers:set(name, value) end
 
-function web.RequestHandler:add_header(key, value)
-	-- Add the given response header key and value to the response.
+--[[ Returns the current value set to given key.   ]]
+function web.RequestHandler:get_header(key) return self.headers:get(key) end
 
-	self.headers:add(key, value)
-end
-
-function web.RequestHandler:get_header(key)
-	-- Returns the current value set to given key.
-	
-	return self.headers:get(key)
-end
-
+--[[ Sets the status for our response.   ]]
 function web.RequestHandler:set_status(status_code)
-	-- Sets the status for our response.
-	
 	assert(type(status_code) == "int", [[set_status method requires int.]])
 	self._status_code = status_code
 end
 
-function web.RequestHandler:get_status()
-	-- Returns the status code currently set for our response.
-	
-	return self._status_code
-end
+--[[  Returns the status code currently set for our response.    ]]
+function web.RequestHandler:get_status() return self._status_code end
 
-function web.RequestHandler:get_argument(name, default, strip)
-	--[[
-	 
-			Returns the value of the argument with the given name.
-			If default value is not given the argument is considered to be
-			required and will result in a 400 Bad Request if the argument
-			does not exist.
-			
-			TOOD: implement strip.
-			
-	  ]]
-	
+
+--[[ Returns the value of the argument with the given name.
+If default value is not given the argument is considered to be
+required and will result in a 400 Bad Request if the argument
+does not exist.
+
+FIXME: implement strip.  ]]
+function web.RequestHandler:get_argument(name, default, strip)	
 	local args = self:get_arguments(name, strip)
 	if type(args) == "string" then
 		return args
@@ -229,16 +157,10 @@ function web.RequestHandler:get_argument(name, default, strip)
 	end
 end
 
+--[[ Returns the values of the argument with the given name.
+Will return a empty table if argument does not exist.
+TOOD: implement strip.   ]]
 function web.RequestHandler:get_arguments(name, strip)
-	--[[
-	 
-			Returns the values of the argument with the given name.
-			Will return a empty table if argument does not exist.
-			
-			TOOD: implement strip.
-			
-	  ]]
-	  
 	local values = {}
 	
 	if self.request.arguments[name] then
@@ -250,6 +172,8 @@ function web.RequestHandler:get_arguments(name, strip)
 	return values
 end
 
+--[[ Redirect client to another URL. Sets headers and finish request.   
+User can not send data after this.    ]]
 function web.RequestHandler:redirect(url, permanent)
 	if self._headers_written then
 		error("Cannot redirect after headers have been written")
@@ -263,18 +187,12 @@ function web.RequestHandler:redirect(url, permanent)
 	self:finish()
 end
 
+
+--[[ Writes the given chunk to the output buffer.			
+To write the output to the network, use the flush() method.
+If the given chunk is a Lua table, it will be automatically
+stringifed to JSON.    ]]
 function web.RequestHandler:write(chunk)
-	--[[
-	
-			Writes the given chunk to the output buffer.
-			
-			To write the output to the network, use the flush() method.
-			
-			If the given chunk is a Lua table, it will be automatically
-			stringifed to JSON.
-			
-	  ]]
-	  
 	local chunk = chunk
 	
 	if self._finished then
@@ -289,22 +207,16 @@ function web.RequestHandler:write(chunk)
 	self._write_buffer:append(chunk)
 end
 
+
+--[[ Flushes the current output buffer to the IO stream.
+			
+If callback is given it will be run when the buffer has 
+been written to the socket. Note that only one callback flush
+callback can be present per request. Giving a new callback
+before the pending has been run leads to discarding of the
+current pending callback. For HEAD method request the chunk 
+is ignored and only headers are written to the socket.  	]]
 function web.RequestHandler:flush(callback)
-	--[[
-	
-			Flushes the current output buffer to the IO stream.
-			
-			If callback is given it will be run when the buffer has 
-			been written to the socket. Note that only one callback flush
-			callback can be present per request. Giving a new callback
-			before the pending has been run leads to discarding of the
-			current pending callback.
-	
-			For HEAD method request the chunk is ignored and only headers
-			are written to the socket.
-			
-	  ]]
-	  
 	local headers
 	local chunk = self._write_buffer:concat() or ''
 	self._write_buffer = deque:new()
@@ -325,16 +237,11 @@ function web.RequestHandler:flush(callback)
 	end
 end
 
-function web.RequestHandler:finish(chunk)
-	--[[
-	
-			Finishes the HTTP request.
-			Cleaning up of different messes etc.
-	
-	  ]]
-	
+--[[ Finishes the HTTP request.
+Cleaning up of different messes etc.    ]]
+function web.RequestHandler:finish(chunk)	
 	assert((not self._finished), 
-		[[finish called twice. Something terrible has happened]])
+		[[finish() called twice. Something terrible has happened]])
 	
 	if chunk then
 		self:write(chunk)
@@ -350,49 +257,13 @@ function web.RequestHandler:finish(chunk)
 	
 	self:flush()
 	self.request:finish()
-	--self:_log()
 	self._finished = true
 	self:on_finish()
 end
 
---[[
 
-		Standard methods for RequestHandler class. If not redefined
-		they will provide a 405 response code (Method Not Allowed)
-
-  ]]
-function web.RequestHandler:head(self, args, kwargs) 
-	error(HTTPError:new(405))
-end
-function web.RequestHandler:get(self, args, kwargs)
-	error(HTTPError:new(405))
-end
-function web.RequestHandler:post(self, args, kwargs)
-	error(HTTPError:new(405)) 
-end
-function web.RequestHandler:delete(self, args, kwargs) 
-	error(HTTPError:new(405)) 
-end
-function web.RequestHandler:put(self, args, kwargs) 
-	error(HTTPError:new(405)) 
-end
-function web.RequestHandler:options(self, args, kwargs)
-	error(HTTPError:new(405))
-end
-
+--[[ Main execution of the RequestHandler class.     ]]
 function web.RequestHandler:_execute(args)
-	--[[
-	
-			Main execution of the RequestHandler class.
-			
-			Here we do different things:
-			- Match HTTP method against methods in the class e.g GET,
-			POST, HEAD, PUT...
-			- Pass any arguments from the pattern match in the Application
-			class.
-	
-	  ]]
-	  
 	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
 			error(HTTPError:new(405))
 	  end
@@ -402,14 +273,9 @@ function web.RequestHandler:_execute(args)
 			self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
 	  end
 	  self:finish()
-		
 end
 
-web.StaticHandler = class("StaticHandler", web.RequestHandler)
 
-function web.StaticHandler:init()
-	
-end
 
 web.Application = class("Application")
 
@@ -419,36 +285,24 @@ function web.Application:init(handlers, default_host)
 	self.application_name = "Nonsence v0.1b"
 end
 
-function web.Application:set_server_name(name)
-	-- Sets the server name.
-	self.application_name = name
-end
+--[[ Sets the server name.     ]]
+function web.Application:set_server_name(name) self.application_name = name end
 
-function web.Application:get_server_name(name)
-	-- Returns the server name.
-	return self.application_name
-end
+--[[ Returns the server name.   ]]
+function web.Application:get_server_name(name) return self.application_name end
 
+--[[ Starts the HTTP server for this application on the given port. ]]
 function web.Application:listen(port, address, kwargs)
-	-- Starts the HTTP server for this application on the given port.
-	
 	local httpserver = pcall(require, 'httpserver') and require('httpserver') or 
 		error('Missing module httpserver')
 	local server = httpserver.HTTPServer:new(self, kwargs)
 	server:listen(port, address)
 end
 
+--[[ Find a matching request handler for the request object.
+Simply match the URI against the pattern matches supplied
+to the Application class.   ]]
 function web.Application:_get_request_handlers(request)
-	--[[
-	
-			Find a matching request handler for the request object.
-			Simply match the URI against the pattern matches supplied
-			to the Application class.
-			
-			TODO: is a check for this tables presence needed?
-			
-	  ]]
-	  
 	local path = request._request.path and request._request.path:lower()
 	if not path then 
 		path = "/"

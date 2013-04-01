@@ -39,8 +39,9 @@
 
   ]]
   
+require('ansicolors')
 
-local log = {}
+local log = {} -- log namespace.
 
 log.stringify = function (t, name, indent)
    local cart     -- a container
@@ -109,29 +110,33 @@ log.stringify = function (t, name, indent)
    return cart .. autoref
 end	
 
+--[[ Usefull table printer for debug.       ]]
 log.dump = function(stuff, description)
-	-- Usefull table printer for debug.
 	print(log.stringify(stuff, description))
 end
 
-log.warning = function(str)
-	-- Prints a warning to stdout.
-	
-	print("[" .. os.date("%X", os.time()) .. '] Warning: ' .. str)
+log.success = function(str)
+	print(ansicolors.green .. "[S " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
 end
 
+--[[ Prints a warning to stdout.      ]]
+log.warning = function(str)	
+	print(ansicolors.yellow .. "[W " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+end
+
+--[[ Prints a notice to stdout.  ]]
 log.notice = function(str)
-	-- Prints a notice to stdout.
-	
-	print("[" .. os.date("%X", os.time()) .. '] Notice: ' .. str)
+	print(ansicolors.white .. "[I " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
 end
 
-log.error = function(str)
-	-- Running log.error means throwing a error.
-	-- It will stop execution if not caught by either pcall
-	-- or xpcall.
-	
-	print("[" .. os.date("%X", os.time()) .. '] Error: ' .. str)
+--[[ Prints a error to stdout.  ]]
+log.error = function(str)	
+	print(ansicolors.red .. "[E " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+end
+
+--[[ Prints a error to stdout.  ]]
+log.stacktrace = function(str)	
+	print(ansicolors.onblue .. str .. ansicolors.reset)
 end
 
 return log
