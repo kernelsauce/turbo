@@ -27,8 +27,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.        ]]
 
-local log, util, httputil, deque, escape, response_codes = require('log'), require('util'), 
-require("httputil"), require("deque"), require("escape"), require("http_response_codes")
+local log, util, httputil, deque, escape, response_codes, mime_types = require('log'), require('util'), 
+require("httputil"), require("deque"), require("escape"), require("http_response_codes"), require("mime_types")
 
 require('middleclass')
 
@@ -98,8 +98,7 @@ function web.RequestHandler:delete(self, args, kwargs) error(web.HTTPError:new(4
 function web.RequestHandler:put(self, args, kwargs) error(web.HTTPError:new(405)) end
 function web.RequestHandler:options(self, args, kwargs)	error(web.HTTPError:new(405)) end
 
---[[ Reset all headers and content for this request.
-Run on class initialization.		]]
+--[[ Reset all headers and content for this request. Run on class initialization.		]]
 function web.RequestHandler:clear()
 	self.headers = httputil.HTTPHeaders:new()
 	self:set_default_headers()
@@ -121,8 +120,7 @@ function web.RequestHandler:set_default_headers() end
 self.headers are a instance of the HTTPHeaders class which does all the hard work in this case.   ]]
 function web.RequestHandler:add_header(name, value)	self.headers:add(name, value) end
 
---[[ Set the given name and value pair to the HTTP response  headers.
-Returns true on success.]]
+--[[ Set the given name and value pair to the HTTP response  headers. Returns true on success.]]
 function web.RequestHandler:set_header(name, value)	self.headers:set(name, value) end
 
 --[[ Returns the current value set to given key.   ]]
@@ -288,6 +286,96 @@ function web.RequestHandler:_execute(args)
 end
 
 
+web._StaticWebCache = class("_StaticWebCache")
+
+function web._StaticWebCache:init()
+	self.files = {}
+end
+
+--[[ Read complete file. Returns rc and buffer in case read were successfull.  ]]
+function web._StaticWebCache:read_file(path)
+	local fd = io.open(path, "r")
+	if not fd then
+		return -1, nil
+	end
+
+	local buf = fd:read("*all")
+	return 0, buf
+end
+
+function web._StaticWebCache:get_file(path)
+	for filepath, bytes in pairs(self.files) do
+		if (filepath == path) then
+			return 0, bytes
+		end
+	end
+	-- Fallthrough, read from disk.
+	local rc, buf = self:read_file(path)
+	if rc == 0 then
+		self.files[path] = buf
+		log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
+		return 0, buf
+	else
+		return -1, nil
+	end
+
+end
+
+
+
+STATIC_CACHE = web._StaticWebCache:new()
+
+
+
+web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
+function web.StaticFileHandler:init(app, request, args, options)
+	web.RequestHandler:init(app, request, args)	
+	self.path = options
+end
+
+function web.StaticFileHandler:get_mime()
+	local filename = self._url_args[1]
+	assert(filename)
+	local parts = filename:split(".")
+	if #parts == 0 then
+		return -1
+	end
+	local file_ending = parts[#parts]
+	local mime_type = mime_types[file_ending]
+	if mime_type then
+		return 0, mime_type
+	else
+		return -1
+	end
+end
+
+function web.StaticFileHandler:get(path)
+	if #self._url_args == 0 or self._url_args[1]:len() == 0 then
+		error(web.HTTPError(404))
+	end
+
+	local filename = self._url_args[1]
+	if filename:match("%.%.") then -- Prevent dir traversing.
+		error(web.HTTPError(401))
+	end
+
+	local full_path = string.format("%s%s", self.path, filename)
+	local rc, buf = STATIC_CACHE:get_file(full_path)
+	if rc == 0 then
+		local rc, mime_type = self:get_mime()
+		if rc == 0 then
+			self:set_header("Content-Type", mime_type)
+		end
+		self:set_header("Content-Length", buf:len())
+		self:write(buf)
+	else
+		error(web.HTTPError(404)) -- Not found
+	end
+end
+
+
+
+
 --[[ Class to handout errors.  ]]
 web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
 
@@ -302,7 +390,7 @@ function web.ErrorHandler:init(app, request, code, message)
 	self:finish()
 end
 
---[[ HTTPError exception class. Raisiable from RequestHandler instances. Provide code and optional message.  ]]
+--[[ HTTPError exception class. Raisable from RequestHandler instances. Provide code and optional message.  ]]
 web.HTTPError = class("HTTPError")
 function web.HTTPError:init(code, message)
 	assert(type(code) == "number", "HTTPError code argument must be number.")
@@ -348,10 +436,13 @@ function web.Application:_get_request_handlers(request)
 		path = "/"
 	end
 	
-	for pattern, handlers in pairs(self.handlers) do 
+	local handlers_sz = #self.handlers
+	for i = 1, handlers_sz do 
+		local handler = self.handlers[i]
+		local pattern = handler[1]
 		if path:match(pattern) then
-			local args = pack(path:match(pattern))
-			return handlers, args
+			local args = {path:match(pattern)}
+			return handler[2], args, handler[3]
 		end
 	end
 end
@@ -360,11 +451,10 @@ function web.Application:__call(request)
 	-- Handler for HTTP request.
 
 	local handler
-	local handlers, args = self:_get_request_handlers(request)
-
+	local handlers, args, options = self:_get_request_handlers(request)
 	
 	if handlers then	
-		handler = handlers:new(self, request, args)
+		handler = handlers:new(self, request, args, options)
 		local status, err = pcall(function() handler:_execute() end)
 		if err then
 
@@ -372,9 +462,9 @@ function web.Application:__call(request)
 				handler = web.ErrorHandler:new(self, request, err.code, err.message)
 			else 
 				local trace = debug.traceback()
-				log.error([[[ioloop.lua]] .. err)
+				log.error("[web.lua] " .. err)
 				log.stacktrace(trace)
-				handler = web.ErrorHandler:new(self, request, 500, string.format("%s\n%s\n", err, trace))
+				handler = web.ErrorHandler:new(self, request, 500, string.format("<pre>%s\n%s\n</pre>", err, trace))
 			end
 		end
 		
@@ -384,7 +474,7 @@ function web.Application:__call(request)
 	else
 		handler = web.ErrorHandler:new(self, request, 404)
 	end
-	
+
 	return handler
 end
 

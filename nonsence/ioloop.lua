@@ -193,7 +193,7 @@ function ioloop.IOLoop:list_callbacks() return self._callbacks end
 --[[ Internal function to handle errors in callbacks, logs everything.
 @param err Error message  	]]
 local function error_handler(err)
-	log.error([[[ioloop.lua]] .. err)
+	log.error("[ioloop.lua] " .. err)
 	log.stacktrace(debug.traceback())
 end
 

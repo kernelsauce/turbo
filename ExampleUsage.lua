@@ -41,9 +41,9 @@ end
 
  
 local application = nonsence.web.Application:new({ 
-	['/$'] = ExampleHandler,
-	['/json'] = MyJSONHandler,
-	['/params/(%a*)'] = ParamsHandler
+	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www"},
+	{"/$", ExampleHandler},
+	{"/json", MyJSONHandler},
 })
 
 application:listen(8888) -- Listen on port 8888
