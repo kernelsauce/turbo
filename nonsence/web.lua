@@ -286,8 +286,8 @@ function web.RequestHandler:_execute(args)
 end
 
 
+--[[ Static files cache class. Files that does not exist in cache are added to cache on first read.   ]]
 web._StaticWebCache = class("_StaticWebCache")
-
 function web._StaticWebCache:init()
 	self.files = {}
 end
@@ -326,13 +326,15 @@ end
 STATIC_CACHE = web._StaticWebCache:new()
 
 
-
+--[[ Static file handler class.  Provide the filesystem path as option in nonsence.web.Application.  ]]
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:init(app, request, args, options)
 	web.RequestHandler:init(app, request, args)	
 	self.path = options
 end
 
+
+--[[ Determine MIME type according to file exstension.   ]]
 function web.StaticFileHandler:get_mime()
 	local filename = self._url_args[1]
 	assert(filename)
@@ -349,6 +351,7 @@ function web.StaticFileHandler:get_mime()
 	end
 end
 
+--[[ GET method for static file handling.   ]]
 function web.StaticFileHandler:get(path)
 	if #self._url_args == 0 or self._url_args[1]:len() == 0 then
 		error(web.HTTPError(404))
@@ -376,7 +379,7 @@ end
 
 
 
---[[ Class to handout errors.  ]]
+--[[ Class to handout HTTP errors.  ]]
 web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
 
 function web.ErrorHandler:init(app, request, code, message)
