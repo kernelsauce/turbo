@@ -27,8 +27,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.        ]]
 
-local log, util, httputil, deque, escape = require('log'), require('util'), 
-require("httputil"), require("deque"), require("escape")
+local log, util, httputil, deque, escape, response_codes = require('log'), require('util'), 
+require("httputil"), require("deque"), require("escape"), require("http_response_codes")
 
 require('middleclass')
 
@@ -91,12 +91,12 @@ function web.RequestHandler:on_connection_close() end
 
 --[[ Standard methods for RequestHandler class. 
 If not redefined they will provide a 405 response code (Method Not Allowed)    ]]
-function web.RequestHandler:head(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:get(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:post(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:delete(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:put(self, args, kwargs) error(HTTPError:new(405)) end
-function web.RequestHandler:options(self, args, kwargs)	error(HTTPError:new(405)) end
+function web.RequestHandler:head(self, args, kwargs) error(web.HTTPError:new(405)) end
+function web.RequestHandler:get(self, args, kwargs) error(web.HTTPError:new(405)) end
+function web.RequestHandler:post(self, args, kwargs) error(web.HTTPError:new(405)) end
+function web.RequestHandler:delete(self, args, kwargs) error(web.HTTPError:new(405)) end
+function web.RequestHandler:put(self, args, kwargs) error(web.HTTPError:new(405)) end
+function web.RequestHandler:options(self, args, kwargs)	error(web.HTTPError:new(405)) end
 
 --[[ Reset all headers and content for this request.
 Run on class initialization.		]]
@@ -130,7 +130,7 @@ function web.RequestHandler:get_header(key) return self.headers:get(key) end
 
 --[[ Sets the status for our response.   ]]
 function web.RequestHandler:set_status(status_code)
-	assert(type(status_code) == "int", [[set_status method requires int.]])
+	assert(type(status_code) == "number", [[set_status method requires number.]])
 	self._status_code = status_code
 end
 
@@ -153,7 +153,7 @@ function web.RequestHandler:get_argument(name, default, strip)
 	elseif default then
 		return default
 	else
-		error(HTTPError:new(400))
+		error(web.HTTPError:new(400))
 	end
 end
 
@@ -254,6 +254,18 @@ function web.RequestHandler:finish(chunk)
 		self.headers:set_status_code(self._status_code)
 		self.headers:set_version("HTTP/1.1")
 	end
+
+	if self._status_code == 200 then
+		log.success(string.format([[[web.lua] %d %s %s]], 
+			self._status_code, 
+			response_codes[self._status_code], 
+			self.request._request.headers.url))
+	else
+		log.warning(string.format([[[web.lua] %d %s %s]], 
+			self._status_code, 
+			response_codes[self._status_code], 
+			self.request._request.headers.url))
+	end
 	
 	self:flush()
 	self.request:finish()
@@ -264,16 +276,40 @@ end
 
 --[[ Main execution of the RequestHandler class.     ]]
 function web.RequestHandler:_execute(args)
-	  if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
-			error(HTTPError:new(405))
-	  end
+	if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
+		error(web.HTTPError:new(405))
+	end
 
-	  self:prepare()
-	  if not self._finished then
-			self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
-	  end
-	  self:finish()
+	self:prepare()
+	if not self._finished then
+		self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
+	end
+	self:finish()
 end
+
+
+--[[ Class to handout errors.  ]]
+web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
+
+function web.ErrorHandler:init(app, request, code, message)
+	web.RequestHandler:init(app, request)
+	if (message) then 
+		self:write(message)
+	else
+		self:write(response_codes[code])
+	end
+	self:set_status(code)
+	self:finish()
+end
+
+--[[ HTTPError exception class. Raisiable from RequestHandler instances. Provide code and optional message.  ]]
+web.HTTPError = class("HTTPError")
+function web.HTTPError:init(code, message)
+	assert(type(code) == "number", "HTTPError code argument must be number.")
+	self.code = code
+	self.message = message and message or response_codes[code]
+end
+
 
 
 
@@ -299,6 +335,10 @@ function web.Application:listen(port, address, kwargs)
 	server:listen(port, address)
 end
 
+
+local function pack(...)
+	return arg
+end
 --[[ Find a matching request handler for the request object.
 Simply match the URI against the pattern matches supplied
 to the Application class.   ]]
@@ -306,10 +346,6 @@ function web.Application:_get_request_handlers(request)
 	local path = request._request.path and request._request.path:lower()
 	if not path then 
 		path = "/"
-	end
-	
-	local function pack(...)
-		return arg
 	end
 	
 	for pattern, handlers in pairs(self.handlers) do 
@@ -325,19 +361,30 @@ function web.Application:__call(request)
 
 	local handler
 	local handlers, args = self:_get_request_handlers(request)
+
 	
-	if handlers then
+	if handlers then	
 		handler = handlers:new(self, request, args)
+		local status, err = pcall(function() handler:_execute() end)
+		if err then
+
+			if instanceOf(web.HTTPError, err) then
+				handler = web.ErrorHandler:new(self, request, err.code, err.message)
+			else 
+				local trace = debug.traceback()
+				log.error([[[ioloop.lua]] .. err)
+				log.stacktrace(trace)
+				handler = web.ErrorHandler:new(self, request, 500, string.format("%s\n%s\n", err, trace))
+			end
+		end
 		
 	elseif not handlers and self.default_host then 
 		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
 		
 	else
-		handler = web.ErrorHandler:new(request, 404)
-		
+		handler = web.ErrorHandler:new(self, request, 404)
 	end
-
-	handler:_execute()
+	
 	return handler
 end
 

@@ -82,7 +82,7 @@ local _poll_implementation = nil
   
 if pcall(require, 'epoll_ffi') then
 	-- Epoll FFI module found and loaded.
-	log.success([[ioloop module => Picked epoll_ffi module as poll module.]])
+	log.success([[[ioloop.lua] Picked epoll_ffi module as poll module.]])
 	_poll_implementation = 'epoll_ffi'
 	epoll_ffi = require('epoll_ffi')
 	-- Populate global with Epoll module constants
@@ -93,7 +93,7 @@ if pcall(require, 'epoll_ffi') then
 	
 elseif pcall(require, 'epoll') then
 	-- Epoll module found.
-	log.success([[ioloop module => Picked epoll module as poll module.]])
+	log.success([[[ioloop.lua] Picked epoll module as poll module.]])
 	_poll_implementation = 'epoll'
 	-- Populate global with Epoll module constants
 	Epoll = require('epoll')
@@ -193,7 +193,7 @@ function ioloop.IOLoop:list_callbacks() return self._callbacks end
 --[[ Internal function to handle errors in callbacks, logs everything.
 @param err Error message  	]]
 local function error_handler(err)
-	log.error(err)
+	log.error([[[ioloop.lua]] .. err)
 	log.stacktrace(debug.traceback())
 end
 
@@ -232,7 +232,7 @@ The loop will run until self:stop() is called.
 @see ioloop.IOLoop:stop()     ]]
 function ioloop.IOLoop:start()	
 	self._running = true
-	log.notice([[ioloop module => IOLoop started running]])
+	log.notice([[[ioloop.lua] IOLoop started running]])
 	while true do
 		--log.warning("Callbacks in queue: " .. #self._callbacks)
 		--log.warning("Started new I/O loop iteration.\r\n\r\n")
