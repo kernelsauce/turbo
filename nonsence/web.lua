@@ -284,8 +284,10 @@ function web.RequestHandler:_execute(args)
 	self:prepare()
 	if not self._finished then
 		self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
+		if self._auto_finish and not self._finished then
+			self:finish()
+		end
 	end
-	self:finish()
 end
 
 
@@ -434,7 +436,7 @@ web.Application = class("Application")
 function web.Application:init(handlers, default_host)
 	self.handlers = handlers
 	self.default_host = default_host
-	self.application_name = "Nonsence v0.1b"
+	self.application_name = "Nonsence v1.0"
 end
 
 --[[ Sets the server name.     ]]
