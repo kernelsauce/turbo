@@ -28,6 +28,18 @@ See the License for the specific language governing permissions and
 limitations under the License.        ]]
 
 local nonsence = {}  -- nonsence namespace.
+
+nonsence.MAJOR_VERSION = 1
+nonsence.MINOR_VERSION = 0
+nonsence.MICRO_VERSION = 0
+nonsence.VERSION_HEX = 0x010000
+
+if nonsence.MICRO_VERSION then
+	nonsence.VERSION = string.format("%d.%d.%d", nonsence.MAJOR_VERSION, nonsence.MINOR_VERSION, nonsence.MICRO_VERSION)
+else
+	nonsence.VERSION = string.format("%d.%d", nonsence.MAJOR_VERSION, nonsence.MINOR_VERSION)
+end
+
 nonsence.log = require('log')
 nonsence.ioloop = require('ioloop')
 nonsence.escape = require('escape')
@@ -38,4 +50,5 @@ nonsence.web = require('web')
 nonsence.util = require('util')
 _G.dump = nonsence.log.dump
 _G.join = nonsence.util.join
+
 return nonsence
