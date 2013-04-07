@@ -136,7 +136,7 @@ end
 
 --[[ Prints a error to stdout.  ]]
 log.stacktrace = function(str)	
-	print(ansicolors.onblue .. str .. ansicolors.reset)
+	print(ansicolors.red .. str .. ansicolors.reset)
 end
 
 return log
