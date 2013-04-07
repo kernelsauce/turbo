@@ -235,6 +235,13 @@ function web.RequestHandler:flush(callback)
 	end
 end
 
+--[[ Set request to automatically call finish when request method has been called. Default
+behaviour is to finish the request immediately.   ]]
+function web.RequestHandler:set_auto_finish(bool)
+	assert(type(bool) == "boolean", "bool must be boolean!")
+	self._auto_finish = bool
+end
+
 --[[ Finishes the HTTP request.
 Cleaning up of different messes etc.    ]]
 function web.RequestHandler:finish(chunk)	
