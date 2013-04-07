@@ -80,14 +80,25 @@ The RequestHandler class are implemented so that it must be subclassed to proces
 
 Subclass and implement any of the following methods to handle the corresponding HTTP method:
 
-.. function:: nonsence.web.RequestHandler:get()	
-.. function:: nonsence.web.RequestHandler:post()
-.. function:: nonsence.web.RequestHandler:head()
-.. function:: nonsence.web.RequestHandler:delete()
-.. function:: nonsence.web.RequestHandler:put()
-.. function:: nonsence.web.RequestHandler:options()
+.. function:: RequestHandler:get()	
+.. function:: RequestHandler:post()
+.. function:: RequestHandler:head()
+.. function:: RequestHandler:delete()
+.. function:: RequestHandler:put()
+.. function:: RequestHandler:options()
 
-If a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code.
+	If a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code.
 
+.. function:: RequestHandler:write(chunk)
+
+	Writes the given chunk to the output buffer.			
+	To write the output to the network, call the ``nonsence.web.RequestHandler:flush()`` method.
+	If the given chunk is a Lua table, it will be automatically
+	stringifed to JSON. 
+
+.. function:: RequestHandler:finish(chunk)
+
+	Writes the chunk to the output buffer and finishes the HTTP request.
+	This method can only be called once in one request.
 	
 	
