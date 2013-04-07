@@ -41,13 +41,26 @@ If no backlog size is given in bytes then 128 bytes will be used.      ]]
 local function bind_sockets(port, address, backlog)	
 	local backlog = backlog or 128
 	local address = address or nil
+	local errno
+
 	if address == '' then address = nil end
 	local sockets = {}
 	local socket = nixio.socket('inet', 'stream')
+
 	assert(socket:setsockopt('socket', 'reuseaddr', 1))
-	socket:setblocking(false)
-	socket:bind(address, port)
-	socket:listen(backlog)
+	assert(socket:setblocking(false))
+
+	if not socket:bind(address, port) then
+		errno = nixio.errno()
+		error(string.format("[Errno %d] Could not bind to address. %s", errno, nixio.strerror(errno)))		
+	end
+
+	if not socket:listen(backlog) then 
+		errno = nixio.errno()
+		error(string.format("[Errno %d] Could not listen to socket fd %d. %s", errno, socket:fileno(), nixio.strerror(errno)))
+	end
+
+	local errno = nixio.errno()
 	sockets[#sockets + 1] = socket
 	return sockets
 end
@@ -86,7 +99,7 @@ end
 If no address is supplied, * will be used.     ]]
 function tcpserver.TCPServer:listen(port, address)
 	assert(port, [[Please specify port for listen() method]])
-	local sockets = bind_sockets(port, address)
+	local sockets = bind_sockets(port, address, 1024)
 	log.notice("[tcpserver.lua] TCPServer listening on port: " .. port)
 	self:add_sockets(sockets)
 end
