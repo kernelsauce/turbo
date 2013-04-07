@@ -50,6 +50,7 @@ Nonsence Web, but is also exposed to the user when inheriting from classes such 
 ``nonsence.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
 easy to learn if you are used to Python, Java or C++.
 
+
 nonsence.web
 ============
 nonsence.web namespace provides a web framework with asynchronous features that allow it
@@ -74,20 +75,58 @@ very easy:
 	application:listen(8888)
 	nonsence.ioloop.instance():start()
 
+
 RequestHandler
-==============
+~~~~~~~~~~~~~~
 The RequestHandler class are implemented so that it must be subclassed to process HTTP requests.
 
-Subclass and implement any of the following methods to handle the corresponding HTTP method:
+*Subclass and implement any of the following methods to handle the corresponding HTTP method, if a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code:*
 
 .. function:: RequestHandler:get()	
+	
+	HTTP GET reqests handler.
+
 .. function:: RequestHandler:post()
+
+	HTTP POST reqests handler.
+
 .. function:: RequestHandler:head()
+
+	HTTP HEAD reqests handler.
+
 .. function:: RequestHandler:delete()
+
+	HTTP DELETE reqests handler.
+
 .. function:: RequestHandler:put()
+
+	HTTP PUT reqests handler.
+
 .. function:: RequestHandler:options()
 
-	If a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code.
+	HTTP OPTIONS reqests handler.
+
+All of these methods recieves the arguments from the patterns in the ``nonsence.Web.Application`` handler section.
+
+*Candidates for redefinition:*
+
+.. function:: RequestHandler:on_create(kwargs)
+
+	Reimplement this method if you want to do something straight after the class instance has been created.
+
+.. function:: RequestHandler:prepare()
+
+	Called before each request, independent on the HTTP method used for the request..
+
+.. function:: RequestHandler:on_finish()
+
+	Called after the end of a request. Useful for e.g a cleanup routine.
+
+.. funciton:: RequestHandler:set_default_headers()
+
+	Reimplement this method if you want to set special headers on all requests to the handler.
+
+*Stream modifiying methods:*
 
 .. function:: RequestHandler:write(chunk)
 
@@ -99,6 +138,121 @@ Subclass and implement any of the following methods to handle the corresponding 
 .. function:: RequestHandler:finish(chunk)
 
 	Writes the chunk to the output buffer and finishes the HTTP request.
-	This method can only be called once in one request.
+	This method should only be called once in one request.
+
+.. function:: RequestHandler:flush(callback)
+
+	Flushes the current output buffer to the IO stream.
+			
+	If callback is given it will be run when the buffer has 
+	been written to the socket. Note that only one callback flush
+	callback can be present per request. Giving a new callback
+	before the pending has been run leads to discarding of the
+	current pending callback. For HEAD method request the chunk 
+	is ignored and only headers are written to the socket.  
+
+.. function:: RequestHandler:clear()
 	
+	Reset all headers, empty write buffer in a request.
+
+.. function:: RequestHandler:add_header(name, value)
+
+	Add the given name and value pair to the HTTP response headers. Raises error if name already exists.
+
+.. function:: RequestHandler:set_header(name, value)
+
+	Set the given name and value pair of the HTTP response headers. If name exists then the value is overwritten.
+
+.. function:: RequestHandler:get_header(key)
+
+	Returns the current value of the given key in the HTTP response headers. Returns nil if not set.
+
+.. function:: RequestHandler:set_status(code)
 	
+	Set the status code of the HTTP response headers.
+
+.. function:: RequestHandler:get_status(code)
+	
+	Get the curent status code of the HTTP response headers.
+
+.. function:: RequestHandler:get_argument(name, default, strip)
+
+	Returns the value of the argument with the given name.
+	If default value is not given the argument is considered to be
+	required and will result in a 400 Bad Request if the argument
+	does not exist. Strip will take away whitespaces at head and tail.
+
+.. function:: RequestHandler:get_arguments(name, strip)
+
+	Returns the values of the argument with the given name. Should be used when you expect multiple arguments values with same name. Strip will take away whitespaces at head and tail where 		applicable.
+	
+	Returns a empty table if argument does not exist.
+
+.. function:: RequestHandler:redirect(url, permanent)
+
+	Redirect client to another URL. Sets headers and finish request. User can not send data after this. 
+
+
+HTTPError
+~~~~~~~~~
+Convinence class for raising errors in ``nonsence.web.RequestHandler`` and return a HTTP status code to the client. The error is caught by the RequestHandler and requests is ended. Usage:
+
+::
+
+	local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+	function ExampleHandler:get() 
+		local param = self:get_argument("some_key")
+		if param ~= "expected" then
+			error(nonsence.web.HTTPError:new(400))
+		else
+			self:write("Success!")
+		end
+	end
+
+.. function:: HTTPError:new(code, message)
+	
+	Provide code and optional message.
+
+
+StaticFileHandler
+~~~~~~~~~~~~~~~~~
+A simple static file handler. All files are cached in memory after initial request. Usage:
+
+::
+
+	local application = nonsence.web.Application:new({ 
+		{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+	})
+
+
+Application
+~~~~~~~~~~~
+The Application class is a collection of request handler classes that make together up a web application. Example:
+
+::
+	
+	local application = nonsence.web.Application:new({ 
+		{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+		{"/$", ExampleHandler},
+		{"/item/(%d*)", ItemHandler}
+	})
+
+The constructor of this class takes a "map" of URL patterns and their respective handlers. The third element in the table are optional parameters the handler class might have.
+E.g the ``nonsence.web.StaticFileHandler`` class takes the root path for your static handler. This element could also be another table for multiple arguments.
+
+The first element in the table is the URL that the application class matches incoming request with to determine how to serve it. These URLs simply be a URL or a any kind of Lua pattern.
+The ItemHandler URL pattern is an example on how to map numbers from URL to your handlers. Pattern encased in parantheses are used as parameters when calling the request methods in your handlers.
+
+A good read on Lua patterns matching can be found here: http://www.wowwiki.com/Pattern_matching.
+
+.. function:: Application:listen(port, address)
+	
+	 Starts the HTTP server for this application on the given port.
+
+.. function:: Application:set_server_name(name)
+
+	Sets the name of the server. Used in the response headers.
+
+.. function:: Application:get_server_name(name)
+
+	Gets the current name of the server.
