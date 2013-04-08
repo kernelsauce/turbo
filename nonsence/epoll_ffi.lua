@@ -35,17 +35,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			]]
   
-local ffi, log = require("ffi"), require("log")  
+local ffi = require("ffi")
 local epoll = {}
 epoll.EPOLL_CTL_ADD = 1 
 epoll.EPOLL_CTL_DEL = 2 
 epoll.EPOLL_CTL_MOD = 3 
 epoll.EPOLL_EVENTS = {
-	['EPOLLIN']  = 0x001,
-	['EPOLLPRI'] = 0x002,
-	['EPOLLOUT'] = 0x004,
-	['EPOLLERR'] = 0x008,
-	['EPOLLHUP'] = 0x0010,
+	EPOLLIN  = 0x001,
+	EPOLLPRI = 0x002,
+	EPOLLOUT = 0x004,
+	EPOLLERR = 0x008,
+	EPOLLHUP = 0x0010,
 }
 
 ffi.cdef[[
@@ -68,22 +68,18 @@ ffi.cdef[[
 	int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
 ]]
 
-local MAX_EVENTS = 100
+--[[ Create a new epoll fd. Returns the fd of the created epoll instance and -1 and errno on error.   
+Note on max_events: Since Linux 2.6.8, the size argument is unused, but must be greater than zero. 
+(The kernel dynamically sizes the required data structures without needing this initial hint.)	]]
+function epoll.epoll_create(max_events)
+	max_events = max_events or 100
+	local fd = ffi.C.epoll_create(max_events)
 
---[[ Create a new epoll fd.
-Note on int MAX_EVENTS:
-	Since Linux 2.6.8, the size argument is unused, but must 
-	be greater than zero. (The kernel dynamically sizes the 
-	required data structures without needing this initial 
-	hint.)
-Returns the int of the created epoll and -1 on error with errno.    ]]
-function epoll.epoll_create()
-	local epoll_fd = ffi.C.epoll_create(MAX_EVENTS)
-	if epoll_fd == -1 then
-		return
-		print("epoll_create() error: ", ffi.errno())
+	if fd == -1 then
+		return -1, ffi.errno()
 	end
-	return epoll_fd
+
+	return fd
 end
 
 
@@ -105,9 +101,13 @@ EPOLL_CTL_DEL
 	
 Returns 0 on success and -1 on error together with errno.   ]]
 function epoll.epoll_ctl(epfd, op, fd, epoll_events)
-	local events = ffi.new("epoll_event", epoll_events)
-	events.data.fd = fd
-	return ffi.C.epoll_ctl(epfd, op, fd, events)
+	local event = ffi.new("epoll_event", epoll_events)
+	event.data.fd = fd
+	local rc = ffi.C.epoll_ctl(epfd, op, fd, event)
+	if (rc == -1) then
+		return -1, ffi.errno()
+	end
+	return rc
 end
 
 
@@ -126,14 +126,17 @@ indefinitely, while specifying a timeout equal to zero makes
 epoll_wait() to return immediately even if no events are 
 available (return code equal to zero).
 
-Returns number of file descriptors ready for the requested 
-I/O or -1 on error and errno is set.      ]]
-function epoll.epoll_wait(epfd, timeout)
-	local events = ffi.new("struct epoll_event[".. MAX_EVENTS.."]")
-	local num_events = ffi.C.epoll_wait(epfd, events, MAX_EVENTS, timeout)
+Returns a structure containing all of the fd's and their events:
+	{{fd, events}, {fd, events}}
+On error -1 and errno are returned.      ]]
+function epoll.epoll_wait(epfd, timeout, max_events)
+	max_events = max_events or 100
+	local events = ffi.new("struct epoll_event["..max_events.."]")
+	ffi.fill(events, ffi.sizeof(events), 0)
+	local num_events = ffi.C.epoll_wait(epfd, events, max_events, timeout)
+	
 	if num_events == -1 then
-		print("epoll_wait() -> num_events error: ", ffi.errno())
-		return ffi.errno()
+		return -1, ffi.errno()
 	end
 	  
 	local events_t = {}
@@ -141,15 +144,10 @@ function epoll.epoll_wait(epfd, timeout)
 		return events_t
 	end
 
-	for i=0, num_events - 1 do
-		local fd = events[i].data.fd
-		if fd == -1 then
-			print("epoll_wait() -> fd error: ", ffi.errno())
-			break
-		end
-		if events[i].events then
-			events_t[#events_t + 1 ] = {fd, events[i].events} 
-		end
+	local num_events_base_1 = num_events - 1
+
+	for i = 0, num_events_base_1 do
+		events_t[#events_t + 1 ] = {events[i].data.fd, events[i].events} 
 	end
 
 	return events_t
