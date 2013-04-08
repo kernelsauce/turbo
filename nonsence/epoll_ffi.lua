@@ -34,20 +34,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			]]
-  
-local ffi = require("ffi")
-local epoll = {}
-epoll.EPOLL_CTL_ADD = 1 
-epoll.EPOLL_CTL_DEL = 2 
-epoll.EPOLL_CTL_MOD = 3 
-epoll.EPOLL_EVENTS = {
-	EPOLLIN  = 0x001,
-	EPOLLPRI = 0x002,
-	EPOLLOUT = 0x004,
-	EPOLLERR = 0x008,
-	EPOLLHUP = 0x0010,
-}
 
+local ffi = require "ffi"
 ffi.cdef[[
 	typedef union epoll_data {
 		void        *ptr;
@@ -67,6 +55,20 @@ ffi.cdef[[
 	int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
 	int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
 ]]
+
+local epoll = {
+	EPOLL_CTL_ADD = 1,
+	EPOLL_CTL_DEL = 2, 
+	EPOLL_CTL_MOD = 3, 
+	EPOLL_EVENTS = {
+		EPOLLIN  = 0x001,
+		EPOLLPRI = 0x002,
+		EPOLLOUT = 0x004,
+		EPOLLERR = 0x008,
+		EPOLLHUP = 0x0010,
+	}
+}
+
 
 --[[ Create a new epoll fd. Returns the fd of the created epoll instance and -1 and errno on error.   
 Note on max_events: Since Linux 2.6.8, the size argument is unused, but must be greater than zero. 
