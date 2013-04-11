@@ -13,7 +13,7 @@ For more details on Tornado please see:
 http://www.tornadoweb.org/
 
 
-Copyright 2011 John Abrahamsen
+Copyright 2011, 2012 and 2013 John Abrahamsen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -90,21 +90,9 @@ if pcall(require, 'epoll_ffi') then
 	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
 	ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
 	ioloop.ERROR = epoll_ffi.EPOLL_EVENTS.EPOLLERR
-	
-elseif pcall(require, 'epoll') then
-	-- Epoll module found.
-	log.success([[[ioloop.lua] Picked epoll module as poll module.]])
-	_poll_implementation = 'epoll'
-	-- Populate global with Epoll module constants
-	Epoll = require('epoll')
-	ioloop.READ = Epoll.EPOLLIN
-	ioloop.WRITE = Epoll.EPOLLOUT
-	ioloop.PRI = Epoll.EPOLLPRI
-	ioloop.ERROR = Epoll.EPOLLERR
 else
 	-- No poll modules found. Break execution and give error.
-	error([[No poll modules found. Either use LuaJIT, which supports the
-	Epoll FFI module that is bundled or get Lua Epoll from (https://github.com/Neopallium/lua-epoll)]])
+	error([[Could not load a poll module. Make sure you are running this with LuaJIT. Standard Lua is not supported.]])
 end
 
 
@@ -143,9 +131,7 @@ function ioloop.IOLoop:init()
 	self._callback_lock = false
 	self._running = false
 	self._stopped = false
-	if _poll_implementation == 'epoll' then
-		self._poll = _EPoll:new() 
-	elseif _poll_implementation == 'epoll_ffi' then
+	if _poll_implementation == 'epoll_ffi' then
 		self._poll = _EPoll_FFI:new()
 	end
 end
@@ -359,45 +345,6 @@ end
 function _EPoll_FFI:poll(timeout)
 	return epoll_ffi.epoll_wait(self._epoll_fd, timeout)
 end
-
-
-
-_EPoll = class('_EPoll')
-
--- Internal class for epoll-based event loop using the lua-epoll module.
-function _EPoll:init()
-	-- Create a new object from EPoll module.
-	self._epoller = Epoll.new() -- New Epoll object.
-end
-
-function _EPoll:fileno()
-	return self._epoller:fileno()
-end
-
-function _EPoll:register(file_descriptor, events)
-	self._epoller:add(file_descriptor, events, file_descriptor)
-end
-
-function _EPoll:modify(file_descriptor, events)
-	self._epoller:mod(file_descriptor, events, file_descriptor)
-end
-
-function _EPoll:unregister(file_descriptor)
-	self._epoller:del(file_descriptor)
-end
-
-function _EPoll:poll(timeout)
-	local events = {}
-	local events_t = {}
-	self._epoller:wait(events, timeout)
-	for i = 1, #events, 2 do 
-		events_t[#events_t + 1] = {events[i], events[i+1]}
-		events[i] = nil
-		events[i+1] = nil
-	end
-	return events_t
-end
-
 
 return ioloop
 
