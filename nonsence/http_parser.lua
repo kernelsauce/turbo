@@ -37,6 +37,11 @@ local UPGRADE = "upgrade"
 local CHUNKED = "chunked"
 local KEEP_ALIVE = "keep-alive"
 local CLOSE = "close"
+local CR = '\r'
+local LF = '\n'
+local CRLF = CR..LF
+local function BIT_AT(a, i) return (not not(a[bit.rshift(i, 3)] and (bit.lshift(1, (bit.band(i, 7)))))) end
+local T = HTTP_PARSER_STRICT and function(v) return v end or function(v) return 0 end
 --[[ Tokens as defined by rfc 2616. Also lowercases them.
          token       = 1*<any CHAR except CTLs or separators>
       separators     = "(" | ")" | "<" | ">" | "@"
@@ -44,8 +49,6 @@ local CLOSE = "close"
                      | "/" | "[" | "]" | "?" | "="
                      | "{" | "}" | SP | HT
  ]]--
-local function BIT_AT(a, i) return (not not(a[bit.rshift(i, 3)] and (bit.lshift(1, (bit.band(i, 7)))))) end
-local T = HTTP_PARSER_STRICT and function(v) return v end or function(v) return 0 end
 local tokens = {
 --[[   0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel  ]]--
         0,       0,       0,       0,       0,       0,       0,       0,
@@ -123,6 +126,27 @@ local normal_url_char = {
     --[[ 120  x   121  y   122  z   123  {   124  |   125  }   126  ~   127 del ]]
     bit.bor(1, bit.bor(2, bit.bor(4, bit.bor(8, bit.bor(16, bit.bor(32, bit.bor(64,0)))))))
 }
+local function LOWER(c) return (bit.bor(c, 0x20)) end 
+local function IS_ALPHA(c) return (LOWER(c) >= b'a' and LOWER(c) <= b'z') end
+local function IS_NUM(c) return ((c) >= b'0' and (c) <= b'9') end
+local function IS_ALPHANUM(c) return (IS_ALPHA(c) or IS_NUM(c)) end
+local function IS_HEX(c) return (IS_NUM(c) or (LOWER(c) >= b'a' and LOWER(c) <= b'f')) end
+local function IS_MARK(c) return ((c) == b'-' or (c) == b'_' or (c) == b'.' or 
+  (c) == b'!' or (c) == b'~' or (c) == b'*' or (c) == b'\'' or (c) == b'(' or
+  (c) == b')') end
+local function IS_USERINFO_CHAR(c) return (IS_ALPHANUM(c) or IS_MARK(c) or (c) == b'%' or 
+  (c) == b';' or (c) == b':' or (c) == b'&' or (c) == b'=' or (c) == b'+' or 
+  (c) == b'$' or (c) == b',') end
+local TOKEN, IS_URL_CHAR, IS_HOST_CHAR
+if HTTP_PARSER_STRICT then
+    TOKEN = function(c) return (tokens[c]) end
+    IS_URL_CHAR = function(c) return (BIT_AT(normal_url_char, c)) end
+    IS_HOST_CHAR = function(c) return (IS_ALPHANUM(c) or (c) == b'.' or (c) == b'-') end
+else
+    TOKEN = function(c) return ((c == b' ') and b' ' or tokens[c]) end
+    IS_URL_CHAR = function(c) return (BIT_AT(normal_url_char, c) or (bit.band((c), 0x80))) end
+    IS_HOST_CHAR = function(c) return (IS_ALPHANUM(c) or (c) == b'.' or (c) == b'-' or (c) == b'_') end
+end
 
 
 
