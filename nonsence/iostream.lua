@@ -29,8 +29,8 @@ limitations under the License.		]]
    
   
 local log, nixio, ioloop, deque = require('log'), require('nixio') , require('ioloop'),require('deque')
-local bit = pcall(require, 'bit') and require('bit') or nixio.bit	
-require('middleclass')
+local bit = require "bit"
+require "middleclass"
 
   
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max  
