@@ -1,8 +1,8 @@
 .. _apiref:
 
-*************
-API Reference
-*************
+**************************
+Nonsence Web API Reference
+**************************
 
 .. highlight:: lua
 
@@ -256,3 +256,52 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 .. function:: Application:get_server_name(name)
 
 	Gets the current name of the server.
+
+
+nonsence.ioloop
+===============
+nonsence.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. Poll implementations are abstracted and can 
+easily be extended with new variants. On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Nonsence Web for event driven services.
+
+A simple event driven server that will write "IOLoop works!" to any opened connection on port 8080 and writes "This is a callback" to stdout after connection has closed:
+
+::
+
+	local ioloop = require('nonsence_ioloop')
+	nixio = require('nixio')
+	
+	local exampleloop = ioloop.IOLoop:new()
+
+	local sock = nixio.socket('inet', 'stream')
+	local fd = sock:fileno()
+	sock:setblocking(false)
+	assert(sock:setsockopt('socket', 'reuseaddr', 1))
+
+	sock:bind(nil, 8080)
+	assert(sock:listen(1024))
+
+	function some_handler_that_accepts()
+		-- Accept socket connection.
+		local new_connection = sock:accept()
+		local fd = new_connection:fileno()
+
+		function some_handler_that_reads()
+			new_connection:write('IOLoop works!')
+			new_connection:close()
+
+			exampleloop:add_callback(function() print "This is a callback" end)
+		end	
+		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_reads)
+	end
+
+	exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
+	exampleloop:start()
+
+IOLoop
+~~~~~~
+IOLoop is a class responsible for managing I/O events through file descriptors. 
+Heavily influenced by ioloop.py in the Tornado web server.
+Add file descriptors with :add_handler(fd, listen_to_this, handler).
+Handler will be called when event is triggered. Handlers can also be removed from
+the I/O Loop with :remove_handler(fd). This will also remove the event from epoll.
+You can change the event listened for with :update_handler(fd, listen_to_this).
