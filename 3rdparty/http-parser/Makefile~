@@ -9,7 +9,7 @@ CPPFLAGS_FAST += $(CPPFLAGS_FAST_EXTRA)
 
 CFLAGS += -Wall -Wextra
 CFLAGS_DEBUG = $(CFLAGS) -O0 -g $(CFLAGS_DEBUG_EXTRA)
-CFLAGS_FAST = $(CFLAGS)  -O3 -g $(CFLAGS_FAST_EXTRA)
+CFLAGS_FAST = $(CFLAGS) -O3 $(CFLAGS_FAST_EXTRA)
 CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
 
 test: test_g test_fast
@@ -23,7 +23,7 @@ test_g.o: test.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) -c test.c -o $@
 
 http_parser_g.o: http_parser.c http_parser.h Makefile
-	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) -c  http_parser.c -o $@
+	$(CC) $(CPPFLAGS_DEBUG) $(CFLAGS_DEBUG) -c http_parser.c -o $@
 
 test_fast: http_parser.o test.o http_parser.h
 	$(CC) $(CFLAGS_FAST) $(LDFLAGS) http_parser.o test.o -o $@
@@ -32,10 +32,10 @@ test.o: test.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c test.c -o $@
 
 http_parser.o: http_parser.c http_parser.h Makefile
-	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c -fpic http_parser.c
+	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c http_parser.c
 
 http_parser_ffi_wrap.o: http_parser.o http_parser.h
-	$(CC) $(LDFLAGS) http_parser.o -c -fpic http_parser_ffi_wrap.c
+	$(CC) $(LDFLAGS) http_parser.o -c http_parser_ffi_wrap.c
 
 
 
@@ -55,10 +55,7 @@ library: libhttp_parser.o
 	$(CC) -shared -o libhttp_parser.so libhttp_parser.o
 
 library_nonsence: libnonsence_parser.o
-	$(CC) -shared -o libnonsence_parser.so libnonsence_parser.o http_parser.o
-	
-install: library_nonsence
-	sudo install libnonsence_parser.so /usr/lib/libnonsence_parser.so
+	$(CC) -shared -o libnonsence_parser.so libnonsence_parser.o
 
 package: http_parser.o
 	$(AR) rcs libhttp_parser.a http_parser.o

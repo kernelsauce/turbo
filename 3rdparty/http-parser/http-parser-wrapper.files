@@ -1,0 +1,14 @@
+contrib/parsertrace.c
+contrib/url_parser.c
+AUTHORS
+CONTRIBUTIONS
+http_parser.c
+http_parser.gyp
+http_parser.h
+LICENSE-MIT
+README.md
+test.c
+test_fast
+test_g
+http_parser_ffi_wrap.c
+http_parser_ffi_wrap.h
