@@ -8,5 +8,6 @@ clean:
 	cd nixio; make clean
 
 install:
-	cd nixio; make install
-	cp -R nonsence/ $(LUA_MODULEDIR)
+	cd nixio; sudo make install
+	sudo cp -R nonsence/ $(LUA_MODULEDIR)
+	cd 3rdparty/http-parser; sudo make install
