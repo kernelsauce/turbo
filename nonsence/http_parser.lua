@@ -89,6 +89,7 @@ extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src);
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
 extern char *url_field(const char *url_str, const struct nonsence_parser_wrapper *wrapper, enum http_parser_url_fields prop);
 
+void free(void* ptr);
 ]]
 
 local libnonsence_parser = ffi.load("libnonsence_parser")
@@ -131,27 +132,20 @@ local function parse_headers(buf, len)
     if (sz > 0) then
         local header = httputil.HTTPHeaders:new()
         
-        -- version
         local major_version = nw.parser.http_major
         local minor_version = nw.parser.http_major
         local version_str = string.format("%d.%d", major_version, minor_version)
         header:set_version(version_str)
-        
-        -- uri
         header:set_uri(ffi.string(nw.url_str))
-        
-        -- content-length
         header:set_content_length(tonumber(nw.parser.content_length))
-        
-        -- method
         header:set_method(method_map[tonumber(nw.parser.method)])
+        header.http_parser_url = ffi.copy(nw.url)
         
-        -- header key value fields
         local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
         for i = 0, keyvalue_sz, 1 do
             local key = ffi.string(nw.header_key_values[i].key)
             local value = ffi.string(nw.header_key_values[i].value)
-            header:set(key, value)    
+            header:set(key, value)
         end
         
         libnonsence_parser.nonsence_parser_wrapper_exit(nw)
@@ -162,6 +156,24 @@ local function parse_headers(buf, len)
     return -1;
 end
 
+local function parse_url_part(uri_str, http_parser_url, UF_prop)
+    if libnonsence_parser.url_field_is_set(http_parser_url, UF_prop) then
+        local field = libnonsence_parser.url_field(uri_str, http_parser_url, UF_prop)
+        local field_lua = ffi.string(field)
+        ffi.C.free(field)
+        return field_lua
+    end
+    return -1 
+end
+
 return {
     parse_headers = parse_headers
+    , UF_SCHEMA           = 0
+    , UF_HOST             = 1
+    , UF_PORT             = 2
+    , UF_PATH             = 3
+    , UF_QUERY            = 4
+    , UF_FRAGMENT         = 5
+    , UF_USERINFO         = 6
+    , UF_MAX              = 7
 }

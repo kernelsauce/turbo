@@ -57,17 +57,21 @@ the returned object.   ]]
 function httputil.HTTPHeaders:init(raw_request_headers)	
 	self._raw_headers = raw_request_headers
 	self.uri = nil
-	self.url = nil
 	self.method = nil
 	self.version = nil
 	self.status_code = nil
 	self.version = nil
         self.content_length = nil
+        self.http_parser_url = nil -- for http_wrapper.c
 	self._arguments = {}
 	self._header_table = {}
 	if type(raw_request_headers) == "string" then
 		self:update(raw_request_headers)
 	end
+end
+
+function httputil.HTTPHeaders:get_url_part(UF_prop)
+        return http_parser.parse_url_part(self.uri, self.http_parser_url, UF_prop)
 end
 
 function httputil.HTTPHeaders:set_uri(uri)
