@@ -62,6 +62,7 @@ function httputil.HTTPHeaders:init(raw_request_headers)
 	self.version = nil
 	self.status_code = nil
 	self.version = nil
+        self.content_length = nil
 	self._arguments = {}
 	self._header_table = {}
 	if type(raw_request_headers) == "string" then
@@ -69,10 +70,31 @@ function httputil.HTTPHeaders:init(raw_request_headers)
 	end
 end
 
+function httputil.HTTPHeaders:set_uri(uri)
+        assert(type(uri) == "string", [[method set_url requires string, were: ]] .. type(uri))
+        self.uri = uri
+end
+
+function httputil.HTTPHeaders:get_uri() return self.uri end
+
+function httputil.HTTPHeaders:set_content_length(len)
+    	assert(type(len) == "number", [[method set_content_length requires number, was: ]] .. type(len))
+        self.content_length = len
+end
+
+function httputil.HTTPHeaders:get_content_length() return self.content_length end
+
+function httputil.HTTPHeaders:set_method(method)
+        assert(type(method) == "string", [[method set_method requires string, was: ]] .. type(method))
+        self.method = method
+end
+
+function httputil.HTTPHeaders:get_method() return self.method end
+
 --[[ Set the HTTP version.
 Applies most probably for response headers.  ]]
 function httputil.HTTPHeaders:set_version(version)
-	assert(type(version) == "string", [[method set_version requires string.]])
+	assert(type(version) == "string", [[method set_version requires string, was: ]] .. type(version))
 	self.version = version
 end
 

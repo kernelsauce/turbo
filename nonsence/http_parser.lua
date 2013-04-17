@@ -92,19 +92,76 @@ extern char *url_field(const char *url_str, const struct nonsence_parser_wrapper
 ]]
 
 local libnonsence_parser = ffi.load("libnonsence_parser")
+local httputil = require "httputil"
+local log = require "log"
+local method_map = {
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "COPY",
+    "LOCK",
+    "MKCOL",
+    "MOVE",
+    "PROPFIND",
+    "PROPPATCH",
+    "SEARCH",
+    "UNLOCK",
+    "REPORT",
+    "MKACTIVITY",
+    "CHECKOUT",
+    "MERGE",
+    "MSEARCH",
+    "NOTIFY",
+    "SUBSCRIBE",
+    "UNSUBSCRIBE",
+    "PATCH",
+    "PURGE"
+}
+method_map[0] = "DELETE" -- Base 1 problems again!
 
--- Test 
-local raw_headers = 
-        "GET /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
-        "Host: somehost.no\r\n"..
-        "Connection: keep-alive\r\n"..
-        "Cache-Control: max-age=0\r\n"..
-        "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
-        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
-        "Accept-Encoding: gzip,deflate,sdch\r\n"..
-        "Accept-Language: en-US,en;q=0.8\r\n"..
-        "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
 
-local nw = ffi.new("struct nonsence_parser_wrapper")
-local rc = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len())
-libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+local function parse_headers(buf, len)
+    local nw = ffi.new("struct nonsence_parser_wrapper")
+    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, buf, len)
+    
+    if (sz > 0) then
+        local header = httputil.HTTPHeaders:new()
+        
+        -- version
+        local major_version = nw.parser.http_major
+        local minor_version = nw.parser.http_major
+        local version_str = string.format("%d.%d", major_version, minor_version)
+        header:set_version(version_str)
+        
+        -- uri
+        header:set_uri(ffi.string(nw.url_str))
+        
+        -- content-length
+        header:set_content_length(tonumber(nw.parser.content_length))
+        
+        -- method
+        header:set_method(method_map[tonumber(nw.parser.method)])
+        
+        -- header key value fields
+        local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
+        for i = 0, keyvalue_sz, 1 do
+            local key = ffi.string(nw.header_key_values[i].key)
+            local value = ffi.string(nw.header_key_values[i].value)
+            header:set(key, value)    
+        end
+        
+        libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+        return header, sz
+    end
+    
+    libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+    return -1;
+end
+
+return {
+    parse_headers = parse_headers
+}
