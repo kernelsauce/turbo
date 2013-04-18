@@ -298,7 +298,10 @@ function iostream.IOStream:close()
 			self.io_loop:remove_handler(self.socket:fileno())
 			self._state = nil
 		end
-		self.socket:close()
+		
+                log.debug("[iostream.lua] Closed socket with fd " .. self.socket:fileno())
+                self.socket:close()
+                
 		self.socket = nil
 		if self._close_callback and self._pending_callbacks == 0 then
 			local callback = self._close_callback

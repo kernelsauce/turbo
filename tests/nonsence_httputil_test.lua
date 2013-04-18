@@ -34,6 +34,7 @@ local nonsence = assert(require('nonsence'),
 	[[Missing httputil module]])
 -------------------------------------------------------------------------
 
+
 --
 -- Request headers parsing.
 --
@@ -51,7 +52,7 @@ for do_tests = 1, do_tests_n_times, 1 do
 		"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
 
 	local headers = nonsence.httputil.HTTPHeaders:new(raw_headers)
-
+        
 	assert(type(headers._header_table) == "table", "Test failed: _header_table not a table!")
 	assert(headers:get("Host") == "somehost.no", "Test failed: Error in field:Host")
 	assert(headers:get("Connection") == "keep-alive", "Test failed: Error in field:Connection")
@@ -66,8 +67,9 @@ for do_tests = 1, do_tests_n_times, 1 do
 	assert(headers:get("Accept-Charset") == "ISO-8859-1,utf-8;q=0.7,*;q=0.3", "Test failed: Error in field:Accept-Charset")
 	assert(headers.method == "GET", "Test failed: method field invalid")
 	assert(headers.uri == "/test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse", "Test failed: uri field invalid")
-	assert(headers.url == "/test/test.gif", "Test failed: url field invalid")
-	assert(headers.version == "HTTP/1.1", "Test failed: version field invalid")
+        
+        assert(headers:get_url_field(nonsence.httputil.UF.PATH) == "/test/test.gif", "Test failed: url field invalid") 
+	assert(headers:get_version() == "HTTP/1.1", "Test failed: version field invalid")
 	assert(headers:get_argument("param1")[1] == "something", "Test failed: could not get argument param1")
 	assert(headers:get_argument("param2")[1] == "somethingelse", "Test failed: could not get argument param2")
 	assert(headers:get_argument("param2")[2] == "somethingelseelse", "Test failed: could not get argument param2")
@@ -87,7 +89,7 @@ for do_tests = 1, do_tests_n_times, 1 do
 	headers:add("Accept-Ranges", "bytes")
 	headers:add("Connection", "keep-alive")
 	headers:add("Age", "0")
-	assert(headers:__tostring():len() == 144, headers:__tostring():len())
+	assert(headers:__tostring():len() == 142, headers:__tostring():len())
 end
 print("\r\nHTTPHeaders:__tostring() assembled " .. do_tests_n_times .. " headers without errors.")
 

@@ -42,15 +42,9 @@ extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser
         return false;
 }
 
-extern char *url_field(const char *url_str, const struct nonsence_parser_wrapper *wrapper, enum http_parser_url_fields prop)
+extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop)
 {
-    struct http_parser_url url = wrapper->url;
-
-    if (url_field_is_set(&url, prop)){
-        return strndup(url_str + url.field_data[prop].off, url.field_data[prop].len);
-    } else {
-        return 0;
-    }
+    return strndup(url_str + url->field_data[prop].off, url->field_data[prop].len);
 }
 
 

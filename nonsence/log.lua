@@ -115,6 +115,8 @@ log.dump = function(stuff, description)
 	print(log.stringify(stuff, description))
 end
 
+
+
 log.success = function(str)
 	print(ansicolors.green .. "[S " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
 end
@@ -127,6 +129,11 @@ end
 --[[ Prints a notice to stdout.  ]]
 log.notice = function(str)
 	print(ansicolors.white .. "[I " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+end
+
+--[[ Prints a notice to stdout.  ]]
+log.debug = function(str)
+	print(ansicolors.white .. "[D " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
 end
 
 --[[ Prints a error to stdout.  ]]

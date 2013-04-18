@@ -64,4 +64,4 @@ extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src);
 
 /** Check if a given field is set in http_parser_url  */
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
-extern char *url_field(const char *url_str, const struct nonsence_parser_wrapper *wrapper, enum http_parser_url_fields prop);
+extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
