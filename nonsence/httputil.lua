@@ -395,7 +395,7 @@ function httputil.HTTPHeaders:update(raw_headers)
         local major_version = nw.parser.http_major
         local minor_version = nw.parser.http_major
         local version_str = string.format("HTTP/%d.%d", major_version, minor_version)
-        self._raw_headers = buf
+        self._raw_headers = raw_headers
         self:set_version(version_str)
         self:set_uri(ffi.string(nw.url_str))
         self:set_content_length(tonumber(nw.parser.content_length))
