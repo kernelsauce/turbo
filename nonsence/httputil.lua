@@ -35,13 +35,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."             ]]
 
-require('middleclass')
+
 local log = require "log"
 local status_codes = require "http_response_codes"
 local deque = require "deque"
 local escape = require "escape"
 local ffi = require "ffi"
 local libnonsence_parser = ffi.load("libnonsence_parser")
+require('middleclass')
 
 local httputil = {} -- httputil namespace
 
@@ -181,38 +182,6 @@ httputil.UF = {
       , USERINFO         = 6
       }
 
-
-httputil.parse_headers = function(buf, len)
-    local nw = ffi.new("struct nonsence_parser_wrapper")
-    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, buf, len)
-    
-    if (sz > 0) then
-        local header = httputil.HTTPHeaders:new()
-        
-        local major_version = nw.parser.http_major
-        local minor_version = nw.parser.http_major
-        local version_str = string.format("HTTP/%d.%d", major_version, minor_version)
-        header._raw_headers = buf
-        header:set_version(version_str)
-        header:set_uri(ffi.string(nw.url_str))
-        header:set_content_length(tonumber(nw.parser.content_length))
-        header:set_method(method_map[tonumber(nw.parser.method)])
-        header.http_parser_url = nw.url
-        
-        local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
-        for i = 0, keyvalue_sz, 1 do
-            local key = ffi.string(nw.header_key_values[i].key)
-            local value = ffi.string(nw.header_key_values[i].value)
-            header:set(key, value)
-        end
-        
-        libnonsence_parser.nonsence_parser_wrapper_exit(nw)
-        return header, sz
-    end
-    
-    libnonsence_parser.nonsence_parser_wrapper_exit(nw)
-    return -1;
-end
 
 local function parse_url_part(uri_str, http_parser_url, UF_prop)
     if libnonsence_parser.url_field_is_set(http_parser_url, UF_prop) then
@@ -394,12 +363,11 @@ function httputil.HTTPHeaders:update(raw_headers)
     
     if (sz > 0) then      
         local major_version = nw.parser.http_major
-        local minor_version = nw.parser.http_major
+        local minor_version = nw.parser.http_minor
         local version_str = string.format("HTTP/%d.%d", major_version, minor_version)
         self._raw_headers = raw_headers
         self:set_version(version_str)
         self:set_uri(ffi.string(nw.url_str))
-        self:set_content_length(tonumber(nw.parser.content_length))
         self:set_method(method_map[tonumber(nw.parser.method)])
         self.http_parser_url = nw.url
         self.errno = tonumber(nw.parser.http_errno)
