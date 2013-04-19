@@ -22,7 +22,9 @@ local nonsence = require('nonsence')
 local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
 
 --[[ Hello World example. ]]
-function ExampleHandler:get() self:write("Hello world!") end
+function ExampleHandler:get()
+	self:write("Hello world!")
+end
 
 --[[ Echo post value example.    ]]
 function ExampleHandler:post()

@@ -259,9 +259,10 @@ the returned object.   ]]
 function httputil.HTTPHeaders:init(raw_request_headers)	
 	self._raw_headers = nil
 	self.uri = nil
+        self.url = nil
 	self.method = nil
+        self.version = nil
 	self.status_code = nil
-	self.version = nil
         self.content_length = nil
         self.http_parser_url = nil -- for http_wrapper.c
 	self._arguments = {}
