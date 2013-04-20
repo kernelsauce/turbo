@@ -414,13 +414,13 @@ end
 --[[ Reads from the socket.
 Return the data chunk or nil if theres nothing to read.      ]]	
 function iostream.IOStream:_read_from_socket()
-	local chunk, errorno = self.socket:recv(self.read_chunk_size)
-	if errorno then
-		if errorno == EWOULDBLOCK  or
-			errorno == EAGAIN then
+	local chunk, errno = self.socket:recv(self.read_chunk_size)
+	if errno then
+		if errno == EWOULDBLOCK  or
+			errno == EAGAIN then
 			return nil
 		else
-			error('Socket error on: '  .. errorno)
+			error('Error when reading from socket. Errno: '  .. errno)
 		end
 	end
 	

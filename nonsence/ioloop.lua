@@ -161,11 +161,19 @@ function ioloop.IOLoop:remove_handler(file_descriptor)
 	return self._poll:unregister(file_descriptor)
 end
 
+
 --[[ Internal method that runs the handler for the file descriptor.
 @param file_descriptor File descriptor that triggered the handler.
 @param events Events that triggered the handler.    ]]
 function ioloop.IOLoop:_run_handler(file_descriptor, events)
-	self._handlers[file_descriptor](file_descriptor, events)
+
+    local function _run_handler_err_handler(err)
+        log.error("[ioloop.lua] caught error: " .. err)
+        self:remove_handler(file_descriptor)
+    end
+   
+    local handler = self._handlers[file_descriptor]
+    xpcall(handler, _run_handler_err_handler, file_descriptor, events)
 end
 
 --[[ Calls the given callback on the next IOLoop iteration.
@@ -179,7 +187,7 @@ function ioloop.IOLoop:list_callbacks() return self._callbacks end
 --[[ Internal function to handle errors in callbacks, logs everything.
 @param err Error message  	]]
 local function error_handler(err)
-	log.error("[ioloop.lua] " .. err)
+	log.error("[ioloop.lua] caught error: " .. err)
 	log.stacktrace(debug.traceback())
 end
 
