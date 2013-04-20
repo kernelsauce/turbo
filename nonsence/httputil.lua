@@ -392,7 +392,7 @@ function httputil.HTTPHeaders:__tostring()
 		self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
 	end
 	for key, value in pairs(self._header_table) do
-		buffer:append(string.format("%s:%s\r\n", key , value));
+		buffer:append(string.format("%s: %s\r\n", key , value));
 	end
         return string.format("%s %d %s\r\n%s\r\n", self.version, self.status_code, status_codes[self.status_code], buffer:concat())
 end
