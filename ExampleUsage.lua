@@ -16,7 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
 
-package.path = package.path .. ";./nonsence/?.lua" -- Put base dir in path.
 local nonsence = require('nonsence')
 
 local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)

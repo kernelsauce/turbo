@@ -196,14 +196,14 @@ end
 
 local function parse_arguments(uri)
 	local arguments = {}
-	local noDoS = 0;
+	local elements = 0;
         if (uri == -1) then
             return {}
         end
         
 	for k, v in uri:gmatch("([^&=]+)=([^&]+)") do
-		noDoS = noDoS + 1;
-		if (noDoS > 256) then break end
+		elements = elements + 1;
+		if (elements > 256) then break end
 		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
 		if (not arguments[k]) then
 			arguments[k] = v;
@@ -388,17 +388,13 @@ end
 --[[ Assembles HTTP headers based on the information in the object.  ]]
 function httputil.HTTPHeaders:__tostring()	
 	local buffer = deque:new()
-	buffer:append(self.version .. " ")
-	buffer:append(self.status_code .. " " .. status_codes[self.status_code])
-	buffer:append("\r\n")
-	if not self:get("Date") then
+    	if not self:get("Date") then
 		self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
 	end
 	for key, value in pairs(self._header_table) do
-		buffer:append(key .. ": " .. value .. "\r\n")
+		buffer:append(string.format("%s:%s\r\n", key , value));
 	end
-	buffer:append("\r\n")
-	return buffer:concat()
+        return string.format("%s %d %s\r\n%s\r\n", self.version, self.status_code, status_codes[self.status_code], buffer:concat())
 end
 
 
@@ -406,19 +402,21 @@ function httputil.parse_post_arguments(data)
 	assert(type(data) == "string", "data into _parse_post_arguments() not a string.")
 	local arguments_string = data:match("?(.+)")
 	local arguments = {}
-	local noDoS = 0;
+	local elements = 0;
 	for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
-		noDoS = noDoS + 1;
-		if (noDoS > 256) then break; end
+		elements = elements + 1;
+		if (elements > 256) then
+                    break
+                end
 		v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
 		if (not arguments[k]) then
 			arguments[k] = v;
 		else
-			if ( type(arguments[k]) == "string") then
+			if (type(arguments[k]) == "string") then
 				local tmp = arguments[k];
 				arguments[k] = {tmp};
 			end
-			insert(arguments[k], v);
+			table.insert(arguments[k], v);
 		end
 	end
 	return arguments
