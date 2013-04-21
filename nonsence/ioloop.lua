@@ -25,60 +25,15 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.
+limitations under the License.  ]]
 
-
-
-Example of very simple TCP server using a IOLoop instance:
-
-	local ioloop = require('nonsence_ioloop')
-	nixio = require('nixio')
-	
-	local exampleloop = ioloop.IOLoop:new()
-
-	local sock = nixio.socket('inet', 'stream')
-	local fd = sock:fileno()
-	sock:setblocking(false)
-	assert(sock:setsockopt('socket', 'reuseaddr', 1))
-
-	sock:bind(nil, 8080)
-	assert(sock:listen(1024))
-
-	--
-	-- Handler to run when READ event is fired on 
-	-- file descriptor
-	--
-	function some_handler_that_accepts()
-		-- Accept socket connection.
-		local new_connection = sock:accept()
-		local fd = new_connection:fileno()
-		--
-		-- Handler function when client is ready to read again.
-		--
-		function some_handler_that_reads()
-			new_connection:recv(1024)
-			new_connection:write('IOLoop works!')
-			new_connection:close()
-			--
-			-- Trying out a callback.
-			--
-			exampleloop:add_callback(function() print "This is a callback" end)
-		end	
-		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_reads) -- Callback/handler passed.
-	end
-
-	exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
-	exampleloop:start()        ]]
-
-local log, nixio = require('log'), require('nixio')
+local log = require "log"
 require('middleclass')
 require('ansicolors')
 
 local ioloop = {} -- ioloop namespace
 
 local _poll_implementation = nil
-
---[[ If you are running LuaJIT and Linux then we will use the included Epoll FFI. Else we will fallback to the lua-epoll module.          ]]
   
 if pcall(require, 'epoll_ffi') then
 	-- Epoll FFI module found and loaded.
@@ -228,33 +183,19 @@ function ioloop.IOLoop:start()
 	self._running = true
 	log.notice([[[ioloop.lua] IOLoop started running]])
 	while true do
-		--log.warning("Callbacks in queue: " .. #self._callbacks)
-		--log.warning("Started new I/O loop iteration.\r\n\r\n")
-
 		local poll_timeout = 3600
-		-- log.dump('I/O loop Iteration started')
-		-- log.dump(self._handlers, self._handlers)
-
-		-- Run callbacks from self._callback
-		-- But, assign it to a local and run off that so we don't
-		-- run callbacks from callbacks this iteration.
 		local callbacks = self._callbacks
-
-		 -- Reset self._callbacks.
 		self._callbacks = {}
 		
-		-- Iterate over callbacks.
+
 		for i=1, #callbacks, 1 do 
 			self:_run_callback(callbacks[i])
 		end
 		
-		-- If callback did a callback... Then set I/O loop timeout to 0
-		-- to avoid waiting to long.
 		if #self._callbacks > 0 then
 			poll_timeout = 0
 		end
 
-		-- Check for pending timeouts that has, well, timed out.
 		if #self._timeouts > 0 then
 			for _, timeout in ipairs(self._timeouts) do
 				if timeout:timed_out() then
@@ -263,20 +204,14 @@ function ioloop.IOLoop:start()
 			end
 		end
 		
-		-- Stop the I/Oloop if flag is set.
-		-- After the callbacks are now finished.
 		if self._stopped then 
 			self.running = false
 			self.stopped = false
 			break
 		end
 		
-		-- Wait for I/O, get events since last iteration.
 		local events = self._poll:poll(poll_timeout)
-		-- Do not use ipairs for improved speed.
 		for i=1, #events do
-			
-			-- Run the handler registered for the file descriptor.
 			self:_run_handler(events[i][1], events[i][2])
 		end
 		
@@ -326,9 +261,7 @@ _EPoll_FFI = class('_EPoll_FFI')
 
 -- Internal class for epoll-based event loop using the epoll_ffi module.
 function _EPoll_FFI:init()
-	-- Create a new epoll and store its fd to self.
 	self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
-	--log.notice([[ioloop module => epoll_create returned file descriptor ]] .. self._epoll_fd)
 end
 
 function _EPoll_FFI:fileno()

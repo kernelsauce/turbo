@@ -38,8 +38,7 @@ See the License for the specific language governing permissions and
 limitations under the License. 		]]
   
 
-local log,nixio,tcpserver,httputil,ioloop,iostream = require('log'), 
-require('nixio'), require('tcpserver'), require('httputil'), 
+local log,tcpserver,httputil,ioloop,iostream = require('log'), require('tcpserver'), require('httputil'), 
 require('ioloop'), require('iostream')
 
 require('middleclass')

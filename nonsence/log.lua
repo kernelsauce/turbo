@@ -146,4 +146,8 @@ log.stacktrace = function(str)
 	print(ansicolors.red .. str .. ansicolors.reset)
 end
 
+log.devel = function(str)
+        print(ansicolors.cyan .. "[d " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+end
+
 return log

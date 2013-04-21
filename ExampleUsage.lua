@@ -15,7 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-
 local nonsence = require('nonsence')
 
 local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
@@ -42,7 +41,7 @@ end
 
  
 local application = nonsence.web.Application:new({ 
-	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www"},
+	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/home/jab/Downloads/"},
 	{"/$", ExampleHandler},
 	{"/json", MyJSONHandler},
 })
