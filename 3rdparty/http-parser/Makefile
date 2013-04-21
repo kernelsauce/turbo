@@ -35,7 +35,7 @@ http_parser.o: http_parser.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_FAST) -c -fpic http_parser.c
 
 http_parser_ffi_wrap.o: http_parser.o http_parser.h
-	$(CC) $(LDFLAGS) http_parser.o -c -fpic http_parser_ffi_wrap.c
+	$(CC) $(LDFLAGS) -c -fpic http_parser_ffi_wrap.c
 
 
 

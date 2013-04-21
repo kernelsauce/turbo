@@ -57,7 +57,6 @@ local function bind_sockets(port, address, backlog)
         local errno
         local rc
         
-        ffi.fill(serv_addr, ffi.sizeof(serv_addr), 0)
         serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = socket.htonl(address);
 	serv_addr.sin_port = socket.htons(port);
@@ -110,7 +109,6 @@ local function add_accept_handler(sock, callback, io_loop)
             while true do
                     local errno
                     local client_addr = ffi.new("struct sockaddr_in")
-                    ffi.fill(client_addr, ffi.sizeof(client_addr), 0)
                     local client_addr_sz = ffi.new("socklen_t[1]", ffi.sizeof(client_addr))
                     --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
                     
