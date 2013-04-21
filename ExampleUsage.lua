@@ -41,7 +41,7 @@ end
 
  
 local application = nonsence.web.Application:new({ 
-	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/home/jab/Downloads/"},
+	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www"},
 	{"/$", ExampleHandler},
 	{"/json", MyJSONHandler},
 })
