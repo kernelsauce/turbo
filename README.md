@@ -105,6 +105,25 @@ on my Lenovo Thinkpad W510 running ExampleUsage.lua yields these numbers:
         Time per request:       0.076 [ms] (mean, across all concurrent requests)
         Transfer rate:          2242.89 [Kbytes/sec] received
 
+        Connection Times (ms)
+                      min  mean[+/-sd] median   max
+        Connect:        0    6 124.6      0    3012
+        Processing:     1   32  10.1     37     245
+        Waiting:        1   32  10.1     37     244
+        Total:          1   38 126.6     37    3256
+        
+        Percentage of the requests served within a certain time (ms)
+          50%     37
+          66%     38
+          75%     39
+          80%     39
+          90%     40
+          95%     40
+          98%     40
+          99%     40
+         100%   3256 (longest request)
+
+
 Tornado (with demo hello world app):
 
         Server Software:        TornadoServer/3.1.dev2
