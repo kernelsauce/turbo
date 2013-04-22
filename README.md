@@ -5,32 +5,41 @@ Nonsence Web
 
 <b>Making a Hello World server:</b>
 
-        --[[ Hello World example. ]]
-        function ExampleHandler:get() self:write("Hello world!") end
+        local nonsence = require('nonsence')
+
+
+        -- Create class with RequestHandler heritage.
+        local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+        function ExampleHandler:get()
+                -- Echo hello world on HTTP GET!
+                self:write("Hello world!")
+        end
         
-        --[[ Echo post value example.    ]]
         function ExampleHandler:post()
+                -- Echo post value example on HTTP POST. Or give a bad request if the argument is not set.
                 local posted_value = self:get_argument('somevalue')
                 self:write('You posted: ' .. posted_value)
         end
         
-        local MyJSONHandler = class("MyJSONHandler", nonsence.web.RequestHandler)
         
-        --[[ Pass table to JSON stringify it.  ]]
+        local MyJSONHandler = class("MyJSONHandler", nonsence.web.RequestHandler)
         function MyJSONHandler:get()
+                -- Pass table to JSON stringify it.  
                 local my_list = { "one", "two", "three" }
                 self:write(my_list)
         end
+        
          
-        local application = nonsence.web.Application:new({ 
-                {"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www"},
+        local application = nonsence.web.Application:new({
+                -- Nonsence serves static files as well!
+                {"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+                -- Register handlers
                 {"/$", ExampleHandler},
                 {"/json", MyJSONHandler},
         })
         
-        application:listen(8888) -- Listen on port 8888
-        
-        nonsence.ioloop.instance():start() -- Start global IO loop.
+        application:listen(8888)
+        nonsence.ioloop.instance():start()
 
 Introduction
 ------------
