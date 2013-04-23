@@ -95,12 +95,12 @@ function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_
         
         local rc
         
-        local flags = socket.fcntl(self.socket, socket.F.F_GETFL, 0);
+        local flags = socket.fcntl(self.socket, F_GETFL, 0);
         if (flags == -1) then
             error("[iostream.lua] fcntl GETFL failed.")
         end
-        flags = bit.bor(flags, socket.O.O_NONBLOCK)
-        rc = socket.fcntl(self.socket, socket.F.F_SETFL, flags)
+        flags = bit.bor(flags, O_NONBLOCK)
+        rc = socket.fcntl(self.socket, F_SETFL, flags)
         if (rc == -1) then
             error("[iostream.lua] fcntl set O_NONBLOCK failed.")
         end      
@@ -489,6 +489,11 @@ function iostream.IOStream:_handle_write()
                 
                 if (num_bytes == -1) then
                     errno = ffi.errno()
+                    if (errno == EWOULDBLOCK or errno == EAGAIN) then
+                        self._write_buffer_frozen = true
+                        break
+                    end
+                    socket.close(self.socket)
                     error(string.format("[iostream.lua Errno %d] Error when writing to fd %d, %s",
                                         errno,
                                         self.socket,

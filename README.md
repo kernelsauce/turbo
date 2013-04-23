@@ -5,32 +5,41 @@ Nonsence Web
 
 <b>Making a Hello World server:</b>
 
-        --[[ Hello World example. ]]
-        function ExampleHandler:get() self:write("Hello world!") end
+        local nonsence = require('nonsence')
+
+
+        -- Create class with RequestHandler heritage.
+        local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+        function ExampleHandler:get()
+                -- Echo hello world on HTTP GET!
+                self:write("Hello world!")
+        end
         
-        --[[ Echo post value example.    ]]
         function ExampleHandler:post()
+                -- Echo post value example on HTTP POST. Or give a bad request if the argument is not set.
                 local posted_value = self:get_argument('somevalue')
                 self:write('You posted: ' .. posted_value)
         end
         
-        local MyJSONHandler = class("MyJSONHandler", nonsence.web.RequestHandler)
         
-        --[[ Pass table to JSON stringify it.  ]]
+        local MyJSONHandler = class("MyJSONHandler", nonsence.web.RequestHandler)
         function MyJSONHandler:get()
+                -- Pass table to JSON stringify it.  
                 local my_list = { "one", "two", "three" }
                 self:write(my_list)
         end
+        
          
-        local application = nonsence.web.Application:new({ 
-                {"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www"},
+        local application = nonsence.web.Application:new({
+                -- Nonsence serves static files as well!
+                {"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+                -- Register handlers
                 {"/$", ExampleHandler},
                 {"/json", MyJSONHandler},
         })
         
-        application:listen(8888) -- Listen on port 8888
-        
-        nonsence.ioloop.instance():start() -- Start global IO loop.
+        application:listen(8888)
+        nonsence.ioloop.instance():start()
 
 Introduction
 ------------
@@ -72,16 +81,91 @@ Performance
 So all this bragging, but nothing to back it up?!
 Running:
 
-	ab -n 100000 -c 500 127.0.0.1:8888/
+	ab -n 100000 -c 500 -k 127.0.0.1:8888/
 
-on my Lenovo Thinkpad W510 yields these numbers:
+on my Lenovo Thinkpad W510 running ExampleUsage.lua yields these numbers:
 
-* Nonsence w/ LuaJIT (with hello world app): 8158 requests/sec
-* Nonsence w/ Lua (with hello world app): 5848 requests/sec
-* Tornado (with demo hello world app): 1939 requests/sec
+        Server Software:        Nonsence
+        Server Hostname:        127.0.0.1
+        Server Port:            8888
+        
+        Document Path:          /
+        Document Length:        12 bytes
+        
+        Concurrency Level:      500
+        Time taken for tests:   7.620 seconds
+        Complete requests:      100000
+        Failed requests:        0
+        Write errors:           0
+        Keep-Alive requests:    100000
+        Total transferred:      17500000 bytes
+        HTML transferred:       1200000 bytes
+        Requests per second:    13124.10 [#/sec] (mean)
+        Time per request:       38.098 [ms] (mean)
+        Time per request:       0.076 [ms] (mean, across all concurrent requests)
+        Transfer rate:          2242.89 [Kbytes/sec] received
+
+        Connection Times (ms)
+                      min  mean[+/-sd] median   max
+        Connect:        0    6 124.6      0    3012
+        Processing:     1   32  10.1     37     245
+        Waiting:        1   32  10.1     37     244
+        Total:          1   38 126.6     37    3256
+        
+        Percentage of the requests served within a certain time (ms)
+          50%     37
+          66%     38
+          75%     39
+          80%     39
+          90%     40
+          95%     40
+          98%     40
+          99%     40
+         100%   3256 (longest request)
+
+
+Tornado (with demo hello world app):
+
+        Server Software:        TornadoServer/3.1.dev2
+        Server Hostname:        127.0.0.1
+        Server Port:            8888
+        
+        Document Path:          /
+        Document Length:        12 bytes
+        
+        Concurrency Level:      500
+        Time taken for tests:   33.960 seconds
+        Complete requests:      100000
+        Failed requests:        0
+        Write errors:           0
+        Keep-Alive requests:    100000
+        Total transferred:      23400000 bytes
+        HTML transferred:       1200000 bytes
+        Requests per second:    2944.64 [#/sec] (mean)
+        Time per request:       169.800 [ms] (mean)
+        Time per request:       0.340 [ms] (mean, across all concurrent requests)
+        Transfer rate:          672.90 [Kbytes/sec] received
+        
+        Connection Times (ms)
+                      min  mean[+/-sd] median   max
+        Connect:        0    7 128.3      0    3008
+        Processing:    14  163  36.0    168     382
+        Waiting:       14  163  36.0    168     382
+        Total:         14  169 136.3    168    3375
+        
+        Percentage of the requests served within a certain time (ms)
+          50%    168
+          66%    170
+          75%    174
+          80%    178
+          90%    185
+          95%    197
+          98%    259
+          99%    282
+         100%   3375 (longest request)
+
 
 Don't believe me? Try it yourself and see :).
-
 
 
 License
