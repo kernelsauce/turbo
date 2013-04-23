@@ -36,25 +36,48 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			]]
 
 local ffi = require "ffi"
-ffi.cdef[[
-	typedef union epoll_data {
-		void        *ptr;
-		int          fd;
-		uint32_t     u32;
-		uint64_t     u64;
-	} epoll_data_t;
 
-	struct epoll_event {
-		uint32_t     events;      /* Epoll events */
-		epoll_data_t data;        /* User data variable */
-	} __attribute__ ((__packed__));
-
-	typedef struct epoll_event epoll_event;
-
-	int epoll_create(int size);
-	int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
-	int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
-]]
+if (ffi.abi("32bit")) then
+	ffi.cdef[[
+		typedef union epoll_data {
+			void        *ptr;
+			int          fd;
+			uint32_t     u32;
+			uint64_t     u64;
+		} epoll_data_t;
+	
+		struct epoll_event {
+			uint32_t     events;      /* Epoll events */
+			epoll_data_t data;        /* User data variable */
+		};
+	
+		typedef struct epoll_event epoll_event;
+	
+		int epoll_create(int size);
+		int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
+		int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+	]]
+else
+	ffi.cdef[[
+		typedef union epoll_data {
+			void        *ptr;
+			int          fd;
+			uint32_t     u32;
+			uint64_t     u64;
+		} epoll_data_t;
+	
+		struct epoll_event {
+			uint32_t     events;      /* Epoll events */
+			epoll_data_t data;        /* User data variable */
+		} __attribute__ ((__packed__));
+	
+		typedef struct epoll_event epoll_event;
+	
+		int epoll_create(int size);
+		int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
+		int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+	]]
+end
 
 local epoll = {
 	EPOLL_CTL_ADD = 1,
