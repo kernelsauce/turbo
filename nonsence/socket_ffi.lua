@@ -73,7 +73,7 @@ if not _G.SOCKET_H then
     extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);
     extern int32_t setsockopt (int32_t fd, int32_t level, int32_t optname, const void *optval, socklen_t optlen);
     extern int32_t getsockopt (int32_t fd, int32_t level, int32_t optname, void * optval, socklen_t * optlen);
-    extern int32_t accept (int32_t fd, struct sockaddr * addr, int * addr_len);
+    extern int32_t accept (int32_t fd, struct sockaddr * addr, socklen_t * addr_len);
     extern uint32_t ntohl (uint32_t netlong);
     extern uint32_t htonl (uint32_t hostlong);
     extern uint16_t ntohs (uint16_t netshort);
