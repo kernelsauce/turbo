@@ -27,6 +27,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.  	]]
 
+local ffi = require "ffi"
 
 --[[ Extends the string library with a split method.   ]]
 function string:split(sSeparator, nMax, bRegexp)	
@@ -69,6 +70,47 @@ function util.join(delimiter, list)
 	return string
 end
 
+function util.hex(num)
+    local hexstr = '0123456789abcdef'
+    local s = ''
+    while num > 0 do
+        local mod = math.fmod(num, 16)
+        s = string.sub(hexstr, mod+1, mod+1) .. s
+        num = math.floor(num / 16)
+    end
+    if s == '' then s = '0' end
+    return s
+end
+local hex = util.hex
+
+function util.mem_dump(ptr, sz)
+	local voidptr = ffi.cast("unsigned char *", ptr)
+	if (voidptr == 0) then
+		error("Trying to dump null ptr")
+	end
+        
+	io.write(string.format("Pointer type: %s\nFrom memory location: 0x%s dumping %d bytes\n",
+                               ffi.typeof(ptr),
+                               hex(tonumber(ffi.cast("intptr_t", voidptr))),
+                               sz))
+        local p = 0;
+        local sz_base_1 = sz - 1
+        for i = 0, sz_base_1 do
+            if (p == 10) then
+                p = 0
+                io.write("\n")
+            end
+            local hex_string
+            if (voidptr[i] < 14) then
+                hex_string = string.format("0x0%s ", hex(voidptr[i]))
+            else
+                hex_string = string.format("0x%s ", hex(voidptr[i]))
+            end
+            io.write(hex_string)
+            p = p + 1
+        end
+	io.write("\n")
+end
 
 --[[  Returns true if value exists in table.        ]]
 function util.is_in(value_to_check, table_to_check)
