@@ -263,45 +263,93 @@ nonsence.ioloop
 nonsence.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. Poll implementations are abstracted and can 
 easily be extended with new variants. On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Nonsence Web for event driven services.
 
-A simple event driven server that will write "IOLoop works!" to any opened connection on port 8080 and writes "This is a callback" to stdout after connection has closed:
+Event types for the methods are defined in the modules namespace:
+	``nonsence.ioloop.READ``, ``nonsence.ioloop.WRITE``, ``nonsence.ioloop.PRI``, ``nonsence.ioloop.ERROR``
 
-::
+.. function:: ioloop.instance()
 
-	local ioloop = require('nonsence_ioloop')
-	nixio = require('nixio')
-	
-	local exampleloop = ioloop.IOLoop:new()
+        Return the global IO Loop. If none has been created yet, a global IO loop class instance will be created.
+        
+        :rtype: IOLoop class.
 
-	local sock = nixio.socket('inet', 'stream')
-	local fd = sock:fileno()
-	sock:setblocking(false)
-	assert(sock:setsockopt('socket', 'reuseaddr', 1))
-
-	sock:bind(nil, 8080)
-	assert(sock:listen(1024))
-
-	function some_handler_that_accepts()
-		-- Accept socket connection.
-		local new_connection = sock:accept()
-		local fd = new_connection:fileno()
-
-		function some_handler_that_reads()
-			new_connection:write('IOLoop works!')
-			new_connection:close()
-
-			exampleloop:add_callback(function() print "This is a callback" end)
-		end	
-		exampleloop:add_handler(fd, ioloop.READ, some_handler_that_reads)
-	end
-
-	exampleloop:add_handler(fd, ioloop.READ, some_handler_that_accepts)
-	exampleloop:start()
-
-IOLoop
-~~~~~~
+IOLoop class
+~~~~~~~~~~~~
 IOLoop is a class responsible for managing I/O events through file descriptors. 
 Heavily influenced by ioloop.py in the Tornado web server.
-Add file descriptors with :add_handler(fd, listen_to_this, handler).
-Handler will be called when event is triggered. Handlers can also be removed from
-the I/O Loop with :remove_handler(fd). This will also remove the event from epoll.
-You can change the event listened for with :update_handler(fd, listen_to_this).
+Warning: Only one instance of IOLoop can ever run at the same time!
+
+.. function:: IOLoop:new()
+
+        Instanciate a new IO Loop class.
+
+.. function:: IOLoop:add_handler(file_descriptor, events, handler)
+
+        Add a handler (function) to the IO loop. File descriptor must be a socket, and not a file.
+        
+        :param file_descriptor: A file descriptor to trigger the handler.
+        :type file_descriptor: Number
+        :param events: The events to trigger the handler. E.g ``nonsence.ioloop.WRITE``. If you wish to listen for multiple events, the event values should be OR'ed together.
+        :type events: Number
+        :param handler: A callback function that will be called when the handler is triggered.
+        :type handler: Function
+        
+.. function:: IOLoop:update_handler(file_descriptor, events)
+
+        Modify existing handler with new events to trigger it.
+
+        :param file_descriptor: A file descriptor to trigger the handler.
+        :type file_descriptor: Number
+        :param events: The events to replace the current set events. E.g ``nonsence.ioloop.WRITE``. If you wish to listen for multiple events, the event values should be OR'ed together.
+
+.. function:: IOLoop:remove_handler(file_descriptor)
+
+        Remove a existing handler from the IO Loop.
+        
+        :param file_descriptor: A file descriptor to trigger the handler.
+        :type file_descriptor: Number
+        
+.. function:: IOLoop:add_callback(callback)
+
+        Add a callback to be called on next iteration of the IO Loop.
+        
+        :param callback: A function to be called on next iteration.
+        :type callback: Function
+        
+.. function:: IOLoop:list_callbacks()
+
+        Returns all current callbacks in the IO Loop.
+        
+        :rtype: Table
+        
+.. function:: IOLoop:add_timeout(timestamp, callback)
+
+        Schedule a callback to be called no earlier than given timestamp. There is given no gurantees that the callback will be called
+        on time.
+        
+        :param timestamp: A Lua timestamp. E.g os.time()
+        :type timestamp: Number
+        :param callback: A function to be called after timestamp is reached.
+        :type callback: Function
+        :rtype: Unique identifer as a reference for this timeout. The identifer can be used as parameter for ``IOLoop:remove_timeout()``
+        
+.. function:: IOLoop:remove_timeout(identifier)
+
+        Remove a scheduled timeout by using its identifer.
+        
+        :param identifer: Identifier returned by ``IOLoop:add_timeout()``
+        :type identifer: Number
+        
+.. function:: IOLoop:start()
+
+        Start the IO Loop. Blocks until ``IOLoop:close()`` is called from the loop.
+        
+.. function:: IOLoop:close()
+        
+        Close the I/O loop. Closes the loop after current iteration is done. Any callbacks queued will be run before closing.
+        
+.. function:: IOLoop:running()
+    
+        Is the IO Loop running?
+        
+        :rtype: Boolean 
+        
