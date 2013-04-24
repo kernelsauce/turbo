@@ -27,6 +27,7 @@ See the License for the specific language governing permissions and
 limitations under the License.		]]
   
 local log = require "log"
+local util = require "util"
 local iostream = require "iostream"
 local ioloop = require "ioloop"
 local socket = require "socket_ffi"
@@ -58,8 +59,8 @@ local function bind_sockets(port, address, backlog)
         local rc
         
         serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = socket.htonl(address);
-	serv_addr.sin_port = socket.htons(port);
+        serv_addr.sin_addr.s_addr = socket.htonl(address);
+        serv_addr.sin_port = socket.htons(port);
         
         local fd = socket.socket(AF_INET, SOCK_STREAM, 0)
         if (fd == -1) then
@@ -108,12 +109,11 @@ local function add_accept_handler(sock, callback, io_loop)
 	io_loop:add_handler(sock, ioloop.READ, function(fd, events)
             while true do
                     local errno
-                    local client_addr = ffi.new("struct sockaddr_in")
-                    local client_addr_sz = ffi.new("socklen_t[1]", ffi.sizeof(client_addr))
+                    local client_addr = ffi.new("struct sockaddr")
+                    local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
                     --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
-                    
-                    local client_fd = socket.accept(fd, ffi.cast("struct sockaddr *", client_addr), client_addr_sz)
-                                
+                    local client_fd = socket.accept(fd, client_addr, client_addr_sz)
+
                     if (client_fd == -1) then
                         errno = ffi.errno()
                         if (errno == EWOULDBLOCK or errno == EAGAIN) then
@@ -124,14 +124,15 @@ local function add_accept_handler(sock, callback, io_loop)
                         end
                     end
                     
-                    local buf = ffi.new("char[46]")
-                    local address_cstr = socket.inet_ntop(AF_INET, client_addr.sin_addr, buf, 46);
-                    if (address_cstr == 0) then
-                        log.error("[tcpserver.lua] Could not get address string new connection.")
-                        break
-                    end
-                    local address = ffi.string(address_cstr)
+                    local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
+                    local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
                     
+                    local buf = ffi.new("char[46]")
+                    local address = string.format("%d.%d.%d.%d",
+                                                  s_addr_ptr[0],
+                                                  s_addr_ptr[1],
+                                                  s_addr_ptr[2],
+                                                  s_addr_ptr[3])
                     callback(client_fd, address)
             end
         end)
