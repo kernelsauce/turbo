@@ -1,31 +1,24 @@
---[[ Nonsence Asynchronous event based Lua Web server.
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+--[[ Nonsence Utilities module.
 
-This module "util" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
-https://github.com/JohnAbrahamsen/nonsence-ng/
+"Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is also licensed under Apache 2.0 license.
-For more details on Tornado please see:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-http://www.tornadoweb.org/
-
-
-Copyright 2011 John Abrahamsen
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.  	]]
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."			]]
 
 local ffi = require "ffi"
 
@@ -85,7 +78,7 @@ local hex = util.hex
 
 function util.mem_dump(ptr, sz)
 	local voidptr = ffi.cast("unsigned char *", ptr)
-	if (voidptr == 0) then
+	if (not voidptr) then
 		error("Trying to dump null ptr")
 	end
         
@@ -101,7 +94,7 @@ function util.mem_dump(ptr, sz)
                 io.write("\n")
             end
             local hex_string
-            if (voidptr[i] < 14) then
+            if (voidptr[i] < 15) then
                 hex_string = string.format("0x0%s ", hex(voidptr[i]))
             else
                 hex_string = string.format("0x%s ", hex(voidptr[i]))
@@ -112,12 +105,37 @@ function util.mem_dump(ptr, sz)
 	io.write("\n")
 end
 
+
+ffi.cdef([[
+        typedef long time_t ;
+        typedef long suseconds_t ;
+        struct timeval
+        {            
+            time_t tv_sec;		/* Seconds.  */
+            suseconds_t tv_usec;	/* Microseconds.  */
+        };
+        struct timezone
+        {
+            int tz_minuteswest;		/* Minutes west of GMT.  */
+            int tz_dsttime;		/* Nonzero if DST is ever in effect.  */
+        };
+        typedef struct timezone * timezone_ptr_t;
+        
+        extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
+]])
+function util.gettimeofday()
+        local timeval = ffi.new("struct timeval")
+        ffi.C.gettimeofday(timeval, nil)
+        return (tonumber(timeval.tv_sec) * 1000) + math.floor(tonumber(timeval.tv_usec) / 1000)
+end
+
+
 --[[  Returns true if value exists in table.        ]]
-function util.is_in(value_to_check, table_to_check)
-	if not value_to_check or not table_to_check then return nil end
+function util.is_in(needle, haystack)
+	if not needle or not haystack then return nil end
 	local i
-	for i = 1, #value_to_check, 1 do 
-		if value_to_check == table_to_check[i] then
+	for i = 1, #needle, 1 do 
+		if needle == haystack[i] then
 			return true
 		end
 	end
