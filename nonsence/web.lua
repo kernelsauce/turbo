@@ -1,19 +1,6 @@
---[[ Nonsence Asynchronous event based Lua Web server.
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+--[[ Nonsence Web framework module
 
-This module "web" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
-
-https://github.com/JohnAbrahamsen/nonsence-ng/
-
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is also licensed under Apache 2.0 license.
-For more details on Tornado please see:
-
-http://www.tornadoweb.org/
-
-
-Copyright 2011 John Abrahamsen
+Copyright 2011, 2012, 2013 John Abrahamsen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +12,7 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.        ]]
+limitations under the License.		]]
 
 local log, util, httputil, deque, escape, response_codes, mime_types = require('log'), require('util'), 
 require("httputil"), require("deque"), require("escape"), require("http_response_codes"), require("mime_types")

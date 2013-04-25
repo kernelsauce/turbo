@@ -1,16 +1,4 @@
---[[ Nonsence Asynchronous event based Lua Web server.
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-
-This module "tcpserver" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
-
-https://github.com/JohnAbrahamsen/nonsence-ng/
-
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is also licensed under Apache 2.0 license.
-For more details on Tornado please see:
-
-http://www.tornadoweb.org/
+--[[ Nonsence TCP Server module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

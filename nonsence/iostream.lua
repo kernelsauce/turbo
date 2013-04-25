@@ -1,10 +1,4 @@
---[[ Nonsence Asynchronous event based Lua Web server.
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-
-This module "iostream" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
-
-https://github.com/JohnAbrahamsen/nonsence-ng/
+--[[ Nonsence IOStream Server module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

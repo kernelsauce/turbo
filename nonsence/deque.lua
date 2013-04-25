@@ -1,21 +1,6 @@
---[[ Nonsence Asynchronous event based Lua Web server.
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+--[[ Double ended queue for Lua
 
-This module "deque" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
-
-https://github.com/JohnAbrahamsen/nonsence-ng/
-
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is licensed under Apache 2.0 license.
-For more details on Tornado please see:
-
-http://www.tornadoweb.org/
-
-However, this module, deque is not a derivate of Tornado and are
-hereby licensed under the MIT license.
-
-http://www.opensource.org/licenses/mit-license.php >:
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -33,7 +18,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE."     ]]
+SOFTWARE."			]]
 
 
 require('middleclass')

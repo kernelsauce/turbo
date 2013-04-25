@@ -1,21 +1,6 @@
 --[[ Epoll bindings through the LuaJIT FFI Library
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-This module "epoll_ffi" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
-
-https://github.com/JohnAbrahamsen/nonsence-ng/
-
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is licensed under Apache 2.0 license.
-For more details on Tornado please see:
-
-http://www.tornadoweb.org/
-
-However, this module, epoll_ffi is not a derivate of Tornado and are
-hereby licensed under the MIT license.
-
-http://www.opensource.org/licenses/mit-license.php >:
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -156,8 +141,7 @@ Returns a structure containing all of the fd's and their events:
 On error -1 and errno are returned.      ]]
 function epoll.epoll_wait(epfd, timeout, max_events)
 	max_events = max_events or 100
-	local events = ffi.new("struct epoll_event["..max_events.."]")
-	ffi.fill(events, ffi.sizeof(events), 0)
+	local events = ffi.new("struct epoll_event[?]", max_events)
 	local num_events = ffi.C.epoll_wait(epfd, events, max_events, timeout)
 	
 	if num_events == -1 then

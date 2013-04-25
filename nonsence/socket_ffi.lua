@@ -1,5 +1,6 @@
 --[[ Socket FFI
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

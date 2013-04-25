@@ -1,21 +1,6 @@
---[[ Nonsence Asynchronous event based Lua Web server.
-Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
+--[[ Nonsence HTTPUtil module
 
-This module "httputil" is a part of the Nonsence Web server.
-For the complete stack hereby called "software package" please see:
-
-https://github.com/JohnAbrahamsen/nonsence-ng/
-
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is licensed under Apache 2.0 license.
-For more details on Tornado please see:
-
-http://www.tornadoweb.org/
-
-However, this module, httputil is not a derivate of Tornado and are
-hereby licensed under the MIT license.
-
-http://www.opensource.org/licenses/mit-license.php >:
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
