@@ -76,8 +76,8 @@ very easy:
 	nonsence.ioloop.instance():start()
 
 
-RequestHandler
-~~~~~~~~~~~~~~
+RequestHandler class
+~~~~~~~~~~~~~~~~~~~~
 The RequestHandler class are implemented so that it must be subclassed to process HTTP requests.
 
 *Subclass and implement any of the following methods to handle the corresponding HTTP method, if a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code:*
@@ -193,8 +193,8 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 	Redirect client to another URL. Sets headers and finish request. User can not send data after this. 
 
 
-HTTPError
-~~~~~~~~~
+HTTPError class
+~~~~~~~~~~~~~~~
 Convinence class for raising errors in ``nonsence.web.RequestHandler`` and return a HTTP status code to the client. The error is caught by the RequestHandler and requests is ended. Usage:
 
 ::
@@ -214,8 +214,8 @@ Convinence class for raising errors in ``nonsence.web.RequestHandler`` and retur
 	Provide code and optional message.
 
 
-StaticFileHandler
-~~~~~~~~~~~~~~~~~
+StaticFileHandler class
+~~~~~~~~~~~~~~~~~~~~~~~
 A simple static file handler. All files are cached in memory after initial request. Usage:
 
 ::
@@ -225,8 +225,8 @@ A simple static file handler. All files are cached in memory after initial reque
 	})
 
 
-Application
-~~~~~~~~~~~
+Application class
+~~~~~~~~~~~~~~~~~
 The Application class is a collection of request handler classes that make together up a web application. Example:
 
 ::
@@ -330,14 +330,31 @@ Warning: Only one instance of IOLoop can ever run at the same time!
         :type timestamp: Number
         :param callback: A function to be called after timestamp is reached.
         :type callback: Function
-        :rtype: Unique identifer as a reference for this timeout. The identifer can be used as parameter for ``IOLoop:remove_timeout()``
+        :rtype: Unique identifer as a reference for this timeout. The reference can be used as parameter for ``IOLoop:remove_timeout()``
         
-.. function:: IOLoop:remove_timeout(identifier)
+.. function:: IOLoop:remove_timeout(ref)
 
         Remove a scheduled timeout by using its identifer.
         
         :param identifer: Identifier returned by ``IOLoop:add_timeout()``
         :type identifer: Number
+        
+.. function:: IOLoop:set_interval(msec, callback)
+
+        Add a function to be called every milliseconds. There is given no guarantees that the callback will be called on time.
+        
+        :param msec: Milliseconds interval.
+        :type msec: Number
+        :param callback: A function to be called every msecs.
+        :type callback: Function
+        :rtype: Unique numeric identifier as a reference to this interval. The refence can be used as parameter for ``IOLoop:clear_interval()``
+        
+.. function:: IOLoop:clear_interval(ref)
+
+        Clear a interval.
+        
+        :param ref: Reference returned by ``IOLoop:set_interval()``
+        :type ref: Number
         
 .. function:: IOLoop:start()
 

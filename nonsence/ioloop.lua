@@ -113,9 +113,9 @@ function ioloop.IOLoop:add_timeout(timestamp, callback)
 	return i
 end
 
-function ioloop.IOLoop:remove_timeout(identifier)	
-	if self._timeouts[identifier] then
-		self._timeouts[identifier] = nil
+function ioloop.IOLoop:remove_timeout(ref)	
+	if self._timeouts[ref] then
+		self._timeouts[ref] = nil
 		return true
 	else
 		return false
