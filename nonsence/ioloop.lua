@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.		]]
 
 local log = require "log"
+local util = require "util"
 require('middleclass')
 require('ansicolors')
 
@@ -51,8 +52,8 @@ ioloop.IOLoop = class('IOLoop')
 function ioloop.IOLoop:init()	
 	self._handlers = {}
 	self._timeouts = {}
+        self._intervals = {}
 	self._callbacks = {}
-	self._callback_lock = false
 	self._running = false
 	self._stopped = false
 	if _poll_implementation == 'epoll_ffi' then
@@ -99,11 +100,17 @@ function ioloop.IOLoop:_run_callback(callback)	xpcall(callback, error_handler) e
 
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
-	local identifier = Math.random(100000000)
-	if not self._timeouts[identifier] then
-		self._timeouts[identifier] = _Timeout:new(timestamp, callback)
-	end
-	return identifier
+	local i = 1
+        while(true) do
+            if (self._timeouts[i] == nil) then
+                break
+            else
+                i = i + 1
+            end
+        end
+    
+	self._timeouts[i] = _Timeout:new(timestamp, callback)
+	return i
 end
 
 function ioloop.IOLoop:remove_timeout(identifier)	
@@ -115,30 +122,78 @@ function ioloop.IOLoop:remove_timeout(identifier)
 	end
 end
 
+function ioloop.IOLoop:set_interval(msec, callback)
+	local i = 1
+        while(true) do
+            if (self._intervals[i] == nil) then
+                break
+            else
+                i = i + 1
+            end
+        end
+    
+	self._intervals[i] = _Interval:new(msec, callback)
+	return i   
+end
+
+function ioloop.IOLoop:clear_interval(ref)
+    if (self._intervals[ref]) then
+        self._intervals[ref] = nil
+        return true
+    else
+        return false
+    end
+end
+    
 function ioloop.IOLoop:start()	
 	self._running = true
 	log.notice([[[ioloop.lua] IOLoop started running]])
 	while true do
 		local poll_timeout = 3600
 		local callbacks = self._callbacks
-		self._callbacks = {}
+                local time_now = nil
+                self._callbacks = {}
 		
 
-		for i=1, #callbacks, 1 do 
+		if #self._timeouts > 0 then
+			for _, timeout in ipairs(self._timeouts) do
+				if timeout:timed_out() then
+					self:_run_callback( timeout:callback() )
+				end
+			end
+		end
+                
+                
+                if (#self._intervals > 0) then
+                    if (time_now == nil) then
+                        time_now = util.gettimeofday()
+                    end
+                    for _, interval in ipairs(self._intervals) do
+                        local timed_out = interval:timed_out(time_now)
+                        if (timed_out == 0) then
+                            self:_run_callback(interval.callback)
+                            time_now = util.gettimeofday()
+                            local next_call = interval:set_last_call(time_now)
+                            if (next_call < poll_timeout) then
+                                poll_timeout = next_call
+                            end
+                        else
+                            if (timed_out < poll_timeout) then
+                                poll_timeout = timed_out
+                            end
+                        end
+                    end
+                end
+                
+		
+                for i=1, #callbacks, 1 do 
 			self:_run_callback(callbacks[i])
 		end
 		
 		if #self._callbacks > 0 then
 			poll_timeout = 0
 		end
-
-		if #self._timeouts > 0 then
-			for _, timeout in ipairs(self._timeouts) do
-				if timeout:timed_out() then
-					self:_run_callback( timeout:return_callback() )
-				end
-			end
-		end
+                
 		
 		if self._stopped then 
 			self.running = false
@@ -161,6 +216,26 @@ function ioloop.IOLoop:close()
 	self._handlers = {}
 end
 
+_Interval = class("_Interval")
+function _Interval:init(msec, callback)
+    self.interval_msec = msec
+    self.callback = callback
+    self.next_call = util.gettimeofday() + self.interval_msec
+end
+
+function _Interval:timed_out(time_now)
+    if (time_now >= self.next_call) then
+        return 0
+    else
+        return self.next_call - time_now
+    end
+end
+
+function _Interval:set_last_call(time_now)
+    self.last_interval = time_now
+    self.next_call = time_now + self.interval_msec
+    return self.next_call - time_now
+end
 
 
 _Timeout = class('_Timeout')
@@ -170,10 +245,10 @@ function _Timeout:init(timestamp, callback)
 end
 
 function _Timeout:timed_out()
-	return ( time.now() - timestamp < 0 )
+	return ( time.now() - self._timestamp < 0 )
 end
 
-function _Timeout:return_callback()
+function _Timeout:callback()
 	return self._callback
 end
 
