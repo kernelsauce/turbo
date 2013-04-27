@@ -38,7 +38,7 @@ local tcpserver = {}  -- tcpserver namespace
 
 --[[ Binds sockets to port and address.
 If not address is defined then * will be used.
-If no backlog size is given in bytes then 128 connections will be used.      ]]
+If no backlog size is given then 128 connections will be used.      ]]
 local function bind_sockets(port, address, backlog)
 	local backlog = backlog or 128
 	local address = address or INADDRY_ANY

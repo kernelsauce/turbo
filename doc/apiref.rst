@@ -272,6 +272,11 @@ Convinence class for raising errors in ``nonsence.web.RequestHandler`` and retur
 .. function:: HTTPError:new(code, message)
 	
 	Provide code and optional message.
+	
+	:param code: The HTTP status code to send to send to client.
+	:type code: Number
+	:param message: Optional message to pass as body in the response.
+	:type message: String
 
 
 StaticFileHandler class
@@ -308,22 +313,42 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 .. function:: Application:listen(port, address)
 	
 	 Starts the HTTP server for this application on the given port.
+	 
+	 :param port: TCP port to bind server to.
+	 :type port: Number
+	 :param address: Optional address to bind server to. Use ``nonsence.socket.htonl()`` to create address. We use the integer format of the IP.
+	 :type address: Number
 
 .. function:: Application:set_server_name(name)
 
 	Sets the name of the server. Used in the response headers.
+	
+	:param name: The name used in HTTP responses. Default is "Nonsence vx.x"
+	:type name: String
 
-.. function:: Application:get_server_name(name)
+.. function:: Application:get_server_name()
 
 	Gets the current name of the server.
+	:rtype: String
 
 
 nonsence.ioloop
 ===============
-nonsence.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. Poll implementations are abstracted and can 
-easily be extended with new variants. On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Nonsence Web for event driven services.
+nonsence.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. This is the core of Nonsence. 
+Poll implementations are abstracted and can easily be extended with new variants. 
+On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Nonsence Web for event driven services.
 
-Event types for the methods are defined in the modules namespace:
+The inner working are as follows:
+	- Set iteration timeout to 3600 milliseconds.
+	- If there exists any timeout callbacks, check if they are scheduled to be run. Run them if they are. If timeout callback would be delayed because of too long iteration timeout, the timeout is adjusted.
+	- If there exists any interval callbacks, check if they are scheduled to be run. If interval callback would be missed because of too long iteration timeout, the iteration timeout is adjusted.
+	- If any callbacks exists, run them. If callbacks add new callbacks, adjust the iteration timeout to 0.
+	- If there are any events for sockets file descriptors, run their respective handlers. Else wait for specified interval timeout, or any socket events, jump back to start.
+	
+Note that because of the fact that the server itself does not know if callbacks block or have a long processing time it cannot guarantee that timeouts and intervals are called on time.
+In a perfect world they would be called within a reasonable time of what is specified.
+
+Event types for file descriptors are defined in the ioloop module's namespace:
 	``nonsence.ioloop.READ``, ``nonsence.ioloop.WRITE``, ``nonsence.ioloop.PRI``, ``nonsence.ioloop.ERROR``
 
 .. function:: ioloop.instance()
@@ -384,7 +409,7 @@ Warning: Only one instance of IOLoop can ever run at the same time!
 .. function:: IOLoop:add_timeout(timestamp, callback)
 
         Schedule a callback to be called no earlier than given timestamp. There is given no gurantees that the callback will be called
-        on time.
+        on time. See the note at beginning of this section.
         
         :param timestamp: A Lua timestamp. E.g os.time()
         :type timestamp: Number
@@ -401,7 +426,7 @@ Warning: Only one instance of IOLoop can ever run at the same time!
         
 .. function:: IOLoop:set_interval(msec, callback)
 
-        Add a function to be called every milliseconds. There is given no guarantees that the callback will be called on time.
+        Add a function to be called every milliseconds. There is given no guarantees that the callback will be called on time. See the note at beginning of this section.
         
         :param msec: Milliseconds interval.
         :type msec: Number
