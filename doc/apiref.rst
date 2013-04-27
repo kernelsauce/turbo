@@ -208,27 +208,49 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 .. function:: RequestHandler:set_status(code)
 	
 	Set the status code of the HTTP response headers.
+	
+	:param code: HTTP status code to set.
+	:type code: Number
 
-.. function:: RequestHandler:get_status(code)
+.. function:: RequestHandler:get_status()
 	
 	Get the curent status code of the HTTP response headers.
+	
+	:rtype: Number
 
 .. function:: RequestHandler:get_argument(name, default, strip)
 
 	Returns the value of the argument with the given name.
 	If default value is not given the argument is considered to be
 	required and will result in a 400 Bad Request if the argument
-	does not exist. Strip will take away whitespaces at head and tail.
+	does not exist.
+	
+	:param name: Name of the argument to get.
+	:type name: String
+	:param default: Optional fallback value in case argument is not set.
+	:type default: String
+	:param strip: Remove whitespace from head and tail of string.
+	:type strip: Boolean
+	:rtype: String
 
 .. function:: RequestHandler:get_arguments(name, strip)
 
 	Returns the values of the argument with the given name. Should be used when you expect multiple arguments values with same name. Strip will take away whitespaces at head and tail where 		applicable.
 	
 	Returns a empty table if argument does not exist.
+	
+	:param name: Name of the argument to get.
+	:type name: String
+	:param strip: Remove whitespace from head and tail of string.
+	:type strip: Boolean
 
 .. function:: RequestHandler:redirect(url, permanent)
 
 	Redirect client to another URL. Sets headers and finish request. User can not send data after this. 
+	:param url: The URL to redirect to.
+	:type url: String
+	:param permanent: Flag this as a permanent redirect or temporary.
+	:param permanent: Boolean
 
 
 HTTPError class
