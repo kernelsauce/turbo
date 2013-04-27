@@ -137,7 +137,7 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 
 	Called after the end of a request. Useful for e.g a cleanup routine.
 
-.. funciton:: RequestHandler:set_default_headers()
+.. function:: RequestHandler:set_default_headers()
 
 	Reimplement this method if you want to set special headers on all requests to the handler.
 
@@ -243,14 +243,16 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 	:type name: String
 	:param strip: Remove whitespace from head and tail of string.
 	:type strip: Boolean
+        :rtype: Table
 
 .. function:: RequestHandler:redirect(url, permanent)
 
-	Redirect client to another URL. Sets headers and finish request. User can not send data after this. 
+	Redirect client to another URL. Sets headers and finish request. User can not send data after this.
+        
 	:param url: The URL to redirect to.
 	:type url: String
 	:param permanent: Flag this as a permanent redirect or temporary.
-	:param permanent: Boolean
+	:type permanent: Boolean
 
 
 HTTPError class
@@ -332,8 +334,8 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	:rtype: String
 
 
-nonsence.ioloop neamespace
-==========================
+nonsence.ioloop namespace
+=========================
 nonsence.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. This is the core of Nonsence. 
 Poll implementations are abstracted and can easily be extended with new variants. 
 On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Nonsence Web for event driven services.
