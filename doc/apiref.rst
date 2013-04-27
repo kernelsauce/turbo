@@ -80,31 +80,43 @@ RequestHandler class
 ~~~~~~~~~~~~~~~~~~~~
 The RequestHandler class are implemented so that it must be subclassed to process HTTP requests.
 
-*Subclass and implement any of the following methods to handle the corresponding HTTP method, if a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code:*
+*Subclass a RequsetHandlerr class and reimplement any of the following methods to handle the corresponding HTTP method, if a request method that is not implemented is recieved the requester will get a 405 (Not Implemented) status code:*
 
-.. function:: RequestHandler:get()	
+.. function:: RequestHandler:get(...)	
 	
 	HTTP GET reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces. E.g /users/(.*)$ would provide anything after /users/ as first parameter.
 
-.. function:: RequestHandler:post()
+.. function:: RequestHandler:post(...)
 
 	HTTP POST reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
 
-.. function:: RequestHandler:head()
+.. function:: RequestHandler:head(...)
 
 	HTTP HEAD reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
 
-.. function:: RequestHandler:delete()
+.. function:: RequestHandler:delete(...)
 
 	HTTP DELETE reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
 
-.. function:: RequestHandler:put()
+.. function:: RequestHandler:put(...)
 
 	HTTP PUT reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
 
-.. function:: RequestHandler:options()
+.. function:: RequestHandler:options(...)
 
 	HTTP OPTIONS reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
 
 All of these methods recieves the arguments from the patterns in the ``nonsence.Web.Application`` handler section.
 
@@ -113,6 +125,9 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 .. function:: RequestHandler:on_create(kwargs)
 
 	Reimplement this method if you want to do something straight after the class instance has been created.
+        
+        :param kwargs: The keyword arguments that you initialize the class with.
+        :type kwargs: Table
 
 .. function:: RequestHandler:prepare()
 
@@ -133,12 +148,18 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 	Writes the given chunk to the output buffer.			
 	To write the output to the network, call the ``nonsence.web.RequestHandler:flush()`` method.
 	If the given chunk is a Lua table, it will be automatically
-	stringifed to JSON. 
+	stringifed to JSON.
+        
+        :param chunk: Bytes to add to output buffer.
+        :type chunk: String
 
 .. function:: RequestHandler:finish(chunk)
 
 	Writes the chunk to the output buffer and finishes the HTTP request.
 	This method should only be called once in one request.
+        
+        :param chunk: Bytes to add to output buffer.
+        :type chunk: String
 
 .. function:: RequestHandler:flush(callback)
 
@@ -149,7 +170,10 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 	callback can be present per request. Giving a new callback
 	before the pending has been run leads to discarding of the
 	current pending callback. For HEAD method request the chunk 
-	is ignored and only headers are written to the socket.  
+	is ignored and only headers are written to the socket.
+        
+        :param callback: Function to call after the buffer has been flushed.
+        :type callback: Function
 
 .. function:: RequestHandler:clear()
 	
@@ -158,14 +182,28 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 .. function:: RequestHandler:add_header(name, value)
 
 	Add the given name and value pair to the HTTP response headers. Raises error if name already exists.
+        
+        :param name: Name of value to add.
+        :type name: String
+        :param value: Value to add.
+        :type value: String
 
 .. function:: RequestHandler:set_header(name, value)
 
 	Set the given name and value pair of the HTTP response headers. If name exists then the value is overwritten.
+        
+        :param name: Name of value to add.
+        :type name: String
+        :param value: Value to add.
+        :type value: String
+        
+.. function:: RequestHandler:get_header(name)
 
-.. function:: RequestHandler:get_header(key)
-
-	Returns the current value of the given key in the HTTP response headers. Returns nil if not set.
+	Returns the current value of the given name in the HTTP response headers. Returns nil if not set.
+        
+        :param name: Name of value to get.
+        :type name: String
+        :rtype: String or nil
 
 .. function:: RequestHandler:set_status(code)
 	
