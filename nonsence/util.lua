@@ -23,24 +23,24 @@ SOFTWARE."			]]
 local ffi = require "ffi"
 
 --[[ Extends the string library with a split method.   ]]
-function string:split(sSeparator, nMax, bRegexp)	
-	assert(sSeparator ~= '')
-	assert(nMax == nil or nMax >= 1)
+function string:split(sep, max, pattern)	
+	assert(sep ~= '')
+	assert(max == nil or max >= 1)
 
 	local aRecord = {}
 
 	if self:len() > 0 then
-		local bPlain = not bRegexp
-		nMax = nMax or -1
+		local bPlain = not pattern
+		max = max or -1
 
 		local nField=1 nStart=1
-		local nFirst,nLast = self:find(sSeparator, nStart, bPlain)
-		while nFirst and nMax ~= 0 do
+		local nFirst,nLast = self:find(sep, nStart, bPlain)
+		while nFirst and max ~= 0 do
 			aRecord[nField] = self:sub(nStart, nFirst-1)
 			nField = nField+1
 			nStart = nLast+1
-			nFirst,nLast = self:find(sSeparator, nStart, bPlain)
-			nMax = nMax-1
+			nFirst,nLast = self:find(sep, nStart, bPlain)
+			max = max-1
 		end
 		aRecord[nField] = self:sub(nStart)
 	end
@@ -50,7 +50,7 @@ end
 
 local util = {}
 
---[[ Join a list into a string with  given delimiter.    ]]
+--[[ Join a list into a string with  given delimiter.  �]]
 function util.join(delimiter, list)
 	local len = getn(list)
 	if len == 0 then 
