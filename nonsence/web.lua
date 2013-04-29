@@ -14,12 +14,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.		]]
 
-local log, util, httputil, deque, escape, response_codes, mime_types = require('log'), require('util'), 
-require("httputil"), require("deque"), require("escape"), require("http_response_codes"), require("mime_types")
-
+local log = require "log"
+local httputil = require "httputil"
+local deque = require "deque"
+local escape = require "escape"
+local response_codes = require "http_response_codes"
+local mime_types = require "mime_types"
+local util = require "util"
 require('middleclass')
 
-local is_in, type = util.is_in, type
+local is_in = util.is_in
+local fast_assert = util.fast_assert
 
 local web = {} -- web namespace
 
@@ -115,7 +120,7 @@ function web.RequestHandler:get_header(key) return self.headers:get(key) end
 
 --[[ Sets the status for our response.   ]]
 function web.RequestHandler:set_status(status_code)
-	assert(type(status_code) == "number", [[set_status method requires number.]])
+	fast_assert(type(status_code) == "number", [[set_status method requires number.]])
 	self._status_code = status_code
 end
 
@@ -225,14 +230,14 @@ end
 --[[ Set request to automatically call finish when request method has been called. Default
 behaviour is to finish the request immediately.   ]]
 function web.RequestHandler:set_auto_finish(bool)
-	assert(type(bool) == "boolean", "bool must be boolean!")
+	fast_assert(type(bool) == "boolean", "bool must be boolean!")
 	self._auto_finish = bool
 end
 
 --[[ Finishes the HTTP request.
 Cleaning up of different messes etc.    ]]
 function web.RequestHandler:finish(chunk)	
-	assert((not self._finished), [[finish() called twice. Something terrible has happened]])
+	fast_assert((not self._finished), [[finish() called twice. Something terrible has happened]])
 	
 	if chunk then
 		self:write(chunk)
@@ -303,11 +308,10 @@ function web._StaticWebCache:read_file(path)
 end
 
 function web._StaticWebCache:get_file(path)
-	for filepath, bytes in pairs(self.files) do
-		if (filepath == path) then
-			return 0, bytes
-		end
-	end
+        local cached_file = self.files[path]
+        if (cached_file) then
+            return 0, cached_file
+        end
 	-- Fallthrough, read from disk.
 	local rc, buf = self:read_file(path)
 	if rc == 0 then
@@ -336,7 +340,7 @@ end
 --[[ Determine MIME type according to file exstension.   ]]
 function web.StaticFileHandler:get_mime()
 	local filename = self._url_args[1]
-	assert(filename)
+	fast_assert(filename)
 	local parts = filename:split(".")
 	if #parts == 0 then
 		return -1
@@ -369,6 +373,8 @@ function web.StaticFileHandler:get(path)
 			self:set_header("Content-Type", mime_type)
 		end
 		self:set_header("Content-Length", buf:len())
+                self:set_header("Cache-Control", "max-age=31536000")
+                self:set_header("Expires", os.date("!%a, %d %b %Y %X GMT", self.request._request._start_time + 31536000))
 		self:write(buf)
 	else
 		error(web.HTTPError(404)) -- Not found
@@ -417,7 +423,7 @@ end
 --[[ HTTPError exception class. Raisable from RequestHandler instances. Provide code and optional message.  ]]
 web.HTTPError = class("HTTPError")
 function web.HTTPError:init(code, message)
-	assert(type(code) == "number", "HTTPError code argument must be number.")
+	fast_assert(type(code) == "number", "HTTPError code argument must be number.")
 	self.code = code
 	self.message = message and message or response_codes[code]
 end
