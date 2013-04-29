@@ -27,7 +27,9 @@ local deque = require "deque"
 local escape = require "escape"
 local ffi = require "ffi"
 local libnonsence_parser = ffi.load("libnonsence_parser")
+local util = require "util"
 require('middleclass')
+local fast_assert = util.fast_assert
 
 local httputil = {} -- httputil namespace
 
@@ -232,21 +234,21 @@ function httputil.HTTPHeaders:get_url_field(UF_prop)
 end
 
 function httputil.HTTPHeaders:set_uri(uri)
-        assert(type(uri) == "string", [[method set_url requires string, were: ]] .. type(uri))
+        fast_assert(type(uri) == "string", [[method set_url requires string, were: %s]], type(uri))
         self.uri = uri
 end
 
 function httputil.HTTPHeaders:get_uri() return self.uri end
 
 function httputil.HTTPHeaders:set_content_length(len)
-    	assert(type(len) == "number", [[method set_content_length requires number, was: ]] .. type(len))
+    	fast_assert(type(len) == "number", [[method set_content_length requires number, was: %s]], type(len))
         self.content_length = len
 end
 
 function httputil.HTTPHeaders:get_content_length() return self.content_length end
 
 function httputil.HTTPHeaders:set_method(method)
-        assert(type(method) == "string", [[method set_method requires string, was: ]] .. type(method))
+        fast_assert(type(method) == "string", [[method set_method requires string, was: %s]], type(method))
         self.method = method
 end
 
@@ -255,7 +257,7 @@ function httputil.HTTPHeaders:get_method() return self.method end
 --[[ Set the HTTP version.
 Applies most probably for response headers.  ]]
 function httputil.HTTPHeaders:set_version(version)
-	assert(type(version) == "string", [[method set_version requires string, was: ]] .. type(version))
+	fast_assert(type(version) == "string", [[method set_version requires string, was: %s]], type(version))
 	self.version = version
 end
 
@@ -265,8 +267,8 @@ function httputil.HTTPHeaders:get_version() return self.version or nil end
 --[[ Set the status code.
 Applies most probably for response headers.      ]]
 function httputil.HTTPHeaders:set_status_code(code)
-	assert(type(code) == "number", [[method set_status_code requires int.]])
-	assert(status_codes[code], [[Invalid HTTP status code given: ]] .. code)
+	fast_assert(type(code) == "number", [[method set_status_code requires int.]])
+	fast_assert(status_codes[code], [[Invalid HTTP status code given: %d]], code)
 	self.status_code = code
 end
 
@@ -310,11 +312,11 @@ end
 
 --[[ Add a key with value to the headers.     ]]
 function httputil.HTTPHeaders:add(key, value)
-	assert(type(key) == "string", 
+	fast_assert(type(key) == "string", 
 		[[method add key parameter must be a string.]])
-	assert((type(value) == "string" or type(value) == "number"), 
+	fast_assert((type(value) == "string" or type(value) == "number"), 
 		[[method add value parameters must be a string.]])
-	assert((not self._header_table[key]), 
+	fast_assert((not self._header_table[key]), 
 		[[trying to add a value to a existing key]])
 	self._header_table[key] = value
 end
@@ -324,9 +326,9 @@ end
 If key exists then the value is overwritten.
 If key does not exists a new is created with its value.   ]]
 function httputil.HTTPHeaders:set(key, value)	
-	assert(type(key) == "string", 
+	fast_assert(type(key) == "string", 
 		[[method add key parameter must be a string.]])
-	assert((type(value) == "string" or type(value) == "number"), 
+	fast_assert((type(value) == "string" or type(value) == "number"), 
 		[[method add value parameters must be a string.]])
 	
 	self._header_table[key]	= value
@@ -334,7 +336,7 @@ end
 
 --[[ Remove key from headers.    ]]
 function httputil.HTTPHeaders:remove(key)
-	assert(type(key) == "string", 
+	fast_assert(type(key) == "string", 
 		[[method remove key parameter must be a string.]])
 	self._header_table[key]  = nil
 end
@@ -384,7 +386,7 @@ end
 
 
 function httputil.parse_post_arguments(data)
-	assert(type(data) == "string", "data into _parse_post_arguments() not a string.")
+	fast_assert(type(data) == "string", "data into _parse_post_arguments() not a string.")
 	local arguments_string = data:match("?(.+)")
 	local arguments = {}
 	local elements = 0;
