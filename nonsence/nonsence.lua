@@ -27,14 +27,16 @@ else
 	nonsence.VERSION = string.format("%d.%d", nonsence.MAJOR_VERSION, nonsence.MINOR_VERSION)
 end
 
-nonsence.log = require('log')
-nonsence.ioloop = require('ioloop')
-nonsence.escape = require('escape')
-nonsence.httputil = require('httputil')
-nonsence.httpserver = require('httpserver')
-nonsence.iostream = require('iostream')
-nonsence.web = require('web')
-nonsence.util = require('util')
+nonsence.log = require "log"
+nonsence.ioloop = require "ioloop"
+nonsence.escape = require "escape"
+nonsence.httputil = require "httputil"
+nonsence.httpserver = require "httpserver"
+nonsence.iostream = require "iostream"
+nonsence.web = require "web"
+nonsence.util = require "util"
+nonsence.signal = require "signal"
+nonsence.socket = require "socket_ffi"
 _G.dump = nonsence.log.dump
 _G.join = nonsence.util.join
 
