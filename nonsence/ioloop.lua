@@ -16,6 +16,7 @@ limitations under the License.		]]
 
 local log = require "log"
 local util = require "util"
+local signal = require "signal"
 require('middleclass')
 require('ansicolors')
 
@@ -59,6 +60,8 @@ function ioloop.IOLoop:init()
 	if _poll_implementation == 'epoll_ffi' then
 		self._poll = _EPoll_FFI:new()
 	end
+        
+        signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
@@ -95,7 +98,6 @@ local function error_handler(err)
 	log.error("[ioloop.lua] caught error: " .. err)
 	log.stacktrace(debug.traceback())
 end
-
 function ioloop.IOLoop:_run_callback(callback)	xpcall(callback, error_handler) end
 
 
@@ -159,6 +161,7 @@ function ioloop.IOLoop:start()
 			for _, timeout in ipairs(self._timeouts) do
 				if timeout:timed_out() then
 					self:_run_callback( timeout:callback() )
+                                        timeout = nil                                        
 				end
 			end
 		end
