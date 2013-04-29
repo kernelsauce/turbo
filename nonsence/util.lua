@@ -106,23 +106,40 @@ function util.mem_dump(ptr, sz)
 end
 
 
-ffi.cdef([[
-        typedef long time_t ;
-        typedef long suseconds_t ;
-        struct timeval
-        {            
-            time_t tv_sec;		/* Seconds.  */
-            suseconds_t tv_usec;	/* Microseconds.  */
-        };
-        struct timezone
-        {
-            int tz_minuteswest;		/* Minutes west of GMT.  */
-            int tz_dsttime;		/* Nonzero if DST is ever in effect.  */
-        };
-        typedef struct timezone * timezone_ptr_t;
-        
-        extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
-]])
+function util.fast_assert(condition, ...) 
+    if not condition then
+       if next({...}) then
+          local s,r = pcall(function (...) return(string.format(...)) end, ...)
+          if s then
+             error(r, 2)
+          end
+       end
+       error("assertion failed!", 2)
+    end
+end
+
+if not _G.TIME_H then
+    _G.TIME_H = 1
+    ffi.cdef([[
+             
+    typedef long time_t ;
+    typedef long suseconds_t ;
+    struct timeval
+    {            
+        time_t tv_sec;		/* Seconds.  */
+        suseconds_t tv_usec;	/* Microseconds.  */
+    };
+    struct timezone
+    {
+        int tz_minuteswest;		/* Minutes west of GMT.  */
+        int tz_dsttime;		/* Nonzero if DST is ever in effect.  */
+    };
+    typedef struct timezone * timezone_ptr_t;
+    
+    extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
+    
+    ]])
+end
 function util.gettimeofday()
         local timeval = ffi.new("struct timeval")
         ffi.C.gettimeofday(timeval, nil)
