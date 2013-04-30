@@ -225,7 +225,9 @@ function httputil.HTTPHeaders:init(raw_request_headers)
 	self._header_table = {}
         self._arguments_parsed = false
 	if type(raw_request_headers) == "string" then
-		self:update(raw_request_headers)
+		if (self:update(raw_request_headers) == -1) then
+                    error("[httputil.lua] Malformed HTTP headers.")
+                end
 	end
 end
 
@@ -348,6 +350,12 @@ function httputil.HTTPHeaders:update(raw_headers)
     local nw = ffi.new("struct nonsence_parser_wrapper")
     local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len())
     
+    self.errno = tonumber(nw.parser.http_errno)
+    if (self.errno ~= 0) then
+        libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+        return -1
+    end
+    
     if (sz > 0) then      
         local major_version = nw.parser.http_major
         local minor_version = nw.parser.http_minor
@@ -357,7 +365,6 @@ function httputil.HTTPHeaders:update(raw_headers)
         self:set_uri(ffi.string(nw.url_str))
         self:set_method(method_map[tonumber(nw.parser.method)])
         self.http_parser_url = nw.url
-        self.errno = tonumber(nw.parser.http_errno)
         self.url = self:get_url_field(httputil.UF.PATH)
         
         local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
@@ -369,7 +376,7 @@ function httputil.HTTPHeaders:update(raw_headers)
     end
     
     libnonsence_parser.nonsence_parser_wrapper_exit(nw)
-    return -1;
+    return sz;
 end
 
 --[[ Assembles HTTP headers based on the information in the object.  ]]
