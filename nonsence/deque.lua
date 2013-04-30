@@ -98,7 +98,7 @@ function deque:size()
     end
     local l = self.head
     local i = 1
-    while (l.next) do
+    while (l) do
         i = i + 1
         l = l.next
     end
