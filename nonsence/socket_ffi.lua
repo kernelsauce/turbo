@@ -81,6 +81,7 @@ if not _G.SOCKET_H then
     extern uint16_t htons (uint16_t hostshort);
     extern int32_t inet_pton (int32_t af, const char *cp, void *buf);
     extern const char *inet_ntop (int32_t af, const void *cp, char *buf, socklen_t len);
+    extern char *inet_ntoa (struct in_addr in);
     extern int32_t fcntl (int32_t fd, int32_t cmd, int32_t opt); /* Notice the non canonical form, int32_t instead of ...     */
     ]])
 end
@@ -283,12 +284,103 @@ local function strerror(errno)
     return ffi.string(cstr);
 end
 
+if not _G.NETDB_H then
+    _G.NETDB_H = 1
+    ffi.cdef [[
+    
+    
+    /* Description of data base entry for a single host.  */
+    struct hostent
+    {
+        char *h_name;		/* Official name of host.  */
+        char **h_aliases;	/* Alias list.  */
+        int32_t h_addrtype;	/* Host address type.  */
+        int32_t h_length;	/* Length of address.  */
+        char **h_addr_list;	/* List of addresses from name server.  */
+    };
+    
+    extern struct hostent *gethostbyname (const char *name);
+
+    ]]
+end
+local function resolv_hostname(str)
+    local in_addr_arr = {}
+    local hostent = ffi.C.gethostbyname(str)
+    if (hostent == nil) then
+	return -1
+    end
+
+    local inaddr = ffi.cast("struct in_addr **", hostent.h_addr_list) 
+    local i = 0
+    while (inaddr[i] ~= nil) do
+	in_addr_arr[#in_addr_arr + 1] = inaddr[i][0]
+	i = i + 1
+    end
+    
+    return {
+	in_addr = in_addr_arr,
+	addrtype = tonumber(hostent.h_addrtype),
+	name = ffi.string(hostent.h_name)
+	}
+end
+
+local function set_nonblock_flag(fd)
+    local flags = ffi.C.fcntl(fd, F.F_GETFL, 0);
+    if (flags == -1) then
+	return -1, "fcntl GETFL failed."
+    end
+    flags = bit.bor(flags, O.O_NONBLOCK)
+    rc = ffi.C.fcntl(fd, F.F_SETFL, flags)
+    if (rc == -1) then
+	return -1, "fcntl set O_NONBLOCK failed."
+    end
+    
+    return 0
+end
+
+local function set_reuseaddr_opt(fd)
+    local setopt = ffi.new("int32_t[1]", 1)
+    local rc = ffi.C.setsockopt(fd,
+			     SOL.SOL_SOCKET,
+			     SO.SO_RESUSEADDR,
+			     setopt,
+			     ffi.sizeof("int32_t"))
+    if (rc ~= 0) then
+	return -1
+    end
+    
+    return 0
+end
+
+local function new_nonblock_socket(family, stype, protocol)
+    local fd = ffi.C.socket(family, stype, protocol)
+    
+    if (fd == -1) then
+	errno = ffi.errno()
+	return -1, string.format("Could not create socket. %s", errno, ffi.C.strerror(errno))
+    end
+    
+    local rc, msg = set_nonblock_flag(fd)
+    if (rc ~= 0) then
+	return rc, msg
+    end
+
+    return fd
+end
+
 local EAGAIN = 11
 local EWOULDBLOCK = EAGAIN
 
 return {
+    strerror = strerror,
+    resolv_hostname = resolv_hostname,
+    set_nonblock_flag = set_nonblock_flag,
+    set_reuseaddr_opt = set_reuseaddr_opt,
+    new_nonblock_socket = new_nonblock_socket,
+    
     EWOULDBLOCK = EWOULDBLOCK,
     EAGAIN = EAGAIN,
+    EINPROGRESS	= 115,
     inet_pton = ffi.C.inet_pton,
     inet_ntop = ffi.C.inet_ntop,
     ntohl = ffi.C.ntohl,
@@ -299,7 +391,6 @@ return {
     INADDR_ANY = 0x00000000,
     INADDR_BROADCAST = 0xffffffff,
     INADDR_NONE =	0xffffffff,
-    strerror = strerror,
     socket = ffi.C.socket,
     dup = ffi.C.dup,
     bind = ffi.C.bind,
