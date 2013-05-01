@@ -368,6 +368,20 @@ local function new_nonblock_socket(family, stype, protocol)
     return fd
 end
 
+local function get_socket_error(fd)
+    local value = ffi.new("int32_t")
+    local rc = ffi.C.setsockopt(fd,
+			     SOL.SOL_SOCKET,
+			     SO.SO_ERROR,
+			     ffi.cast("void *", value),
+			     ffi.sizeof("int32_t"))
+    if (rc == 0) then
+	return -1
+    else
+	return 0, value
+    end    
+end
+
 local EAGAIN = 11
 local EWOULDBLOCK = EAGAIN
 
@@ -377,12 +391,14 @@ return {
     set_nonblock_flag = set_nonblock_flag,
     set_reuseaddr_opt = set_reuseaddr_opt,
     new_nonblock_socket = new_nonblock_socket,
+    get_socket_error = get_socket_error,
     
     EWOULDBLOCK = EWOULDBLOCK,
     EAGAIN = EAGAIN,
     EINPROGRESS	= 115,
     inet_pton = ffi.C.inet_pton,
     inet_ntop = ffi.C.inet_ntop,
+    inet_ntoa = ffi.C.inet_ntoa,
     ntohl = ffi.C.ntohl,
     htonl = ffi.C.htonl,
     ntohs = ffi.C.ntohs,
