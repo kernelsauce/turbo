@@ -102,7 +102,7 @@ function iostream.IOStream:connect(address, port, family, callback)
         local rc
         local errno
         self._connecting = true
-        sockaddr.sin_port = port
+        sockaddr.sin_port = socket.htons(port)
         
         if (type(address) == "string" and util.valid_ipv4(address) and family ~= nil) then
             sockaddr.sin_family = family
@@ -115,6 +115,7 @@ function iostream.IOStream:connect(address, port, family, callback)
             if (hostinfo == -1) then
                 return -1, string.format("Could not resolve hostname: %s", address)
             end
+
             ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], ffi.sizeof("struct in_addr"))
             sockaddr.sin_family = hostinfo.addrtype
         end
@@ -477,13 +478,13 @@ end
 function iostream.IOStream:_handle_connect()
     
         --FIXME
-	local err = self.socket:getopt('socket', 'error')
-	if err ~= 0 then 
-		log.warning(string.format("Connect error on fd %d: %s", 
-			self.socket, err ))
-		self:close()
-		return
-	end
+	--local err = self.socket:getopt('socket', 'error')
+	--if err ~= 0 then 
+	--	log.warning(string.format("Connect error on fd %d: %s", 
+	--		self.socket, err ))
+	--	self:close()
+	--	return
+	--end
 	if self._connect_callback then
 		local callback = self._connect_callback
 		self._connect_callback  = nil
