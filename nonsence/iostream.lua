@@ -21,6 +21,7 @@ local deque = require "deque"
 local socket = require "socket_ffi"
 local bit = require "bit"
 local ffi = require "ffi"
+local util = require "util"
 local SOL_SOCKET = socket.SOL.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO.SO_REUSEADDR
 local O_NONBLOCK = socket.O.O_NONBLOCK
@@ -30,6 +31,7 @@ local SOCK_STREAM = socket.SOCK.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
 local AF_INET = socket.AF.AF_INET
 local EWOULDBLOCK = socket.EWOULDBLOCK
+local EINPROGRESS = socket.EINPROGRESS
 local EAGAIN = socket.EAGAIN
 require "middleclass"
 
@@ -87,27 +89,47 @@ function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_
 	self._state = nil
 	self._pending_callbacks = 0
         
-        local rc
-        
-        local flags = socket.fcntl(self.socket, F_GETFL, 0);
-        if (flags == -1) then
-            error("[iostream.lua] fcntl GETFL failed.")
-        end
-        flags = bit.bor(flags, O_NONBLOCK)
-        rc = socket.fcntl(self.socket, F_SETFL, flags)
+        local rc, msg = socket.set_nonblock_flag(self.socket)
         if (rc == -1) then
-            error("[iostream.lua] fcntl set O_NONBLOCK failed.")
-        end      
+            error("[iostream.lua] " .. msg)
+        end
 end
 
 --[[ Connect to a address without blocking.  		]]
-function iostream.IOStream:connect(address, port, callback)
-	self._connecting = true
-	-- FIXME: Reimplement
-	-- self.socket:connect(address, port)
-	-- Set callback.
+function iostream.IOStream:connect(address, port, family, callback)        
+        local sockaddr = ffi.new("struct sockaddr_in")
+        local sizeof_sockaddr = ffi.sizeof(sockaddr)
+        local rc
+        local errno
+        self._connecting = true
+        sockaddr.sin_port = port
+        
+        if (type(address) == "string" and util.valid_ipv4(address) and family ~= nil) then
+            sockaddr.sin_family = family
+            rc = socket.inet_pton(family, address, sockaddr.sin_addr.s_addr)
+            if (rc ~= 0) then
+                return -1, string.format("IP address %s could not be used for this family, please verify.", address)
+            end
+        else
+            local hostinfo = socket.resolv_hostname(address)
+            if (hostinfo == -1) then
+                return -1, string.format("Could not resolve hostname: %s", address)
+            end
+            ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], ffi.sizeof("struct in_addr"))
+            sockaddr.sin_family = hostinfo.addrtype
+        end
+        
+        rc = socket.connect(self.socket, ffi.cast("struct sockaddr *", sockaddr), sizeof_sockaddr)
+        if (rc ~= 0) then
+            errno = ffi.errno()
+            if (errno ~= EINPROGRESS) then
+                return -1, string.format("Could not connect. %s", socket.strerror(errno))
+            end
+        end
+        
 	self._connect_callback = callback
 	self:_add_io_state(ioloop.WRITE)
+        return 0
 end
 
 --[[ Call callback when the given pattern is read.   ]]
