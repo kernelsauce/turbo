@@ -22,23 +22,18 @@
 
   ]]
 
-package.path = package.path.. ";../nonsence/?.lua"  
+package.path = "../nonsence/?.lua;"  ..package.path 
 
 -------------------------------------------------------------------------
 --
 -- Load modules
 --
-local log = assert(require('log'), 
-	[[Missing log module]])
-local nixio = assert(require('nixio'),
-	[[Missing required module: Nixio (https://github.com/Neopallium/nixio)]])
-local iostream = assert(require('iostream'), 
-	[[Missing iostream module]])
-local ioloop = assert(require('ioloop'), 
-	[[Missing ioloop module]])
--------------------------------------------------------------------------
+local log = require 'log'
+local iostream = require 'iostream'
+local ioloop = require "ioloop"
+local socket = require "socket_ffi"
 
-local socket = nixio.socket('inet', 'stream')
+local socket = socket.new_nonblock_socket(socket.AF.AF_INET, socket.SOCK.SOCK_STREAM, 0)
 local loop = ioloop.instance()
 local stream = iostream.IOStream:new(socket)
 
@@ -76,6 +71,6 @@ function send_request()
 	stream:read_until("\r\n\r\n", on_headers)
 end
 
-stream:connect("dagbladet.no", 80, send_request)
+local rc,msg = stream:connect("dagbladet.no", 80, nil, send_request)
 
 loop:start()
