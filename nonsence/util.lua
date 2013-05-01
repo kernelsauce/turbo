@@ -94,7 +94,7 @@ function util.mem_dump(ptr, sz)
                 io.write("\n")
             end
             local hex_string
-            if (voidptr[i] < 15) then
+            if (voidptr[i] < 0xf) then
                 hex_string = string.format("0x0%s ", hex(voidptr[i]))
             else
                 hex_string = string.format("0x%s ", hex(voidptr[i]))
@@ -146,6 +146,10 @@ function util.gettimeofday()
         return (tonumber(timeval.tv_sec) * 1000) + math.floor(tonumber(timeval.tv_usec) / 1000)
 end
 
+
+function util.valid_ipv4(str)
+    return str:find("[%d+%.]+")
+end
 
 --[[  Returns true if value exists in table.        ]]
 function util.is_in(needle, haystack)
