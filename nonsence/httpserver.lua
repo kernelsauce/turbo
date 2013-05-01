@@ -76,19 +76,13 @@ function httpserver.HTTPConnection:init(stream, address, request_callback,
 
 	self.stream = stream
 	self.address = address
-	local function _wrapped_request_callback(RequestObject)
-		request_callback(RequestObject)
-	end
-	self.request_callback = _wrapped_request_callback
+	self.request_callback = request_callback
 	self.no_keep_alive = no_keep_alive or false
 	self.xheaders = xheaders or false
 	self._request = nil
 	self._request_finished = false
 	self.arguments = {}
-	local function _wrapped_header_callback(RequestObject)
-		self:_on_headers(RequestObject)
-	end
-	self._header_callback = _wrapped_header_callback
+	self._header_callback = function(http_request) self:_on_headers(http_request) end
 	self.stream:read_until("\r\n\r\n", self._header_callback)
 	self._write_callback = nil
 end
@@ -100,10 +94,7 @@ function httpserver.HTTPConnection:write(chunk, callback)
 
 	if not self.stream:closed() then
 		self._write_callback = callback
-		local function _on_write_complete_wrap()
-			self:_on_write_complete()
-		end
-		self.stream:write(chunk, _on_write_complete_wrap)
+		self.stream:write(chunk, function() self:_on_write_complete() end )
 	end
 end
 
@@ -160,12 +151,23 @@ end
 
 
 function httpserver.HTTPConnection:_on_headers(data)
-	local headers = httputil.HTTPHeaders:new(data)
+	local headers
+	local status, msg = pcall(
+		function()
+			headers = httputil.HTTPHeaders:new(data)
+		end)
+
+	if (status == false) then
+		log.notice(string.format("[httpserver.lua] %s", msg))
+		--FIXME: Handle HTTP headers parsing error.
+	end
+	
 	self._request = httpserver.HTTPRequest:new(headers.method, headers.uri, {
 		version = headers.version,
 		connection = self,
 		headers = headers,
 		remote_ip = self.address})
+	
 	local content_length = headers:get("Content-Length")
 	if content_length then
 		content_length = tonumber(content_length)
