@@ -115,7 +115,6 @@ local function add_accept_handler(sock, callback, io_loop)
                     local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
                     local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
                     
-                    local buf = ffi.new("char[46]")
                     local address = string.format("%d.%d.%d.%d",
                                                   s_addr_ptr[0],
                                                   s_addr_ptr[1],
