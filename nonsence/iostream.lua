@@ -476,15 +476,16 @@ function iostream.IOStream:_read_from_buffer()
 end
 
 function iostream.IOStream:_handle_connect()
-    
-        --FIXME
-	--local err = self.socket:getopt('socket', 'error')
-	--if err ~= 0 then 
-	--	log.warning(string.format("Connect error on fd %d: %s", 
-	--		self.socket, err ))
-	--	self:close()
-	--	return
-	--end
+        local rc, sockerr = socket.get_socket_error(self.socket)
+        if (rc == -1) then
+            error("[iostream.lua] Could not get socket errors, for fd " .. self.socket)
+        else
+            if (sockerr ~= 0) then
+                socket.close(self.socket)
+                error(string.format("[iostream.lua] Connect failed with %d, for fd %d", sockerr,  self.socket))
+            end
+        end
+        
 	if self._connect_callback then
 		local callback = self._connect_callback
 		self._connect_callback  = nil
