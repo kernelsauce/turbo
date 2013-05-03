@@ -93,11 +93,11 @@ function deque:popleft()
 end
 
 function deque:size()
-    if (not self.head) then
+    if (self.head == nil) then
         return 0
     end
     local l = self.head
-    local i = 1
+    local i = 0
     while (l) do
         i = i + 1
         l = l.next
@@ -124,8 +124,23 @@ function deque:concat()
             i = i + len
             l = l.next        
         end
-        return ffi.string(buf, sz)
+        return ffi.string(buf, sz) or ""
     end
+end
+
+function deque:getn(pos)
+    local l = self.head
+    if not l then
+        return nil
+    end
+    while pos ~= 0 do
+        l = l.next
+        if not l then
+            return nil
+        end
+        pos = pos - 1
+    end
+    return l.value
 end
 
 --[[ Returns element at tail. 	]]

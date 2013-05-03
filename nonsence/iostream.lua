@@ -413,6 +413,11 @@ function iostream.IOStream:_read_to_buffer()
 	return chunk:len()
 end
 
+local function _double_prefix(deque)
+    local new_len = max(deque:peekfirst():len() * 2,
+                        deque:peekfirst():len() + deque:getn(1):len())
+    _merge_prefix(deque, new_len)
+end
 
 --[[ Attempts to complete the currently pending read from the buffer.
 Returns true if the read was completed.        ]]
@@ -436,28 +441,25 @@ function iostream.IOStream:_read_from_buffer()
 		end
 		
 	elseif self._read_delimiter then
-		local loc = -1
+		local loc
 		
 		if self._read_buffer:not_empty() then
-                        local pos = self._read_buffer:peekfirst():find(self._read_delimiter) or 0
-			loc = ( pos - 1 ) or -1
-		end
-		
-		while loc == -1 and self._read_buffer:size() > 1 do
-			local new_len = max(self._read_buffer:getn(0):len() * 2,
-				(self._read_buffer:getn(0):len() +
-				self._read_buffer:getn(1):len()))
-			self._read_buffer = _merge_prefix(self._read_buffer:peekfirst():find(self._read_delimiter))
-			loc = self._read_buffer:peekfirst():find(self._read_delimiter)
-		end
-		if loc ~= -1 then
-			local callback = self._read_callback
-			local delimiter_len = self._read_delimiter:len()
-			self._read_callback = nil
-			self._streaming_callback = nil
-			self._read_delimiter = nil
-			self:_run_callback(callback, self:_consume(loc + delimiter_len))
-			return true
+                    while true do
+                        loc = self._read_buffer:peekfirst():find(self._read_delimiter)
+                        if (loc) then
+                            local callback = self._read_callback
+                            local delimiter_len = self._read_delimiter:len()
+                            self._read_callback = nil
+                            self._streaming_callback = None
+                            self._read_delimiter = None
+                            self:_run_callback(callback, self:_consume(loc + delimiter_len))
+                            return true
+                        end
+                        if self._read_buffer:size() == 1 then
+                            break
+                        end
+                        _double_prefix(self._read_buffer)
+                    end
 		end
 	
 	elseif self._read_until_close then
