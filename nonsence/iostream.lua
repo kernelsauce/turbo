@@ -64,7 +64,12 @@ local function _merge_prefix(deque, size)
 			deque:appendleft(table.concat(prefix))
 		end
 	end
-	return deque
+end
+
+local function _double_prefix(deque)
+    local new_len = max(deque:peekfirst():len() * 2,
+                        deque:peekfirst():len() + deque:getn(1):len())
+    _merge_prefix(deque, new_len)
 end
 
 iostream.IOStream = class('IOStream')
@@ -413,12 +418,6 @@ function iostream.IOStream:_read_to_buffer()
 	return chunk:len()
 end
 
-local function _double_prefix(deque)
-    local new_len = max(deque:peekfirst():len() * 2,
-                        deque:peekfirst():len() + deque:getn(1):len())
-    _merge_prefix(deque, new_len)
-end
-
 --[[ Attempts to complete the currently pending read from the buffer.
 Returns true if the read was completed.        ]]
 function iostream.IOStream:_read_from_buffer()
@@ -497,7 +496,7 @@ function iostream.IOStream:_handle_write()
                 local errno
                 
 		if not self._write_buffer_frozen then
-			self._write_buffer = _merge_prefix(self._write_buffer, 128 * 1024)
+			_merge_prefix(self._write_buffer, 128 * 1024)
 		end
 
                 local buf = self._write_buffer:peekfirst()
@@ -526,7 +525,7 @@ function iostream.IOStream:_handle_write()
 			break
 		end
 		self._write_buffer_frozen = false
-		self._write_buffer = _merge_prefix(self._write_buffer, num_bytes)
+		_merge_prefix(self._write_buffer, num_bytes)
 		self._write_buffer:popleft()
 	end
 
@@ -560,7 +559,7 @@ function iostream.IOStream:_consume(loc)
 	if loc == 0 then
 		return ""
 	end
-	self._read_buffer =_merge_prefix(self._read_buffer, loc)
+	_merge_prefix(self._read_buffer, loc)
 	self._read_buffer_size = self._read_buffer_size - loc
 	return self._read_buffer:popleft()
 end
