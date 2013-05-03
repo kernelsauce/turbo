@@ -17,8 +17,9 @@ limitations under the License.		]]
 local log = require "log"
 local util = require "util"
 local signal = require "signal"
-require('middleclass')
-require('ansicolors')
+require "middleclass"
+require "nwglobals"
+local NGC = _G.NW_GLOBAL_COUNTER
 
 local ioloop = {} -- ioloop namespace
 
@@ -67,27 +68,42 @@ end
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
 	self._handlers[file_descriptor] = handler
 	self._poll:register(file_descriptor, events)
+        if _G.CONSOLE then
+            NGC.ioloop_add_handler_count = NGC.ioloop_add_handler_count + 1
+            NGC.ioloop_fd_count = NGC.ioloop_fd_count + 1
+        end
 end
 
 function ioloop.IOLoop:update_handler(file_descriptor, events)
+        if _G.CONSOLE then
+            NGC.ioloop_update_handler_count = NGC.ioloop_update_handler_count + 1
+        end
 	self._poll:modify(file_descriptor, events)
 end
 
 function ioloop.IOLoop:remove_handler(file_descriptor)	
-	self._handlers[file_descriptor] = nil
-	self._poll:unregister(file_descriptor)
+    if self._handlers[file_descriptor] then 
+        self._handlers[file_descriptor] = nil
+        self._poll:unregister(file_descriptor)
+        if _G.CONSOLE then
+            NGC.ioloop_fd_count = NGC.ioloop_fd_count - 1
+        end
+    end
 end
 
 
-function ioloop.IOLoop:_run_handler(file_descriptor, events)
-
-    local function _run_handler_err_handler(err)
-        log.error("[ioloop.lua] caught error: " .. err)
-        self:remove_handler(file_descriptor)
+function ioloop.IOLoop:_run_handler(file_descriptor, events)   
+    xpcall(self._handlers[file_descriptor], function(err)
+                log.error("[ioloop.lua] caught error in handler: " .. err)
+                self:remove_handler(file_descriptor)
+                if _G.CONSOLE then
+                    NGC.ioloop_handlers_errors_count = NGC.ioloop_handlers_errors_count + 1
+                end
+            end, file_descriptor, events)
+    
+    if _G.CONSOLE then
+        NGC.ioloop_handlers_called = NGC.ioloop_handlers_called + 1
     end
-   
-    local handler = self._handlers[file_descriptor]
-    xpcall(handler, _run_handler_err_handler, file_descriptor, events)
 end
 
 function ioloop.IOLoop:running() return self._running end
@@ -95,121 +111,156 @@ function ioloop.IOLoop:add_callback(callback) self._callbacks[#self._callbacks +
 function ioloop.IOLoop:list_callbacks() return self._callbacks end
 
 local function error_handler(err)
-	log.error("[ioloop.lua] caught error: " .. err)
-	log.stacktrace(debug.traceback())
+    log.error("[ioloop.lua] caught error in callback: " .. err)
+    log.stacktrace(debug.traceback())
+    if _G.CONSOLE then
+        NGC.ioloop_callbacks_error_count = NGC.ioloop_callbacks_error_count + 1
+    end
 end
-function ioloop.IOLoop:_run_callback(callback)	xpcall(callback, error_handler) end
+
+function ioloop.IOLoop:_run_callback(callback)
+    xpcall(callback, error_handler)
+    if _G.CONSOLE then
+        NGC.ioloop_callbacks_run = NGC.ioloop_callbacks_run + 1
+    end
+end
 
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
-	local i = 1
-        while(true) do
-            if (self._timeouts[i] == nil) then
-                break
-            else
-                i = i + 1
-            end
+    local i = 1
+    while(true) do
+        if (self._timeouts[i] == nil) then
+            break
+        else
+            i = i + 1
         end
+    end
+
+    self._timeouts[i] = _Timeout:new(timestamp, callback)
     
-	self._timeouts[i] = _Timeout:new(timestamp, callback)
-	return i
+    if _G.CONSOLE then
+        NGC.ioloop_timeout_count = NGC.ioloop_timeout_count + 1
+    end
+    return i
 end
 
 function ioloop.IOLoop:remove_timeout(ref)	
-	if self._timeouts[ref] then
-		self._timeouts[ref] = nil
-		return true
-	else
-		return false
-	end
+    if self._timeouts[ref] then
+            self._timeouts[ref] = nil
+            if _G.CONSOLE then
+                NGC.ioloop_timeout_count = NGC.ioloop_timeout_count - 1
+            end
+            return true        
+    else
+            return false
+    end
 end
 
 function ioloop.IOLoop:set_interval(msec, callback)
-	local i = 1
-        while(true) do
-            if (self._intervals[i] == nil) then
-                break
-            else
-                i = i + 1
-            end
+    local i = 1
+    while(true) do
+        if (self._intervals[i] == nil) then
+            break
+        else
+            i = i + 1
         end
-    
-	self._intervals[i] = _Interval:new(msec, callback)
-	return i   
+    end
+
+    self._intervals[i] = _Interval:new(msec, callback)
+    if _G.CONSOLE then
+        NGC.ioloop_interval_count = NGC.ioloop_interval_count + 1
+    end    
+    return i   
 end
 
 function ioloop.IOLoop:clear_interval(ref)
     if (self._intervals[ref]) then
         self._intervals[ref] = nil
+        if _G.CONSOLE then
+            NGC.ioloop_interval_count = NGC.ioloop_interval_count - 1
+        end    
         return true
     else
         return false
     end
 end
-    
-function ioloop.IOLoop:start()	
-	self._running = true
-	log.notice([[[ioloop.lua] IOLoop started running]])
-	while true do
-		local poll_timeout = 3600
-		local callbacks = self._callbacks
-                local time_now = nil
-                self._callbacks = {}
-		
 
-		if #self._timeouts > 0 then
-			for _, timeout in ipairs(self._timeouts) do
-				if timeout:timed_out() then
-					self:_run_callback( timeout:callback() )
-                                        timeout = nil                                        
-				end
-			end
-		end
-                
-                
-                if (#self._intervals > 0) then
-                    if (time_now == nil) then
-                        time_now = util.gettimeofday()
+function ioloop.IOLoop:_start_console_server()
+    local console = require "nwconsoleserver"   
+    
+    local console_server = console.ConsoleServer:new(self)
+    console_server:listen(27000, 0x0)    
+end
+
+function ioloop.IOLoop:start()	
+    self._running = true
+    if _G.CONSOLE then
+        self:_start_console_server()
+    end
+    log.notice([[[ioloop.lua] IOLoop started running]])
+    while true do
+            local poll_timeout = 3600
+            local callbacks = self._callbacks
+            local time_now = nil
+            if _G.CONSOLE then
+                NGC.ioloop_iteration_count = NGC.ioloop_iteration_count + 1
+                NGC.ioloop_callbacks_queue = #callbacks
+            end    
+            self._callbacks = {}
+
+            if #self._timeouts > 0 then
+                    for _, timeout in ipairs(self._timeouts) do
+                            if timeout:timed_out() then
+                                    self:_run_callback( timeout:callback() )
+                                    timeout = nil                                        
+                            end
                     end
-                    for _, interval in ipairs(self._intervals) do
-                        local timed_out = interval:timed_out(time_now)
-                        if (timed_out == 0) then
-                            self:_run_callback(interval.callback)
-                            time_now = util.gettimeofday()
-                            local next_call = interval:set_last_call(time_now)
-                            if (next_call < poll_timeout) then
-                                poll_timeout = next_call
-                            end
-                        else
-                            if (timed_out < poll_timeout) then
-                                poll_timeout = timed_out
-                            end
+            end
+            
+            
+            if (#self._intervals > 0) then
+                if (time_now == nil) then
+                    time_now = util.gettimeofday()
+                end
+                for _, interval in ipairs(self._intervals) do
+                    local timed_out = interval:timed_out(time_now)
+                    if (timed_out == 0) then
+                        self:_run_callback(interval.callback)
+                        time_now = util.gettimeofday()
+                        local next_call = interval:set_last_call(time_now)
+                        if (next_call < poll_timeout) then
+                            poll_timeout = next_call
+                        end
+                    else
+                        if (timed_out < poll_timeout) then
+                            poll_timeout = timed_out
                         end
                     end
                 end
-                
-		
-                for i=1, #callbacks, 1 do 
-			self:_run_callback(callbacks[i])
-		end
-		
-		if #self._callbacks > 0 then
-			poll_timeout = 0
-		end
-                
-		
-		if self._stopped then 
-			self.running = false
-			self.stopped = false
-			break
-		end
-		
-		local events = self._poll:poll(poll_timeout)
-		for i=1, #events do
-			self:_run_handler(events[i][1], events[i][2])
-		end
-		
-	end
+            end
+            
+            
+            for i=1, #callbacks, 1 do 
+                    self:_run_callback(callbacks[i])
+            end
+            
+            if #self._callbacks > 0 then
+                    poll_timeout = 0
+            end
+            
+            
+            if self._stopped then 
+                    self.running = false
+                    self.stopped = false
+                    break
+            end
+            
+            local events = self._poll:poll(poll_timeout)
+            for i=1, #events do
+                    self:_run_handler(events[i][1], events[i][2])
+            end
+            
+    end
 end
 
 function ioloop.IOLoop:close()

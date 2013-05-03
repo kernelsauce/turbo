@@ -22,6 +22,8 @@ local socket = require "socket_ffi"
 local ffi = require "ffi"
 local bit = require "bit"
 require 'middleclass'
+require "nwglobals"
+local NGC = _G.NW_GLOBAL_COUNTER
 local SOL_SOCKET = socket.SOL.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO.SO_REUSEADDR
 local O_NONBLOCK = socket.O.O_NONBLOCK
@@ -54,6 +56,9 @@ local function bind_sockets(port, address, backlog)
         if (fd == -1) then
             errno = ffi.errno()
 	    error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", errno, socket.strerror(errno)))		
+        end
+        if _G.CONSOLE then
+            NGC.tcp_open_sockets = NGC.tcp_open_sockets + 1
         end
         
         local flags = socket.fcntl(fd, F_GETFL, 0);
@@ -120,6 +125,11 @@ local function add_accept_handler(sock, callback, io_loop)
                                                   s_addr_ptr[1],
                                                   s_addr_ptr[2],
                                                   s_addr_ptr[3])
+                    
+                    if _G.CONSOLE then
+                        NGC.tcp_open_sockets = NGC.tcp_open_sockets + 1
+                    end
+                    
                     callback(client_fd, address)
             end
         end)
@@ -191,6 +201,9 @@ function tcpserver.TCPServer:stop()
 	for file_descriptor, socket in pairs(self._sockets) do
 		self.io_loop:remove_handler(file_descriptor)
                 assert(socket.close(socket) == 0)
+                if _G.CONSOLE then
+                    NGC.tcp_open_sockets = NGC.tcp_open_sockets - 1
+                end
 	end
 end
 

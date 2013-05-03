@@ -22,7 +22,8 @@ local response_codes = require "http_response_codes"
 local mime_types = require "mime_types"
 local util = require "util"
 require('middleclass')
-
+require "nwglobals"
+local NGC = _G.NW_GLOBAL_COUNTER
 local is_in = util.is_in
 local fast_assert = util.fast_assert
 
@@ -317,6 +318,10 @@ function web._StaticWebCache:get_file(path)
 	if rc == 0 then
 		self.files[path] = buf
 		log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
+                if _G.CONSOLE then
+                    NGC.static_cache_objects = NGC.static_cache_objects + 1
+                    NGC.static_cache_bytes = NGC.static_cache_bytes + buf:len()
+                end
 		return 0, buf
 	else
 		return -1, nil

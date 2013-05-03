@@ -22,6 +22,8 @@ local socket = require "socket_ffi"
 local bit = require "bit"
 local ffi = require "ffi"
 local util = require "util"
+require "nwglobals"
+local NGC = _G.NW_GLOBAL_COUNTER
 local SOL_SOCKET = socket.SOL.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO.SO_REUSEADDR
 local O_NONBLOCK = socket.O.O_NONBLOCK
@@ -48,7 +50,7 @@ local function _merge_prefix(deque, size)
 		local prefix = {}
 		local remaining = size
 
-		while deque:size() >= 1 and remaining >= 1 do
+		while deque:not_empty() and remaining >= 1 do
 			local chunk = deque:popleft()
 			if chunk:len() > remaining then
 				deque:appendleft(chunk:sub(remaining))
@@ -68,7 +70,7 @@ end
 iostream.IOStream = class('IOStream')
 
 function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_chunk_size)
-	self.socket = assert(provided_socket, [[Please provide a socket for IOStream:new()]])
+	self.socket = assert(provided_socket, "argument #1 for IOStream:new() is empty.")
 	self.io_loop = io_loop or ioloop.instance()
 	self.max_buffer_size = max_buffer_size or 104857600
 	self.read_chunk_size = read_chunk_size or 4096
@@ -96,7 +98,10 @@ function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_
 end
 
 --[[ Connect to a address without blocking.  		]]
-function iostream.IOStream:connect(address, port, family, callback)        
+function iostream.IOStream:connect(address, port, family, callback)
+        assert(type(address) == "string", "argument #1 to connect() not a string.")
+        assert(type(port) == "number", "argument #2 to connect() not a number.")
+        assert((not family or type(family) == "string"), "argument #3 to connect() not a number")
         local sockaddr = ffi.new("struct sockaddr_in")
         local sizeof_sockaddr = ffi.sizeof(sockaddr)
         local rc
@@ -133,23 +138,6 @@ function iostream.IOStream:connect(address, port, family, callback)
         return 0
 end
 
---[[ Call callback when the given pattern is read.   ]]
---function iostream.IOStream:read_until_pattern(pattern, callback)	
-	--assert(( not self._read_callback ), "Already reading.")
-	--self._read_pattern = pattern
-	
-	--while true do
-		--if self:_read_from_buffer() then
-			--return
-		--end
-		--self:_check_closed()
-		--if self:_read_to_buffer() == 0 then
-			---- Buffer exhausted. Break.
-			--break
-		--end
-	--end
-	--self:_add_io_state(ioloop.READ)
---end
 
 --[[ Call callback when the given delimiter is read.        ]]
 function iostream.IOStream:read_until(delimiter, callback)
@@ -256,6 +244,9 @@ function iostream.IOStream:close()
 		
                 --log.devel("[iostream.lua] Closed socket with fd " .. self.socket)
                 socket.close(self.socket)
+                if _G.CONSOLE then
+                    NGC.tcp_open_sockets = NGC.tcp_open_sockets - 1
+                end
                 
 		self.socket = nil
 		if self._close_callback and self._pending_callbacks == 0 then
@@ -379,14 +370,17 @@ function iostream.IOStream:_read_from_socket()
             if errno == EWOULDBLOCK or errno == EAGAIN then
                 return nil
             else
-                socket.close(self.socket)
                 local fd = self.socket
-                self = nil
+                self:close()
                 error(string.format("Error when reading from socket %d. Errno: %d. %s",
                                     fd,
                                     errno,
                                     socket.strerror(errno)))
             end
+        end
+        
+        if _G.CONSOLE then
+            NGC.tcp_recv_bytes = NGC.tcp_recv_bytes + sz
         end
         
         local chunk = ffi.string(buf, sz)
@@ -445,7 +439,8 @@ function iostream.IOStream:_read_from_buffer()
 		local loc = -1
 		
 		if self._read_buffer:not_empty() then
-			loc = ( self._read_buffer:peekfirst():find(self._read_delimiter) - 1 ) or -1
+                        local pos = self._read_buffer:peekfirst():find(self._read_delimiter) or 0
+			loc = ( pos - 1 ) or -1
 		end
 		
 		while loc == -1 and self._read_buffer:size() > 1 do
@@ -481,8 +476,9 @@ function iostream.IOStream:_handle_connect()
             error("[iostream.lua] Could not get socket errors, for fd " .. self.socket)
         else
             if (sockerr ~= 0) then
-                socket.close(self.socket)
-                error(string.format("[iostream.lua] Connect failed with %d, for fd %d", sockerr,  self.socket))
+                local fd = self.socket
+                self:close()
+                error(string.format("[iostream.lua] Connect failed with %d, for fd %d", sockerr,  fd))
             end
         end
         
@@ -511,11 +507,16 @@ function iostream.IOStream:_handle_write()
                         self._write_buffer_frozen = true
                         break
                     end
-                    socket.close(self.socket)
-                    error(string.format("[iostream.lua Errno %d] Error when writing to fd %d, %s",
-                                        errno,
-                                        self.socket,
+                    
+                    local fd = self.socket                    
+                    self:close()
+                    error(string.format("Error when writing to fd %d, %s",
+                                        fd,
                                         socket.strerror(errno)))
+                end
+                
+                if _G.CONSOLE then
+                    NGC.tcp_send_bytes = NGC.tcp_send_bytes + num_bytes
                 end
                 
 		if (num_bytes == 0) then
@@ -564,7 +565,7 @@ end
 
 function iostream.IOStream:_check_closed()
 	if not self.socket then
-		log.error("Stream is closed")
+                error("Socket operation on closed stream.")
 	end
 end
 

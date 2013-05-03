@@ -378,7 +378,7 @@ local function get_socket_error(fd)
     if (rc == 0) then
 	return -1
     else
-	return 0, value
+	return 0, tonumber(value)
     end    
 end
 
