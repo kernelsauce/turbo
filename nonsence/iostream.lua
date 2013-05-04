@@ -103,22 +103,29 @@ function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_
 end
 
 --[[ Connect to a address without blocking.  		]]
-function iostream.IOStream:connect(address, port, family, callback)
+function iostream.IOStream:connect(address, port, family, callback, errhandler)
         assert(type(address) == "string", "argument #1 to connect() not a string.")
         assert(type(port) == "number", "argument #2 to connect() not a number.")
-        assert((not family or type(family) == "string"), "argument #3 to connect() not a number")
+        assert((not family or type(family) == "number"), "argument #3 to connect() not a number")
         local sockaddr = ffi.new("struct sockaddr_in")
         local sizeof_sockaddr = ffi.sizeof(sockaddr)
         local rc
         local errno
+        self._connect_fail_callback = errhandler
         self._connecting = true
         sockaddr.sin_port = socket.htons(port)
         
         if (type(address) == "string" and util.valid_ipv4(address) and family ~= nil) then
             sockaddr.sin_family = family
-            rc = socket.inet_pton(family, address, sockaddr.sin_addr.s_addr)
-            if (rc ~= 0) then
-                return -1, string.format("IP address %s could not be used for this family, please verify.", address)
+            rc = socket.inet_pton(family, address, ffi.cast("void *", sockaddr.sin_addr))
+            if (rc ~= 1) then
+                if (rc == 0) then
+                    return -1, string.format("argument #1 to connect() is not a valid IP string.", address)
+                elseif (rc == -1) then
+                    return -2, string.format("argument #3 to connect() is not a valid AF family.", address)
+                else
+                    return -3, string.format("inet_pton failed with unknown error in connect().", address)
+                end
             end
         else
             local hostinfo = socket.resolv_hostname(address)
@@ -143,6 +150,29 @@ function iostream.IOStream:connect(address, port, family, callback)
         return 0
 end
 
+function iostream.IOStream:_handle_connect()
+        local rc, sockerr = socket.get_socket_error(self.socket)
+        if (rc == -1) then
+            error("[iostream.lua] Could not get socket errors, for fd " .. self.socket)
+        else
+            if (sockerr ~= 0) then
+                local fd = self.socket
+                self:close()
+                local strerror = socket.strerror(sockerr)
+                if (self._connect_fail_callback) then
+                    self:_connect_fail_callback(sockerr, strerror)
+                end
+                error(string.format("[iostream.lua] Connect failed: %s, for fd %d", strerror(sockerr), fd))
+            end
+        end
+        
+	if self._connect_callback then
+		local callback = self._connect_callback
+		self._connect_callback  = nil
+		self:_run_callback(callback)
+	end
+	self._connecting = false
+end
 
 --[[ Call callback when the given delimiter is read.        ]]
 function iostream.IOStream:read_until(delimiter, callback)
@@ -253,7 +283,6 @@ function iostream.IOStream:close()
                     NGC.tcp_open_sockets = NGC.tcp_open_sockets - 1
                 end
                 
-		self.socket = nil
 		if self._close_callback and self._pending_callbacks == 0 then
 			local callback = self._close_callback
 			self._close_callback = nil
@@ -469,26 +498,6 @@ function iostream.IOStream:_read_from_buffer()
 	end
 	
 	return false
-end
-
-function iostream.IOStream:_handle_connect()
-        local rc, sockerr = socket.get_socket_error(self.socket)
-        if (rc == -1) then
-            error("[iostream.lua] Could not get socket errors, for fd " .. self.socket)
-        else
-            if (sockerr ~= 0) then
-                local fd = self.socket
-                self:close()
-                error(string.format("[iostream.lua] Connect failed with %d, for fd %d", sockerr,  fd))
-            end
-        end
-        
-	if self._connect_callback then
-		local callback = self._connect_callback
-		self._connect_callback  = nil
-		self:_run_callback(callback)
-	end
-	self._connecting = false
 end
 
 function iostream.IOStream:_handle_write()
