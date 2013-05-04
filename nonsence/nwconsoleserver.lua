@@ -45,14 +45,15 @@ end
 function console.ConsoleStream:handle_request(data)
     local key = data:sub(1,1)
     if (key == "s") then           -- Statistics
-        self.stream:write(escape.json_encode(NGC).."\n\n")
+        self.stream:write(escape.json_encode(NGC))
         
     elseif (key == "q") then       -- Quit
         self.stream:close()
         self = nil
         return
     end
-    
+
+    self.stream:write("\n\n")    
     self.stream:read_until("\n\n", function(data) self:handle_request(data) end)
 end
 
