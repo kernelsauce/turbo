@@ -197,7 +197,6 @@ function ioloop.IOLoop:start()
     if _G.CONSOLE then
         self:_start_console_server()
     end
-    log.notice([[[ioloop.lua] IOLoop started running]])
     while true do
             local poll_timeout = 3600
             local callbacks = self._callbacks
