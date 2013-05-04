@@ -369,16 +369,17 @@ local function new_nonblock_socket(family, stype, protocol)
 end
 
 local function get_socket_error(fd)
-    local value = ffi.new("int32_t")
-    local rc = ffi.C.setsockopt(fd,
+    local value = ffi.new("int32_t[1]")
+    local socklen = ffi.new("socklen_t[1]", ffi.sizeof("int32_t"))
+    local rc = ffi.C.getsockopt(fd,
 			     SOL.SOL_SOCKET,
 			     SO.SO_ERROR,
 			     ffi.cast("void *", value),
-			     ffi.sizeof("int32_t"))
-    if (rc == 0) then
+			     socklen)
+    if (rc ~= 0) then
 	return -1
     else
-	return 0, tonumber(value)
+	return 0, tonumber(value[0])
     end    
 end
 
