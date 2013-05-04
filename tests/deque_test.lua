@@ -43,7 +43,7 @@ for i = 1, append_n_elements, 1 do
 end
 
 -- Count the amount elements.
-assert(d:size() == append_n_elements, "Wrong amount of elements in deque")
+assert(d:size() == append_n_elements, "Wrong amount of elements in deque, was " .. d:size() .. " expected: " .. append_n_elements)
 
 -- Check if concat function gives right length on return.
 assert(d:concat():len() == append_n_elements * string1:len(), "Wrong concat length")
@@ -75,6 +75,14 @@ end
 
 -- Test not_empty method again
 assert(d:not_empty() == false, "not_empty method returning wrong boolean, should be false")
+
+d:appendleft("pos3")
+d:appendleft("pos2")
+d:appendleft("pos1")
+
+assert(d:getn(0) == "pos1", "wrong value at pos 0, was: " .. d:getn(0))
+assert(d:getn(1) == "pos2", "wrong value at pos 1, was: " .. d:getn(0))
+assert(d:getn(2) == "pos3", "wrong value at pos 2, was: " .. d:getn(0))
 
 -- Another appendleft n elements.
 for i = 1, append_n_elements, 1 do
