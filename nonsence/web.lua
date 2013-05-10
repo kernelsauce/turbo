@@ -22,8 +22,7 @@ local response_codes = require "http_response_codes"
 local mime_types = require "mime_types"
 local util = require "util"
 require('middleclass')
-require "nwglobals"
-local NGC = _G.NW_GLOBAL_COUNTER
+local ngc = require "nwglobals"
 local is_in = util.is_in
 local fast_assert = util.fast_assert
 
@@ -49,13 +48,9 @@ function web.RequestHandler:init(application, request, url_args, kwargs)
 	self._url_args = url_args
 	self.arguments = {}
 	self:clear()
-	
-	local function _on_close_callback()
-		self:on_connection_close()
-	end
 
 	if self.request._request.headers:get("Connection") then
-		self.request.stream:set_close_callback(_on_close_callback)
+		self.request.stream:set_close_callback(function() self:on_connection_close() end)
 	end
 
 	self:on_create(kwargs)
@@ -318,10 +313,8 @@ function web._StaticWebCache:get_file(path)
 	if rc == 0 then
 		self.files[path] = buf
 		log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
-                if _G.CONSOLE then
-                    NGC.static_cache_objects = NGC.static_cache_objects + 1
-                    NGC.static_cache_bytes = NGC.static_cache_bytes + buf:len()
-                end
+                ngc.inc("static_cache_objects", 1)
+                ngc.inc("static_cache_bytes", buf:len())
 		return 0, buf
 	else
 		return -1, nil

@@ -106,6 +106,19 @@ function util.mem_dump(ptr, sz)
 end
 
 
+--[[ Merge two tables to one.   ]]
+function util.tablemerge(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
+
 function util.fast_assert(condition, ...) 
     if not condition then
        if next({...}) then
