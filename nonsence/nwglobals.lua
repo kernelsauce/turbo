@@ -20,6 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."             ]]
 
+local log = require "log"
+
 if not _G.NW_GLOBAL_COUNTER then
     _G.NW_GLOBAL_COUNTER = {
         tcp_recv_bytes = 0,
@@ -47,6 +49,38 @@ if not _G.NW_GLOBAL_COUNTER then
         ioloop_iteration_count = 0,
         static_cache_objects = 0,
         static_cache_bytes = 0,
-        assert_count = 0        
     }
+end
+
+local NGC = _G.NW_GLOBAL_COUNTER
+
+local function _noop() end
+
+local function _ngc_set_real(key, i)
+    NGC[key] = i
+end
+
+local function _ngc_incr_real(key, n)
+    NGC[key] = NGC[key] + n
+end
+
+local function _ngc_decr_real(key, n)
+    NGC[key] = NGC[key] - n
+end
+
+if _G.NW_DEBUG or _G.NW_CONSOLE then
+    return {
+        inc = _ngc_incr_real,
+        dec = _ngc_decr_real,
+        set = _ngc_set_real,
+        ret = function() return NGC end
+    }
+else
+    return {
+        inc = _noop,
+        dec = _noop,
+        set = _noop,
+        ret = _noop
+        
+    }    
 end
