@@ -1,96 +1,74 @@
---[[
-	
-	http://www.opensource.org/licenses/mit-license.php
+--[[ Nonsence Unit test
 
-	"Permission is hereby granted, free of charge, to any person obtaining a copy of
-	this software and associated documentation files (the "Software"), to deal in
-	the Software without restriction, including without limitation the rights to
-	use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-	of the Software, and to permit persons to whom the Software is furnished to do
-	so, subject to the following conditions:
+Copyright 2013 John Abrahamsen
 
-	The above copyright notice and this permission notice shall be included in all
-	copies or substantial portions of the Software.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-	SOFTWARE."
+http://www.apache.org/licenses/LICENSE-2.0
 
-  ]]
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.     ]]
 
-package.path = package.path.. ";../nonsence/?.lua"  
+local nonsence = require 'nonsence'
 
--------------------------------------------------------------------------
---
--- Load modules
---
-local deque = assert(require('deque'), 
-	[[Missing required module: deque]])
--------------------------------------------------------------------------
 
-local d = deque:new()
-local append_n_elements = 20000
-local string1 = "Some string that should be appended"
-local string2 = "Another string that should be appended"
+describe("nonsence deque module", function()     
+    local d
+    it("should be constructed right", function()
+       d = nonsence.deque:new()
+       assert.truthy(instanceOf(nonsence.deque, d))
+    end)
+    
+    local append_n_elements = 20000
+    local string1 = "Some string that should be appended"
+    local string2 = "Another string that should be appended"
+    
+    it("should append correctly", function() 
+        for i = 1, append_n_elements, 1 do
+                d:append(string1)
+        end
+        assert.equal(d:size(), append_n_elements)
+    end)
+    
+    it("concat should give correct length", function()
+        assert.equal(d:concat():len(), append_n_elements * string1:len())   
+    end)
+        
+    it("should support appendleft", function()
+       d:appendleft(string2)
+       assert.equal(d:peekfirst(), string2)
+    end)
+        
+    it("should support popleft", function()
+        assert.equal(d:popleft(), string2)
+        assert.equal(d:popleft(), string1)   
+    end)
 
--- Append n elements to end of deque.
-for i = 1, append_n_elements, 1 do
-	d:append(string1)
-end
-
--- Count the amount elements.
-assert(d:size() == append_n_elements, "Wrong amount of elements in deque, was " .. d:size() .. " expected: " .. append_n_elements)
-
--- Check if concat function gives right length on return.
-assert(d:concat():len() == append_n_elements * string1:len(), "Wrong concat length")
-
--- Test the appendleft method
-d:appendleft(string2)
-
--- Test the peekleft method
-assert(d:peekfirst() == string2, "peekleft method returned wrong value")
-
--- Test the popleft method
-assert(d:popleft() == string2, "popleft method return wrong value")
-assert(d:popleft() == string1, "popleft did not remove the value from queue")
-
--- Test the pop method
-d:append(string1 .. string2)
-assert(d:pop() == string1 .. string2, "pop not working right.")
-
--- Test the pop method again
-assert(d:pop() == string1, "pop not working right")
-
--- Test not_empty method
-assert(d:not_empty() == true, "not_empty method returning wrong boolean, should be true")
-
--- Pop all values of the queue.
-while d:not_empty() == true do
-	d:pop()
-end
-
--- Test not_empty method again
-assert(d:not_empty() == false, "not_empty method returning wrong boolean, should be false")
-
-d:appendleft("pos3")
-d:appendleft("pos2")
-d:appendleft("pos1")
-
-assert(d:getn(0) == "pos1", "wrong value at pos 0, was: " .. d:getn(0))
-assert(d:getn(1) == "pos2", "wrong value at pos 1, was: " .. d:getn(0))
-assert(d:getn(2) == "pos3", "wrong value at pos 2, was: " .. d:getn(0))
-
--- Another appendleft n elements.
-for i = 1, append_n_elements, 1 do
-	d:appendleft(string1)
-	d:append(string2)
-end
-
--- Pop all values of the queue.
-while d:not_empty() == true do
-	d:popleft()
-end
+    it("should support pop", function()
+       d:append(string1 .. string2)
+       assert.equal(d:pop(), string1 .. string2)
+       assert.equal(d:pop(), string1)
+    end)
+    
+    it("must report not empty right", function()
+        assert.truthy(d:not_empty())
+        while d:not_empty() == true do
+            d:pop()
+        end
+        assert.falsy(d:not_empty())
+    end)
+    
+    it("getn should work correctly", function()
+        d:appendleft("pos3")
+        d:appendleft("pos2")
+        d:appendleft("pos1")
+        assert.equal(d:getn(0), "pos1")
+        assert.equal(d:getn(1), "pos2")
+        assert.equal(d:getn(2), "pos3")
+    end)   
+end)
