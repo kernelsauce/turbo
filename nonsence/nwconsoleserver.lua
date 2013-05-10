@@ -17,9 +17,9 @@ limitations under the License.     ]]
 local tcpserver = require "tcpserver"
 local ioloop = require "ioloop"
 local escape = require "escape"
-require "nwglobals"
+local ngc = require "nwglobals"
 require "middleclass"
-local NGC = _G.NW_GLOBAL_COUNTER
+
 
 local console = {} -- console namespace
 
@@ -45,7 +45,7 @@ end
 function console.ConsoleStream:handle_request(data)
     local key = data:sub(1,1)
     if (key == "s") then           -- Statistics
-        self.stream:write(escape.json_encode(NGC))
+        self.stream:write(escape.json_encode(ngc.ret()))
         
     elseif (key == "q") then       -- Quit
         self.stream:close()

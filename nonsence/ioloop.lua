@@ -17,9 +17,9 @@ limitations under the License.		]]
 local log = require "log"
 local util = require "util"
 local signal = require "signal"
+local socket = require "socket_ffi"
 require "middleclass"
-require "nwglobals"
-local NGC = _G.NW_GLOBAL_COUNTER
+local ngc = require "nwglobals"
 
 local ioloop = {} -- ioloop namespace
 
@@ -34,7 +34,7 @@ if pcall(require, 'epoll_ffi') then
 	ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
 	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
 	ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
-	ioloop.ERROR = epoll_ffi.EPOLL_EVENTS.EPOLLERR
+	ioloop.ERROR = bit.bor(epoll_ffi.EPOLL_EVENTS.EPOLLERR, epoll_ffi.EPOLL_EVENTS.EPOLLHUP)
 else
 	-- No poll modules found. Break execution and give error.
 	error([[Could not load a poll module. Make sure you are running this with LuaJIT. Standard Lua is not supported.]])
@@ -66,28 +66,34 @@ function ioloop.IOLoop:init()
 end
 
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
-	self._handlers[file_descriptor] = handler
-	self._poll:register(file_descriptor, events)
-        if _G.CONSOLE then
-            NGC.ioloop_add_handler_count = NGC.ioloop_add_handler_count + 1
-            NGC.ioloop_fd_count = NGC.ioloop_fd_count + 1
+        local rc, errno = self._poll:register(file_descriptor, bit.bor(events, ioloop.ERROR))
+        if (rc ~= 0) then
+            log.notice(string.format("[ioloop.lua] register() in add_handler() failed: %s", socket.strerror(errno)))
+            return -1
         end
+	self._handlers[file_descriptor] = handler
+        ngc.inc("ioloop_add_handler_count", 1)
+        ngc.inc("ioloop_fd_count", 1)
 end
 
 function ioloop.IOLoop:update_handler(file_descriptor, events)
-        if _G.CONSOLE then
-            NGC.ioloop_update_handler_count = NGC.ioloop_update_handler_count + 1
+	local rc, errno = self._poll:modify(file_descriptor, bit.bor(events, ioloop.ERROR))
+        if (rc ~= 0) then
+            log.notice(string.format("[ioloop.lua] register() in update_handler() failed: %s", socket.strerror(errno)))
+            return -1
         end
-	self._poll:modify(file_descriptor, events)
+        ngc.inc("ioloop_update_handler_count", 1)
 end
 
 function ioloop.IOLoop:remove_handler(file_descriptor)	
     if self._handlers[file_descriptor] then 
-        self._handlers[file_descriptor] = nil
-        self._poll:unregister(file_descriptor)
-        if _G.CONSOLE then
-            NGC.ioloop_fd_count = NGC.ioloop_fd_count - 1
+        local rc, errno = self._poll:unregister(file_descriptor)
+        if (rc ~= 0) then
+            log.notice(string.format("[ioloop.lua] register() in remove_handler() failed: %s", socket.strerror(errno)))
+            return -1
         end
+        self._handlers[file_descriptor] = nil
+        ngc.dec("ioloop_fd_count", 1)
     end
 end
 
@@ -96,14 +102,9 @@ function ioloop.IOLoop:_run_handler(file_descriptor, events)
     xpcall(self._handlers[file_descriptor], function(err)
                 log.error("[ioloop.lua] caught error in handler: " .. err)
                 self:remove_handler(file_descriptor)
-                if _G.CONSOLE then
-                    NGC.ioloop_handlers_errors_count = NGC.ioloop_handlers_errors_count + 1
-                end
+                ngc.inc("ioloop_handlers_errors_count", 1)
             end, file_descriptor, events)
-    
-    if _G.CONSOLE then
-        NGC.ioloop_handlers_called = NGC.ioloop_handlers_called + 1
-    end
+    ngc.inc("ioloop_handlers_called", 1)
 end
 
 function ioloop.IOLoop:running() return self._running end
@@ -113,16 +114,12 @@ function ioloop.IOLoop:list_callbacks() return self._callbacks end
 local function error_handler(err)
     log.error("[ioloop.lua] caught error in callback: " .. err)
     log.stacktrace(debug.traceback())
-    if _G.CONSOLE then
-        NGC.ioloop_callbacks_error_count = NGC.ioloop_callbacks_error_count + 1
-    end
+    ngc.inc("ioloop_callbacks_error_count", 1)
 end
 
 function ioloop.IOLoop:_run_callback(callback)
     xpcall(callback, error_handler)
-    if _G.CONSOLE then
-        NGC.ioloop_callbacks_run = NGC.ioloop_callbacks_run + 1
-    end
+    ngc.inc("ioloop_callbacks_run", 1)
 end
 
 
@@ -137,19 +134,14 @@ function ioloop.IOLoop:add_timeout(timestamp, callback)
     end
 
     self._timeouts[i] = _Timeout:new(timestamp, callback)
-    
-    if _G.CONSOLE then
-        NGC.ioloop_timeout_count = NGC.ioloop_timeout_count + 1
-    end
+    ngc.inc("ioloop_timeout_count", 1)
     return i
 end
 
 function ioloop.IOLoop:remove_timeout(ref)	
     if self._timeouts[ref] then
             self._timeouts[ref] = nil
-            if _G.CONSOLE then
-                NGC.ioloop_timeout_count = NGC.ioloop_timeout_count - 1
-            end
+            ngc.dec("ioloop_timeout_count", 1)
             return true        
     else
             return false
@@ -167,18 +159,14 @@ function ioloop.IOLoop:set_interval(msec, callback)
     end
 
     self._intervals[i] = _Interval:new(msec, callback)
-    if _G.CONSOLE then
-        NGC.ioloop_interval_count = NGC.ioloop_interval_count + 1
-    end    
+    ngc.inc("ioloop_interval_count", 1)
     return i   
 end
 
 function ioloop.IOLoop:clear_interval(ref)
     if (self._intervals[ref]) then
         self._intervals[ref] = nil
-        if _G.CONSOLE then
-            NGC.ioloop_interval_count = NGC.ioloop_interval_count - 1
-        end    
+        ngc.dev("ioloop_interval_count", 1)
         return true
     else
         return false
@@ -194,71 +182,73 @@ end
 
 function ioloop.IOLoop:start()	
     self._running = true
-    if _G.CONSOLE then
+    if _G.NW_CONSOLE then
         self:_start_console_server()
     end
-    while true do
-            local poll_timeout = 3600
-            local callbacks = self._callbacks
-            local time_now = nil
-            if _G.CONSOLE then
-                NGC.ioloop_iteration_count = NGC.ioloop_iteration_count + 1
-                NGC.ioloop_callbacks_queue = #callbacks
-            end    
-            self._callbacks = {}
+while true do
+        local poll_timeout = 3600
+        local callbacks = self._callbacks
+        local time_now = nil
+        ngc.inc("ioloop_iteration_count", 1)
+        ngc.set("ioloop_callbacks_queue", #callbacks)
+        self._callbacks = {}
 
-            if #self._timeouts > 0 then
-                    for _, timeout in ipairs(self._timeouts) do
-                            if timeout:timed_out() then
-                                    self:_run_callback( timeout:callback() )
-                                    timeout = nil                                        
-                            end
-                    end
+        for i=1, #callbacks, 1 do 
+                self:_run_callback(callbacks[i])
+        end
+        
+        if #self._callbacks > 0 then
+                poll_timeout = 0
+        end
+        
+        if #self._timeouts > 0 then
+                for _, timeout in ipairs(self._timeouts) do
+                        if timeout:timed_out() then
+                                self:_run_callback( timeout:callback() )
+                                timeout = nil                                        
+                        end
+                end
+        end
+        
+        
+        if (#self._intervals > 0) then
+            if (time_now == nil) then
+                time_now = util.gettimeofday()
             end
-            
-            
-            if (#self._intervals > 0) then
-                if (time_now == nil) then
+            for _, interval in ipairs(self._intervals) do
+                local timed_out = interval:timed_out(time_now)
+                if (timed_out == 0) then
+                    self:_run_callback(interval.callback)
                     time_now = util.gettimeofday()
-                end
-                for _, interval in ipairs(self._intervals) do
-                    local timed_out = interval:timed_out(time_now)
-                    if (timed_out == 0) then
-                        self:_run_callback(interval.callback)
-                        time_now = util.gettimeofday()
-                        local next_call = interval:set_last_call(time_now)
-                        if (next_call < poll_timeout) then
-                            poll_timeout = next_call
-                        end
-                    else
-                        if (timed_out < poll_timeout) then
-                            poll_timeout = timed_out
-                        end
+                    local next_call = interval:set_last_call(time_now)
+                    if (next_call < poll_timeout) then
+                        poll_timeout = next_call
+                    end
+                else
+                    if (timed_out < poll_timeout) then
+                        poll_timeout = timed_out
                     end
                 end
             end
-            
-            
-            for i=1, #callbacks, 1 do 
-                    self:_run_callback(callbacks[i])
-            end
-            
-            if #self._callbacks > 0 then
-                    poll_timeout = 0
-            end
-            
-            
-            if self._stopped then 
-                    self.running = false
-                    self.stopped = false
-                    break
-            end
-            
-            local events = self._poll:poll(poll_timeout)
+        end
+        
+        
+        if self._stopped then 
+                self.running = false
+                self.stopped = false
+                break
+        end
+        
+        local events, errno = self._poll:poll(poll_timeout)
+        if (type(events) == "table") then
             for i=1, #events do
                     self:_run_handler(events[i][1], events[i][2])
             end
-            
+        elseif (type(events) == "number") then
+            if (events == -1) then
+                log.notice(string.format("[ioloop.lua] poll() returned errno %d", errno))
+            end
+        end        
     end
 end
 
@@ -320,17 +310,17 @@ function _EPoll_FFI:fileno()
 end
 
 function _EPoll_FFI:register(file_descriptor, events)
-	epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD, 
+	return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD, 
 		file_descriptor, events)
 end
 
 function _EPoll_FFI:modify(file_descriptor, events)
-	epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD, 
+	return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD, 
 		file_descriptor, events)
 end
 
 function _EPoll_FFI:unregister(file_descriptor)
-	epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
+	return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
 		file_descriptor, 0)	
 end
 
