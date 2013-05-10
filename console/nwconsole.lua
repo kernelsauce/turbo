@@ -20,9 +20,9 @@ require "curses"
 require "os"
 
 local nonsence = require "nonsence"
-local SOCK_STREAM = nonsence.socket.SOCK.SOCK_STREAM
+local SOCK_STREAM = nonsence.socket.SOCK_STREAM
 local INADDRY_ANY = nonsence.socket.INADDR_ANY
-local AF_INET = nonsence.socket.AF.AF_INET
+local AF_INET = nonsence.socket.AF_INET
 
 
 
@@ -52,7 +52,6 @@ local rc, msg = stream:connect(hostname, port, AF_INET, function()
     local stdscr = curses.stdscr()
     stdscr:clear()
 
-    stdscr:mvaddstr(0,0, "Nonsence Web Debug Console")
     local reading = false
     io_loop:set_interval(200, function()
         -- 200 msec loop
@@ -63,8 +62,15 @@ local rc, msg = stream:connect(hostname, port, AF_INET, function()
         stream:write("s\n\n", function()
             reading = true
             stream:read_until("\n\n", function(data)
+                if data:len() == 0 then
+                    os.exit(1)
+                end
                 reading = false
+                stdscr:clear()
+
                 local stats = nonsence.escape.json_decode(data)
+                stdscr:mvaddstr(0,0, "Nonsence Web Debug Console")                
+    
                 stdscr:mvaddstr(2,2, "TCP | Bytes recieved : ")
                 stdscr:mvaddstr(2,60, stats.tcp_recv_bytes .. " B")
                 
@@ -124,9 +130,9 @@ local rc, msg = stream:connect(hostname, port, AF_INET, function()
         end)
         
     end)
-end, function(errno, strerror)
+end, function(_, errno)
     -- On connect fail
-    print(string.format("Could not connect to host %s: %s.", hostname, strerror))
+    print(string.format("Could not connect to host %s: %s.", hostname, nonsence.socket.strerror(errno)))
     os.exit(1)
 end)
 
