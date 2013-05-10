@@ -28,8 +28,10 @@ local escape = require "escape"
 local ffi = require "ffi"
 local libnonsence_parser = ffi.load("libnonsence_parser")
 local util = require "util"
-require('middleclass')
+require "middleclass"
 local fast_assert = util.fast_assert
+local b = string.byte
+
 
 local httputil = {} -- httputil namespace
 
@@ -124,6 +126,10 @@ if not _G.HTTP_PARSER_H then
     /** Check if a given field is set in http_parser_url  */
     extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
     extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
+    /* Return a string name of the given error */
+    const char *http_errno_name(int32_t err);
+    /* Return a string description of the given error */
+    const char *http_errno_description(int32_t err);
     
     void free(void* ptr);
     ]]
@@ -225,13 +231,15 @@ function httputil.HTTPHeaders:init(raw_request_headers)
 	self._header_table = {}
         self._arguments_parsed = false
 	if type(raw_request_headers) == "string" then
-		if (self:update(raw_request_headers) == -1) then
-                    error("[httputil.lua] Malformed HTTP headers.")
-                end
+            local rc, httperrno, errnoname, errnodesc = self:update(raw_request_headers)
+            if (rc == -1) then
+                error(string.format("[httputil.lua] Malformed HTTP headers. %s, %s", errnoname, errnodesc))
+            end
 	end
 end
 
 function httputil.HTTPHeaders:get_url_field(UF_prop)
+        fast_assert(self.http_parser_url, "update() has not been used to parse the URL, get_url_field is not supported.")
         return parse_url_part(self.uri, self.http_parser_url, UF_prop)
 end
 
@@ -317,7 +325,7 @@ function httputil.HTTPHeaders:add(key, value)
 	fast_assert(type(key) == "string", 
 		[[method add key parameter must be a string.]])
 	fast_assert((type(value) == "string" or type(value) == "number"), 
-		[[method add value parameters must be a string.]])
+		[[method add value parameters must be a string or number.]])
 	fast_assert((not self._header_table[key]), 
 		[[trying to add a value to a existing key]])
 	self._header_table[key] = value
@@ -331,7 +339,7 @@ function httputil.HTTPHeaders:set(key, value)
 	fast_assert(type(key) == "string", 
 		[[method add key parameter must be a string.]])
 	fast_assert((type(value) == "string" or type(value) == "number"), 
-		[[method add value parameters must be a string.]])
+		[[method add value parameters must be a string or number.]])
 	
 	self._header_table[key]	= value
 end
@@ -352,8 +360,10 @@ function httputil.HTTPHeaders:update(raw_headers)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
+        local errno_name = libnonsence_parser.http_errno_name(self.errno)
+        local errno_desc = libnonsence_parser.http_errno_description(self.errno)
         libnonsence_parser.nonsence_parser_wrapper_exit(nw)
-        return -1
+        return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
     end
     
     if (sz > 0) then      
@@ -388,7 +398,11 @@ function httputil.HTTPHeaders:__tostring()
 	for key, value in pairs(self._header_table) do
 		buffer:append(string.format("%s: %s\r\n", key , value));
 	end
-        return string.format("%s %d %s\r\n%s\r\n", self.version, self.status_code, status_codes[self.status_code], buffer:concat())
+        return string.format("%s %d %s\r\n%s\r\n",
+                             self.version,
+                             self.status_code,
+                             status_codes[self.status_code],
+                             buffer:concat())
 end
 
 
@@ -415,7 +429,6 @@ function httputil.parse_post_arguments(data)
 	end
 	return arguments
 end
-
 
 --[[ Parse multipart form data.    ]]
 function httputil.parse_multipart_data(data)  
