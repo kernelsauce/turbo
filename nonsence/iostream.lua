@@ -22,16 +22,15 @@ local socket = require "socket_ffi"
 local bit = require "bit"
 local ffi = require "ffi"
 local util = require "util"
-require "nwglobals"
-local NGC = _G.NW_GLOBAL_COUNTER
-local SOL_SOCKET = socket.SOL.SOL_SOCKET
-local SO_RESUSEADDR = socket.SO.SO_REUSEADDR
-local O_NONBLOCK = socket.O.O_NONBLOCK
-local F_SETFL = socket.F.F_SETFL
-local F_GETFL = socket.F.F_GETFL
-local SOCK_STREAM = socket.SOCK.SOCK_STREAM
+local ngc = require "nwglobals"
+local SOL_SOCKET = socket.SOL_SOCKET
+local SO_RESUSEADDR = socket.SO_REUSEADDR
+local O_NONBLOCK = socket.O_NONBLOCK
+local F_SETFL = socket.F_SETFL
+local F_GETFL = socket.F_GETFL
+local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET = socket.AF.AF_INET
+local AF_INET = socket.AF_INET
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EINPROGRESS = socket.EINPROGRESS
 local EAGAIN = socket.EAGAIN
@@ -279,9 +278,8 @@ function iostream.IOStream:close()
 		
                 --log.devel("[iostream.lua] Closed socket with fd " .. self.socket)
                 socket.close(self.socket)
-                if _G.CONSOLE then
-                    NGC.tcp_open_sockets = NGC.tcp_open_sockets - 1
-                end
+                ngc.dec("tcp_open_sockets", 1)                
+                self.socket = nil
                 
 		if self._close_callback and self._pending_callbacks == 0 then
 			local callback = self._close_callback
@@ -322,6 +320,10 @@ function iostream.IOStream:_handle_events(file_descriptor, events)
 	end
 
 	if bitand(events, ioloop.ERROR) ~= 0 then
+                local rc, err = socket.get_socket_error(self.socket)
+                if rc == 0 then
+                    self.error = err
+                end
 		-- We may have queued up a user callback in _handle_read or
 		-- _handle_write, so don't close the IOStream until those
 		-- callbacks have had a chance to run.
@@ -413,10 +415,7 @@ function iostream.IOStream:_read_from_socket()
             end
         end
         
-        if _G.CONSOLE then
-            NGC.tcp_recv_bytes = NGC.tcp_recv_bytes + sz
-        end
-        
+        ngc.inc("tcp_recv_bytes", sz)
         local chunk = ffi.string(buf, sz)
 	if not chunk then
 		self:close()
@@ -525,10 +524,7 @@ function iostream.IOStream:_handle_write()
                                         socket.strerror(errno)))
                 end
                 
-                if _G.CONSOLE then
-                    NGC.tcp_send_bytes = NGC.tcp_send_bytes + num_bytes
-                end
-                
+                ngc.inc("tcp_send_bytes", num_bytes)                
 		if (num_bytes == 0) then
 			self._write_buffer_frozen = true
 			break

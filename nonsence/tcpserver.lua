@@ -19,123 +19,24 @@ local util = require "util"
 local iostream = require "iostream"
 local ioloop = require "ioloop"
 local socket = require "socket_ffi"
+local sockutil = require "sockutil"
 local ffi = require "ffi"
 local bit = require "bit"
 require 'middleclass'
-require "nwglobals"
-local NGC = _G.NW_GLOBAL_COUNTER
-local SOL_SOCKET = socket.SOL.SOL_SOCKET
-local SO_RESUSEADDR = socket.SO.SO_REUSEADDR
-local O_NONBLOCK = socket.O.O_NONBLOCK
-local F_SETFL = socket.F.F_SETFL
-local F_GETFL = socket.F.F_GETFL
-local SOCK_STREAM = socket.SOCK.SOCK_STREAM
+local ngc = require "nwglobals"
+
+local SOL_SOCKET = socket.SOL_SOCKET
+local SO_RESUSEADDR = socket.SO_REUSEADDR
+local O_NONBLOCK = socket.O_NONBLOCK
+local F_SETFL = socket.F_SETFL
+local F_GETFL = socket.F_GETFL
+local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET = socket.AF.AF_INET
+local AF_INET = socket.AF_INET
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EAGAIN = socket.EAGAIN
 
 local tcpserver = {}  -- tcpserver namespace
-
-
---[[ Binds sockets to port and address.
-If not address is defined then * will be used.
-If no backlog size is given then 128 connections will be used.      ]]
-local function bind_sockets(port, address, backlog)
-	local backlog = backlog or 128
-	local address = address or INADDRY_ANY
-	local serv_addr = ffi.new("struct sockaddr_in") 
-        local errno
-        local rc
-        
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_addr.s_addr = socket.htonl(address);
-        serv_addr.sin_port = socket.htons(port);
-        
-        local fd = socket.socket(AF_INET, SOCK_STREAM, 0)
-        if (fd == -1) then
-            errno = ffi.errno()
-	    error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", errno, socket.strerror(errno)))		
-        end
-        if _G.CONSOLE then
-            NGC.tcp_open_sockets = NGC.tcp_open_sockets + 1
-        end
-        
-        local flags = socket.fcntl(fd, F_GETFL, 0);
-        if (flags == -1) then
-            error("[iostream.lua] fcntl GETFL failed.")
-        end
-        flags = bit.bor(flags, O_NONBLOCK)
-        rc = socket.fcntl(fd, F_SETFL, flags)
-        if (rc == -1) then
-            error("[iostream.lua] fcntl set O_NONBLOCK failed.")
-        end      
-
-        local setopt = ffi.new("int32_t[1]", 1)
-        rc = socket.setsockopt(fd,
-                                 SOL_SOCKET,
-                                 SO_RESUSEADDR,
-                                 setopt,
-                                 ffi.sizeof("int32_t"))
-        if (rc > 0) then
-            error("[tcpserver.lua] setsockopt SO_REUSEADDR failed.")
-        end
-
-	if (socket.bind(fd, ffi.cast("struct sockaddr *", serv_addr), ffi.sizeof(serv_addr)) ~= 0) then
-		errno = ffi.errno()
-		error(string.format("[tcpserver.lua Errno %d] Could not bind to address. %s", errno, socket.strerror(errno)))		
-	end
-
-	if (socket.listen(fd, backlog) ~= 0) then 
-		errno = ffi.errno()
-		error(string.format("[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s", errno, fd, socket.strerror(errno)))
-	end
-        
-        --log.devel(string.format("[tcpserver.lua] Listening to socket fd %d", fd))
-	return fd
-end
-
-
---[[ Add accept handler for socket with given callback. Either supply a IOLoop object, or the global instance will be used...   ]]
-local function add_accept_handler(sock, callback, io_loop)	
-	local io_loop = io_loop or ioloop.instance()
-	io_loop:add_handler(sock, ioloop.READ, function(fd, events)
-            while true do
-                    local errno
-                    local client_addr = ffi.new("struct sockaddr")
-                    local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
-                    --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
-                    local client_fd = socket.accept(fd, client_addr, client_addr_sz)
-
-                    if (client_fd == -1) then
-                        errno = ffi.errno()
-                        if (errno == EWOULDBLOCK or errno == EAGAIN) then
-                            break
-                        else
-                            log.error(string.format("[tcpserver.lua Errno %d] Could not accept connection. %s", errno, socket.strerror(errno)))
-                            break
-                        end
-                    end
-                    
-                    local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
-                    local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
-                    
-                    local address = string.format("%d.%d.%d.%d",
-                                                  s_addr_ptr[0],
-                                                  s_addr_ptr[1],
-                                                  s_addr_ptr[2],
-                                                  s_addr_ptr[3])
-                    
-                    if _G.CONSOLE then
-                        NGC.tcp_open_sockets = NGC.tcp_open_sockets + 1
-                    end
-                    
-                    callback(client_fd, address)
-            end
-        end)
-end
-
-
 
 tcpserver.TCPServer = class('TCPServer')
 
@@ -151,7 +52,7 @@ end
 If no address is supplied, * will be used.     ]]
 function tcpserver.TCPServer:listen(port, address)
 	assert(port, [[Please specify port for listen() method]])
-	local sock = bind_sockets(port, address, 1024)
+	local sock = sockutil.bind_sockets(port, address, 1024)
 	log.notice("[tcpserver.lua] TCPServer listening on port: " .. port)
 	self:add_sockets({sock})
 end
@@ -165,7 +66,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
 	
 	for _, sock in ipairs(sockets) do
 		self._sockets[sock] = sock
-		add_accept_handler(sock,
+		sockutil.add_accept_handler(sock,
                                    function(connection, address) self:_handle_connection(connection, address) end,
                                    self.io_loop)
 	end
@@ -179,7 +80,7 @@ end
 function tcpserver.TCPServer:bind(port, address, backlog)
 	
 	local backlog = backlog or 128
-	local sockets = bind_sockets(port, address, backlog)
+	local sockets = sockutil.bind_sockets(port, address, backlog)
 	if self._started then
 		self:add_sockets(sockets)
 	else
@@ -201,9 +102,7 @@ function tcpserver.TCPServer:stop()
 	for file_descriptor, socket in pairs(self._sockets) do
 		self.io_loop:remove_handler(file_descriptor)
                 assert(socket.close(socket) == 0)
-                if _G.CONSOLE then
-                    NGC.tcp_open_sockets = NGC.tcp_open_sockets - 1
-                end
+                ngc.dec("tcp_open_sockets", 1)
 	end
 end
 
