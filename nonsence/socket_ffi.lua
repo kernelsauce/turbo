@@ -69,10 +69,6 @@ if not _G.SOCKET_H then
     extern int32_t dup(int32_t oldfd);
     extern int32_t close (int fd);
     extern int32_t connect (int32_t fd, const struct sockaddr * addr, socklen_t len);
-    extern int64_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
-    extern int64_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
-    extern int64_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
-    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);
     extern int32_t setsockopt (int32_t fd, int32_t level, int32_t optname, const void *optval, socklen_t optlen);
     extern int32_t getsockopt (int32_t fd, int32_t level, int32_t optname, void * optval, socklen_t * optlen);
     extern int32_t accept (int32_t fd, struct sockaddr * addr, socklen_t * addr_len);
@@ -85,6 +81,22 @@ if not _G.SOCKET_H then
     extern char *inet_ntoa (struct in_addr in);
     extern int32_t fcntl (int32_t fd, int32_t cmd, int32_t opt); /* Notice the non canonical form, int32_t instead of ...     */
     ]])
+    
+    if ffi.abi("32bit") then
+	ffi.cdef [[
+	    extern int32_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
+	    extern int32_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
+	    extern int32_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
+	    extern int32_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);
+	]]
+    elseif ffi.abi("64bit") then
+	ffi.cdef [[
+	    extern int64_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
+	    extern int64_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
+	    extern int64_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
+	    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);	    
+	]]
+    end
 end
 
 local octal = function (s) return tonumber(s, 8) end
