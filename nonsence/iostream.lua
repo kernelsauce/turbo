@@ -42,27 +42,27 @@ local iostream = {} -- iostream namespace
 
 --[[ Replace the first entries in a deque of strings with a single string of up to size bytes.         ]]
 local function _merge_prefix(deque, size)
-	if size then
-		if deque:size() == 1 and deque:peekfirst():len() <= size then
-			return deque
-		end
-		local prefix = {}
-		local remaining = size
-
-		while deque:not_empty() and remaining >= 1 do
-			local chunk = deque:popleft()
-			if chunk:len() > remaining then
-				deque:appendleft(chunk:sub(remaining))
-				chunk = chunk:sub(1, remaining)
-			end
-			prefix[#prefix + 1] = chunk
-			remaining = remaining - chunk:len()
-		end
-
-		if #prefix >= 1 then
-			deque:appendleft(table.concat(prefix))
-		end
+    if size then
+	if deque:size() == 1 and deque:peekfirst():len() <= size then
+		return deque
 	end
+	local prefix = {}
+	local remaining = size
+
+	while deque:not_empty() and remaining >= 1 do
+	    local chunk = deque:popleft()
+	    if chunk:len() > remaining then
+		    deque:appendleft(chunk:sub(remaining))
+		    chunk = chunk:sub(1, remaining)
+	    end
+	    prefix[#prefix + 1] = chunk
+	    remaining = remaining - chunk:len()
+	end
+
+	if #prefix >= 1 then
+		deque:appendleft(table.concat(prefix))
+	end
+    end
 end
 
 local function _double_prefix(deque)
@@ -74,31 +74,31 @@ end
 iostream.IOStream = class('IOStream')
 
 function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_chunk_size)
-	self.socket = assert(provided_socket, "argument #1 for IOStream:new() is empty.")
-	self.io_loop = io_loop or ioloop.instance()
-	self.max_buffer_size = max_buffer_size or 104857600
-	self.read_chunk_size = read_chunk_size or 4096
-	self._read_buffer = deque:new()
-	self._write_buffer = deque:new()
-	self._read_buffer_size = 0
-	self._write_buffer_frozen = false
-	self._read_delimiter = nil
-	self._read_pattern = nil
-	self._read_bytes = nil
-	self._read_until_close = false
-	self._read_callback = nil
-	self._streaming_callback = nil
-	self._write_callback = nil
-	self._close_callback = nil
-	self._connect_callback = nil
-	self._connecting = false
-	self._state = nil
-	self._pending_callbacks = 0
-        
-        local rc, msg = socket.set_nonblock_flag(self.socket)
-        if (rc == -1) then
-            error("[iostream.lua] " .. msg)
-        end
+    self.socket = assert(provided_socket, "argument #1 for IOStream:new() is empty.")
+    self.io_loop = io_loop or ioloop.instance()
+    self.max_buffer_size = max_buffer_size or 104857600
+    self.read_chunk_size = read_chunk_size or 4096
+    self._read_buffer = deque:new()
+    self._write_buffer = deque:new()
+    self._read_buffer_size = 0
+    self._write_buffer_frozen = false
+    self._read_delimiter = nil
+    self._read_pattern = nil
+    self._read_bytes = nil
+    self._read_until_close = false
+    self._read_callback = nil
+    self._streaming_callback = nil
+    self._write_callback = nil
+    self._close_callback = nil
+    self._connect_callback = nil
+    self._connecting = false
+    self._state = nil
+    self._pending_callbacks = 0
+    
+    local rc, msg = socket.set_nonblock_flag(self.socket)
+    if (rc == -1) then
+	error("[iostream.lua] " .. msg)
+    end
 end
 
 --[[ Connect to a address without blocking.  		]]
@@ -175,20 +175,10 @@ end
 
 --[[ Call callback when the given delimiter is read.        ]]
 function iostream.IOStream:read_until(delimiter, callback)
-	assert(( not self._read_callback ), "Already reading.")
-	self._read_delimiter = delimiter
-	self._read_callback = callback
-	while true do 
-		-- See if we already got the data from a previous read.
-		if self:_read_from_buffer() then
-			return
-		end
-		self:_check_closed()
-		if self:_read_to_buffer() == 0 then
-			break
-		end
-	end
-	self:_add_io_state(ioloop.READ)
+    assert(( not self._read_callback ), "Already reading.")
+    self._read_delimiter = delimiter
+    self._read_callback = callback
+    self:_initial_read()
 end
 
 
@@ -196,21 +186,12 @@ end
 If a streaming_callback argument is given, it will be called with chunks of data as they become available, 
 and the argument to the final call to callback will be empty.  ]]
 function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
-	assert(( not self._read_callback ), "Already reading.")
-	assert(type(num_bytes) == 'number', 'num_bytes argument must be a number')
-	self._read_bytes = num_bytes
-	self._read_callback = callback
-	self._streaming_callback = streaming_callback
-	while true do
-		if self:_read_from_buffer() then
-			return
-		end
-		self:_check_closed()
-		if self:_read_to_buffer() == 0 then 
-			break
-		end
-	end
-	self:_add_io_state(ioloop.READ)
+    assert(( not self._read_callback ), "Already reading.")
+    assert(type(num_bytes) == 'number', 'num_bytes argument must be a number')
+    self._read_bytes = num_bytes
+    self._read_callback = callback
+    self._streaming_callback = streaming_callback
+    self:_initial_read()
 end
 
 
@@ -222,15 +203,35 @@ final call to callback will be empty.
 
 This method respects the max_buffer_size set in the IOStream object.   ]]
 function iostream.IOStream:read_until_close(callback, streaming_callback)	
-	assert(( not self._read_callback ), "Already reading.")
-	if self:closed() then
-		self:_run_callback(callback, self:_consume(self._read_buffer_size))
-		return
-	end
-	self._read_until_close = true
-	self._read_callback = callback
-	self._streaming_callback = streaming_callback
-	self:_add_io_state(ioloop.READ)
+    assert(( not self._read_callback ), "Already reading.")
+    if self:closed() then
+	    self:_run_callback(callback, self:_consume(self._read_buffer_size))
+	    return
+    end
+    self._read_until_close = true
+    self._read_callback = callback
+    self._streaming_callback = streaming_callback
+    self:_add_io_state(ioloop.READ)
+end
+
+function iostream.IOStream:_initial_read()
+    while true do 
+	    if self:_read_from_buffer() then
+		    return
+	    end
+	    self:_check_closed()
+	    if self:_read_to_buffer() == 0 then
+		    break
+	    end
+    end
+    self:_add_io_state(ioloop.READ)
+end
+
+function iostream.IOStream:read_until_pattern(lpattern, callback)
+    assert(type(lpattern) == "string", "lpattern parameter not a string.")
+    self._read_callback = callback
+    self._read_pattern = lpattern
+    self:_initial_read()
 end
 
 --[[ Write the given data to this stream.
@@ -240,8 +241,7 @@ data has been successfully written to the stream. If there was
 previously buffered write data and an old write callback, that
 callback is simply overwritten with this new callback.    ]]
 function iostream.IOStream:write(data, callback)
-	assert((type(data) == 'string'),
-		[[data argument to write() is not a string]])
+	assert((type(data) == 'string'), [[data argument to write() is not a string]])
 	self:_check_closed()
 	if data then
 		self._write_buffer:append(data)
@@ -263,40 +263,39 @@ end
 
 --[[ Close this stream and clean up.      ]]
 function iostream.IOStream:close()
-	if self.socket then
-		if self._read_until_close then
-			local callback = self._read_callback
-			self._read_callback = nil
-			self._read_until_close = false
-			self:_run_callback(callback, 
-				self:_consume(self._read_buffer_size))
-		end
-		if self._state then
-			self.io_loop:remove_handler(self.socket)
-			self._state = nil
-		end
-		
-                --log.devel("[iostream.lua] Closed socket with fd " .. self.socket)
-                socket.close(self.socket)
-                ngc.dec("tcp_open_sockets", 1)                
-                self.socket = nil
-                
-		if self._close_callback and self._pending_callbacks == 0 then
-			local callback = self._close_callback
-			self._close_callback = nil
-			self:_run_callback(callback)
-		end
+    if self.socket then
+	if self._read_until_close then
+		local callback = self._read_callback
+		self._read_callback = nil
+		self._read_until_close = false
+		self:_run_callback(callback, 
+			self:_consume(self._read_buffer_size))
 	end
+	if self._state then
+		self.io_loop:remove_handler(self.socket)
+		self._state = nil
+	end
+	
+	--log.devel("[iostream.lua] Closed socket with fd " .. self.socket)
+	socket.close(self.socket)
+	ngc.dec("tcp_open_sockets", 1)                
+	self.socket = nil
+	
+	if self._close_callback and self._pending_callbacks == 0 then
+		local callback = self._close_callback
+		self._close_callback = nil
+		self:_run_callback(callback)
+	end
+    end
 end
 
 
 --[[ Main event handler for the IOStream.     ]]
-function iostream.IOStream:_handle_events(file_descriptor, events)	
+function iostream.IOStream:_handle_events(fd, events)	
 	if not self.socket then 
-		-- Connection has been closed. Can not handle events...
-		log.warning([[_handle_events() got events for closed stream ]] ..
-			file_descriptor)
-		return
+	    -- Connection has been closed. Can not handle events...
+	    log.warning([[_handle_events() got events for closed stream ]] .. fd)
+	    return
 	end
 
 	-- Handle different events.
@@ -361,17 +360,17 @@ function iostream.IOStream:_run_callback(callback, ...)
 end
 
 function iostream.IOStream:_handle_read()
-	while true do
-		-- Read from socket until we get EWOULDBLOCK or equivalient.
-		local result = self:_read_to_buffer()
-		if result == 0 then
-			break
-		else
-			if self:_read_from_buffer() then
-				return
-			end
+    while true do
+	-- Read from socket until we get EWOULDBLOCK or equivalient.
+	local result = self:_read_to_buffer()
+	if result == 0 then
+		break
+	else
+		if self:_read_from_buffer() then
+			return
 		end
 	end
+    end
 end
 
 --[[ Are the stream currently being read from?   ]]
@@ -449,96 +448,109 @@ end
 --[[ Attempts to complete the currently pending read from the buffer.
 Returns true if the read was completed.        ]]
 function iostream.IOStream:_read_from_buffer()
-	if self._read_bytes ~= nil then
-		if self._streaming_callback ~= nil and self._read_buffer_size then
-			local bytes_to_consume = min(self._read_bytes, self._read_buffer_size)
-			self._read_bytes = self._read_bytes - bytes_to_consume
-			self:_run_callback(self._streaming_callback, 
-				self:_consume(bytes_to_consume))
-		end
-
-		if self._read_buffer_size >= self._read_bytes then
-			local num_bytes = self._read_bytes
-			local callback = self._read_callback
-			self._read_callback = nil
-			self._streaming_callback = nil
-			self._read_bytes = nil
-			self:_run_callback(callback, self:_consume(num_bytes))
-			return true
-		end
-		
-	elseif self._read_delimiter then
-		local loc
-		
-		if self._read_buffer:not_empty() then
-                    while true do
-                        loc = self._read_buffer:peekfirst():find(self._read_delimiter)
-                        if (loc) then
-                            local callback = self._read_callback
-                            local delimiter_len = self._read_delimiter:len()
-                            self._read_callback = nil
-                            self._streaming_callback = None
-                            self._read_delimiter = None
-                            self:_run_callback(callback, self:_consume(loc + delimiter_len))
-                            return true
-                        end
-                        if self._read_buffer:size() == 1 then
-                            break
-                        end
-                        _double_prefix(self._read_buffer)
-                    end
-		end
-	
-	elseif self._read_until_close then
-			if self._streaming_callback ~= nil and self._read_buffer_size then
-				self:_run_callback(self._streaming_callback, 
-					self:_consume(self._read_buffer_size))
-			end
+    if (self._streaming_callback ~= nil and self._read_buffer_size) then
+	local bytes_to_consume = self._read_buffer_size
+	if (self.read_bytes ~= nil) then
+	    bytes_to_consume = min(self._read_bytes, bytes_to_consume)
+	    self._read_bytes = self._read_bytes - bytes_to_consume
+	    self:_run_callback(self._streaming_callback, function()
+		self:_consume(bytes_to_consume)
+	    end)
 	end
+    end
+
+    if (self._read_bytes ~= nil and self._read_buffer_size >= self._read_bytes) then
+	local num_bytes = self._read_bytes
+	local callback = self._read_callback
+	self._read_callback = nil
+	self._streaming_callback = nil
+	self._read_bytes = nil
+	self:_run_callback(callback, self:_consume(num_bytes))
+	return true
 	
-	return false
+    elseif (self._read_delimiter ~= nil) then
+	local loc
+	if (self._read_buffer:not_empty()) then
+	    while true do
+		loc = self._read_buffer:peekfirst():find(self._read_delimiter)
+		if (loc) then
+		    local callback = self._read_callback
+		    local delimiter_len = self._read_delimiter:len()
+		    self._read_callback = nil
+		    self._streaming_callback = None
+		    self._read_delimiter = None
+		    self:_run_callback(callback, self:_consume(loc + delimiter_len))
+		    return true
+		end
+		if (self._read_buffer:size() == 1) then
+		    break
+		end
+		_double_prefix(self._read_buffer)
+	    end
+	end
+    
+    elseif (self._read_until_pattern ~= nil) then
+	if (self._read_buffer) then
+	    while true do
+		local chunk = self._read_buffer:peekleft()
+		local s_start, s_end = chunk:find(self._read_pattern)
+		if (s_start) then
+		    local callback = self._read_callback
+		    self._read_callback = nil
+		    self._streaming_callback = nil
+		    self._read_pattern = nil
+		    self._run_callback(callback, self:consume(s_end))
+		    return true
+		end
+		if (self._read_buffer:strlen() == 1) then -- FIXME: Can use self._read_buffer_size ?
+		    break
+		end
+		_double_prefix(self._read_buffer)
+	    end
+	end
+    end
+    
+    return false
 end
 
 function iostream.IOStream:_handle_write()
-	while self._write_buffer:not_empty() do
-                local errno
-                
-		if not self._write_buffer_frozen then
-			_merge_prefix(self._write_buffer, 128 * 1024)
-		end
+    while self._write_buffer:not_empty() do
+	local errno
+	
+	--if not self._write_buffer_frozen then
+	    --_merge_prefix(self._write_buffer, 128 * 1024)
+	--end
 
-                local buf = self._write_buffer:peekfirst()
-                local num_bytes = tonumber(socket.send(self.socket, buf, buf:len(), 0))
-                
-                if (num_bytes == -1) then
-                    errno = ffi.errno()
-                    if (errno == EWOULDBLOCK or errno == EAGAIN) then
-                        self._write_buffer_frozen = true
-                        break
-                    end
-                    
-                    local fd = self.socket                    
-                    self:close()
-                    error(string.format("Error when writing to fd %d, %s",
-                                        fd,
-                                        socket.strerror(errno)))
-                end
-                
-                ngc.inc("tcp_send_bytes", num_bytes)                
-		if (num_bytes == 0) then
-			self._write_buffer_frozen = true
-			break
-		end
-		self._write_buffer_frozen = false
-		_merge_prefix(self._write_buffer, num_bytes)
-		self._write_buffer:popleft()
+	local buf = self._write_buffer:peekfirst()
+	local num_bytes = tonumber(socket.send(self.socket, buf, buf:len(), 0))
+	
+	if (num_bytes == -1) then
+	    errno = ffi.errno()
+	    if (errno == EWOULDBLOCK or errno == EAGAIN) then
+		self._write_buffer_frozen = true
+		break
+	    end
+	    
+	    local fd = self.socket                    
+	    self:close()
+	    error(string.format("Error when writing to fd %d, %s", fd, socket.strerror(errno)))
 	end
+	
+	ngc.inc("tcp_send_bytes", num_bytes)                
+	if (num_bytes == 0) then
+		self._write_buffer_frozen = true
+		break
+	end
+	self._write_buffer_frozen = false
+	_merge_prefix(self._write_buffer, num_bytes)
+	self._write_buffer:popleft()
+    end
 
-	if self._write_buffer:not_empty() == false and self._write_callback then
-		local callback = self._write_callback
-		self._write_callback = nil
-		self:_run_callback(callback)
-	end
+    if self._write_buffer:not_empty() == false and self._write_callback then
+	local callback = self._write_callback
+	self._write_callback = nil
+	self:_run_callback(callback)
+    end
 end
 
 --[[ Add IO state to IOLoop.         ]]
@@ -560,7 +572,6 @@ function iostream.IOStream:_add_io_state(state)
 end
 
 function iostream.IOStream:_consume(loc)
-
 	if loc == 0 then
 		return ""
 	end
@@ -576,7 +587,6 @@ function iostream.IOStream:_check_closed()
 end
 
 function iostream.IOStream:_maybe_add_error_listener()
-
 	if self._state == nil and self._pending_callbacks == 0 then
 		if self.socket == nil then
 			local callback = self._close_callback

@@ -17,7 +17,7 @@ limitations under the License.     ]]
 local nonsence = require "nonsence"
 
 nonsence.web.Application:new({
-	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www"},
+	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
 }):listen(8888)
 
 nonsence.ioloop.instance():start()
