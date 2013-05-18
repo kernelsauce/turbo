@@ -119,10 +119,11 @@ if not _G.HTTP_PARSER_H then
     
     };
     
-    extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len);
+    extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len, int32_t type);
     /** Free memory and memset 0 if PARANOID is defined.   */
     extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src);
     
+    int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
     /** Check if a given field is set in http_parser_url  */
     extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
     extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
@@ -177,7 +178,7 @@ httputil.UF = {
 
 
 local function parse_url_part(uri_str, http_parser_url, UF_prop)
-    if libnonsence_parser.url_field_is_set(http_parser_url, UF_prop) then
+    if (libnonsence_parser.url_field_is_set(http_parser_url, UF_prop) == true) then
         local field = libnonsence_parser.url_field(uri_str, http_parser_url, UF_prop)
         local field_lua = ffi.string(field)
         ffi.C.free(field)
@@ -231,15 +232,27 @@ function httputil.HTTPHeaders:init(raw_request_headers)
 	self._header_table = {}
         self._arguments_parsed = false
 	if type(raw_request_headers) == "string" then
-            local rc, httperrno, errnoname, errnodesc = self:update(raw_request_headers)
+            local rc, httperrno, errnoname, errnodesc = self:parse_request_header(raw_request_headers)
             if (rc == -1) then
                 error(string.format("[httputil.lua] Malformed HTTP headers. %s, %s", errnoname, errnodesc))
             end
 	end
 end
 
+function httputil.HTTPHeaders:parse_url(url)
+        local http_parser_url = ffi.new("struct http_parser_url")
+        local rc = libnonsence_parser.http_parser_parse_url(url, url:len(), 0, http_parser_url)
+        if (rc ~= 0) then
+            return -1
+        else
+            self.http_parser_url = http_parser_url
+            self:set_uri(url)
+            return 0
+        end
+end
+
 function httputil.HTTPHeaders:get_url_field(UF_prop)
-        fast_assert(self.http_parser_url, "update() has not been used to parse the URL, get_url_field is not supported.")
+        fast_assert(self.http_parser_url, "parse_request_header() or parse_url() has not been used to parse the URL, get_url_field is not supported.")
         return parse_url_part(self.uri, self.http_parser_url, UF_prop)
 end
 
@@ -354,9 +367,36 @@ end
 function httputil.HTTPHeaders:get_errno() return self.errno end
 
 
-function httputil.HTTPHeaders:update(raw_headers)
+function httputil.HTTPHeaders:parse_response_header(raw_headers)
     local nw = ffi.new("struct nonsence_parser_wrapper")
-    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len())
+    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 1)
+    
+    self.errno = tonumber(nw.parser.http_errno)
+    if (self.errno ~= 0) then
+        local errno_name = libnonsence_parser.http_errno_name(self.errno)
+        local errno_desc = libnonsence_parser.http_errno_description(self.errno)
+        libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+        return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
+    end
+    
+    local major_version = nw.parser.http_major
+    local minor_version = nw.parser.http_minor
+    local version_str = string.format("HTTP/%d.%d", major_version, minor_version)
+    self:set_status_code(nw.parser.status_code)
+    local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
+    for i = 0, keyvalue_sz, 1 do
+        local key = ffi.string(nw.header_key_values[i].key)
+        local value = ffi.string(nw.header_key_values[i].value)
+        self:set(key, value)
+    end
+    
+    libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+    return sz
+end
+
+function httputil.HTTPHeaders:parse_request_header(raw_headers)
+    local nw = ffi.new("struct nonsence_parser_wrapper")
+    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 0)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
@@ -389,21 +429,36 @@ function httputil.HTTPHeaders:update(raw_headers)
     return sz;
 end
 
---[[ Assembles HTTP headers based on the information in the object.  ]]
-function httputil.HTTPHeaders:__tostring()	
-	local buffer = deque:new()
-    	if not self:get("Date") then
-		self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
-	end
-	for key, value in pairs(self._header_table) do
-		buffer:append(string.format("%s: %s\r\n", key , value));
-	end
-        return string.format("%s %d %s\r\n%s\r\n",
-                             self.version,
-                             self.status_code,
-                             status_codes[self.status_code],
-                             buffer:concat())
+
+function httputil.HTTPHeaders:stringify_as_request()
+    local buffer = deque:new()
+    for key, value in pairs(self._header_table) do
+            buffer:append(string.format("%s: %s\r\n", key , value));
+    end
+    return string.format("%s %s %s\r\n%s\r\n",
+                         self.method,
+                         self.uri,
+                         self.version,
+                         buffer:concat())
 end
+
+function httputil.HTTPHeaders:stringify_as_response()
+    local buffer = deque:new()
+    if not self:get("Date") then
+            self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
+    end
+    for key, value in pairs(self._header_table) do
+            buffer:append(string.format("%s: %s\r\n", key , value));
+    end
+    return string.format("%s %d %s\r\n%s\r\n",
+                         self.version,
+                         self.status_code,
+                         status_codes[self.status_code],
+                         buffer:concat())    
+end
+
+--[[ Assembles HTTP headers based on the information in the object.  ]]
+function httputil.HTTPHeaders:__tostring() return self:stringify_as_response() end
 
 
 function httputil.parse_post_arguments(data)

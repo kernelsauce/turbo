@@ -378,7 +378,7 @@ local function new_nonblock_socket(family, stype, protocol)
     
     if (fd == -1) then
 	errno = ffi.errno()
-	return -1, string.format("Could not create socket. %s", errno, ffi.C.strerror(errno))
+	return -1, string.format("Could not create socket. %s", strerror(errno))
     end
     
     local rc, msg = set_nonblock_flag(fd)
