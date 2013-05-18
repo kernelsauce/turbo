@@ -442,8 +442,7 @@ function httputil.HTTPHeaders:stringify_as_request()
                          buffer:concat())
 end
 
---[[ Assembles HTTP headers based on the information in the object.  ]]
-function httputil.HTTPHeaders:__tostring()	
+function httputil.HTTPHeaders:stringify_as_response()
     local buffer = deque:new()
     if not self:get("Date") then
             self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
@@ -455,8 +454,11 @@ function httputil.HTTPHeaders:__tostring()
                          self.version,
                          self.status_code,
                          status_codes[self.status_code],
-                         buffer:concat())
+                         buffer:concat())    
 end
+
+--[[ Assembles HTTP headers based on the information in the object.  ]]
+function httputil.HTTPHeaders:__tostring() return self:stringify_as_response() end
 
 
 function httputil.parse_post_arguments(data)
