@@ -58,10 +58,11 @@ struct nonsence_parser_wrapper{
 
 };
 
-extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len);
+extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len, int32_t type);
 /** Free memory and memset 0 if PARANOID is defined.   */
 extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src);
 
+int http_parser_parse_url(const char *buf, size_t buflen, int is_connect, struct http_parser_url *u);
 /** Check if a given field is set in http_parser_url  */
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
 extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);

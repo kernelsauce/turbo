@@ -160,7 +160,7 @@ static http_parser_settings settings =
   };
 
 
-extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len)
+extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len, int32_t type)
 {
     size_t parsed_sz;
 
@@ -171,7 +171,12 @@ extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest,
     dest->header_key_values_sz = 0;
     dest->header_state = NOTHING;
 
-    http_parser_init(&dest->parser, HTTP_REQUEST);
+    if (type == 0){
+        http_parser_init(&dest->parser, HTTP_REQUEST);
+    } else {
+        http_parser_init(&dest->parser, HTTP_RESPONSE);
+    }
+
     parsed_sz = http_parser_execute(&dest->parser, &settings, data, len);
 
     return parsed_sz;
