@@ -27,7 +27,6 @@ local ffi = require "ffi"
 --[[ Double ended queue class. 	]]
 local deque = class('Deque')
 
-
 function deque:init()
         self.head = nil
         self.tail = nil
@@ -105,6 +104,22 @@ function deque:size()
     return i
 end
 
+--[[ Find length of all elements in deque combined.  Slow.]]
+function deque:strlen()
+    local l = self.head
+    if (not l) then
+        return 0
+    else
+        local sz = 0
+        while (l) do
+            sz = l.value:len() + sz
+            l = l.next            
+        end
+	return sz
+    end
+end
+
+--[[ Concat all elements in deque.  Slow.]]
 function deque:concat()
     local l = self.head
     if (not l) then
