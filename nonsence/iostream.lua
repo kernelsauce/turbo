@@ -175,7 +175,7 @@ end
 
 --[[ Call callback when the given delimiter is read.        ]]
 function iostream.IOStream:read_until(delimiter, callback)
-    assert(( not self._read_callback ), "Already reading.")
+    assert((not self._read_callback), "Already reading.")
     self._read_delimiter = delimiter
     self._read_callback = callback
     self:_initial_read()
@@ -186,7 +186,7 @@ end
 If a streaming_callback argument is given, it will be called with chunks of data as they become available, 
 and the argument to the final call to callback will be empty.  ]]
 function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
-    assert(( not self._read_callback ), "Already reading.")
+    assert((not self._read_callback), "Already reading.")
     assert(type(num_bytes) == 'number', 'num_bytes argument must be a number')
     self._read_bytes = num_bytes
     self._read_callback = callback
@@ -203,7 +203,7 @@ final call to callback will be empty.
 
 This method respects the max_buffer_size set in the IOStream object.   ]]
 function iostream.IOStream:read_until_close(callback, streaming_callback)	
-    assert(( not self._read_callback ), "Already reading.")
+    assert((not self._read_callback), "Already reading.")
     if self:closed() then
 	    self:_run_callback(callback, self:_consume(self._read_buffer_size))
 	    return
@@ -216,13 +216,13 @@ end
 
 function iostream.IOStream:_initial_read()
     while true do 
-	    if self:_read_from_buffer() then
-		    return
-	    end
-	    self:_check_closed()
-	    if self:_read_to_buffer() == 0 then
-		    break
-	    end
+	if self:_read_from_buffer() then
+		return
+	end
+	self:_check_closed()
+	if self:_read_to_buffer() == 0 then
+		break
+	end
     end
     self:_add_io_state(ioloop.READ)
 end
@@ -241,24 +241,22 @@ data has been successfully written to the stream. If there was
 previously buffered write data and an old write callback, that
 callback is simply overwritten with this new callback.    ]]
 function iostream.IOStream:write(data, callback)
-	assert((type(data) == 'string'), [[data argument to write() is not a string]])
-	self:_check_closed()
-	if data then
-		self._write_buffer:append(data)
-	end
-	self._write_callback = callback
-	self:_handle_write()
-	
-	if self._write_buffer:not_empty() then
-		self:_add_io_state(ioloop.WRITE)
-	end
-	self:_maybe_add_error_listener()
+    assert((type(data) == 'string'), [[data argument to write() is not a string]])
+    self:_check_closed()
+    if data then
+	    self._write_buffer:append(data)
+    end
+    self._write_callback = callback
+    self:_handle_write()
+    
+    if self._write_buffer:not_empty() then
+	    self:_add_io_state(ioloop.WRITE)
+    end
+    self:_maybe_add_error_listener()
 end	
 
 --[[ Sets the given callback to be called via the :close() method on close.		]]
-function iostream.IOStream:set_close_callback(callback)
-	self._close_callback = callback
-end
+function iostream.IOStream:set_close_callback(callback) self._close_callback = callback end
 
 
 --[[ Close this stream and clean up.      ]]
@@ -516,11 +514,6 @@ end
 function iostream.IOStream:_handle_write()
     while self._write_buffer:not_empty() do
 	local errno
-	
-	--if not self._write_buffer_frozen then
-	    --_merge_prefix(self._write_buffer, 128 * 1024)
-	--end
-
 	local buf = self._write_buffer:peekfirst()
 	local num_bytes = tonumber(socket.send(self.socket, buf, buf:len(), 0))
 	
@@ -555,137 +548,114 @@ end
 
 --[[ Add IO state to IOLoop.         ]]
 function iostream.IOStream:_add_io_state(state)
-	if not self.socket then
-		-- Connection has been closed, can not add state.
-		return
-	end
-	if not self._state then
-		self._state = bitor(ioloop.ERROR, state)
-		self.io_loop:add_handler(self.socket, self._state, 
-			function(file_descriptor, events) 
-				self:_handle_events(file_descriptor, events)
-			end )
-	elseif bitand(self._state, state) == 0 then
-		self._state = bitor(self._state, state)
-		self.io_loop:update_handler(self.socket, self._state)
-	end	
+    if not self.socket then
+	    -- Connection has been closed, can not add state.
+	    return
+    end
+    if not self._state then
+	self._state = bitor(ioloop.ERROR, state)
+	self.io_loop:add_handler(self.socket, self._state, 
+	    function(file_descriptor, events) 
+		    self:_handle_events(file_descriptor, events)
+	    end )
+    elseif bitand(self._state, state) == 0 then
+	    self._state = bitor(self._state, state)
+	    self.io_loop:update_handler(self.socket, self._state)
+    end	
 end
 
 function iostream.IOStream:_consume(loc)
-	if loc == 0 then
-		return ""
-	end
-	_merge_prefix(self._read_buffer, loc)
-	self._read_buffer_size = self._read_buffer_size - loc
-	return self._read_buffer:popleft()
+    if loc == 0 then
+	    return ""
+    end
+    _merge_prefix(self._read_buffer, loc)
+    self._read_buffer_size = self._read_buffer_size - loc
+    return self._read_buffer:popleft()
 end
 
 function iostream.IOStream:_check_closed()
-	if not self.socket then
-                error("Socket operation on closed stream.")
-	end
+    if not self.socket then
+	    error("Socket operation on closed stream.")
+    end
 end
 
 function iostream.IOStream:_maybe_add_error_listener()
-	if self._state == nil and self._pending_callbacks == 0 then
-		if self.socket == nil then
-			local callback = self._close_callback
-				if callback ~= nil then
-					self._close_callback = nil
-					self:_run_callback(callback)
-				end
-		else
-			self:_add_io_state(ioloop.READ)
-		end
+    if self._state == nil and self._pending_callbacks == 0 then
+	if self.socket == nil then
+	    local callback = self._close_callback
+	    if callback ~= nil then
+		    self._close_callback = nil
+		    self:_run_callback(callback)
+	    end
+	else
+	    self:_add_io_state(ioloop.READ)
 	end
+    end
 end
 
---
-----[[ SSL wrapper class for IOStream.
---Inherits everything from IOStream class, and should be transparent.         ]]
---iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
---
---function iostream.SSLIOStream:init(socket, io_loop, max_buffer_size, read_chunk_size)
---	self.super:init(socket, io_loop, max_buffer_size, read_chunk_size)
---	self._ssl_accepting = true
---	self._handshake_reading = false
---	self._handshake_writing = false	 
---end
---
---
-----[[ Are we reading?
---Check handshake process and also see if the super class
---is reading.        ]]
---function iostream.SSLIOStream:reading()
---	return self._handshake_reading or self.super:reading()
---end
---
---
-----[[ Are we writing?
---Check handshake process and also see if the super class is writing.		]]
---function iostream.SSLIOStream:writing()
---	return self._handshake_writing or self.super:writing()
---end
---
-----[[ Wrap a socket with TLS.	]]
---function iostream.SSLIOStream:_ssl_wrap_socket(socket)
---	self._tls_context = nixio.tls('client')
---	self._nixio_tls = self._tls_context:create(socket)
---	self._tls_connection = self._nixio_tls.connection
---	self.socket = self._nixio_tls.socket
---end
---
-----[[ Do a SSL handshake.       ]]
---function iostream.SSLIOStream:_do_ssl_handshake()	
---	local success, err = pcall(self._nixio_tls:connect())
---	
---	if not success then 
---		log.warning('Error in SSL handshaking on socket: ' .. 
---			self.socket:fileno() .. ' with error: ' .. err)
---	elseif success then 
---		self._ssl_accepting = false
---		self.super:_handle_connect()
---	end
---end
---
-----[[ Make sure handshake is done when handling reads.       ]]
---function iostream.SSLIOStream:_handle_read()	
---	if self._ssl_accepting then
---		self:_do_ssl_handshake()
---		return
---	end
---	self.super:_handle_connect()
---end
---
---
-----[[ Make sure handshake is done when handling writes.   ]]
---function iostream.SSLIOStream:_handle_write()	
---	if self._ssl_accepting then
---		self:_do_ssl_handshake()
---		return
---	end
---	self.super:_handle_write()
---end
---
---
-----[[ Redefine connection handling to support ssl.      ]]
---function iostream.SSLIOStream:_handle_connect()
---	self:_ssl_wrap_socket(self.socket)
---end
---
---function iostream.SSLIOStream:_read_from_socket()
---	if self._ssl_accepting then
---		-- If the handshake has not been completed do not allow
---		-- any reads to be done...
---		return nil
---	end
---	local chunk = self._tls_connection.read(self.read_chunk_size)
---	
---	if not chunk then
---		self:close()
---	end
---	
---	return chunk
---end
+--[[ SSL wrapper class for IOStream. 	]]
+iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
+
+function iostream.SSLIOStream:init(fd, ssl_options, io_loop, max_buffer_size, read_chunk_size)
+    self._ssl_options = ssl_options
+    self.super:init(fd, io_loop, max_buffer_size, read_chunk_size)
+    self._ssl_accepting = true
+    self._handshake_reading = false
+    self._handshake_writing = false
+    self._ssl_connect_callback = nil
+    self._server_hostname = nil
+end
+
+function iostream.SSLIOStream:connect(address, callback, server_hostname)
+    -- FIXME
+end
+
+function iostream.SSLIOStream:reading() return self._handshake_reading or self.super:reading() end
+function iostream.SSLIOStream:writing() return self._handshake_writing or self.super:writing() end
+
+function iostream.SSLIOStream:_do_ssl_handshake()
+    -- FIXME
+end
+
+function iostream.SSLIOStream:_do_ssl_handshake()	
+    -- FIXME
+end
+
+function iostream.SSLIOStream:_handle_read()	
+	if self._ssl_accepting then
+		self:_do_ssl_handshake()
+		return
+	end
+	self.super:_handle_read()
+end
+
+function iostream.SSLIOStream:_handle_write()	
+	if self._ssl_accepting then
+		self:_do_ssl_handshake()
+		return
+	end
+	self.super:_handle_write()
+end
+
+function iostream.SSLIOStream:_handle_connect()
+	-- FIXME
+	self.super:_handle_connect()
+end
+
+function iostream.SSLIOStream:_read_from_socket()
+    -- FIXME
+    if self._ssl_accepting then
+	    -- If the handshake has not been completed do not allow
+	    -- any reads to be done...
+	    return nil
+    end
+    local chunk = self.socket.read(self.read_chunk_size)
+    
+    if not chunk then
+	    self:close()
+    end
+    
+    return chunk
+end
 
 return iostream
