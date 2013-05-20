@@ -397,12 +397,12 @@ end
 function httputil.HTTPHeaders:parse_request_header(raw_headers)
     local nw = ffi.new("struct nonsence_parser_wrapper")
     local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 0)
+    ffi.gc(nw, libnonsence_parser.nonsence_parser_wrapper_exit)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
         local errno_name = libnonsence_parser.http_errno_name(self.errno)
         local errno_desc = libnonsence_parser.http_errno_description(self.errno)
-        libnonsence_parser.nonsence_parser_wrapper_exit(nw)
         return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
     end
     
@@ -425,7 +425,6 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
         end        
     end
     
-    libnonsence_parser.nonsence_parser_wrapper_exit(nw)
     return sz;
 end
 
