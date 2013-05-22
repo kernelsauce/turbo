@@ -70,5 +70,39 @@ describe("nonsence deque module", function()
         assert.equal(d:getn(0), "pos1")
         assert.equal(d:getn(1), "pos2")
         assert.equal(d:getn(2), "pos3")
-    end)   
+    end)
+    
+    it("should behave logically", function()
+        local q = nonsence.deque:new()
+        local str = ""
+        local n = 0 
+        
+        for i=0, 100000 do
+            math.randomseed(os.time() + i)
+            local action = math.random(0,4)
+            if (action == 0) then
+                q:append("a dog")
+                n = n + 1
+            elseif (action == 1) then
+                q:appendleft("a cat")
+                n = n + 1
+            elseif (action == 2) then
+                if (q:not_empty()) then
+                    q:popleft()
+                    n = n - 1
+                else
+                    assert.equal(nil, q:popleft())
+                end
+            elseif (action == 3) then
+                if (q:not_empty()) then
+                    q:pop()
+                    n = n - 1
+                else
+                    assert.equal(nil, q:pop())
+                end
+            elseif (action == 4) then
+                assert.equal(q:size(), n)
+            end            
+        end
+    end)
 end)
