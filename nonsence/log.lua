@@ -99,36 +99,36 @@ end
 
 
 log.success = function(str)
-	print(ansicolors.green .. "[S " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+	print(nwcolors.green .. "[S " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a warning to stdout.      ]]
 log.warning = function(str)	
-	print(ansicolors.yellow .. "[W " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+	print(nwcolors.yellow .. "[W " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a notice to stdout.  ]]
 log.notice = function(str)
-	print(ansicolors.white .. "[I " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+	print(nwcolors.white .. "[I " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a notice to stdout.  ]]
 log.debug = function(str)
-	print(ansicolors.white .. "[D " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+	print(nwcolors.white .. "[D " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a error to stdout.  ]]
 log.error = function(str)	
-	print(ansicolors.red .. "[E " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+	print(nwcolors.red .. "[E " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a error to stdout.  ]]
 log.stacktrace = function(str)	
-	print(ansicolors.red .. str .. ansicolors.reset)
+	print(nwcolors.red .. str .. nwcolors.reset)
 end
 
 log.devel = function(str)
-        print(ansicolors.cyan .. "[d " .. os.date("%X", os.time()) .. '] ' .. str .. ansicolors.reset)
+        print(nwcolors.cyan .. "[d " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 return log
