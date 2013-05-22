@@ -330,7 +330,20 @@ end
 
 --[[ Get given key from headers.	]]
 function httputil.HTTPHeaders:get(key)
-	return self._header_table[key] or nil
+    local fast_path = self._header_table[key]
+    if (fast_path) then
+	return fast_path
+    else
+	-- Match against lowered chars.
+	local match_key = key:lower()
+	for key, value in pairs(self._header_table) do
+	    local lowerkey = key:lower()
+	    if (lowerkey == match_key) then
+		return value
+	    end
+	end
+    end
+    return nil
 end
 
 --[[ Add a key with value to the headers.     ]]
