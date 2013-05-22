@@ -38,30 +38,33 @@ require "middleclass"
 
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max  
 
-local iostream = {} -- iostream namespace
-
 --[[ Replace the first entries in a deque of strings with a single string of up to size bytes.         ]]
 local function _merge_prefix(deque, size)
-    if size then
+    if size ~= 0 then
 	if deque:size() == 1 and deque:peekfirst():len() <= size then
-		return deque
+            return deque
 	end
+        
 	local prefix = {}
 	local remaining = size
 
-	while deque:not_empty() and remaining >= 1 do
+	while deque:not_empty() and remaining > 0 do
 	    local chunk = deque:popleft()
 	    if chunk:len() > remaining then
-		    deque:appendleft(chunk:sub(remaining))
-		    chunk = chunk:sub(1, remaining)
+                deque:appendleft(chunk:sub(remaining + 1))
+                chunk = chunk:sub(0, remaining)
 	    end
 	    prefix[#prefix + 1] = chunk
 	    remaining = remaining - chunk:len()
 	end
 
-	if #prefix >= 1 then
-		deque:appendleft(table.concat(prefix))
+	if #prefix > 0 then
+	    deque:appendleft(table.concat(prefix))
 	end
+        if (not deque:not_empty()) then
+            deque:append("")
+        end
+        return deque
     end
 end
 
@@ -70,6 +73,11 @@ local function _double_prefix(deque)
                         deque:peekfirst():len() + deque:getn(1):len())
     _merge_prefix(deque, new_len)
 end
+
+local iostream = {
+    _merge_prefix = _merge_prefix,
+    _double_prefix = _double_prefix
+    } -- iostream namespace
 
 iostream.IOStream = class('IOStream')
 
@@ -103,74 +111,74 @@ end
 
 --[[ Connect to a address without blocking.  		]]
 function iostream.IOStream:connect(address, port, family, callback, errhandler)
-        assert(type(address) == "string", "argument #1 to connect() not a string.")
-        assert(type(port) == "number", "argument #2 to connect() not a number.")
-        assert((not family or type(family) == "number"), "argument #3 to connect() not a number")
-        local sockaddr = ffi.new("struct sockaddr_in")
-        local sizeof_sockaddr = ffi.sizeof(sockaddr)
-        local rc
-        local errno
-        self._connect_fail_callback = errhandler
-        self._connecting = true
-        sockaddr.sin_port = socket.htons(port)
-        
-        if (type(address) == "string" and util.valid_ipv4(address) and family ~= nil) then
-            sockaddr.sin_family = family
-            rc = socket.inet_pton(family, address, ffi.cast("void *", sockaddr.sin_addr))
-            if (rc ~= 1) then
-                if (rc == 0) then
-                    return -1, string.format("argument #1 to connect() is not a valid IP string.", address)
-                elseif (rc == -1) then
-                    return -2, string.format("argument #3 to connect() is not a valid AF family.", address)
-                else
-                    return -3, string.format("inet_pton failed with unknown error in connect().", address)
-                end
-            end
-        else
-            local hostinfo = socket.resolv_hostname(address)
-            if (hostinfo == -1) then
-                return -1, string.format("Could not resolve hostname: %s", address)
-            end
+    assert(type(address) == "string", "argument #1 to connect() not a string.")
+    assert(type(port) == "number", "argument #2 to connect() not a number.")
+    assert((not family or type(family) == "number"), "argument #3 to connect() not a number")
+    local sockaddr = ffi.new("struct sockaddr_in")
+    local sizeof_sockaddr = ffi.sizeof(sockaddr)
+    local rc
+    local errno
+    self._connect_fail_callback = errhandler
+    self._connecting = true
+    sockaddr.sin_port = socket.htons(port)
+    
+    --if (type(address) == "string" and util.valid_ipv4(address) and family ~= nil) then
+    --    sockaddr.sin_family = family
+    --    rc = socket.inet_pton(family, address, ffi.cast("void *", sockaddr.sin_addr))
+    --    if (rc ~= 1) then
+    --        if (rc == 0) then
+    --            return -1, string.format("argument #1 to connect() is not a valid IP string.", address)
+    --        elseif (rc == -1) then
+    --            return -2, string.format("argument #3 to connect() is not a valid AF family.", address)
+    --        else
+    --            return -3, string.format("inet_pton failed with unknown error in connect().", address)
+    --        end
+    --    end
+    --else
+	local hostinfo = socket.resolv_hostname(address)
+	if (hostinfo == -1) then
+	    return -1, string.format("Could not resolve hostname: %s", address)
+	end
 
-            ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], ffi.sizeof("struct in_addr"))
-            sockaddr.sin_family = hostinfo.addrtype
-        end
-        
-        rc = socket.connect(self.socket, ffi.cast("struct sockaddr *", sockaddr), sizeof_sockaddr)
-        if (rc ~= 0) then
-            errno = ffi.errno()
-            if (errno ~= EINPROGRESS) then
-                return -1, string.format("Could not connect. %s", socket.strerror(errno))
-            end
-        end
-        
-	self._connect_callback = callback
-	self:_add_io_state(ioloop.WRITE)
-        return 0
+	ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], ffi.sizeof("struct in_addr"))
+	sockaddr.sin_family = hostinfo.addrtype
+    --end
+    
+    rc = socket.connect(self.socket, ffi.cast("struct sockaddr *", sockaddr), sizeof_sockaddr)
+    if (rc ~= 0) then
+	errno = ffi.errno()
+	if (errno ~= EINPROGRESS) then
+	    return -1, string.format("Could not connect. %s", socket.strerror(errno))
+	end
+    end
+    
+    self._connect_callback = callback
+    self:_add_io_state(ioloop.WRITE)
+    return 0
 end
 
 function iostream.IOStream:_handle_connect()
-        local rc, sockerr = socket.get_socket_error(self.socket)
-        if (rc == -1) then
-            error("[iostream.lua] Could not get socket errors, for fd " .. self.socket)
-        else
-            if (sockerr ~= 0) then
-                local fd = self.socket
-                self:close()
-                local strerror = socket.strerror(sockerr)
-                if (self._connect_fail_callback) then
-                    self:_connect_fail_callback(sockerr, strerror)
-                end
-                error(string.format("[iostream.lua] Connect failed: %s, for fd %d", strerror(sockerr), fd))
-            end
-        end
-        
-	if self._connect_callback then
-		local callback = self._connect_callback
-		self._connect_callback  = nil
-		self:_run_callback(callback)
+    local rc, sockerr = socket.get_socket_error(self.socket)
+    if (rc == -1) then
+	error("[iostream.lua] Could not get socket errors, for fd " .. self.socket)
+    else
+	if (sockerr ~= 0) then
+	    local fd = self.socket
+	    self:close()
+	    local strerror = socket.strerror(sockerr)
+	    if (self._connect_fail_callback) then
+		self:_connect_fail_callback(sockerr, strerror)
+	    end
+	    error(string.format("[iostream.lua] Connect failed: %s, for fd %d", strerror(sockerr), fd))
 	end
-	self._connecting = false
+    end
+    
+    if self._connect_callback then
+	    local callback = self._connect_callback
+	    self._connect_callback  = nil
+	    self:_run_callback(callback)
+    end
+    self._connecting = false
 end
 
 --[[ Call callback when the given delimiter is read.        ]]
@@ -216,12 +224,12 @@ end
 
 function iostream.IOStream:_initial_read()
     while true do 
-	if self:_read_from_buffer() then
-		return
+	if (self:_read_from_buffer() == true) then
+	    return
 	end
 	self:_check_closed()
-	if self:_read_to_buffer() == 0 then
-		break
+	if (self:_read_to_buffer() == 0) then
+	    break
 	end
     end
     self:_add_io_state(ioloop.READ)
@@ -266,23 +274,21 @@ function iostream.IOStream:close()
 		local callback = self._read_callback
 		self._read_callback = nil
 		self._read_until_close = false
-		self:_run_callback(callback, 
-			self:_consume(self._read_buffer_size))
+		self:_run_callback(callback, self:_consume(self._read_buffer_size))
 	end
 	if self._state then
 		self.io_loop:remove_handler(self.socket)
 		self._state = nil
 	end
 	
-	--log.devel("[iostream.lua] Closed socket with fd " .. self.socket)
 	socket.close(self.socket)
 	ngc.dec("tcp_open_sockets", 1)                
 	self.socket = nil
 	
 	if self._close_callback and self._pending_callbacks == 0 then
-		local callback = self._close_callback
-		self._close_callback = nil
-		self:_run_callback(callback)
+            local callback = self._close_callback
+            self._close_callback = nil
+            self:_run_callback(callback)
 	end
     end
 end
@@ -348,26 +354,40 @@ function iostream.IOStream:_handle_events(fd, events)
 end
 
 function iostream.IOStream:_run_callback(callback, ...)
-	local _callback_arguments = ...
-	self:_maybe_add_error_listener()
-	self._pending_callbacks = self._pending_callbacks + 1
-	self.io_loop:add_callback(function() 
-		self._pending_callbacks = self._pending_callbacks - 1
-		callback(_callback_arguments)
-	end)
+    local _callback_arguments = ...
+    self:_maybe_add_error_listener()
+    self._pending_callbacks = self._pending_callbacks + 1
+    self.io_loop:add_callback(function() 
+	    self._pending_callbacks = self._pending_callbacks - 1
+	    callback(_callback_arguments)
+    end)
 end
 
 function iostream.IOStream:_handle_read()
-    while true do
+    -- FIXME : xpcall ?
+    self._pending_callbacks = self._pending_callbacks + 1
+    while not self:closed() do
 	-- Read from socket until we get EWOULDBLOCK or equivalient.
-	local result = self:_read_to_buffer()
-	if result == 0 then
-		break
-	else
-		if self:_read_from_buffer() then
-			return
-		end
+	if (self:_read_to_buffer() == 0) then
+	    break
 	end
+    end
+    self._pending_callbacks = self._pending_callbacks - 1
+    
+    if (self:_read_from_buffer() == true) then
+	return
+    else
+	self:_maybe_run_close_callback()    
+    end
+end
+
+function iostream.IOStream:_maybe_run_close_callback()
+    if (self:closed() == true and self._close_callback and self._pending_callbacks == 0) then 
+	local cb = self._close_callback
+	self._close_callback = None
+	self:_run_callback(cb)
+	self._read_callback = nil
+	self._write_callback = nil
     end
 end
 
@@ -414,6 +434,7 @@ function iostream.IOStream:_read_from_socket()
         
         ngc.inc("tcp_recv_bytes", sz)
         local chunk = ffi.string(buf, sz)
+
 	if not chunk then
 		self:close()
 		return nil
@@ -429,18 +450,19 @@ end
 
 --[[ Read from the socket and append to the read buffer.      ]]
 function iostream.IOStream:_read_to_buffer()
-	local chunk = self:_read_from_socket()
-	if not chunk then
-		return 0
-	end
-	self._read_buffer:append(chunk)
-	self._read_buffer_size = self._read_buffer_size + chunk:len()
-	if self._read_buffer_size >= self.max_buffer_size then
-		log.error('Reached maximum read buffer size')
-		self:close()
-		return
-	end
-	return chunk:len()
+    local chunk = self:_read_from_socket()
+    if not chunk then
+        return 0
+    end
+    local sz = chunk:len()
+    self._read_buffer:append(chunk)
+    self._read_buffer_size = self._read_buffer_size + sz
+    if self._read_buffer_size >= self.max_buffer_size then
+        log.error('Reached maximum read buffer size')
+        self:close()
+        return
+    end
+    return sz
 end
 
 --[[ Attempts to complete the currently pending read from the buffer.
@@ -451,9 +473,7 @@ function iostream.IOStream:_read_from_buffer()
 	if (self.read_bytes ~= nil) then
 	    bytes_to_consume = min(self._read_bytes, bytes_to_consume)
 	    self._read_bytes = self._read_bytes - bytes_to_consume
-	    self:_run_callback(self._streaming_callback, function()
-		self:_consume(bytes_to_consume)
-	    end)
+	    self:_run_callback(self._streaming_callback, self:_consume(bytes_to_consume))
 	end
     end
 
@@ -466,7 +486,7 @@ function iostream.IOStream:_read_from_buffer()
 	self:_run_callback(callback, self:_consume(num_bytes))
 	return true
 	
-    elseif (self._read_delimiter ~= nil) then
+    elseif (self._read_delimiter ~= nil) then        
 	local loc
 	if (self._read_buffer:not_empty()) then
 	    while true do
@@ -487,20 +507,20 @@ function iostream.IOStream:_read_from_buffer()
 	    end
 	end
     
-    elseif (self._read_until_pattern ~= nil) then
-	if (self._read_buffer) then
+    elseif (self._read_pattern ~= nil) then
+	if (self._read_buffer:not_empty()) then
 	    while true do
-		local chunk = self._read_buffer:peekleft()
+		local chunk = self._read_buffer:peekfirst()
 		local s_start, s_end = chunk:find(self._read_pattern)
 		if (s_start) then
 		    local callback = self._read_callback
 		    self._read_callback = nil
 		    self._streaming_callback = nil
 		    self._read_pattern = nil
-		    self._run_callback(callback, self:consume(s_end))
+		    self:_run_callback(callback, self:_consume(s_end))
 		    return true
 		end
-		if (self._read_buffer:strlen() == 1) then -- FIXME: Can use self._read_buffer_size ?
+		if (self._read_buffer:size() == 1) then
 		    break
 		end
 		_double_prefix(self._read_buffer)
@@ -566,7 +586,7 @@ end
 
 function iostream.IOStream:_consume(loc)
     if loc == 0 then
-	    return ""
+        return ""
     end
     _merge_prefix(self._read_buffer, loc)
     self._read_buffer_size = self._read_buffer_size - loc
@@ -652,7 +672,7 @@ function iostream.SSLIOStream:_read_from_socket()
     local chunk = self.socket.read(self.read_chunk_size)
     
     if not chunk then
-	    self:close()
+	self:close()
     end
     
     return chunk
