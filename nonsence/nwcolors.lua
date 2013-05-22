@@ -25,7 +25,7 @@ local tostring = tostring
 local setmetatable = setmetatable
 local schar = string.char
 
-module 'ansicolors'
+module 'nwcolors'
 
 local colormt = {}
 
