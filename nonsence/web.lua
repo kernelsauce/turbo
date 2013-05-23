@@ -470,8 +470,9 @@ function web.Application:_get_request_handlers(request)
 	for i = 1, handlers_sz do 
 		local handler = self.handlers[i]
 		local pattern = handler[1]
-		if path:match(pattern) then
-			local args = {path:match(pattern)}
+                local match = {path:match(pattern)}
+		if #match > 0 then
+			local args = match
 			return handler[2], args, handler[3]
 		end
 	end
