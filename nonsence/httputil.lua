@@ -329,11 +329,11 @@ function httputil.HTTPHeaders:get_arguments()
 end
 
 --[[ Get given key from headers.	]]
-function httputil.HTTPHeaders:get(key)
+function httputil.HTTPHeaders:get(key, caseinsensitive)
     local fast_path = self._header_table[key]
     if (fast_path) then
 	return fast_path
-    else
+    elseif (caseinsensitive) then
 	-- Match against lowered chars.
 	local match_key = key:lower()
 	for key, value in pairs(self._header_table) do
