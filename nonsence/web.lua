@@ -248,19 +248,21 @@ function web.RequestHandler:finish(chunk)
 	end
 	
 	if self._status_code == 200 then
-		log.success(string.format([[[web.lua] %d %s %s %s (%s)]], 
+		log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
 			self._status_code, 
 			response_codes[self._status_code],
 			self.request._request.headers.method,
 			self.request._request.headers.url,
-			self.request._request.remote_ip))
+			self.request._request.remote_ip,
+                        self.request._request:request_time()))
 	else
-		log.warning(string.format([[[web.lua] %d %s %s %s (%s)]], 
+		log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
 			self._status_code, 
 			response_codes[self._status_code],
 			self.request._request.headers.method,
 			self.request._request.headers.url,
-			self.request._request.remote_ip))
+			self.request._request.remote_ip,
+                        self.request._request:request_time()))
 	end
 	
 	self:flush()
@@ -363,7 +365,7 @@ function web.StaticFileHandler:get(path)
 		error(web.HTTPError(401))
 	end
 
-	local full_path = string.format("%s%s", self.path, filename)
+	local full_path = string.format("%s%s", self.path, escape.unescape(filename))
 	local rc, buf = STATIC_CACHE:get_file(full_path)
 	if rc == 0 then
 		local rc, mime_type = self:get_mime()
@@ -390,7 +392,7 @@ function web.StaticFileHandler:head(path)
 		error(web.HTTPError(401))
 	end
 
-	local full_path = string.format("%s%s", self.path, filename)
+	local full_path = string.format("%s%s", self.path, escape.unescape(filename))
 	local rc, buf = STATIC_CACHE:get_file(full_path)
 	if rc == 0 then
 		local rc, mime_type = self:get_mime()

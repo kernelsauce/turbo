@@ -54,11 +54,11 @@ local util = {}
 function util.join(delimiter, list)
 	local len = getn(list)
 	if len == 0 then 
-	return "" 
+	   return "" 
 	end
 	local string = list[1]
 	for i = 2, len do 
-	string = string .. delimiter .. list[i] 
+            string = string .. delimiter .. list[i] 
 	end
 	return string
 end
@@ -110,7 +110,7 @@ end
 function util.tablemerge(t1, t2)
     for k, v in pairs(t2) do
         if (type(v) == "table") and (type(t1[k] or false) == "table") then
-            merge(t1[k], t2[k])
+            util.tablemerge(t1[k], t2[k])
         else
             t1[k] = v
         end
@@ -159,10 +159,6 @@ function util.gettimeofday()
         return (tonumber(timeval.tv_sec) * 1000) + math.floor(tonumber(timeval.tv_usec) / 1000)
 end
 
-
-function util.valid_ipv4(str)
-    return str:find("[%d+%.]+")
-end
 
 --[[  Returns true if value exists in table.        ]]
 function util.is_in(needle, haystack)
