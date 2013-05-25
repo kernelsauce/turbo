@@ -1,4 +1,4 @@
---[[ Nonsence Async module
+--[[ Turbo Async module
 
 Copyright 2013 John Abrahamsen
 
@@ -45,7 +45,7 @@ end
 function async.HTTPClient:_handle_connect()
     self.connecting = false
     self.headers:add("Host", self.hostname)
-    self.headers:add("User-Agent", "Nonsence v1.0")
+    self.headers:add("User-Agent", "Turbo v1.0")
     self.headers:add("Connection", "close")
     self.headers:add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
     self.headers:add("Accept-Language", "en-US,en;q=0.8")

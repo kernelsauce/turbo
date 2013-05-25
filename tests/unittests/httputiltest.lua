@@ -1,4 +1,4 @@
---[[ Nonsence Unit test
+--[[ Turbo Unit test
 
 Copyright 2013 John Abrahamsen
 
@@ -14,7 +14,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
   
-local nonsence = require "nonsence"
+local turbo = require "turbo"
 require "middleclass"
 local raw_headers = 
 "GET /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
@@ -38,20 +38,20 @@ local badheaders =
 "Accept-Language: en-US,en;q=0.8\r\n"..
 "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
  
-describe("nonsence httputil module", function()
+describe("turbo httputil module", function()
   describe("parse request header", function()
            
     it("should parse valid headers correctly", function()
-        local headers = nonsence.httputil.HTTPHeaders:new(raw_headers)
-        assert.truthy(instanceOf(nonsence.httputil.HTTPHeaders, headers))
+        local headers = turbo.httputil.HTTPHeaders:new(raw_headers)
+        assert.truthy(instanceOf(turbo.httputil.HTTPHeaders, headers))
     end)
 
     it("should throw on bad headers", function()        
-        assert.has_error(function() nonsence.httputil.HTTPHeaders:new(badheaders) end)
+        assert.has_error(function() turbo.httputil.HTTPHeaders:new(badheaders) end)
     end)    
     
     it("should parse header name/value fields correctly", function()
-        local headers = nonsence.httputil.HTTPHeaders:new(raw_headers)
+        local headers = turbo.httputil.HTTPHeaders:new(raw_headers)
         assert.equal(headers:get("Host"), "somehost.no")
         assert.equal(headers:get("Connection"), "keep-alive")
         assert.equal(headers:get("Cache-Control"), "max-age=0")
@@ -62,7 +62,7 @@ describe("nonsence httputil module", function()
         assert.equal(headers:get("Accept-Charset"), "ISO-8859-1,utf-8;q=0.7,*;q=0.3")
         assert.equal(headers.method, "GET")
         assert.equal(headers.uri, "/test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse")
-        assert.equal(headers:get_url_field(nonsence.httputil.UF.PATH), "/test/test.gif")
+        assert.equal(headers:get_url_field(turbo.httputil.UF.PATH), "/test/test.gif")
         assert.equal(headers:get_version(), "HTTP/1.1")
         assert.equal(headers:get_argument("param1")[1], "something")
         assert.equal(headers:get_argument("param2")[1], "somethingelse")
@@ -71,22 +71,22 @@ describe("nonsence httputil module", function()
     end)
     
     it("should assemble headers correctly", function()
-	local headers = nonsence.httputil.HTTPHeaders:new()
-        assert.truthy(instanceOf(nonsence.httputil.HTTPHeaders, headers))
+	local headers = turbo.httputil.HTTPHeaders:new()
+        assert.truthy(instanceOf(turbo.httputil.HTTPHeaders, headers))
 	headers:set_status_code(304)
 	headers:set_version("HTTP/1.1")
         headers:add("Date", "Wed, 08 May 2013 15:00:22 GMT")
-	headers:add("Server", "Nonsence/1.0")
+	headers:add("Server", "Turbo/1.0")
 	headers:add("Accept-Ranges", "bytes")
 	headers:add("Connection", "keep-alive")
 	headers:add("Age", "0")
-        local expected = "HTTP/1.1 304 Not Modified\r\nConnection: keep-alive\r\nDate: Wed, 08 May 2013 15:00:22 GMT\r\nAge: 0\r\nAccept-Ranges: bytes\r\nServer: Nonsence/1.0\r\n\r\n"
+        local expected = "HTTP/1.1 304 Not Modified\r\nConnection: keep-alive\r\nDate: Wed, 08 May 2013 15:00:22 GMT\r\nAge: 0\r\nAccept-Ranges: bytes\r\nServer: Turbo/1.0\r\n\r\n"
         assert.equal(headers:__tostring(), expected)
 	assert(headers:__tostring():len() == 142, headers:__tostring():len())
     end)
     
     it("should allow settings and getting of notable values", function()
-        local h = nonsence.httputil.HTTPHeaders:new()
+        local h = turbo.httputil.HTTPHeaders:new()
         h:set_status_code(200)
         assert.equal(h:get_status_code(), 200)
         h:set_method("GET")
@@ -106,7 +106,7 @@ describe("nonsence httputil module", function()
     end)
     
     it("should fail on setting of bad values", function()
-        local h = nonsence.httputil.HTTPHeaders:new()
+        local h = turbo.httputil.HTTPHeaders:new()
         assert.has_error(function() h:set_status_code("FAIL") end)
         assert.has_error(function() h:set_method(123) end)
         assert.has_error(function() h:set_uri() end)
@@ -116,7 +116,7 @@ describe("nonsence httputil module", function()
     
     it("should parse formdata", function()
         local data = "?username=user782400&mmm=ddd"
-        local tbl = nonsence.httputil.parse_post_arguments(data)
+        local tbl = turbo.httputil.parse_post_arguments(data)
         assert.equal(type(tbl), "table")
         assert.equal(tbl.username, "user782400")
         assert.equal(tbl.mmm, "ddd")

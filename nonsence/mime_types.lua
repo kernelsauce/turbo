@@ -1,4 +1,4 @@
---[[ Nonsence file type to MIME mappings
+--[[ Turbo file type to MIME mappings
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

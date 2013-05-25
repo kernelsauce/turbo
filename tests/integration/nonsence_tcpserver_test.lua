@@ -28,7 +28,7 @@
 	
   ]]
 
-package.path = package.path.. ";../nonsence/?.lua"
+package.path = package.path.. ";../turbo/?.lua"
   
 -------------------------------------------------------------------------
 --

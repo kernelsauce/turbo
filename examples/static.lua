@@ -1,4 +1,4 @@
---[[ Nonsence Static file server example
+--[[ Turbo Static file server example
 
 Copyright 2013 John Abrahamsen
 
@@ -14,10 +14,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local nonsence = require "nonsence"
+local turbo = require "turbo"
 
-nonsence.web.Application:new({
-	{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+turbo.web.Application:new({
+	{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
 }):listen(8888)
 
-nonsence.ioloop.instance():start()
+turbo.ioloop.instance():start()

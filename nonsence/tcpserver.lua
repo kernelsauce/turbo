@@ -1,4 +1,4 @@
---[[ Nonsence TCP Server module
+--[[ Turbo TCP Server module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

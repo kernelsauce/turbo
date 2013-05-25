@@ -1,10 +1,10 @@
 /* Wrapper for http_parser.c
 Copyright 2013 John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-This module "http_parser_ffi_wrap" is a part of the Nonsence Web server.
+This module "http_parser_ffi_wrap" is a part of the Turbo Web server.
 For the complete stack hereby called "software package" please see:
 
-https://github.com/JohnAbrahamsen/nonsence-ng/
+https://github.com/JohnAbrahamsen/turbo-ng/
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -50,7 +50,7 @@ extern char *url_field(const char *url_str, const struct http_parser_url *url, e
 
 static int request_url_cb (http_parser *p, const char *buf, size_t len)
 {
-    struct nonsence_parser_wrapper *nw = (struct nonsence_parser_wrapper*)p->data;
+    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     int32_t rc;
 
     nw->url_str = strndup(buf, len);
@@ -65,21 +65,21 @@ static int request_url_cb (http_parser *p, const char *buf, size_t len)
 
 static int header_field_cb (http_parser *p, const char *buf, size_t len)
 {
-    struct nonsence_parser_wrapper *nw = (struct nonsence_parser_wrapper*)p->data;
-    struct nonsence_key_value_field *kv_field;
+    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
+    struct turbo_key_value_field *kv_field;
     void *ptr;
 
     switch(nw->header_state){
     case NOTHING:
     case VALUE:
-        ptr = realloc(nw->header_key_values, sizeof(struct nonsence_key_value_field *) * (nw->header_key_values_sz + 1));
+        ptr = realloc(nw->header_key_values, sizeof(struct turbo_key_value_field *) * (nw->header_key_values_sz + 1));
         if (ptr){
             nw->header_key_values = ptr;
         }
         else
             return -1;
 
-        kv_field = malloc(sizeof(struct nonsence_key_value_field));
+        kv_field = malloc(sizeof(struct turbo_key_value_field));
         if (!kv_field)
             return -1;
         kv_field->key = strndup(buf, len);
@@ -96,8 +96,8 @@ static int header_field_cb (http_parser *p, const char *buf, size_t len)
 
 static int header_value_cb (http_parser *p, const char *buf, size_t len)
 {
-    struct nonsence_parser_wrapper *nw = (struct nonsence_parser_wrapper*)p->data;
-    struct nonsence_key_value_field *kv_field;
+    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
+    struct turbo_key_value_field *kv_field;
     char *ptr;
 
     switch(nw->header_state){
@@ -123,7 +123,7 @@ static int header_value_cb (http_parser *p, const char *buf, size_t len)
 
 static int body_cb (http_parser *p, const char *buf, size_t len)
 {
-    struct nonsence_parser_wrapper *nw = (struct nonsence_parser_wrapper*)p->data;
+    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
 
     nw->body = strndup(buf, len);
     if (!nw->body)
@@ -135,14 +135,14 @@ static int body_cb (http_parser *p, const char *buf, size_t len)
 
 int headers_complete_cb (http_parser *p)
 {
-    struct nonsence_parser_wrapper *nw = (struct nonsence_parser_wrapper*)p->data;
+    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     nw->headers_complete = true;
     return 0;
 }
 
 int message_complete_cb (http_parser *p)
 {
-    struct nonsence_parser_wrapper *nw = (struct nonsence_parser_wrapper*)p->data;
+    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     nw->finished = true;
     return 0;
 }
@@ -160,7 +160,7 @@ static http_parser_settings settings =
   };
 
 
-extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len, int32_t type)
+extern size_t turbo_parser_wrapper_init(struct turbo_parser_wrapper *dest, const char* data, size_t len, int32_t type)
 {
     size_t parsed_sz;
 
@@ -182,7 +182,7 @@ extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest,
     return parsed_sz;
 }
 
-extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src)
+extern void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
 {
     int32_t i = 0;
     free(src->body);
@@ -196,7 +196,7 @@ extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src)
 
 #ifdef PARANOID
     if (src){
-        memset(src, 0, sizeof(struct nonsence_parser_wrapper));
+        memset(src, 0, sizeof(struct turbo_parser_wrapper));
     }
 #endif
 

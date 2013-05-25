@@ -1,4 +1,4 @@
---[[ Nonsence Escape module
+--[[ Turbo Escape module
 
 Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 

@@ -1,4 +1,4 @@
---[[ Nonsence HTTPUtil module
+--[[ Turbo HTTPUtil module
 
 Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
@@ -26,7 +26,7 @@ local status_codes = require "http_response_codes"
 local deque = require "deque"
 local escape = require "escape"
 local ffi = require "ffi"
-local libnonsence_parser = ffi.load("libnonsence_parser")
+local libturbo_parser = ffi.load("libturbo_parser")
 local util = require "util"
 require "middleclass"
 local fast_assert = util.fast_assert
@@ -89,7 +89,7 @@ if not _G.HTTP_PARSER_H then
       } field_data[7];
     };
     
-    struct nonsence_key_value_field{
+    struct turbo_key_value_field{
         char *key; ///< Header key.
         char *value; ///< Value corresponding to key.
     };
@@ -102,7 +102,7 @@ if not _G.HTTP_PARSER_H then
     };
     
     /** Wrapper struct for http_parser.c to avoid using callback approach.   */
-    struct nonsence_parser_wrapper{
+    struct turbo_parser_wrapper{
         struct http_parser parser;
         int32_t http_parsed_with_rc;
         struct http_parser_url url;
@@ -115,13 +115,13 @@ if not _G.HTTP_PARSER_H then
         bool headers_complete;
         enum header_state header_state; ///< Used internally.
         int32_t header_key_values_sz; ///< Size of key values in header that is in header_key_values member.
-        struct nonsence_key_value_field **header_key_values;
+        struct turbo_key_value_field **header_key_values;
     
     };
     
-    extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len, int32_t type);
+    extern size_t turbo_parser_wrapper_init(struct turbo_parser_wrapper *dest, const char* data, size_t len, int32_t type);
     /** Free memory and memset 0 if PARANOID is defined.   */
-    extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src);
+    extern void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
     
     int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
     /** Check if a given field is set in http_parser_url  */
@@ -178,8 +178,8 @@ httputil.UF = {
 
 
 local function parse_url_part(uri_str, http_parser_url, UF_prop)
-    if (libnonsence_parser.url_field_is_set(http_parser_url, UF_prop) == true) then
-        local field = libnonsence_parser.url_field(uri_str, http_parser_url, UF_prop)
+    if (libturbo_parser.url_field_is_set(http_parser_url, UF_prop) == true) then
+        local field = libturbo_parser.url_field(uri_str, http_parser_url, UF_prop)
         local field_lua = ffi.string(field)
         ffi.C.free(field)
         return field_lua
@@ -241,7 +241,7 @@ end
 
 function httputil.HTTPHeaders:parse_url(url)
         local http_parser_url = ffi.new("struct http_parser_url")
-        local rc = libnonsence_parser.http_parser_parse_url(url, url:len(), 0, http_parser_url)
+        local rc = libturbo_parser.http_parser_parse_url(url, url:len(), 0, http_parser_url)
         if (rc ~= 0) then
             return -1
         else
@@ -381,14 +381,14 @@ function httputil.HTTPHeaders:get_errno() return self.errno end
 
 
 function httputil.HTTPHeaders:parse_response_header(raw_headers)
-    local nw = ffi.new("struct nonsence_parser_wrapper")
-    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 1)
+    local nw = ffi.new("struct turbo_parser_wrapper")
+    local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 1)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
-        local errno_name = libnonsence_parser.http_errno_name(self.errno)
-        local errno_desc = libnonsence_parser.http_errno_description(self.errno)
-        libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+        local errno_name = libturbo_parser.http_errno_name(self.errno)
+        local errno_desc = libturbo_parser.http_errno_description(self.errno)
+        libturbo_parser.turbo_parser_wrapper_exit(nw)
         return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
     end
     
@@ -403,19 +403,19 @@ function httputil.HTTPHeaders:parse_response_header(raw_headers)
         self:set(key, value)
     end
     
-    libnonsence_parser.nonsence_parser_wrapper_exit(nw)
+    libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz
 end
 
 function httputil.HTTPHeaders:parse_request_header(raw_headers)
-    local nw = ffi.new("struct nonsence_parser_wrapper")
-    local sz = libnonsence_parser.nonsence_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 0)
-    ffi.gc(nw, libnonsence_parser.nonsence_parser_wrapper_exit)
+    local nw = ffi.new("struct turbo_parser_wrapper")
+    local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 0)
+    ffi.gc(nw, libturbo_parser.turbo_parser_wrapper_exit)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
-        local errno_name = libnonsence_parser.http_errno_name(self.errno)
-        local errno_desc = libnonsence_parser.http_errno_description(self.errno)
+        local errno_name = libturbo_parser.http_errno_name(self.errno)
+        local errno_desc = libturbo_parser.http_errno_description(self.errno)
         return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
     end
     

@@ -22,7 +22,7 @@
 
   ]]
 
-package.path = package.path.. ";../nonsence/?.lua"  
+package.path = package.path.. ";../turbo/?.lua"  
 
 -------------------------------------------------------------------------
 --
@@ -30,22 +30,22 @@ package.path = package.path.. ";../nonsence/?.lua"
 --
 local log = assert(require('log'), 
 	[[Missing log module]])
-local nonsence = assert(require('nonsence'), 
+local turbo = assert(require('turbo'), 
 	[[Missing httputil module]])
 -------------------------------------------------------------------------
-local ioloop_instance = nonsence.ioloop.instance()
+local ioloop_instance = turbo.ioloop.instance()
 
 function handle_request(request)	
 	local message = "You requested: " .. request._request.headers.uri
 	
-	local headers = nonsence.httputil.HTTPHeaders:new()
+	local headers = turbo.httputil.HTTPHeaders:new()
 
 	headers:set_status_code(200)
 	headers:set_version("HTTP/1.1")
 	headers:add("Cache-Control", "Cache-Control:private, max-age=0, must-revalidate")
 	headers:add("Connection", "keep-alive")
 	headers:add("Content-Type", "text/html; charset=utf-8")
-	headers:add("Server", "Nonsence v0.1")
+	headers:add("Server", "Turbo v0.1")
 	headers:add("Content-Length", message:len() + 2)
 	
 	request:write(headers:__tostring())
@@ -53,6 +53,6 @@ function handle_request(request)
 	request:finish()
 end
 
-http_server = nonsence.httpserver.HTTPServer:new(handle_request)
+http_server = turbo.httpserver.HTTPServer:new(handle_request)
 http_server:listen(8888)
 ioloop_instance:start()

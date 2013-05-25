@@ -1,4 +1,4 @@
---[[ Nonsence Utilities module.
+--[[ Turbo Utilities module.
 
 Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 

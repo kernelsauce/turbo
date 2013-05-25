@@ -1,4 +1,4 @@
---[[ Nonsence HTTP response codes list
+--[[ Turbo HTTP response codes list
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

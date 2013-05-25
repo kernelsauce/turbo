@@ -1,4 +1,4 @@
---[[ Nonsence Unit test
+--[[ Turbo Unit test
 
 Copyright 2013 John Abrahamsen
 
@@ -14,14 +14,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local nonsence = require 'nonsence'
+local turbo = require 'turbo'
 
 
-describe("nonsence deque module", function()     
+describe("turbo deque module", function()     
     local d
     it("should be constructed right", function()
-       d = nonsence.deque:new()
-       assert.truthy(instanceOf(nonsence.deque, d))
+       d = turbo.deque:new()
+       assert.truthy(instanceOf(turbo.deque, d))
     end)
     
     local append_n_elements = 20000
@@ -73,7 +73,7 @@ describe("nonsence deque module", function()
     end)
     
     it("should behave logically", function()
-        local q = nonsence.deque:new()
+        local q = turbo.deque:new()
         local str = ""
         local n = 0 
         

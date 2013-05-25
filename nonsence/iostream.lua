@@ -1,4 +1,4 @@
---[[ Nonsence IOStream Server module
+--[[ Turbo IOStream Server module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

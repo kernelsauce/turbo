@@ -1,4 +1,4 @@
---[[ Nonsence HTTP Server module
+--[[ Turbo HTTP Server module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

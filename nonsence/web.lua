@@ -1,4 +1,4 @@
---[[ Nonsence Web framework module
+--[[ Turbo Web framework module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 
@@ -329,7 +329,7 @@ end
 STATIC_CACHE = web._StaticWebCache:new()
 
 
---[[ Static file handler class.  Provide the filesystem path as option in nonsence.web.Application.  ]]
+--[[ Static file handler class.  Provide the filesystem path as option in turbo.web.Application.  ]]
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:init(app, request, args, options)
 	web.RequestHandler:init(app, request, args)	
@@ -436,7 +436,7 @@ web.Application = class("Application")
 function web.Application:init(handlers, default_host)
 	self.handlers = handlers
 	self.default_host = default_host
-	self.application_name = "Nonsence v1.0"
+	self.application_name = "Turbo v1.0"
 end
 
 --[[ Sets the server name.     ]]

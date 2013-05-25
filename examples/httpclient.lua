@@ -1,4 +1,4 @@
---[[ Nonsence Async HTTP client example
+--[[ Turbo Async HTTP client example
 
 Copyright 2013 John Abrahamsen
 
@@ -15,17 +15,17 @@ See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
 _G.NW_CONSOLE = 1
-local nonsence = require "nonsence"
+local turbo = require "turbo"
 
-local TwitterFeedHandler = class("TwitterFeed", nonsence.web.RequestHandler)
+local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
 function TwitterFeedHandler:get(path)
     self:set_auto_finish(false)
-    nonsence.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed",
+    turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed",
 	"GET",
 	function(headers, data)
 		if headers:get_status_code() == 200 then
-		     local res = nonsence.escape.json_decode(data)
+		     local res = turbo.escape.json_decode(data)
 		     local top_search_result = res.results[1]
 		     local text = top_search_result.text
 		     local pic = top_search_result.profile_image_url
@@ -35,18 +35,18 @@ function TwitterFeedHandler:get(path)
 			<p>%s</p>
 		     ]], pic, text))
 		else
-		     error(nonsence.web.HTTPError(500), "Twitter did not respond with 200?!")
+		     error(turbo.web.HTTPError(500), "Twitter did not respond with 200?!")
 		end
 		self:finish()
 	end, function(err)
 		-- Could not connect?
-		error(nonsence.web.HTTPError(500), "Could not load data from Twitter API")
+		error(turbo.web.HTTPError(500), "Could not load data from Twitter API")
 	end)
 end
  
-local application = nonsence.web.Application:new({
+local application = turbo.web.Application:new({
 	{"(.+)", TwitterFeedHandler}
 })
 
 application:listen(8888)
-nonsence.ioloop.instance():start()
+turbo.ioloop.instance():start()

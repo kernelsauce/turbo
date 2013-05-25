@@ -1,10 +1,10 @@
 /* Wrapper for http_parser.c
 Copyright 2013 John Abrahamsen < JhnAbrhmsn@gmail.com >
 
-This module "http_parser_ffi_wrap" is a part of the Nonsence Web server.
+This module "http_parser_ffi_wrap" is a part of the Turbo Web server.
 For the complete stack hereby called "software package" please see:
 
-https://github.com/JohnAbrahamsen/nonsence-ng/
+https://github.com/JohnAbrahamsen/turbo-ng/
 
 "Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -28,7 +28,7 @@ SOFTWARE."			*/
 #include "http_parser.h"
 
 
-struct nonsence_key_value_field{
+struct turbo_key_value_field{
     char *key; ///< Header key.
     char *value; ///< Value corresponding to key.
 };
@@ -41,7 +41,7 @@ enum header_state{
 };
 
 /** Wrapper struct for http_parser.c to avoid using callback approach.   */
-struct nonsence_parser_wrapper{
+struct turbo_parser_wrapper{
     struct http_parser parser;
     int32_t http_parsed_with_rc;
     struct http_parser_url url;
@@ -54,13 +54,13 @@ struct nonsence_parser_wrapper{
     bool headers_complete;
     enum header_state header_state; ///< Used internally.
     int32_t header_key_values_sz; ///< Size of key values in header that is in header_key_values member.
-    struct nonsence_key_value_field **header_key_values;
+    struct turbo_key_value_field **header_key_values;
 
 };
 
-extern size_t nonsence_parser_wrapper_init(struct nonsence_parser_wrapper *dest, const char* data, size_t len, int32_t type);
+extern size_t turbo_parser_wrapper_init(struct turbo_parser_wrapper *dest, const char* data, size_t len, int32_t type);
 /** Free memory and memset 0 if PARANOID is defined.   */
-extern void nonsence_parser_wrapper_exit(struct nonsence_parser_wrapper *src);
+extern void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
 
 int http_parser_parse_url(const char *buf, size_t buflen, int is_connect, struct http_parser_url *u);
 /** Check if a given field is set in http_parser_url  */

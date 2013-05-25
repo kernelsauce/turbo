@@ -1,6 +1,6 @@
 #!/usr/local/bin/luajit
 
---[[ Nonsence Web console
+--[[ Turbo Web console
 
 Copyright 2013 John Abrahamsen
 
@@ -19,10 +19,10 @@ limitations under the License.     ]]
 require "curses"
 require "os"
 
-local nonsence = require "nonsence"
-local SOCK_STREAM = nonsence.socket.SOCK_STREAM
-local INADDRY_ANY = nonsence.socket.INADDR_ANY
-local AF_INET = nonsence.socket.AF_INET
+local turbo = require "turbo"
+local SOCK_STREAM = turbo.socket.SOCK_STREAM
+local INADDRY_ANY = turbo.socket.INADDR_ANY
+local AF_INET = turbo.socket.AF_INET
 
 
 
@@ -40,8 +40,8 @@ end
 local hostname = addr[1]
 local port = tonumber(addr[2])
 
-local io_loop = nonsence.ioloop.instance()
-local stream = nonsence.iostream.IOStream:new(nonsence.socket.new_nonblock_socket(AF_INET, SOCK_STREAM, 0))
+local io_loop = turbo.ioloop.instance()
+local stream = turbo.iostream.IOStream:new(turbo.socket.new_nonblock_socket(AF_INET, SOCK_STREAM, 0))
 
 local rc, msg = stream:connect(hostname, port, AF_INET, function()
     -- On success
@@ -68,8 +68,8 @@ local rc, msg = stream:connect(hostname, port, AF_INET, function()
                 reading = false
                 stdscr:clear()
 
-                local stats = nonsence.escape.json_decode(data)
-                stdscr:mvaddstr(0,0, "Nonsence Web Debug Console")                
+                local stats = turbo.escape.json_decode(data)
+                stdscr:mvaddstr(0,0, "Turbo Web Debug Console")                
     
                 stdscr:mvaddstr(2,2, "TCP | Bytes recieved : ")
                 stdscr:mvaddstr(2,60, stats.tcp_recv_bytes .. " B")
@@ -132,7 +132,7 @@ local rc, msg = stream:connect(hostname, port, AF_INET, function()
     end)
 end, function(_, errno)
     -- On connect fail
-    print(string.format("Could not connect to host %s: %s.", hostname, nonsence.socket.strerror(errno)))
+    print(string.format("Could not connect to host %s: %s.", hostname, turbo.socket.strerror(errno)))
     os.exit(1)
 end)
 

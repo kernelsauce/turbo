@@ -1,4 +1,4 @@
---[[ Nonsence IOStream Unit test
+--[[ Turbo IOStream Unit test
 
 Copyright 2013 John Abrahamsen
 
@@ -14,24 +14,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local nonsence = require 'nonsence'
+local turbo = require 'turbo'
 
 
-describe("nonsence iostream module", function()     
+describe("turbo iostream module", function()     
     it("_double_prefix should work", function()
-       local d = nonsence.deque:new()
-       assert.truthy(instanceOf(nonsence.deque, d))
+       local d = turbo.deque:new()
+       assert.truthy(instanceOf(turbo.deque, d))
        
        d:append("a")
        d:append("b")
        d:append("c")
        d:append("word")
        d:append("long long word")
-       nonsence.iostream._merge_prefix(d, 4)
+       turbo.iostream._merge_prefix(d, 4)
        assert.equal(d:popleft(), "abcw")
-       nonsence.iostream._merge_prefix(d, 3)
+       turbo.iostream._merge_prefix(d, 3)
        assert.equal(d:popleft(), "ord")
-       nonsence.iostream._merge_prefix(d, 14)
+       turbo.iostream._merge_prefix(d, 14)
        assert.equal(d:popleft(), "long long word")
        assert.equal(d:not_empty(), false)
     end)
