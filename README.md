@@ -1,15 +1,15 @@
-Nonsence Web 
-============
+Turbo.lua Web 
+========
 
 <b>Asynchronous event based Lua Web server with inspiration from the Tornado web server.</b>
 
 <b>Making a Hello World server:</b>
 
-        local nonsence = require('nonsence')
+        local turbo = require('turbo')
 
 
         -- Create class with RequestHandler heritage.
-        local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+        local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
         function ExampleHandler:get()
                 -- Echo hello world on HTTP GET!
                 self:write("Hello world!")
@@ -22,7 +22,7 @@ Nonsence Web
         end
         
         
-        local MyJSONHandler = class("MyJSONHandler", nonsence.web.RequestHandler)
+        local MyJSONHandler = class("MyJSONHandler", turbo.web.RequestHandler)
         function MyJSONHandler:get()
                 -- Pass table to JSON stringify it.  
                 local my_list = { "one", "two", "three" }
@@ -30,20 +30,20 @@ Nonsence Web
         end
         
          
-        local application = nonsence.web.Application:new({
-                -- Nonsence serves static files as well!
-                {"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+        local application = turbo.web.Application:new({
+                -- Turbo serves static files as well!
+                {"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
                 -- Register handlers
                 {"/$", ExampleHandler},
                 {"/json", MyJSONHandler},
         })
         
         application:listen(8888)
-        nonsence.ioloop.instance():start()
+        turbo.ioloop.instance():start()
 
 Introduction
 ------------
-Nonsence Web is a Lua module / toolkit (whatever) for developing web apps in Lua. It is different from all the other
+Turbo Web is a Lua module / toolkit (whatever) for developing web apps in Lua. It is different from all the other
 Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify, and probably the fastest scriptable Web server
 available.
 
@@ -65,15 +65,15 @@ Its main features and design principles are:
 
 - Small footprint
 
-Nonsence Web is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details. Some modules 
+Turbo Web is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details. Some modules 
 are dual licensed with both MIT and Apache 2.0 licenses.
 
 Dependencies
 ------------
-Nonsence Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
+Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
 which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
 
-All of the modules of Nonsence Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
 
 
 Performance
@@ -85,7 +85,7 @@ Running:
 
 on my Lenovo Thinkpad W510 running ExampleUsage.lua yields these numbers:
 
-        Server Software:        Nonsence
+        Server Software:        Turbo
         Server Hostname:        127.0.0.1
         Server Port:            8888
         
