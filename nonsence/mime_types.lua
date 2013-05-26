@@ -1,47 +1,30 @@
---[[
-	
-	Nonsence Asynchronous event based Lua Web server.
-	Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-	
-	This module "mime_types" is a part of the Nonsence Web server.
-	For the complete stack hereby called "software package" please see:
-	
-	https://github.com/JohnAbrahamsen/nonsence-ng/
-	
-	Many of the modules in the software package are derivatives of the 
-	Tornado web server. Tornado is also licensed under Apache 2.0 license.
-	For more details on Tornado please see:
-	
-	http://www.tornadoweb.org/
-	
-	
-	Copyright 2011 John Abrahamsen
+--[[ Nonsence file type to MIME mappings
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+Copyright 2011, 2012, 2013 John Abrahamsen
 
-	http://www.apache.org/licenses/LICENSE-2.0
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+http://www.apache.org/licenses/LICENSE-2.0
 
-	
-  	Extracted from Apache's mime.types
-	This file controls what Internet media types are sent to the client for
-	given file extension(s).  Sending the correct media type to the client
-	is important so they know how to handle the content of the file.
-	Extra types can either be added here or by using an AddType directive
-	in your config files. For more information about Internet media types,
-	please read RFC 2045, 2046, 2047, 2048, and 2077.  The Internet media type
-	registry is at <http://www.iana.org/assignments/media-types/>.
-  
-  ]]
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
-local mimetypes = {
+Extracted from Apache's mime.types
+This file controls what Internet media types are sent to the client for
+given file extension(s).  Sending the correct media type to the client
+is important so they know how to handle the content of the file.
+Extra types can either be added here or by using an AddType directive
+in your config files. For more information about Internet media types,
+please read RFC 2045, 2046, 2047, 2048, and 2077.  The Internet media type
+registry is at <http://www.iana.org/assignments/media-types/>.        ]]
+
+
+return {
 	ez = "application/andrew-inset",
 	atom = "application/atom+xml",
 	hqx = "application/mac-binhex40",
@@ -197,5 +180,3 @@ local mimetypes = {
 	movie = "video/x-sgi-movie",
 	ice = "x-conference/x-cooltalk",
 }
-
-return mimetypes

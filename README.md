@@ -1,93 +1,176 @@
-Nonsence
+Turbo.lua Web 
 ========
 
-<b>Asynchronous event based Lua Web server</b>
-
-Currently being developed as a Lua alternative to NodeJS / Tornado and all the other event servers out there. 
-
-Author: John Abrahamsen <JhnAbrhmsn@gmail.com> with inspiration from the Tornado web server.
+<b>Asynchronous event based Lua Web server with inspiration from the Tornado web server.</b>
 
 <b>Making a Hello World server:</b>
 
-	local nonsence = require('nonsence')
+        local turbo = require('turbo')
 
-	local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
 
-	function ExampleHandler:get()
-		self:write("Hello world!")
-	end
+        -- Create class with RequestHandler heritage.
+        local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+        function ExampleHandler:get()
+                -- Echo hello world on HTTP GET!
+                self:write("Hello world!")
+        end
+        
+        function ExampleHandler:post()
+                -- Echo post value example on HTTP POST. Or give a bad request if the argument is not set.
+                local posted_value = self:get_argument('somevalue')
+                self:write('You posted: ' .. posted_value)
+        end
+        
+        
+        local MyJSONHandler = class("MyJSONHandler", turbo.web.RequestHandler)
+        function MyJSONHandler:get()
+                -- Pass table to JSON stringify it.  
+                local my_list = { "one", "two", "three" }
+                self:write(my_list)
+        end
+        
+         
+        local application = turbo.web.Application:new({
+                -- Turbo serves static files as well!
+                {"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+                -- Register handlers
+                {"/$", ExampleHandler},
+                {"/json", MyJSONHandler},
+        })
+        
+        application:listen(8888)
+        turbo.ioloop.instance():start()
 
-	function ExampleHandler:post()
-		local posted_value = self:get_argument('somevalue')
-		self:write('You posted: ' .. posted_value)
-	end
+Introduction
+------------
+Turbo Web is a Lua module / toolkit (whatever) for developing web apps in Lua. It is different from all the other
+Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify, and probably the fastest scriptable Web server
+available.
 
-	local application = nonsence.web.Application:new({ 
-		['/$'] = ExampleHandler
-	})
+Its main features and design principles are:
 
-	application:listen(8888) -- Listen on port 8888
+- Simple and intuitive API
 
-	nonsence.ioloop.instance():start() -- Start global IO loop.
+- Good documentation
 
-Why did I do this?
----
-Because Lua is a under rated, compact, easy to learn, FAST, easy to extend and easy to embed language. Lua deserves a proper scalable non-blocking Web server.
+- Few dependencies
 
-With LuaJIT we have a jitted Lua interpreter that makes Lua the fastest dynamic language out there. Why not reap the benefits of this amazing interpreter for the Web?
+- Event driven, asynchronous and threadless design
+
+- Extremely fast with LuaJIT
+
+- Written completely in pure Lua with some LuaJIT FFI modules.
+
+- Linux Epoll support
+
+- Small footprint
+
+Turbo Web is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details. Some modules 
+are dual licensed with both MIT and Apache 2.0 licenses.
+
+Dependencies
+------------
+Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
+which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
+
+All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+
 
 Performance
 -----------
 So all this bragging, but nothing to back it up?!
 Running:
 
-	ab -n 100000 -c 500 127.0.0.1:8888/
+	ab -n 100000 -c 500 -k 127.0.0.1:8888/
 
-on my Lenovo Thinkpad W510 yields these numbers:
+on my Lenovo Thinkpad W510 running ExampleUsage.lua yields these numbers:
 
-* Nonsence w/ LuaJIT (with hello world app): 8158 requests/sec
-* Nonsence w/ Lua (with hello world app): 5848 requests/sec
-* Tornado (with demo hello world app): 1939 requests/sec
+        Server Software:        Turbo
+        Server Hostname:        127.0.0.1
+        Server Port:            8888
+        
+        Document Path:          /
+        Document Length:        12 bytes
+        
+        Concurrency Level:      500
+        Time taken for tests:   7.620 seconds
+        Complete requests:      100000
+        Failed requests:        0
+        Write errors:           0
+        Keep-Alive requests:    100000
+        Total transferred:      17500000 bytes
+        HTML transferred:       1200000 bytes
+        Requests per second:    13124.10 [#/sec] (mean)
+        Time per request:       38.098 [ms] (mean)
+        Time per request:       0.076 [ms] (mean, across all concurrent requests)
+        Transfer rate:          2242.89 [Kbytes/sec] received
 
-Usage
------
+        Connection Times (ms)
+                      min  mean[+/-sd] median   max
+        Connect:        0    6 124.6      0    3012
+        Processing:     1   32  10.1     37     245
+        Waiting:        1   32  10.1     37     244
+        Total:          1   38 126.6     37    3256
+        
+        Percentage of the requests served within a certain time (ms)
+          50%     37
+          66%     38
+          75%     39
+          80%     39
+          90%     40
+          95%     40
+          98%     40
+          99%     40
+         100%   3256 (longest request)
 
-<big>WARNING: This software package is still under heavy development. Basic functionality is in place, there is no documentation for web.lua yet!</big>
 
-All of the modules of Nonsence are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+Tornado (with demo hello world app):
 
-<u>Supported poll implementations at this point:</u>
+        Server Software:        TornadoServer/3.1.dev2
+        Server Hostname:        127.0.0.1
+        Server Port:            8888
+        
+        Document Path:          /
+        Document Length:        12 bytes
+        
+        Concurrency Level:      500
+        Time taken for tests:   33.960 seconds
+        Complete requests:      100000
+        Failed requests:        0
+        Write errors:           0
+        Keep-Alive requests:    100000
+        Total transferred:      23400000 bytes
+        HTML transferred:       1200000 bytes
+        Requests per second:    2944.64 [#/sec] (mean)
+        Time per request:       169.800 [ms] (mean)
+        Time per request:       0.340 [ms] (mean, across all concurrent requests)
+        Transfer rate:          672.90 [Kbytes/sec] received
+        
+        Connection Times (ms)
+                      min  mean[+/-sd] median   max
+        Connect:        0    7 128.3      0    3008
+        Processing:    14  163  36.0    168     382
+        Waiting:       14  163  36.0    168     382
+        Total:         14  169 136.3    168    3375
+        
+        Percentage of the requests served within a certain time (ms)
+          50%    168
+          66%    170
+          75%    174
+          80%    178
+          90%    185
+          95%    197
+          98%    259
+          99%    282
+         100%   3375 (longest request)
 
-* epoll_ffi (if you are running LuaJIT)
-* epoll
 
-<u>Planned poll implementation support</u>
+Don't believe me? Try it yourself and see :).
 
-* kqueue (through LuaJIT FFI and a C module)
-* select (for Windows developers)
-
-<u>Required C modules when running with Lua or LuaJIT:</u>
-
-* Nixio <https://github.com/Neopallium/nixio>: Used for socket handling and bit operations (LuaJIT bit operations are used).
-
-<u>Required C modules if you are running Lua (without the JIT):</u>
-
-* Lua Epoll. <https://github.com/Neopallium/lua-epoll>
 
 License
 -------
-
-Many of the modules in the software package are derivatives of the 
-Tornado web server. Tornado is also licensed under Apache 2.0 license.
-For more details on Tornado please see:
-
-<http://www.tornadoweb.org/>
-
-Some of the modules in this software package are licensed under
-both the MIT and Apache 2.0 License. Modules that are dual licensed 
-clearly states this.
-
-Copyright 2011 John Abrahamsen
+Copyright 2011, 2012 and 2013 John Abrahamsen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -101,5 +184,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+Many of the modules in the software package are derivatives of the 
+Tornado web server. Tornado is also licensed under Apache 2.0 license.
+For more details on Tornado please see:
 
+<http://www.tornadoweb.org/>
+
+Some of the modules in this software package are licensed under
+both the MIT and Apache 2.0 License. Modules that are dual licensed 
+clearly states this in the file header.
 

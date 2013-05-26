@@ -1,109 +1,166 @@
---[[
-	
-		Nonsence Asynchronous event based Lua Web server.
-		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-		
-		This module "deque" is a part of the Nonsence Web server.
-		For the complete stack hereby called "software package" please see:
-		
-		https://github.com/JohnAbrahamsen/nonsence-ng/
-		
-		Many of the modules in the software package are derivatives of the 
-		Tornado web server. Tornado is licensed under Apache 2.0 license.
-		For more details on Tornado please see:
-		
-		http://www.tornadoweb.org/
-		
-		However, this module, deque is not a derivate of Tornado and are
-		hereby licensed under the MIT license.
-		
-		http://www.opensource.org/licenses/mit-license.php >:
+--[[ Double ended queue for Lua
 
-		"Permission is hereby granted, free of charge, to any person obtaining a copy of
-		this software and associated documentation files (the "Software"), to deal in
-		the Software without restriction, including without limitation the rights to
-		use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-		of the Software, and to permit persons to whom the Software is furnished to do
-		so, subject to the following conditions:
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
-		The above copyright notice and this permission notice shall be included in all
-		copies or substantial portions of the Software.
+"Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-		SOFTWARE."
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-  ]]
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."			]]
 
---[[
-
-		Very simple deque implementation in Lua
-		Needs work! :)
-	
-  ]]
 
 require('middleclass')
-
+local log = require "log"
+local ffi = require "ffi"
+--[[ Double ended queue class. 	]]
 local deque = class('Deque')
-
-local insert, remove, concat = table.insert, table.remove, table.concat
+_G.deque_no = 0
 
 function deque:init()
-	self._virtual_queue = {}
+        self.head = nil
+        self.tail = nil
+        self.sz = 0
 end
 
+--[[ Append elements to tail.  ]]
 function deque:append(item)
-	self._virtual_queue[#self._virtual_queue + 1] = item
+    if (not self.tail) then
+        self.tail = {next = nil, prev = nil, value = item}
+        self.head = self.tail
+    else
+        local new_tail = {next = nil, prev = self.tail, value = item}
+        self.tail.next = new_tail
+        self.tail = new_tail        
+    end
+    self.sz = self.sz + 1
 end
 
+--[[ Append element to head. 	]]
 function deque:appendleft(item)
-	insert(self._virtual_queue, 1, item)
+    if (not self.head) then
+        self.head = {next = nil, prev = nil, value = item}
+        self.tail = self.head
+    else
+        local new_head = {next = self.head, prev = nil, value = item}
+        self.head.prev = new_head
+        self.head = new_head   
+    end
+    self.sz = self.sz + 1
 end
 
+--[[ Removes element at tail and returns it. 	]]
 function deque:pop()
-	local len = #self._virtual_queue
-	local pop = self._virtual_queue[len]
-	self._virtual_queue[len] = nil
-	return pop
+    if (not self.tail) then
+        return nil
+    end
+    local value = self.tail.value
+    local new_tail = self.tail.prev
+    if not new_tail then
+        self.tail = nil
+        self.head = nil
+    else
+        self.tail = new_tail
+        self.tail.next = nil
+    end
+    self.sz = self.sz - 1
+    return value
 end
 
+--[[ Removes element at head and returns it. 	]]
 function deque:popleft()
-	local pop = self._virtual_queue[1]
-	remove(self._virtual_queue, 1)
-	return pop
+    if (not self.head) then
+        return nil
+    end
+    local value = self.head.value
+    local new_head = self.head.next
+    if (not new_head) then
+        self.head = nil
+        self.tail = nil
+    else
+        new_head.prev = nil
+        self.head = new_head        
+    end
+    self.sz = self.sz - 1
+    return value
 end
 
-function deque:peeklast()
-	return self._virtual_queue[#self._virtual_queue]
+function deque:size() return self.sz end
+
+--[[ Find length of all elements in deque combined.  Slow.]]
+function deque:strlen()
+    local l = self.head
+    if (not l) then
+        return 0
+    else
+        local sz = 0
+        while (l) do
+            sz = l.value:len() + sz
+            l = l.next            
+        end
+	return sz
+    end
 end
 
-function deque:peekfirst()
-	return self._virtual_queue[1]
+--[[ Concat all elements in deque.  Slow.]]
+function deque:concat()
+    local l = self.head
+    if (not l) then
+        return ""
+    else
+        local sz = 0
+        while (l) do
+            sz = l.value:len() + sz
+            l = l.next            
+        end
+        local buf = ffi.new("char[?]", sz)
+        l = self.head
+        local i = 0
+        while (l) do
+            local len = l.value:len()
+            ffi.copy(buf + i, l.value, len)
+            i = i + len
+            l = l.next        
+        end
+        return ffi.string(buf, sz) or ""
+    end
 end
 
-function deque:getn(k)
-	-- Return number.
-	if k == -1 then 
-		return self:peeklast()
-	else
-	return self._virtual_queue[k + 1]
-	end
+function deque:getn(pos)
+    local l = self.head
+    if not l then
+        return nil
+    end
+    while pos ~= 0 do
+        l = l.next
+        if not l then
+            return nil
+        end
+        pos = pos - 1
+    end
+    return l.value
 end
 
-function deque:size()
-	return #self._virtual_queue or 0
-end
+--[[ Returns element at tail. 	]]
+function deque:peeklast() return self.tail.value end
+--[[ Returns element at head. 	]]
+function deque:peekfirst() return self.head.value end
+
 
 function deque:not_empty()
-	return #self._virtual_queue > 0 and true or false
-end
-
-function deque:concat()
-	return concat(self._virtual_queue) or ''
+    return self.head ~= nil
 end
 
 return deque
+

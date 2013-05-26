@@ -1,46 +1,28 @@
---[[
-	
-		Nonsence Asynchronous event based Lua Web server.
-		Author: John Abrahamsen < JhnAbrhmsn@gmail.com >
-		
-		This module "log" is a part of the Nonsence Web server.
-		For the complete stack hereby called "software package" please see:
-		
-		https://github.com/JohnAbrahamsen/nonsence-ng/
-		
-		Many of the modules in the software package are derivatives of the 
-		Tornado web server. Tornado is licensed under Apache 2.0 license.
-		For more details on Tornado please see:
-		
-		http://www.tornadoweb.org/
-		
-		However, this module, log is not a derivate of Tornado and are
-		hereby licensed under the MIT license.
-		
-		http://www.opensource.org/licenses/mit-license.php >:
+--[[ Nonsence Log module
 
-		"Permission is hereby granted, free of charge, to any person obtaining a copy of
-		this software and associated documentation files (the "Software"), to deal in
-		the Software without restriction, including without limitation the rights to
-		use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-		of the Software, and to permit persons to whom the Software is furnished to do
-		so, subject to the following conditions:
+Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
-		The above copyright notice and this permission notice shall be included in all
-		copies or substantial portions of the Software.
+"Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-		SOFTWARE."
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-  ]]
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."             ]]
   
+require('nwcolors')
 
-local log = {}
+local log = {} -- log namespace.
 
 log.stringify = function (t, name, indent)
    local cart     -- a container
@@ -109,29 +91,44 @@ log.stringify = function (t, name, indent)
    return cart .. autoref
 end	
 
+--[[ Usefull table printer for debug.       ]]
 log.dump = function(stuff, description)
-	-- Usefull table printer for debug.
 	print(log.stringify(stuff, description))
 end
 
-log.warning = function(str)
-	-- Prints a warning to stdout.
-	
-	print("[" .. os.date("%X", os.time()) .. '] Warning: ' .. str)
+
+
+log.success = function(str)
+	print(nwcolors.green .. "[S " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
+--[[ Prints a warning to stdout.      ]]
+log.warning = function(str)	
+	print(nwcolors.yellow .. "[W " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+end
+
+--[[ Prints a notice to stdout.  ]]
 log.notice = function(str)
-	-- Prints a notice to stdout.
-	
-	print("[" .. os.date("%X", os.time()) .. '] Notice: ' .. str)
+	print(nwcolors.white .. "[I " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
-log.error = function(str)
-	-- Running log.error means throwing a error.
-	-- It will stop execution if not caught by either pcall
-	-- or xpcall.
-	
-	print("[" .. os.date("%X", os.time()) .. '] Error: ' .. str)
+--[[ Prints a notice to stdout.  ]]
+log.debug = function(str)
+	print(nwcolors.white .. "[D " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+end
+
+--[[ Prints a error to stdout.  ]]
+log.error = function(str)	
+	print(nwcolors.red .. "[E " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+end
+
+--[[ Prints a error to stdout.  ]]
+log.stacktrace = function(str)	
+	print(nwcolors.red .. str .. nwcolors.reset)
+end
+
+log.devel = function(str)
+        print(nwcolors.cyan .. "[d " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
 end
 
 return log
