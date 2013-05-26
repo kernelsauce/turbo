@@ -1,4 +1,4 @@
---[[ Nonsence JSON output example
+--[[ Turbo JSON output example
 
 Copyright 2013 John Abrahamsen
 
@@ -14,15 +14,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local nonsence = require "nonsence"
+local turbo = require "turbo"
 
-local MyJSONHandler = class("MyJSONHandler", nonsence.web.RequestHandler)
+local MyJSONHandler = class("MyJSONHandler", turbo.web.RequestHandler)
 function MyJSONHandler:get()
 	self:write({ "one", "two", "three", "easy", "json" })
 end
  
-nonsence.web.Application:new({
+turbo.web.Application:new({
 	{"/json", MyJSONHandler}
 }):listen(8888)
 
-nonsence.ioloop.instance():start()
+turbo.ioloop.instance():start()

@@ -1,4 +1,4 @@
---[[ Nonsence IOStream Server module
+--[[ Turbo IOStream Server module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 
@@ -122,19 +122,10 @@ function iostream.IOStream:connect(address, port, family, callback, errhandler)
     self._connecting = true
     sockaddr.sin_port = socket.htons(port)
     
-    --if (type(address) == "string" and util.valid_ipv4(address) and family ~= nil) then
-    --    sockaddr.sin_family = family
-    --    rc = socket.inet_pton(family, address, ffi.cast("void *", sockaddr.sin_addr))
-    --    if (rc ~= 1) then
-    --        if (rc == 0) then
-    --            return -1, string.format("argument #1 to connect() is not a valid IP string.", address)
-    --        elseif (rc == -1) then
-    --            return -2, string.format("argument #3 to connect() is not a valid AF family.", address)
-    --        else
-    --            return -3, string.format("inet_pton failed with unknown error in connect().", address)
-    --        end
-    --    end
-    --else
+    rc = socket.inet_pton(family, address, ffi.cast("void *", sockaddr.sin_addr))
+    if (rc == 1 and family ~= nil) then
+        sockaddr.sin_family = family
+    else
 	local hostinfo = socket.resolv_hostname(address)
 	if (hostinfo == -1) then
 	    return -1, string.format("Could not resolve hostname: %s", address)
@@ -142,7 +133,7 @@ function iostream.IOStream:connect(address, port, family, callback, errhandler)
 
 	ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], ffi.sizeof("struct in_addr"))
 	sockaddr.sin_family = hostinfo.addrtype
-    --end
+    end
     
     rc = socket.connect(self.socket, ffi.cast("struct sockaddr *", sockaddr), sizeof_sockaddr)
     if (rc ~= 0) then
@@ -490,7 +481,7 @@ function iostream.IOStream:_read_from_buffer()
 	local loc
 	if (self._read_buffer:not_empty()) then
 	    while true do
-		loc = self._read_buffer:peekfirst():find(self._read_delimiter)
+		loc = self._read_buffer:peekfirst():find(self._read_delimiter, 1, true)
 		if (loc) then
 		    local callback = self._read_callback
 		    local delimiter_len = self._read_delimiter:len()
@@ -511,7 +502,7 @@ function iostream.IOStream:_read_from_buffer()
 	if (self._read_buffer:not_empty()) then
 	    while true do
 		local chunk = self._read_buffer:peekfirst()
-		local s_start, s_end = chunk:find(self._read_pattern)
+		local s_start, s_end = chunk:find(self._read_pattern, 1, false)
 		if (s_start) then
 		    local callback = self._read_callback
 		    self._read_callback = nil

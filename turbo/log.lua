@@ -1,4 +1,4 @@
---[[ Nonsence Log module
+--[[ Turbo Log module
 
 Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
@@ -19,7 +19,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."             ]]
-  
+
+local util = require "util"  
 require('nwcolors')
 
 local log = {} -- log namespace.
@@ -96,30 +97,28 @@ log.dump = function(stuff, description)
 	print(log.stringify(stuff, description))
 end
 
-
-
 log.success = function(str)
-	print(nwcolors.green .. "[S " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+	print(nwcolors.green .. "[S " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a warning to stdout.      ]]
 log.warning = function(str)	
-	print(nwcolors.yellow .. "[W " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+	print(nwcolors.yellow .. "[W " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a notice to stdout.  ]]
 log.notice = function(str)
-	print(nwcolors.white .. "[I " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+	print(nwcolors.white .. "[I " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a notice to stdout.  ]]
 log.debug = function(str)
-	print(nwcolors.white .. "[D " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+	print(nwcolors.white .. "[D " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a error to stdout.  ]]
 log.error = function(str)	
-	print(nwcolors.red .. "[E " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+	print(nwcolors.red .. "[E " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
 end
 
 --[[ Prints a error to stdout.  ]]
@@ -128,7 +127,7 @@ log.stacktrace = function(str)
 end
 
 log.devel = function(str)
-        print(nwcolors.cyan .. "[d " .. os.date("%X", os.time()) .. '] ' .. str .. nwcolors.reset)
+        print(nwcolors.cyan .. "[d " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
 end
 
 return log

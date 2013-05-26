@@ -1,4 +1,4 @@
---[[ Nonsence Web framework module
+--[[ Turbo Web framework module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 
@@ -248,19 +248,21 @@ function web.RequestHandler:finish(chunk)
 	end
 	
 	if self._status_code == 200 then
-		log.success(string.format([[[web.lua] %d %s %s %s (%s)]], 
+		log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
 			self._status_code, 
 			response_codes[self._status_code],
 			self.request._request.headers.method,
 			self.request._request.headers.url,
-			self.request._request.remote_ip))
+			self.request._request.remote_ip,
+                        self.request._request:request_time()))
 	else
-		log.warning(string.format([[[web.lua] %d %s %s %s (%s)]], 
+		log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
 			self._status_code, 
 			response_codes[self._status_code],
 			self.request._request.headers.method,
 			self.request._request.headers.url,
-			self.request._request.remote_ip))
+			self.request._request.remote_ip,
+                        self.request._request:request_time()))
 	end
 	
 	self:flush()
@@ -327,7 +329,7 @@ end
 STATIC_CACHE = web._StaticWebCache:new()
 
 
---[[ Static file handler class.  Provide the filesystem path as option in nonsence.web.Application.  ]]
+--[[ Static file handler class.  Provide the filesystem path as option in turbo.web.Application.  ]]
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:init(app, request, args, options)
 	web.RequestHandler:init(app, request, args)	
@@ -363,7 +365,7 @@ function web.StaticFileHandler:get(path)
 		error(web.HTTPError(401))
 	end
 
-	local full_path = string.format("%s%s", self.path, filename)
+	local full_path = string.format("%s%s", self.path, escape.unescape(filename))
 	local rc, buf = STATIC_CACHE:get_file(full_path)
 	if rc == 0 then
 		local rc, mime_type = self:get_mime()
@@ -390,7 +392,7 @@ function web.StaticFileHandler:head(path)
 		error(web.HTTPError(401))
 	end
 
-	local full_path = string.format("%s%s", self.path, filename)
+	local full_path = string.format("%s%s", self.path, escape.unescape(filename))
 	local rc, buf = STATIC_CACHE:get_file(full_path)
 	if rc == 0 then
 		local rc, mime_type = self:get_mime()
@@ -434,7 +436,7 @@ web.Application = class("Application")
 function web.Application:init(handlers, default_host)
 	self.handlers = handlers
 	self.default_host = default_host
-	self.application_name = "Nonsence v1.0"
+	self.application_name = "Turbo v1.0"
 end
 
 --[[ Sets the server name.     ]]
@@ -468,8 +470,9 @@ function web.Application:_get_request_handlers(request)
 	for i = 1, handlers_sz do 
 		local handler = self.handlers[i]
 		local pattern = handler[1]
-		if path:match(pattern) then
-			local args = {path:match(pattern)}
+                local match = {path:match(pattern)}
+		if #match > 0 then
+			local args = match
 			return handler[2], args, handler[3]
 		end
 	end

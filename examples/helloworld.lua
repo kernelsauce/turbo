@@ -1,4 +1,4 @@
---[[ Nonsence Hello World example
+--[[ Turbo Hello World example
 
 Copyright 2013 John Abrahamsen
 
@@ -14,16 +14,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local nonsence = require "nonsence"
+local turbo = require "turbo"
 
-local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 function ExampleHandler:get()
 	self:write("Hello world!")
 end
  
-local application = nonsence.web.Application:new({
+local application = turbo.web.Application:new({
 	{"/$", ExampleHandler}
 })
 
 application:listen(8888)
-nonsence.ioloop.instance():start()
+turbo.ioloop.instance():start()

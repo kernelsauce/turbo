@@ -1,4 +1,4 @@
---[[ Nonsence Async module
+--[[ Turbo Async module
 
 Copyright 2013 John Abrahamsen
 
@@ -32,7 +32,7 @@ async.HTTPClient = class("HTTPClient")
 
 function async.HTTPClient:init(family, io_loop, max_buffer_size, read_chunk_size)
     local sock, msg = socket.new_nonblock_socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-    assert(sock ~= -1, msg)
+    fast_assert(sock ~= -1, msg)
     self.io_loop = io_loop or ioloop.instance()
     self.iostream = iostream.IOStream:new(sock, self.io_loop, max_buffer_size, read_chunk_size)
     self.headers = httputil.HTTPHeaders:new()
@@ -45,7 +45,7 @@ end
 function async.HTTPClient:_handle_connect()
     self.connecting = false
     self.headers:add("Host", self.hostname)
-    self.headers:add("User-Agent", "Nonsence v1.0")
+    self.headers:add("User-Agent", "Turbo v1.0")
     self.headers:add("Connection", "close")
     self.headers:add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
     self.headers:add("Accept-Language", "en-US,en;q=0.8")
@@ -76,7 +76,7 @@ function async.HTTPClient:_handle_headers(data)
     end
     self.header_parsed = true
     
-    local content_length = self.response_headers:get("Content-Length")
+    local content_length = self.response_headers:get("Content-Length", true)
     self.iostream:read_bytes(tonumber(content_length), function(data)
         self:_handle_body(data)
     end)

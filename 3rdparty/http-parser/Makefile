@@ -48,17 +48,17 @@ test-valgrind: test_g
 libhttp_parser.o: http_parser.c http_parser.h Makefile
 	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_LIB) -c http_parser.c -o libhttp_parser.o
 
-libnonsence_parser.o: http_parser.c http_parser.h http_parser_ffi_wrap.o Makefile 
-	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_LIB) -c http_parser_ffi_wrap.c -o libnonsence_parser.o
+libturbo_parser.o: http_parser.c http_parser.h http_parser_ffi_wrap.o Makefile 
+	$(CC) $(CPPFLAGS_FAST) $(CFLAGS_LIB) -c http_parser_ffi_wrap.c -o libturbo_parser.o
 
 library: libhttp_parser.o
 	$(CC) -shared -o libhttp_parser.so libhttp_parser.o
 
-library_nonsence: libnonsence_parser.o
-	$(CC) -shared -o libnonsence_parser.so libnonsence_parser.o http_parser.o
+library_turbo: libturbo_parser.o
+	$(CC) -shared -o libturbo_parser.so libturbo_parser.o http_parser.o
 	
-install: library_nonsence
-	sudo install libnonsence_parser.so /usr/lib/libnonsence_parser.so
+install: library_turbo
+	sudo install libturbo_parser.so /usr/lib/libturbo_parser.so
 
 package: http_parser.o
 	$(AR) rcs libhttp_parser.a http_parser.o

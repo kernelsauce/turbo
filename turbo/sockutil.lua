@@ -1,4 +1,4 @@
---[[ Nonsence Socket Utils
+--[[ Turbo Socket Utils
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

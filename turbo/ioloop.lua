@@ -1,4 +1,4 @@
---[[ Nonsence IO Loop module
+--[[ Turbo IO Loop module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 

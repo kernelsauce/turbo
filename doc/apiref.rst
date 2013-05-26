@@ -1,24 +1,24 @@
 .. _apiref:
 
 **************************
-Nonsence Web API Reference
+Turbo Web API Reference
 **************************
 
 .. highlight:: lua
 
 Preliminaries
 =============
-All modules are required in nonsence.lua, so it's enough to
+All modules are required in turbo.lua, so it's enough to
 
 ::
 
-   local nonsence = require('nonsence')
+   local turbo = require('turbo')
 	
-All functionality is placed in the "nonsence" namespace.
+All functionality is placed in the "turbo" namespace.
 
 Module Version
 ==============
-The Nonsence Web version is of the form *A.B.C*, where *A* is the
+The Turbo Web version is of the form *A.B.C*, where *A* is the
 major version, *B* is the minor version, and *C* is the micro version.
 If the micro version is zero, it's omitted from the version string.
 
@@ -31,29 +31,29 @@ set to zero.
 	
 The following constants specify the current version of the module:
 
-``nonsence.MAJOR_VERSION``, ``nonsence.MINOR_VERSION``, ``nonsence.MICRO_VERSION``
+``turbo.MAJOR_VERSION``, ``turbo.MINOR_VERSION``, ``turbo.MICRO_VERSION``
   Numbers specifiying the major, minor and micro versions respectively.
 
-``nonsence.VERSION``
+``turbo.VERSION``
   A string representation of the current version, e.g ``"1.0.0"`` or ``"1.1.0"``.
   
-``nonsence.VERSION_HEX``
+``turbo.VERSION_HEX``
   A 3-byte hexadecimal representation of the version, e.g.
   ``0x010201`` for version 1.2.1 and ``0x010300`` for version 1.3.
 
 Object oriented Lua
 ===================
-Nonsence Web are programmed in a object oriented fashion. There are many ways to do 
+Turbo Web are programmed in a object oriented fashion. There are many ways to do 
 object orientation in Lua, this library uses the Middleclass module. Which is documented
 at https://github.com/kikito/middleclass/wiki. Middleclass is being used internally in 
-Nonsence Web, but is also exposed to the user when inheriting from classes such as the
-``nonsence.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
+Turbo Web, but is also exposed to the user when inheriting from classes such as the
+``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
 easy to learn if you are used to Python, Java or C++.
 
 
-nonsence.web namespace
+turbo.web namespace
 ======================
-nonsence.web namespace provides a web framework with asynchronous features that allow it
+turbo.web namespace provides a web framework with asynchronous features that allow it
 to scale to large numbers of open connections.
 
 Create a web server that listens to port 8888 and prints the canoncial Hello world on a GET request is
@@ -62,18 +62,18 @@ very easy:
 .. code-block:: lua
    :linenos:
 
-	local nonsence = require('nonsence')
+	local turbo = require('turbo')
 
-	local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+	local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 	function ExampleHandler:get() 
 		self:write("Hello world!") 
 	end
 
-	local application = nonsence.web.Application:new({ 
+	local application = turbo.web.Application:new({ 
 		{"/$", ExampleHandler}
 	})
 	application:listen(8888)
-	nonsence.ioloop.instance():start()
+	turbo.ioloop.instance():start()
 
 
 RequestHandler class
@@ -118,7 +118,7 @@ The RequestHandler class are implemented so that it must be subclassed to proces
         
         :param ...: Parameters from matched URL pattern with braces.
 
-All of these methods recieves the arguments from the patterns in the ``nonsence.Web.Application`` handler section.
+All of these methods recieves the arguments from the patterns in the ``turbo.Web.Application`` handler section.
 
 *Candidates for redefinition:*
 
@@ -146,7 +146,7 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 .. function:: RequestHandler:write(chunk)
 
 	Writes the given chunk to the output buffer.			
-	To write the output to the network, call the ``nonsence.web.RequestHandler:flush()`` method.
+	To write the output to the network, call the ``turbo.web.RequestHandler:flush()`` method.
 	If the given chunk is a Lua table, it will be automatically
 	stringifed to JSON.
         
@@ -257,15 +257,15 @@ All of these methods recieves the arguments from the patterns in the ``nonsence.
 
 HTTPError class
 ~~~~~~~~~~~~~~~
-Convinence class for raising errors in ``nonsence.web.RequestHandler`` and return a HTTP status code to the client. The error is caught by the RequestHandler and requests is ended. Usage:
+Convinence class for raising errors in ``turbo.web.RequestHandler`` and return a HTTP status code to the client. The error is caught by the RequestHandler and requests is ended. Usage:
 
 ::
 
-	local ExampleHandler = class("ExampleHandler", nonsence.web.RequestHandler)
+	local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 	function ExampleHandler:get() 
 		local param = self:get_argument("some_key")
 		if param ~= "expected" then
-			error(nonsence.web.HTTPError:new(400))
+			error(turbo.web.HTTPError:new(400))
 		else
 			self:write("Success!")
 		end
@@ -287,8 +287,8 @@ A simple static file handler. All files are cached in memory after initial reque
 
 ::
 
-	local application = nonsence.web.Application:new({ 
-		{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+	local application = turbo.web.Application:new({ 
+		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
 	})
 
 
@@ -298,14 +298,14 @@ The Application class is a collection of request handler classes that make toget
 
 ::
 	
-	local application = nonsence.web.Application:new({ 
-		{"/static/(.*)$", nonsence.web.StaticFileHandler, "/var/www/"},
+	local application = turbo.web.Application:new({ 
+		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
 		{"/$", ExampleHandler},
 		{"/item/(%d*)", ItemHandler}
 	})
 
 The constructor of this class takes a "map" of URL patterns and their respective handlers. The third element in the table are optional parameters the handler class might have.
-E.g the ``nonsence.web.StaticFileHandler`` class takes the root path for your static handler. This element could also be another table for multiple arguments.
+E.g the ``turbo.web.StaticFileHandler`` class takes the root path for your static handler. This element could also be another table for multiple arguments.
 
 The first element in the table is the URL that the application class matches incoming request with to determine how to serve it. These URLs simply be a URL or a any kind of Lua pattern.
 The ItemHandler URL pattern is an example on how to map numbers from URL to your handlers. Pattern encased in parantheses are used as parameters when calling the request methods in your handlers.
@@ -318,14 +318,14 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	 
 	 :param port: TCP port to bind server to.
 	 :type port: Number
-	 :param address: Optional address to bind server to. Use ``nonsence.socket.htonl()`` to create address. We use the integer format of the IP.
+	 :param address: Optional address to bind server to. Use ``turbo.socket.htonl()`` to create address. We use the integer format of the IP.
 	 :type address: Number
 
 .. function:: Application:set_server_name(name)
 
 	Sets the name of the server. Used in the response headers.
 	
-	:param name: The name used in HTTP responses. Default is "Nonsence vx.x"
+	:param name: The name used in HTTP responses. Default is "Turbo vx.x"
 	:type name: String
 
 .. function:: Application:get_server_name()
@@ -334,11 +334,11 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	:rtype: String
 
 
-nonsence.ioloop namespace
+turbo.ioloop namespace
 =========================
-nonsence.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. This is the core of Nonsence. 
+turbo.ioloop namespace provides a abstracted IO loop, driven typically by Linux Epoll or any other supported poll implemenation. This is the core of Turbo. 
 Poll implementations are abstracted and can easily be extended with new variants. 
-On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Nonsence Web for event driven services.
+On Linux Epoll is used and exposed through LuaJIT FFI. The IOLoop class are used by Turbo Web for event driven services.
 
 The inner working are as follows:
 	- Set iteration timeout to 3600 milliseconds.
@@ -351,7 +351,7 @@ Note that because of the fact that the server itself does not know if callbacks 
 In a perfect world they would be called within a reasonable time of what is specified.
 
 Event types for file descriptors are defined in the ioloop module's namespace:
-	``nonsence.ioloop.READ``, ``nonsence.ioloop.WRITE``, ``nonsence.ioloop.PRI``, ``nonsence.ioloop.ERROR``
+	``turbo.ioloop.READ``, ``turbo.ioloop.WRITE``, ``turbo.ioloop.PRI``, ``turbo.ioloop.ERROR``
 
 .. function:: ioloop.instance()
 
@@ -375,7 +375,7 @@ Warning: Only one instance of IOLoop can ever run at the same time!
         
         :param file_descriptor: A file descriptor to trigger the handler.
         :type file_descriptor: Number
-        :param events: The events to trigger the handler. E.g ``nonsence.ioloop.WRITE``. If you wish to listen for multiple events, the event values should be OR'ed together.
+        :param events: The events to trigger the handler. E.g ``turbo.ioloop.WRITE``. If you wish to listen for multiple events, the event values should be OR'ed together.
         :type events: Number
         :param handler: A callback function that will be called when the handler is triggered.
         :type handler: Function
@@ -386,7 +386,7 @@ Warning: Only one instance of IOLoop can ever run at the same time!
 
         :param file_descriptor: A file descriptor to trigger the handler.
         :type file_descriptor: Number
-        :param events: The events to replace the current set events. E.g ``nonsence.ioloop.WRITE``. If you wish to listen for multiple events, the event values should be OR'ed together.
+        :param events: The events to replace the current set events. E.g ``turbo.ioloop.WRITE``. If you wish to listen for multiple events, the event values should be OR'ed together.
 
 .. function:: IOLoop:remove_handler(file_descriptor)
 
@@ -458,9 +458,9 @@ Warning: Only one instance of IOLoop can ever run at the same time!
         :rtype: Boolean 
         
 
-nonsence.iostream namespace
+turbo.iostream namespace
 ===========================
-The nonsence.iostream namespace contains the IOStream and SSLIOStream classes, which are abstractions to provide easy to use streaming sockets.
+The turbo.iostream namespace contains the IOStream and SSLIOStream classes, which are abstractions to provide easy to use streaming sockets.
 
 IOStream class
 ~~~~~~~~~~~~~~
@@ -568,14 +568,14 @@ its own write buffer and there is no need to buffer data at any other level. The
 	
 	:rtype: Boolean
         
-nonsence.httputil namespace
+turbo.httputil namespace
 ===========================
 The httputil namespace contains the HTTPHeader class and POST data parsers, which is a integral part of the HTTPServer class.
 
 HTTPHeaders class
 ~~~~~~~~~~~~~~~~~
 Used to compile and parse HTTP headers. Parsing is done through the Joyent Node HTTP parser via FFI. It is based on the nginx parser. It is
-very fast and contains various protection against attacks. The .so is compiled when Nonsence is installed with ``make install``.
+very fast and contains various protection against attacks. The .so is compiled when Turbo is installed with ``make install``.
 Note that this class has sanity checking for input parameters. If they are of wrong type or contains bad data they will raise a error.
 
 .. function :: HTTPHeaders:new(header_string)
@@ -588,11 +588,11 @@ Note that this class has sanity checking for input parameters. If they are of wr
     
 .. function :: HTTPHeaders:get_url_field(UF_prop)
     
-    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: ``nonsence.httputil.UF.SCHEMA``,
-    ``nonsence.httputil.UF.HOST``, ``nonsence.httputil.UF.PORT``, ``nonsence.httputil.UF.PATH``, ``nonsence.httputil.UF.PATH``,
-    ``nonsence.httputil.QUERY``, ``nonsence.httputil.UF.FRAGMENT`` or ``nonsence.httputil.UF.USERINFO``
+    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: ``turbo.httputil.UF.SCHEMA``,
+    ``turbo.httputil.UF.HOST``, ``turbo.httputil.UF.PORT``, ``turbo.httputil.UF.PATH``, ``turbo.httputil.UF.PATH``,
+    ``turbo.httputil.QUERY``, ``turbo.httputil.UF.FRAGMENT`` or ``turbo.httputil.UF.USERINFO``
     
-    :param UF_prop: Segment to return, values defined in ``nonsence.httputil.UF``.
+    :param UF_prop: Segment to return, values defined in ``turbo.httputil.UF``.
     :type UF_prop: Number
     :rtype: String or Number on error (-1)
     
@@ -724,7 +724,7 @@ Note that this class has sanity checking for input parameters. If they are of wr
     :rtype: String
     
 
-nonsence.util namespace
+turbo.util namespace
 =======================
 The util namespace contains various convinience functions that fits no where else. As Lua is fairly naked as standard. Just the way we like it.
 
