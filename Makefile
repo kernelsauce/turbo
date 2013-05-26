@@ -5,5 +5,5 @@ clean:
 	cd 3rdparty/http-parser; make clean
 
 install:
-	sudo cp -R nonsence/* $(LUA_MODULEDIR)
+	sudo cp -R turbo/* $(LUA_MODULEDIR)
 	cd 3rdparty/http-parser; sudo make install
