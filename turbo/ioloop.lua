@@ -51,7 +51,8 @@ function ioloop.instance()
 end
 
 ioloop.IOLoop = class('IOLoop')
-function ioloop.IOLoop:init()	
+function ioloop.IOLoop:init()
+	self._coroutine_cbs = {}
 	self._handlers = {}
 	self._timeouts = {}
         self._intervals = {}
@@ -118,7 +119,21 @@ local function error_handler(err)
 end
 
 function ioloop.IOLoop:_run_callback(callback)
-    xpcall(callback, error_handler)
+    local co = coroutine.create(function()
+	xpcall(callback, error_handler)	
+    end)
+    local err, yielded = coroutine.resume(co)
+    local st = coroutine.status(co)
+    if (st == "suspended") then
+	local yield_t = type(yielded)
+	--if instanceOf(task.Task, yielded) then
+	if (yield_t == "function") then
+	    self._coroutine_cbs[#self._coroutine_cbs + 1] = {co, yielded}
+	else
+	    self._coroutine_cbs[#self._coroutine_cbs + 1] = {co, function() return -1 end}
+	    log.warning(string.format("[ioloop.lua] Callback yielded with unsupported value, %s.", yield_t))
+	end	
+    end    
     ngc.inc("ioloop_callbacks_run", 1)
 end
 
@@ -193,21 +208,30 @@ while true do
         ngc.set("ioloop_callbacks_queue", #callbacks)
         self._callbacks = {}
 
+        if (#self._coroutine_cbs > 0) then
+	    for _, coroutine_cb in ipairs(self._coroutine_cbs) do
+		-- index 1 = coroutine.
+		-- index 2 = yielded function.
+		coroutine.resume(coroutine_cb[1], coroutine_cb[2]())
+	    end
+	end
+	self._coroutine_cbs = {}
+	
         for i=1, #callbacks, 1 do 
-                self:_run_callback(callbacks[i])
+            self:_run_callback(callbacks[i])
         end
         
         if #self._callbacks > 0 then
-                poll_timeout = 0
+            poll_timeout = 0
         end
         
         if #self._timeouts > 0 then
-                for _, timeout in ipairs(self._timeouts) do
-                        if timeout:timed_out() then
-                                self:_run_callback( timeout:callback() )
-                                timeout = nil                                        
-                        end
-                end
+            for _, timeout in ipairs(self._timeouts) do
+		if timeout:timed_out() then
+		    self:_run_callback(timeout:callback())
+		    timeout = nil                                        
+		end
+	    end
         end
         
         
@@ -231,18 +255,18 @@ while true do
                 end
             end
         end
-        
-        
+	
+	
         if self._stopped then 
-                self.running = false
-                self.stopped = false
-                break
+            self.running = false
+            self.stopped = false
+            break
         end
         
         local events, errno = self._poll:poll(poll_timeout)
         if (type(events) == "table") then
             for i=1, #events do
-                    self:_run_handler(events[i][1], events[i][2])
+                self:_run_handler(events[i][1], events[i][2])
             end
         elseif (type(events) == "number") then
             if (events == -1) then
