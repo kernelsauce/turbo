@@ -19,8 +19,9 @@ local httpclient = turbo.async.HTTPClient:new()
 local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
 function TwitterFeedHandler:get()
-	local httpresponse, err = coroutine.yield(httpclient:fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed", {
-		method = "GET"
+	local httpresponse, err = coroutine.yield(httpclient:fetch("http://search.twitter.com/search.json", {
+		method = "GET",
+		params = "q=Twitter&result_type=mixed"
 	}))
 	
 	if (err ~= nil) then
