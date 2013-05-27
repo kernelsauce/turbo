@@ -14,38 +14,37 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-_G.NW_CONSOLE = 1
 local turbo = require "turbo"
-
+local httpclient = turbo.async.HTTPClient:new()
 local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
-function TwitterFeedHandler:get(path)
-    self:set_auto_finish(false)
-    turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed",
-	"GET",
-	function(headers, data)
-		if headers:get_status_code() == 200 then
-		     local res = turbo.escape.json_decode(data)
-		     local top_search_result = res.results[1]
-		     local text = top_search_result.text
-		     local pic = top_search_result.profile_image_url
-		     self:write(string.format([[
+function TwitterFeedHandler:get()
+	local httpresponse, err = coroutine.yield(httpclient:fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed", {
+		method = "GET"
+	}))
+	
+	if (err ~= nil) then
+		error(turbo.web.HTTPError:new(500, "Could not download from twitter.com"))
+	end
+	
+	local headers = httpresponse:get_reponse_headers()
+	if headers:get_status_code() == 200 then
+		local res = turbo.escape.json_decode(httpresponse:get_data())
+		local top_search_result = res.results[1]
+		local text = top_search_result.text
+		local pic = top_search_result.profile_image_url
+		self:write(string.format([[
 			<h1>Search for Twitter on Twitter gave this tweet:</h1>
 			<img src="%s">
 			<p>%s</p>
-		     ]], pic, text))
-		else
-		     error(turbo.web.HTTPError(500), "Twitter did not respond with 200?!")
-		end
-		self:finish()
-	end, function(err)
-		-- Could not connect?
-		error(turbo.web.HTTPError(500), "Could not load data from Twitter API")
-	end)
+		]], pic, text))
+	else
+		error(turbo.web.HTTPError:new(headers:get_status_code(), "Something bad happened!"))
+	end
 end
- 
+
 local application = turbo.web.Application:new({
-	{"(.+)", TwitterFeedHandler}
+	{"/tweet$", TwitterFeedHandler}
 })
 
 application:listen(8888)
