@@ -15,11 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.		]]
   
 
-local log,tcpserver,httputil,ioloop,iostream = require('log'), require('tcpserver'), require('httputil'), 
-require('ioloop'), require('iostream')
-local util = require "util"
-
-require('middleclass')
+local log = "turbo.log"
+local tcpserver = require "turbo.tcpserver"
+local httputil = require "turbo.httputil"
+local ioloop = require "turbo.ioloop"
+local iostream = require "turbo.iostream"
+local util = require "turbo.util"
+require('turbo.3rdparty.middleclass')
   
 local httpserver = {} -- httpserver namespace
 
@@ -33,8 +35,8 @@ new(request_callback, no_keep_alive, io_loop, xheaders, ssl_options,  kwargs)
 	
 Example usage of HTTPServer (together with IOLoop):
 
-local httpserver = require('httpserver')
-local ioloop = require('ioloop')
+local httpserver = require('turbo.httpserver')
+local ioloop = require('turbo.ioloop')
 local ioloop_instance = ioloop.instance()
 
 -- Request handler function
@@ -51,13 +53,13 @@ ioloop_instance:start()   ]]
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
 	  
-function httpserver.HTTPServer:init(request_callback, no_keep_alive, io_loop, xheaders,
+function httpserver.HTTPServer:initialize(request_callback, no_keep_alive, io_loop, xheaders,
 	ssl_options, kwargs)
 	
 	self.request_callback = request_callback
 	self.no_keep_alive = no_keep_alive or false
 	self.xheaders = xheaders or false
-	tcpserver.TCPServer:init(io_loop, ssl_options, kwargs)
+	tcpserver.TCPServer:initialize(io_loop, ssl_options, kwargs)
 end
 
 --[[ Redefine handle_stream method from super class TCPServer.   ]]
@@ -72,7 +74,7 @@ Represents a running connection to the server. Basically a helper class to HTTPS
 httpserver.HTTPConnection = class('HTTPConnection')
 
 
-function httpserver.HTTPConnection:init(stream, address, request_callback,
+function httpserver.HTTPConnection:initialize(stream, address, request_callback,
 	no_keep_alive, xheaders)
 
 	self.stream = stream
@@ -225,7 +227,7 @@ Generate a HTTPRequest object. HTTP headers are parsed
 magically if headers are supplied with kwargs table.    ]]
 httpserver.HTTPRequest = class('HTTPRequest')
   
-function httpserver.HTTPRequest:init(method, uri, args)
+function httpserver.HTTPRequest:initialize(method, uri, args)
 	
 	local headers, body, remote_ip, protocol, host, files, 
 	version, connection = nil, nil, nil, nil, nil, nil, "HTTP/1.0",

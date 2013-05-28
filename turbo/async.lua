@@ -14,14 +14,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local iostream = require "iostream"
-local ioloop = require "ioloop"
-local httputil = require "httputil"
-local util = require "util"
-local socket = require "socket_ffi"
-local log = require "log"
-local http_response_codes = require "http_response_codes"
-require "middleclass"
+local iostream =            require "turbo.iostream"
+local ioloop =              require "turbo.ioloop"
+local httputil =            require "turbo.httputil"
+local util =                require "turbo.util"
+local socket =              require "turbo.socket_ffi"
+local log =                 require "turbo.log"
+local http_response_codes = require "turbo.http_response_codes"
+require "turbo.3rdparty.middleclass"
+
 local fast_assert = util.fast_assert
 local AF_INET = socket.AF_INET
 
@@ -30,7 +31,7 @@ local async = {} -- async namespace
 
 async.HTTPClient = class("HTTPClient")
 
-function async.HTTPClient:init(family, io_loop, max_buffer_size, read_chunk_size)
+function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chunk_size)
     local sock, msg = socket.new_nonblock_socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     fast_assert(sock ~= -1, msg)
     self.io_loop = io_loop or ioloop.instance()

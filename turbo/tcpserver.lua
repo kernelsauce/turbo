@@ -14,33 +14,33 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.		]]
   
-local log = require "log"
-local util = require "util"
-local iostream = require "iostream"
-local ioloop = require "ioloop"
-local socket = require "socket_ffi"
-local sockutil = require "sockutil"
-local ffi = require "ffi"
-local bit = require "bit"
-require 'middleclass'
-local ngc = require "nwglobals"
+local log =         require "turbo.log"
+local util =        require "turbo.util"
+local iostream =    require "turbo.iostream"
+local ioloop =      require "turbo.ioloop"
+local socket =      require "turbo.socket_ffi"
+local sockutil =    require "turbo.sockutil"
+local ngc =         require "turbo.nwglobals"
+local ffi =         require "ffi"
+local bit =         require "bit"
+require "turbo.3rdparty.middleclass"
 
-local SOL_SOCKET = socket.SOL_SOCKET
+local SOL_SOCKET =  socket.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO_REUSEADDR
-local O_NONBLOCK = socket.O_NONBLOCK
-local F_SETFL = socket.F_SETFL
-local F_GETFL = socket.F_GETFL
+local O_NONBLOCK =  socket.O_NONBLOCK
+local F_SETFL =     socket.F_SETFL
+local F_GETFL =     socket.F_GETFL
 local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET = socket.AF_INET
+local AF_INET =     socket.AF_INET
 local EWOULDBLOCK = socket.EWOULDBLOCK
-local EAGAIN = socket.EAGAIN
+local EAGAIN =      socket.EAGAIN
 
 local tcpserver = {}  -- tcpserver namespace
 
 tcpserver.TCPServer = class('TCPServer')
 
-function tcpserver.TCPServer:init(io_loop, ssl_options)	
+function tcpserver.TCPServer:initialize(io_loop, ssl_options)	
     self.io_loop = io_loop or ioloop.instance()
     self.ssl_options = ssl_options
     self._sockets = {}

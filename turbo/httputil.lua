@@ -21,14 +21,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."             ]]
 
 
-local log = require "log"
-local status_codes = require "http_response_codes"
-local deque = require "deque"
-local escape = require "escape"
+local log = require "turbo.log"
+local status_codes = require "turbo.http_response_codes"
+local deque = require "turbo.structs.deque"
+local escape = require "turbo.escape"
+local util = require "turbo.util"
+require "turbo.3rdparty.middleclass"
 local ffi = require "ffi"
-local libturbo_parser = ffi.load("libturbo_parser")
-local util = require "util"
-require "middleclass"
+local libturbo_parser = ffi.load "libturbo_parser"
 local fast_assert = util.fast_assert
 local b = string.byte
 
@@ -219,7 +219,7 @@ httputil.HTTPHeaders = class("HTTPHeaders")
 
 --[[ Pass headers as parameters to parse them into
 the returned object.   ]]
-function httputil.HTTPHeaders:init(raw_request_headers)	
+function httputil.HTTPHeaders:initialize(raw_request_headers)	
 	self._raw_headers = nil
 	self.uri = nil
         self.url = nil

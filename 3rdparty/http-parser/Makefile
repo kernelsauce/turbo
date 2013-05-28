@@ -81,7 +81,8 @@ tags: http_parser.c http_parser.h test.c
 clean:
 	rm -f *.o *.a tags test test_fast test_g \
 		http_parser.tar libhttp_parser.so \
-		url_parser url_parser_g parsertrace parsertrace_g
+		url_parser url_parser_g parsertrace parsertrace_g \
+		libturbo_parser.so
 
 contrib/url_parser.c:	http_parser.h
 contrib/parsertrace.c:	http_parser.h

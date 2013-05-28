@@ -15,26 +15,27 @@ See the License for the specific language governing permissions and
 limitations under the License.		]]
    
   
-local log = require "log"
-local ioloop = require "ioloop"
-local deque = require "deque"
-local socket = require "socket_ffi"
-local bit = require "bit"
-local ffi = require "ffi"
-local util = require "util"
-local ngc = require "nwglobals"
-local SOL_SOCKET = socket.SOL_SOCKET
-local SO_RESUSEADDR = socket.SO_REUSEADDR
-local O_NONBLOCK = socket.O_NONBLOCK
-local F_SETFL = socket.F_SETFL
-local F_GETFL = socket.F_GETFL
-local SOCK_STREAM = socket.SOCK_STREAM
-local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET = socket.AF_INET
-local EWOULDBLOCK = socket.EWOULDBLOCK
-local EINPROGRESS = socket.EINPROGRESS
-local EAGAIN = socket.EAGAIN
-require "middleclass"
+local log = 		require "turbo.log"
+local ioloop = 		require "turbo.ioloop"
+local deque = 		require "turbo.structs.deque"
+local socket = 		require "turbo.socket_ffi"
+local util = 		require "turbo.util"
+local ngc = 		require "turbo.nwglobals"
+local bit = 		require "bit"
+local ffi = 		require "ffi"
+require "turbo.3rdparty.middleclass"
+local SOL_SOCKET = 	socket.SOL_SOCKET
+local SO_RESUSEADDR = 	socket.SO_REUSEADDR
+local O_NONBLOCK = 	socket.O_NONBLOCK
+local F_SETFL = 	socket.F_SETFL
+local F_GETFL = 	socket.F_GETFL
+local SOCK_STREAM = 	socket.SOCK_STREAM
+local INADDRY_ANY = 	socket.INADDR_ANY
+local AF_INET = 	socket.AF_INET
+local EWOULDBLOCK = 	socket.EWOULDBLOCK
+local EINPROGRESS = 	socket.EINPROGRESS
+local EAGAIN = 		socket.EAGAIN
+
 
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max  
 
@@ -81,7 +82,7 @@ local iostream = {
 
 iostream.IOStream = class('IOStream')
 
-function iostream.IOStream:init(provided_socket, io_loop, max_buffer_size, read_chunk_size)
+function iostream.IOStream:initialize(provided_socket, io_loop, max_buffer_size, read_chunk_size)
     self.socket = assert(provided_socket, "argument #1 for IOStream:new() is empty.")
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size or 104857600
@@ -349,8 +350,8 @@ function iostream.IOStream:_run_callback(callback, ...)
     self:_maybe_add_error_listener()
     self._pending_callbacks = self._pending_callbacks + 1
     self.io_loop:add_callback(function() 
-	    self._pending_callbacks = self._pending_callbacks - 1
-	    callback(_callback_arguments)
+	self._pending_callbacks = self._pending_callbacks - 1
+	callback(_callback_arguments)
     end)
 end
 
@@ -383,20 +384,19 @@ function iostream.IOStream:_maybe_run_close_callback()
 end
 
 --[[ Are the stream currently being read from?   ]]
-function iostream.IOStream:reading()
-	return self._read_callback and true or false
-end
+function iostream.IOStream:reading() return self._read_callback and true or false end
 
 --[[ Are the stream currently being written too.   ]]
-function iostream.IOStream:writing()
-	return self._write_buffer:not_empty()
-end
+function iostream.IOStream:writing() return self._write_buffer:not_empty() end
 
 
 --[[ Is the stream closed?       ]]
 function iostream.IOStream:closed()
-	if self.socket then return false 
-	else return true end
+    if self.socket then
+	return false 
+    else
+	return true
+    end
 end
 
 
@@ -595,8 +595,8 @@ function iostream.IOStream:_maybe_add_error_listener()
 	if self.socket == nil then
 	    local callback = self._close_callback
 	    if callback ~= nil then
-		    self._close_callback = nil
-		    self:_run_callback(callback)
+		self._close_callback = nil
+		self:_run_callback(callback)
 	    end
 	else
 	    self:_add_io_state(ioloop.READ)
@@ -607,9 +607,9 @@ end
 --[[ SSL wrapper class for IOStream. 	]]
 iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
 
-function iostream.SSLIOStream:init(fd, ssl_options, io_loop, max_buffer_size, read_chunk_size)
+function iostream.SSLIOStream:initialize(fd, ssl_options, io_loop, max_buffer_size, read_chunk_size)
     self._ssl_options = ssl_options
-    self.super:init(fd, io_loop, max_buffer_size, read_chunk_size)
+    self.super:initialize(fd, io_loop, max_buffer_size, read_chunk_size)
     self._ssl_accepting = true
     self._handshake_reading = false
     self._handshake_writing = false

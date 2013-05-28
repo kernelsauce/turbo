@@ -14,22 +14,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.		]]
 
-local log = require "log"
-local util = require "util"
-local signal = require "signal"
-local socket = require "socket_ffi"
-require "middleclass"
-local ngc = require "nwglobals"
+local log = require "turbo.log"
+local util = require "turbo.util"
+local signal = require "turbo.signal"
+local socket = require "turbo.socket_ffi"
+require "turbo.3rdparty.middleclass"
+local ngc = require "turbo.nwglobals"
 
 local ioloop = {} -- ioloop namespace
 
 local _poll_implementation = nil
   
-if pcall(require, 'epoll_ffi') then
+if pcall(require, 'turbo.epoll_ffi') then
 	-- Epoll FFI module found and loaded.
 	log.success([[[ioloop.lua] Picked epoll_ffi module as poll module.]])
 	_poll_implementation = 'epoll_ffi'
-	epoll_ffi = require('epoll_ffi')
+	epoll_ffi = require 'turbo.epoll_ffi'
 	-- Populate global with Epoll module constants
 	ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
 	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
@@ -51,7 +51,7 @@ function ioloop.instance()
 end
 
 ioloop.IOLoop = class('IOLoop')
-function ioloop.IOLoop:init()
+function ioloop.IOLoop:initialize()
 	self._coroutine_cbs = {}
 	self._handlers = {}
 	self._timeouts = {}
@@ -189,83 +189,81 @@ function ioloop.IOLoop:clear_interval(ref)
 end
 
 function ioloop.IOLoop:_start_console_server()
-    local console = require "nwconsoleserver"   
+    local console = require "turbo.nwconsoleserver"   
     
     local console_server = console.ConsoleServer:new(self)
     console_server:listen(27000, 0x0)    
 end
 
-function ioloop.IOLoop:start()	
+
+function ioloop.IOLoop:start()    
     self._running = true
     if _G.NW_CONSOLE then
         self:_start_console_server()
     end
-while true do
+    while true do
         local poll_timeout = 3600
         local callbacks = self._callbacks
-        local time_now = nil
         ngc.inc("ioloop_iteration_count", 1)
         ngc.set("ioloop_callbacks_queue", #callbacks)
         self._callbacks = {}
-
-        if (#self._coroutine_cbs > 0) then
-	    for _, coroutine_cb in ipairs(self._coroutine_cbs) do
-		-- index 1 = coroutine.
-		-- index 2 = yielded function.
-		coroutine.resume(coroutine_cb[1], coroutine_cb[2]())
+        local coroutine_cbs_sz = #self._coroutine_cbs
+        if (coroutine_cbs_sz > 0) then
+	    for i = 1, coroutine_cbs_sz do
+                if (self._coroutine_cbs[i] ~= nil) then
+                    -- index 1 = coroutine.
+                    -- index 2 = yielded function.
+                    coroutine.resume(self._coroutine_cbs[i][1], self._coroutine_cbs[i][2]())
+                end
 	    end
 	end
 	self._coroutine_cbs = {}
-	
-        for i=1, #callbacks, 1 do 
+        for i = 1, #callbacks, 1 do 
             self:_run_callback(callbacks[i])
         end
-        
         if #self._callbacks > 0 then
             poll_timeout = 0
         end
-        
-        if #self._timeouts > 0 then
-            for _, timeout in ipairs(self._timeouts) do
-		if timeout:timed_out() then
-		    self:_run_callback(timeout:callback())
-		    timeout = nil                                        
+        local timeout_sz = #self._timeouts
+        if timeout_sz ~= 0 then
+            for i = 1, timeout_sz do
+		if (self._timeouts[i]:timed_out()) then
+		    self:_run_callback(self._timeouts[i]:callback())
+		    self._timeouts[i] = nil
 		end
 	    end
         end
-        
-        
-        if (#self._intervals > 0) then
-            if (time_now == nil) then
-                time_now = util.gettimeofday()
-            end
-            for _, interval in ipairs(self._intervals) do
-                local timed_out = interval:timed_out(time_now)
-                if (timed_out == 0) then
-                    self:_run_callback(interval.callback)
-                    time_now = util.gettimeofday()
-                    local next_call = interval:set_last_call(time_now)
-                    if (next_call < poll_timeout) then
-                        poll_timeout = next_call
-                    end
-                else
-                    if (timed_out < poll_timeout) then
-                        poll_timeout = timed_out
+        local intervals_sz = #self._intervals
+        if (intervals_sz ~= 0) then
+            local time_now = util.gettimeofday()
+            for i = 1, intervals_sz do
+                if (self._intervals[i] ~= nil) then
+                    local timed_out = self._intervals[i]:timed_out(time_now)
+                    if (timed_out == 0) then
+                        self:_run_callback(self._intervals[i].callback)
+                        time_now = util.gettimeofday()
+                        local next_call = self._intervals[i]:set_last_call(time_now)
+                        if (next_call < poll_timeout) then
+                            poll_timeout = next_call
+                        end
+                    else
+                        if (timed_out < poll_timeout) then
+                            poll_timeout = timed_out
+                        end
                     end
                 end
             end
         end
-	
-	
         if self._stopped then 
             self.running = false
             self.stopped = false
             break
         end
-        
         local events, errno = self._poll:poll(poll_timeout)
         if (type(events) == "table") then
-            for i=1, #events do
+            for i = 1, #events do
+                -- index 1 = fd
+                -- index 2 = events bitmask
                 self:_run_handler(events[i][1], events[i][2])
             end
         elseif (type(events) == "number") then
@@ -277,14 +275,14 @@ while true do
 end
 
 function ioloop.IOLoop:close()
-	self._running = false
-	self._stopped = true
-	self._callbacks = {}
-	self._handlers = {}
+    self._running = false
+    self._stopped = true
+    self._callbacks = {}
+    self._handlers = {}
 end
 
 _Interval = class("_Interval")
-function _Interval:init(msec, callback)
+function _Interval:initialize(msec, callback)
     self.interval_msec = msec
     self.callback = callback
     self.next_call = util.gettimeofday() + self.interval_msec
@@ -306,7 +304,7 @@ end
 
 
 _Timeout = class('_Timeout')
-function _Timeout:init(timestamp, callback)
+function _Timeout:initialize(timestamp, callback)
 	self._timestamp = timestamp or error('No timestamp given to _Timeout class')
 	self._callback = callback or error('No callback given to _Timeout class')
 end
@@ -325,7 +323,7 @@ end
 _EPoll_FFI = class('_EPoll_FFI')
 
 -- Internal class for epoll-based event loop using the epoll_ffi module.
-function _EPoll_FFI:init()
+function _EPoll_FFI:initialize()
 	self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
 end
 

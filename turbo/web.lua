@@ -14,30 +14,28 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.		]]
 
-local log = require "log"
-local httputil = require "httputil"
-local deque = require "deque"
-local escape = require "escape"
-local response_codes = require "http_response_codes"
-local mime_types = require "mime_types"
-local util = require "util"
-require('middleclass')
-local ngc = require "nwglobals"
+local log =             require "turbo.log"
+local httputil =        require "turbo.httputil"
+local httpserver =      require "turbo.httpserver"
+local deque =           require "turbo.structs.deque"
+local escape =          require "turbo.escape"
+local response_codes =  require "turbo.http_response_codes"
+local mime_types =      require "turbo.mime_types"
+local ngc =             require "turbo.nwglobals"
+local util =            require "turbo.util"
+require('turbo.3rdparty.middleclass')
+
 local is_in = util.is_in
 local fast_assert = util.fast_assert
 
 local web = {} -- web namespace
 
 
---[[ RequestHandler class.
-
-Decides what the heck to do with incoming requests that matches its
-corresponding pattern / patterns.
-		
+--[[ Base RequestHandler class.		
 All request handler classes should inherit from this one.   ]]
 web.RequestHandler = class("RequestHandler")
 
-function web.RequestHandler:init(application, request, url_args, kwargs)
+function web.RequestHandler:initialize(application, request, url_args, kwargs)
 	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 	self.application = application
 	self.request = request
@@ -179,18 +177,18 @@ To write the output to the network, use the flush() method.
 If the given chunk is a Lua table, it will be automatically
 stringifed to JSON.    ]]
 function web.RequestHandler:write(chunk)
-	local chunk = chunk
-	
-	if self._finished then
-		error("write() method was called after finish().")
-	end
-	
-	if type(chunk) == "table" then
-		self:set_header("Content-Type", "application/json; charset=UTF-8")
-		chunk = escape.json_encode(chunk)
-	end
-	
-	self._write_buffer:append(chunk)
+    local chunk = chunk
+    
+    if self._finished then
+        error("write() method was called after finish().")
+    end
+    
+    if type(chunk) == "table" then
+        self:set_header("Content-Type", "application/json; charset=UTF-8")
+        chunk = escape.json_encode(chunk)
+    end
+
+    self._write_buffer:append(chunk)
 end
 
 
@@ -274,23 +272,23 @@ end
 
 --[[ Main execution of the RequestHandler class.     ]]
 function web.RequestHandler:_execute(args)
-	if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
-		error(web.HTTPError:new(405))
-	end
+    if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
+        error(web.HTTPError:new(405))
+    end
 
-	self:prepare()
-	if not self._finished then
-		self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
-		if self._auto_finish and not self._finished then
-			self:finish()
-		end
-	end
+    self:prepare()
+    if not self._finished then
+        self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
+        if self._auto_finish and not self._finished then
+                self:finish()
+        end
+    end
 end
 
 
 --[[ Static files cache class. Files that does not exist in cache are added to cache on first read.   ]]
 web._StaticWebCache = class("_StaticWebCache")
-function web._StaticWebCache:init()
+function web._StaticWebCache:initialize()
 	self.files = {}
 end
 
@@ -298,7 +296,7 @@ end
 function web._StaticWebCache:read_file(path)
 	local fd = io.open(path, "r")
 	if not fd then
-		return -1, nil
+	    return -1, nil
 	end
 
 	local buf = fd:read("*all")
@@ -313,13 +311,13 @@ function web._StaticWebCache:get_file(path)
 	-- Fallthrough, read from disk.
 	local rc, buf = self:read_file(path)
 	if rc == 0 then
-		self.files[path] = buf
-		log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
-                ngc.inc("static_cache_objects", 1)
-                ngc.inc("static_cache_bytes", buf:len())
-		return 0, buf
+            self.files[path] = buf
+            log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
+            ngc.inc("static_cache_objects", 1)
+            ngc.inc("static_cache_bytes", buf:len())
+            return 0, buf
 	else
-		return -1, nil
+	    return -1, nil
 	end
 
 end
@@ -331,8 +329,8 @@ STATIC_CACHE = web._StaticWebCache:new()
 
 --[[ Static file handler class.  Provide the filesystem path as option in turbo.web.Application.  ]]
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
-function web.StaticFileHandler:init(app, request, args, options)
-	web.RequestHandler:init(app, request, args)	
+function web.StaticFileHandler:initialize(app, request, args, options)
+	web.RequestHandler:initialize(app, request, args)	
 	self.path = options
 end
 
@@ -356,76 +354,76 @@ end
 
 --[[ GET method for static file handling.   ]]
 function web.StaticFileHandler:get(path)
-	if #self._url_args == 0 or self._url_args[1]:len() == 0 then
-		error(web.HTTPError(404))
-	end
+    if #self._url_args == 0 or self._url_args[1]:len() == 0 then
+            error(web.HTTPError(404))
+    end
 
-	local filename = self._url_args[1]
-	if filename:match("%.%.") then -- Prevent dir traversing.
-		error(web.HTTPError(401))
-	end
+    local filename = self._url_args[1]
+    if filename:match("%.%.") then -- Prevent dir traversing.
+            error(web.HTTPError(401))
+    end
 
-	local full_path = string.format("%s%s", self.path, escape.unescape(filename))
-	local rc, buf = STATIC_CACHE:get_file(full_path)
-	if rc == 0 then
-		local rc, mime_type = self:get_mime()
-		if rc == 0 then
-			self:set_header("Content-Type", mime_type)
-		end
-		self:set_header("Content-Length", buf:len())
-                self:set_header("Cache-Control", "max-age=31536000")
-                self:set_header("Expires", os.date("!%a, %d %b %Y %X GMT", self.request._request._start_time + 31536000))
-		self:write(buf)
-	else
-		error(web.HTTPError(404)) -- Not found
-	end
+    local full_path = string.format("%s%s", self.path, escape.unescape(filename))
+    local rc, buf = STATIC_CACHE:get_file(full_path)
+    if rc == 0 then
+        local rc, mime_type = self:get_mime()
+        if rc == 0 then
+                self:set_header("Content-Type", mime_type)
+        end
+        self:set_header("Content-Length", buf:len())
+        self:set_header("Cache-Control", "max-age=31536000")
+        self:set_header("Expires", os.date("!%a, %d %b %Y %X GMT", self.request._request._start_time + 31536000))
+        self:write(buf)
+    else
+        error(web.HTTPError(404)) -- Not found
+    end
 end
 
 
 function web.StaticFileHandler:head(path)
-	if #self._url_args == 0 or self._url_args[1]:len() == 0 then
-		error(web.HTTPError(404))
-	end
+    if #self._url_args == 0 or self._url_args[1]:len() == 0 then
+            error(web.HTTPError(404))
+    end
 
-	local filename = self._url_args[1]
-	if filename:match("%.%.") then -- Prevent dir traversing.
-		error(web.HTTPError(401))
-	end
+    local filename = self._url_args[1]
+    if filename:match("%.%.") then -- Prevent dir traversing.
+            error(web.HTTPError(401))
+    end
 
-	local full_path = string.format("%s%s", self.path, escape.unescape(filename))
-	local rc, buf = STATIC_CACHE:get_file(full_path)
-	if rc == 0 then
-		local rc, mime_type = self:get_mime()
-		if rc == 0 then
-			self:set_header("Content-Type", mime_type)
-		end
-		self:set_header("Content-Length", buf:len())
-	else
-		error(web.HTTPError(404)) -- Not found
-	end
+    local full_path = string.format("%s%s", self.path, escape.unescape(filename))
+    local rc, buf = STATIC_CACHE:get_file(full_path)
+    if rc == 0 then
+            local rc, mime_type = self:get_mime()
+            if rc == 0 then
+                    self:set_header("Content-Type", mime_type)
+            end
+            self:set_header("Content-Length", buf:len())
+    else
+            error(web.HTTPError(404)) -- Not found
+    end
 end
 
 
 --[[ Class to handout HTTP errors.  ]]
 web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
 
-function web.ErrorHandler:init(app, request, code, message)
-	web.RequestHandler:init(app, request)
-	if (message) then 
-		self:write(message)
-	else
-		self:write(response_codes[code])
-	end
-	self:set_status(code)
-	self:finish()
+function web.ErrorHandler:initialize(app, request, code, message)
+    web.RequestHandler:initialize(app, request)
+    if (message) then 
+            self:write(message)
+    else
+            self:write(response_codes[code])
+    end
+    self:set_status(code)
+    self:finish()
 end
 
 --[[ HTTPError exception class. Raisable from RequestHandler instances. Provide code and optional message.  ]]
 web.HTTPError = class("HTTPError")
-function web.HTTPError:init(code, message)
-	fast_assert(type(code) == "number", "HTTPError code argument must be number.")
-	self.code = code
-	self.message = message and message or response_codes[code]
+function web.HTTPError:initialize(code, message)
+    fast_assert(type(code) == "number", "HTTPError code argument must be number.")
+    self.code = code
+    self.message = message and message or response_codes[code]
 end
 
 
@@ -433,7 +431,7 @@ end
 
 web.Application = class("Application")
 
-function web.Application:init(handlers, default_host)
+function web.Application:initialize(handlers, default_host)
 	self.handlers = handlers
 	self.default_host = default_host
 	self.application_name = "Turbo v1.0"
@@ -447,66 +445,52 @@ function web.Application:get_server_name(name) return self.application_name end
 
 --[[ Starts the HTTP server for this application on the given port. ]]
 function web.Application:listen(port, address, kwargs)
-	local httpserver = pcall(require, 'httpserver') and require('httpserver') or 
-		error('Missing module httpserver')
-	local server = httpserver.HTTPServer:new(self, kwargs)
-	server:listen(port, address)
+    local server = httpserver.HTTPServer:new(self, kwargs)
+    server:listen(port, address)
 end
 
-
-local function pack(...)
-	return arg
-end
 --[[ Find a matching request handler for the request object.
 Simply match the URI against the pattern matches supplied
 to the Application class.   ]]
 function web.Application:_get_request_handlers(request)
-	local path = request._request.path and request._request.path:lower()
-	if not path then 
-		path = "/"
-	end
-	
-	local handlers_sz = #self.handlers
-	for i = 1, handlers_sz do 
-		local handler = self.handlers[i]
-		local pattern = handler[1]
-                local match = {path:match(pattern)}
-		if #match > 0 then
-			local args = match
-			return handler[2], args, handler[3]
-		end
-	end
+    local path = request._request.path and request._request.path:lower()
+    if not path then 
+        path = "/"
+    end
+    local handlers_sz = #self.handlers
+    for i = 1, handlers_sz do 
+        local handler = self.handlers[i]
+        local pattern = handler[1]
+        local match = {path:match(pattern)}
+        if #match > 0 then
+            local args = match
+            return handler[2], args, handler[3]
+        end
+    end
 end
 
 function web.Application:__call(request)
-	-- Handler for HTTP request.
-
-	local handler
-	local handlers, args, options = self:_get_request_handlers(request)
-	
-	if handlers then	
-		handler = handlers:new(self, request, args, options)
-		local status, err = pcall(function() handler:_execute() end)
-		if err then
-
-			if instanceOf(web.HTTPError, err) then
-				handler = web.ErrorHandler:new(self, request, err.code, err.message)
-			else 
-				local trace = debug.traceback()
-				log.error("[web.lua] " .. err)
-				log.stacktrace(trace)
-				handler = web.ErrorHandler:new(self, request, 500, string.format("<pre>%s\n%s\n</pre>", err, trace))
-			end
-		end
-		
-	elseif not handlers and self.default_host then 
-		handler = web.RedirectHandler:new("http://" + self.default_host + "/")
-		
-	else
-		handler = web.ErrorHandler:new(self, request, 404)
-	end
-
-	return handler
+    local handler = nil
+    local handlers, args, options = self:_get_request_handlers(request)
+    if handlers then	
+        handler = handlers:new(self, request, args, options)
+        local status, err = pcall(function() handler:_execute() end)
+        if err then
+            if instanceOf(web.HTTPError, err) then
+                handler = web.ErrorHandler:new(self, request, err.code, err.message)
+            else 
+                local trace = debug.traceback()
+                log.error("[web.lua] " .. err)
+                log.stacktrace(trace)
+                handler = web.ErrorHandler:new(self, request, 500, string.format("<pre>%s\n%s\n</pre>", err, trace))
+            end
+        end
+    elseif not handlers and self.default_host then 
+        handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+    else
+        handler = web.ErrorHandler:new(self, request, 404)
+    end
+    return handler
 end
 
 return web

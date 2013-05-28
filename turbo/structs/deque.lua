@@ -21,14 +21,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			]]
 
 
-require('middleclass')
-local log = require "log"
+require 'turbo.3rdparty.middleclass'
+local log = require "turbo.log"
 local ffi = require "ffi"
+
 --[[ Double ended queue class. 	]]
 local deque = class('Deque')
 _G.deque_no = 0
 
-function deque:init()
+function deque:initialize()
         self.head = nil
         self.tail = nil
         self.sz = 0

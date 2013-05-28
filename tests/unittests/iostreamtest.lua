@@ -19,8 +19,8 @@ local turbo = require 'turbo'
 
 describe("turbo iostream module", function()     
     it("_double_prefix should work", function()
-       local d = turbo.deque:new()
-       assert.truthy(instanceOf(turbo.deque, d))
+       local d = turbo.structs.deque:new()
+       assert.truthy(instanceOf(turbo.structs.deque, d))
        
        d:append("a")
        d:append("b")

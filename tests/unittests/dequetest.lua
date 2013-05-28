@@ -20,8 +20,8 @@ local turbo = require 'turbo'
 describe("turbo deque module", function()     
     local d
     it("should be constructed right", function()
-       d = turbo.deque:new()
-       assert.truthy(instanceOf(turbo.deque, d))
+       d = turbo.structs.deque:new()
+       assert.truthy(instanceOf(turbo.structs.deque, d))
     end)
     
     local append_n_elements = 20000
@@ -73,7 +73,7 @@ describe("turbo deque module", function()
     end)
     
     it("should behave logically", function()
-        local q = turbo.deque:new()
+        local q = turbo.structs.deque:new()
         local str = ""
         local n = 0 
         
