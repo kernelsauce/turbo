@@ -18,6 +18,7 @@ local log = require "turbo.log"
 local util = require "turbo.util"
 local signal = require "turbo.signal"
 local socket = require "turbo.socket_ffi"
+local coctx = require "turbo.coctx"
 require "turbo.3rdparty.middleclass"
 local ngc = require "turbo.nwglobals"
 
@@ -26,44 +27,45 @@ local ioloop = {} -- ioloop namespace
 local _poll_implementation = nil
   
 if pcall(require, 'turbo.epoll_ffi') then
-	-- Epoll FFI module found and loaded.
-	log.success([[[ioloop.lua] Picked epoll_ffi module as poll module.]])
-	_poll_implementation = 'epoll_ffi'
-	epoll_ffi = require 'turbo.epoll_ffi'
-	-- Populate global with Epoll module constants
-	ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
-	ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
-	ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
-	ioloop.ERROR = bit.bor(epoll_ffi.EPOLL_EVENTS.EPOLLERR, epoll_ffi.EPOLL_EVENTS.EPOLLHUP)
+    -- Epoll FFI module found and loaded.
+    log.success([[[ioloop.lua] Picked epoll_ffi module as poll module.]])
+    _poll_implementation = 'epoll_ffi'
+    epoll_ffi = require 'turbo.epoll_ffi'
+    -- Populate global with Epoll module constants
+    ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
+    ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
+    ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
+    ioloop.ERROR = bit.bor(epoll_ffi.EPOLL_EVENTS.EPOLLERR, epoll_ffi.EPOLL_EVENTS.EPOLLHUP)
 else
-	-- No poll modules found. Break execution and give error.
-	error([[Could not load a poll module. Make sure you are running this with LuaJIT. Standard Lua is not supported.]])
+    -- No poll modules found. Break execution and give error.
+    error([[Could not load a poll module. Make sure you are running this with LuaJIT. Standard Lua is not supported.]])
 end
 
 
 function ioloop.instance()
-	if _G.io_loop_instance then
-		return _G.io_loop_instance
-	else
-		_G.io_loop_instance = ioloop.IOLoop:new()
-		return _G.io_loop_instance
-	end
+    if _G.io_loop_instance then
+            return _G.io_loop_instance
+    else
+            _G.io_loop_instance = ioloop.IOLoop:new()
+            return _G.io_loop_instance
+    end
 end
 
 ioloop.IOLoop = class('IOLoop')
 function ioloop.IOLoop:initialize()
-	self._coroutine_cbs = {}
-	self._handlers = {}
-	self._timeouts = {}
-        self._intervals = {}
-	self._callbacks = {}
-	self._running = false
-	self._stopped = false
-	if _poll_implementation == 'epoll_ffi' then
-		self._poll = _EPoll_FFI:new()
-	end
-        
-        signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+    self._co_cbs = {}
+    self._co_ctxs = {}
+    self._handlers = {}
+    self._timeouts = {}
+    self._intervals = {}
+    self._callbacks = {}
+    self._running = false
+    self._stopped = false
+    if _poll_implementation == 'epoll_ffi' then
+            self._poll = _EPoll_FFI:new()
+    end
+    
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
@@ -78,33 +80,34 @@ function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
 end
 
 function ioloop.IOLoop:update_handler(file_descriptor, events)
-	local rc, errno = self._poll:modify(file_descriptor, bit.bor(events, ioloop.ERROR))
-        if (rc ~= 0) then
-            log.notice(string.format("[ioloop.lua] register() in update_handler() failed: %s", socket.strerror(errno)))
-            return -1
-        end
-        ngc.inc("ioloop_update_handler_count", 1)
+    local rc, errno = self._poll:modify(file_descriptor, bit.bor(events, ioloop.ERROR))
+    if (rc ~= 0) then
+        log.notice(string.format("[ioloop.lua] register() in update_handler() failed: %s", socket.strerror(errno)))
+        return -1
+    end
+    ngc.inc("ioloop_update_handler_count", 1)
 end
 
 function ioloop.IOLoop:remove_handler(file_descriptor)	
-    if self._handlers[file_descriptor] then 
-        local rc, errno = self._poll:unregister(file_descriptor)
-        if (rc ~= 0) then
-            log.notice(string.format("[ioloop.lua] register() in remove_handler() failed: %s", socket.strerror(errno)))
-            return -1
-        end
-        self._handlers[file_descriptor] = nil
-        ngc.dec("ioloop_fd_count", 1)
+    if not self._handlers[file_descriptor] then
+        return
     end
+    local rc, errno = self._poll:unregister(file_descriptor)
+    if (rc ~= 0) then
+        log.notice(string.format("[ioloop.lua] register() in remove_handler() failed: %s", socket.strerror(errno)))
+        return -1
+    end
+    self._handlers[file_descriptor] = nil
+    ngc.dec("ioloop_fd_count", 1)
 end
 
 
 function ioloop.IOLoop:_run_handler(file_descriptor, events)   
     xpcall(self._handlers[file_descriptor], function(err)
-                log.error("[ioloop.lua] caught error in handler: " .. err)
-                self:remove_handler(file_descriptor)
-                ngc.inc("ioloop_handlers_errors_count", 1)
-            end, file_descriptor, events)
+        log.error("[ioloop.lua] caught error in handler: " .. err)
+        self:remove_handler(file_descriptor)
+        ngc.inc("ioloop_handlers_errors_count", 1)
+    end, file_descriptor, events)
     ngc.inc("ioloop_handlers_called", 1)
 end
 
@@ -122,21 +125,48 @@ function ioloop.IOLoop:_run_callback(callback)
     local co = coroutine.create(function()
 	xpcall(callback, error_handler)	
     end)
-    local err, yielded = coroutine.resume(co)
+    local rc = self:_resume_coroutine(co, nil)
+    ngc.inc("ioloop_callbacks_run", 1)
+    return rc
+end
+
+function ioloop.IOLoop:_resume_coroutine(co, coroutine_func)
+    local err, yielded = coroutine.resume(co, type(coroutine_func) == "function" and coroutine_func())
     local st = coroutine.status(co)
     if (st == "suspended") then
 	local yield_t = type(yielded)
-	--if instanceOf(task.Task, yielded) then
-	if (yield_t == "function") then
-	    self._coroutine_cbs[#self._coroutine_cbs + 1] = {co, yielded}
+	if instanceOf(coctx.CoroutineContext, yielded) then
+            -- Advanced yield scenario.
+            -- Use CouroutineContext as key in Coroutine map.
+            self._co_ctxs[yielded] = co
+            return 1
+	elseif (yield_t == "function") then
+            -- Schedule coroutine to be run on next iteration with function as result of yield.
+	    self._co_cbs[#self._co_cbs + 1] = {co, yielded}
+            return 2
+        elseif (yield_t == "nil") then
+            self._co_cbs[#self._co_cbs + 1] = {co, 0}
+            return 3
 	else
-	    self._coroutine_cbs[#self._coroutine_cbs + 1] = {co, function() return -1 end}
+            -- Invalid yielded value. Schedule resume of courotine on next iteration with
+            -- -1 as result of yield (to represent error).
+	    self._co_cbs[#self._co_cbs + 1] = {co, function() return -1 end}
 	    log.warning(string.format("[ioloop.lua] Callback yielded with unsupported value, %s.", yield_t))
+            return 3
 	end	
-    end    
-    ngc.inc("ioloop_callbacks_run", 1)
+    end
+    return 0
 end
 
+function ioloop.IOLoop:finalize_coroutine_context(coctx)
+    local coroutine = self._co_ctxs[coctx]
+    if not coroutine then
+        log.warning("[ioloop.lua] Trying to finalize a coroutine context that there are no reference to.")
+        return -1
+    end
+    self._co_ctxs[coctx] = nil 
+    self._resume_coroutine(coroutine, unpack(coctx:get_coroutine_arguments()))
+end
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
     local i = 1
@@ -155,11 +185,11 @@ end
 
 function ioloop.IOLoop:remove_timeout(ref)	
     if self._timeouts[ref] then
-            self._timeouts[ref] = nil
-            ngc.dec("ioloop_timeout_count", 1)
-            return true        
+        self._timeouts[ref] = nil
+        ngc.dec("ioloop_timeout_count", 1)
+        return true        
     else
-            return false
+        return false
     end
 end
 
@@ -190,7 +220,6 @@ end
 
 function ioloop.IOLoop:_start_console_server()
     local console = require "turbo.nwconsoleserver"   
-    
     local console_server = console.ConsoleServer:new(self)
     console_server:listen(27000, 0x0)    
 end
@@ -202,26 +231,33 @@ function ioloop.IOLoop:start()
         self:_start_console_server()
     end
     while true do
-        local poll_timeout = 3600
-        local callbacks = self._callbacks
-        ngc.inc("ioloop_iteration_count", 1)
-        ngc.set("ioloop_callbacks_queue", #callbacks)
-        self._callbacks = {}
-        local coroutine_cbs_sz = #self._coroutine_cbs
-        if (coroutine_cbs_sz > 0) then
-	    for i = 1, coroutine_cbs_sz do
-                if (self._coroutine_cbs[i] ~= nil) then
+        local poll_timeout = 3600        
+        local co_cbs_sz = #self._co_cbs
+        if (co_cbs_sz > 0) then
+            local co_cbs = self._co_cbs
+            self._co_cbs = {}
+	    for i = 1, co_cbs_sz do
+                if (co_cbs[i] ~= nil) then
                     -- index 1 = coroutine.
                     -- index 2 = yielded function.
-                    coroutine.resume(self._coroutine_cbs[i][1], self._coroutine_cbs[i][2]())
+                    if (self:_resume_coroutine(co_cbs[i][1], co_cbs[i][2]) ~= 0) then
+                        -- Resumed courotine yielded. Adjust timeout.
+                        poll_timeout = 0
+                    end
                 end
 	    end
 	end
-	self._coroutine_cbs = {}
+        local callbacks = self._callbacks
+        ngc.set("ioloop_callbacks_queue", #callbacks)
+        self._callbacks = {}
         for i = 1, #callbacks, 1 do 
-            self:_run_callback(callbacks[i])
+            if (self:_run_callback(callbacks[i]) ~= 0) then
+                -- Function yielded and has been scheduled for next iteration. Drop timeout.
+                poll_timeout = 0
+            end
         end
         if #self._callbacks > 0 then
+            -- Callback has been scheduled for next iteration. Drop timeout.
             poll_timeout = 0
         end
         local timeout_sz = #self._timeouts
@@ -230,6 +266,7 @@ function ioloop.IOLoop:start()
 		if (self._timeouts[i]:timed_out()) then
 		    self:_run_callback(self._timeouts[i]:callback())
 		    self._timeouts[i] = nil
+                    -- FIXME, adjust timeout.
 		end
 	    end
         end
@@ -248,6 +285,7 @@ function ioloop.IOLoop:start()
                         end
                     else
                         if (timed_out < poll_timeout) then
+                            -- Adjust timeout to not miss time out.
                             poll_timeout = timed_out
                         end
                     end
@@ -270,7 +308,8 @@ function ioloop.IOLoop:start()
             if (events == -1) then
                 log.notice(string.format("[ioloop.lua] poll() returned errno %d", errno))
             end
-        end        
+        end
+        ngc.inc("ioloop_iteration_count", 1)
     end
 end
 
