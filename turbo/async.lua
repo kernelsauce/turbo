@@ -21,6 +21,7 @@ local util =                require "turbo.util"
 local socket =              require "turbo.socket_ffi"
 local log =                 require "turbo.log"
 local http_response_codes = require "turbo.http_response_codes"
+local coctx =               require "turbo.coctx"
 require "turbo.3rdparty.middleclass"
 
 local fast_assert = util.fast_assert
@@ -32,15 +33,9 @@ local async = {} -- async namespace
 async.HTTPClient = class("HTTPClient")
 
 function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chunk_size)
-    local sock, msg = socket.new_nonblock_socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-    fast_assert(sock ~= -1, msg)
     self.io_loop = io_loop or ioloop.instance()
-    self.iostream = iostream.IOStream:new(sock, self.io_loop, max_buffer_size, read_chunk_size)
-    self.headers = httputil.HTTPHeaders:new()
-    self.response_headers = nil
-    -- States
-    self.connecting = false
-    self.headers_parsed = false
+    self.max_buffer_size = max_buffer_size
+    self.read_chunk_size = read_chunk_size    
 end
 
 function async.HTTPClient:_handle_connect()
@@ -88,9 +83,8 @@ function async.HTTPClient:_handle_body(data)
     local status_code = self.response_headers:get_status_code()
     log.success(string.format("[async.lua] %s %s%s => %d %s %dms", self.method, self.hostname, self.path, status_code, http_response_codes[status_code], self.finish_time - self.start_time))
     self.iostream:close()
-    if (self.callback) then
-        self.callback(self.response_headers, data)
-    end
+    self.coctx:set_arguments({self.response_headers, data})
+    self.coctx:finalize_context()
 end
 
 function async.HTTPClient:_handle_error(err)
@@ -103,15 +97,22 @@ function async.HTTPClient:_handle_error(err)
     end
 end
 
-function async.HTTPClient:fetch(url, method, callback, err_handler)
+function async.HTTPClient:fetch(url, kwargs)
     fast_assert(type(url) == "string", "URL must be string.")
+    self.headers = httputil.HTTPHeaders:new()
     local rc = self.headers:parse_url(url)
     fast_assert(rc == 0, "Invalid URL provided to fetch().")
+    
+    local sock, msg = socket.new_nonblock_socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+    fast_assert(sock ~= -1, msg)
+    self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size, self.read_chunk_size)
+    self.response_headers = nil
+    self.connecting = false
+    self.headers_parsed = false
+
     self.start_time = util.gettimeofday()
     self.url = url
-    self.callback = callback
-    self.err_handler = err_handler
-    self.method = method or "GET"
+    self.method = kwargs.method or "GET"
 
     self.hostname = self.headers:get_url_field(httputil.UF.HOST)
     self.port = self.headers:get_url_field(httputil.UF.PORT)
@@ -120,7 +121,6 @@ function async.HTTPClient:fetch(url, method, callback, err_handler)
     if (self.port == -1) then
         self.port = 80
     end
-    
     if (self.headers:get_url_field(httputil.UF.SCHEMA) == "http") then
         self.connecting = true
         self.iostream:connect(self.hostname, self.port, AF_INET,
@@ -129,6 +129,8 @@ function async.HTTPClient:fetch(url, method, callback, err_handler)
     else
         error("Wrong schema used in fetch() url parameter.")
     end
+    self.coctx = coctx.CoroutineContext:new(self.io_loop)
+    return self.coctx
 end
 
 return async

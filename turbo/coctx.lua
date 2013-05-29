@@ -1,4 +1,4 @@
---[[ Turbo Web framework module
+--[[ Turbo Coroutine Context module
 
 Copyright 2011, 2012, 2013 John Abrahamsen
 
@@ -51,17 +51,32 @@ the program to exit!
 
 coctx.CoroutineContext = class("CoroutineContext")
 
+coctx.states = {
+     SUSPENDED  = 0x0
+    ,DEAD       = 0x1
+    ,WAIT_COND  = 0x2
+    ,SCHED      = 0x3
+}
+
 function coctx.CoroutineContext:initialize(io_loop)
     assert(io_loop, "No IOLoop class given to CoroutineContext.")
     self.co_args = {}
-    self.co_state = 0
+    self.co_state = coctx.states.SUSPENDED
     self.co_data = nil
-    self.callback = nil
     self.io_loop = io_loop
 end
 
-function coctx.CoroutineContext:resume_coroutine()
-    self.io_loop:resume_coroutine(self)
+function coctx.CoroutineContext:set_arguments(args)
+    if (type(args) == "table") then
+        self.co_args = args
+    else
+        self.co_args[#self.co_args + 1] = args
+    end
 end
+
+function coctx.CoroutineContext:set_state(state) self.co_state = state end
+function coctx.CoroutineContext:get_state(state) return self.co_state end
+function coctx.CoroutineContext:finalize_context() self.io_loop:finalize_coroutine_context(self) end
+function coctx.CoroutineContext:get_coroutine_arguments() return self.co_args end
 
 return coctx

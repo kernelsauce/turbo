@@ -130,9 +130,20 @@ function ioloop.IOLoop:_run_callback(callback)
     return rc
 end
 
-function ioloop.IOLoop:_resume_coroutine(co, coroutine_func)
-    local err, yielded = coroutine.resume(co, type(coroutine_func) == "function" and coroutine_func())
-    local st = coroutine.status(co)
+function ioloop.IOLoop:_resume_coroutine(co, arg)
+    local err, yielded, st
+    local arg_t = type(arg)
+    if arg_t == "function" then
+        -- Function as argument. Call.
+        err, yielded = coroutine.resume(co, arg())
+    elseif arg_t == "table" then
+        -- Table with arguments. Unpack.
+        err, yielded = coroutine.resume(co, unpack(arg))
+    else
+        -- Plain resume.
+        err, yielded = coroutine.resume(co, nil)
+    end
+    st = coroutine.status(co)
     if (st == "suspended") then
 	local yield_t = type(yielded)
 	if instanceOf(coctx.CoroutineContext, yielded) then
@@ -166,7 +177,7 @@ function ioloop.IOLoop:finalize_coroutine_context(coctx)
         return -1
     end
     self._co_ctxs[coctx] = nil 
-    self._resume_coroutine(coroutine, unpack(coctx:get_coroutine_arguments()))
+    self:_resume_coroutine(coroutine, coctx:get_coroutine_arguments())
 end
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
