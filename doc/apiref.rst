@@ -413,7 +413,7 @@ Warning: Only one instance of IOLoop can ever run at the same time!
         Schedule a callback to be called no earlier than given timestamp. There is given no gurantees that the callback will be called
         on time. See the note at beginning of this section.
         
-        :param timestamp: A Lua timestamp. E.g os.time()
+        :param timestamp: A timestamp in msec granularity. See ``turbo.util.gettimeofday()``.
         :type timestamp: Number
         :param callback: A function to be called after timestamp is reached.
         :type callback: Function
