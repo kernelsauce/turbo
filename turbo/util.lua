@@ -77,32 +77,32 @@ end
 local hex = util.hex
 
 function util.mem_dump(ptr, sz)
-	local voidptr = ffi.cast("unsigned char *", ptr)
-	if (not voidptr) then
-		error("Trying to dump null ptr")
-	end
-        
-	io.write(string.format("Pointer type: %s\nFrom memory location: 0x%s dumping %d bytes\n",
-                               ffi.typeof(ptr),
-                               hex(tonumber(ffi.cast("intptr_t", voidptr))),
-                               sz))
-        local p = 0;
-        local sz_base_1 = sz - 1
-        for i = 0, sz_base_1 do
-            if (p == 10) then
-                p = 0
-                io.write("\n")
-            end
-            local hex_string
-            if (voidptr[i] < 0xf) then
-                hex_string = string.format("0x0%s ", hex(voidptr[i]))
-            else
-                hex_string = string.format("0x%s ", hex(voidptr[i]))
-            end
-            io.write(hex_string)
-            p = p + 1
+    local voidptr = ffi.cast("unsigned char *", ptr)
+    if (not voidptr) then
+            error("Trying to dump null ptr")
+    end
+    
+    io.write(string.format("Pointer type: %s\nFrom memory location: 0x%s dumping %d bytes\n",
+                           ffi.typeof(ptr),
+                           hex(tonumber(ffi.cast("intptr_t", voidptr))),
+                           sz))
+    local p = 0;
+    local sz_base_1 = sz - 1
+    for i = 0, sz_base_1 do
+        if (p == 10) then
+            p = 0
+            io.write("\n")
         end
-	io.write("\n")
+        local hex_string
+        if (voidptr[i] < 0xf) then
+            hex_string = string.format("0x0%s ", hex(voidptr[i]))
+        else
+            hex_string = string.format("0x%s ", hex(voidptr[i]))
+        end
+        io.write(hex_string)
+        p = p + 1
+    end
+    io.write("\n")
 end
 
 

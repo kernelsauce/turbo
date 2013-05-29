@@ -69,14 +69,14 @@ function ioloop.IOLoop:initialize()
 end
 
 function ioloop.IOLoop:add_handler(file_descriptor, events, handler)
-        local rc, errno = self._poll:register(file_descriptor, bit.bor(events, ioloop.ERROR))
-        if (rc ~= 0) then
-            log.notice(string.format("[ioloop.lua] register() in add_handler() failed: %s", socket.strerror(errno)))
-            return -1
-        end
-	self._handlers[file_descriptor] = handler
-        ngc.inc("ioloop_add_handler_count", 1)
-        ngc.inc("ioloop_fd_count", 1)
+    local rc, errno = self._poll:register(file_descriptor, bit.bor(events, ioloop.ERROR))
+    if (rc ~= 0) then
+        log.notice(string.format("[ioloop.lua] register() in add_handler() failed: %s", socket.strerror(errno)))
+        return -1
+    end
+    self._handlers[file_descriptor] = handler
+    ngc.inc("ioloop_add_handler_count", 1)
+    ngc.inc("ioloop_fd_count", 1)
 end
 
 function ioloop.IOLoop:update_handler(file_descriptor, events)
@@ -145,6 +145,7 @@ function ioloop.IOLoop:_resume_coroutine(co, coroutine_func)
 	    self._co_cbs[#self._co_cbs + 1] = {co, yielded}
             return 2
         elseif (yield_t == "nil") then
+            -- Empty yield. Schedule resume on next iteration.
             self._co_cbs[#self._co_cbs + 1] = {co, 0}
             return 3
 	else

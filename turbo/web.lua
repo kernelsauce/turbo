@@ -36,22 +36,24 @@ All request handler classes should inherit from this one.   ]]
 web.RequestHandler = class("RequestHandler")
 
 function web.RequestHandler:initialize(application, request, url_args, kwargs)
-	self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
-	self.application = application
-	self.request = request
-	self._headers_written = false
-	self._finished = false
-	self._auto_finish = true
-	self._transforms = nil
-	self._url_args = url_args
-	self.arguments = {}
-	self:clear()
+    self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
+    self.application = application
+    self.request = request
+    self._headers_written = false
+    self._finished = false
+    self._auto_finish = true
+    self._transforms = nil
+    self._url_args = url_args
+    self.arguments = {}
+    self:clear()
 
-	if self.request._request.headers:get("Connection") then
-		self.request.stream:set_close_callback(function() self:on_connection_close() end)
-	end
+    if self.request._request.headers:get("Connection") then
+        self.request.stream:set_close_callback(function()
+            self:on_connection_close()
+        end)
+    end
 
-	self:on_create(kwargs)
+    self:on_create(kwargs)
 end
 
 --[[ Returns the applications settings.          ]] --
@@ -86,17 +88,17 @@ function web.RequestHandler:options(self, args, kwargs)	error(web.HTTPError:new(
 
 --[[ Reset all headers and content for this request. Run on class initialization.		]]
 function web.RequestHandler:clear()
-	self.headers = httputil.HTTPHeaders:new()
-	self:set_default_headers()
-	self:set_header("Content-Type", "text/html; charset=UTF-8")
-	self:set_header("Server", self.application.application_name)
-	if not self.request._request:supports_http_1_1() then
-		if self.request._request.headers:get("Connection") == "Keep-Alive" then
-			self:set_header("Connection", "Keep-Alive")
-		end
-	end
-	self._write_buffer = deque:new()
-	self._status_code = 200
+    self.headers = httputil.HTTPHeaders:new()
+    self:set_default_headers()
+    self:set_header("Content-Type", "text/html; charset=UTF-8")
+    self:set_header("Server", self.application.application_name)
+    if not self.request._request:supports_http_1_1() then
+        if self.request._request.headers:get("Connection", true) == "Keep-Alive" then
+            self:set_header("Connection", "Keep-Alive")
+        end
+    end
+    self._write_buffer = deque:new()
+    self._status_code = 200
 end
 
 --[[ Redefine this method to set HTTP headers at the beginning of the request.    ]]
@@ -114,8 +116,8 @@ function web.RequestHandler:get_header(key) return self.headers:get(key) end
 
 --[[ Sets the status for our response.   ]]
 function web.RequestHandler:set_status(status_code)
-	fast_assert(type(status_code) == "number", [[set_status method requires number.]])
-	self._status_code = status_code
+    fast_assert(type(status_code) == "number", [[set_status method requires number.]])
+    self._status_code = status_code
 end
 
 --[[  Returns the status code currently set for our response.    ]]
@@ -129,46 +131,46 @@ does not exist.
 
 FIXME: implement strip.  ]]
 function web.RequestHandler:get_argument(name, default, strip)	
-	local args = self:get_arguments(name, strip)
-	if type(args) == "string" then
-		return args
-	elseif type(args) == "table" and #args > 0 then 
-		return args[1]
-	elseif default then
-		return default
-	else
-		error(web.HTTPError:new(400))
-	end
+    local args = self:get_arguments(name, strip)
+    if type(args) == "string" then
+            return args
+    elseif type(args) == "table" and #args > 0 then 
+            return args[1]
+    elseif default then
+            return default
+    else
+            error(web.HTTPError:new(400))
+    end
 end
 
 --[[ Returns the values of the argument with the given name.
 Will return a empty table if argument does not exist.
 TOOD: implement strip.   ]]
 function web.RequestHandler:get_arguments(name, strip)
-	local values = {}
-	
-	if self.request.arguments[name] then
-		values = self.request.arguments[name]
+    local values = {}
+    
+    if self.request.arguments[name] then
+        values = self.request.arguments[name]
 
-	elseif self.request._request.arguments[name] then
-		values = self.request._request.arguments[name]
-	end
-	return values
+    elseif self.request._request.arguments[name] then
+        values = self.request._request.arguments[name]
+    end
+    return values
 end
 
 --[[ Redirect client to another URL. Sets headers and finish request.   
 User can not send data after this.    ]]
 function web.RequestHandler:redirect(url, permanent)
-	if self._headers_written then
-		error("Cannot redirect after headers have been written")
-	end
-	
-	local status = permanent and 302 or 301
-	self:set_status(status)
-	
-	self:set_header("Location", url)
-	
-	self:finish()
+    if self._headers_written then
+        error("Cannot redirect after headers have been written")
+    end
+    
+    local status = permanent and 302 or 301
+    self:set_status(status)
+    
+    self:set_header("Location", url)
+    
+    self:finish()
 end
 
 
@@ -201,72 +203,72 @@ before the pending has been run leads to discarding of the
 current pending callback. For HEAD method request the chunk 
 is ignored and only headers are written to the socket.  	]]
 function web.RequestHandler:flush(callback)
-	local headers
-	local chunk = self._write_buffer:concat() or ''
-	self._write_buffer = deque:new()
-	
-	if not self._headers_written then
-		self._headers_written = true
-		headers = self.headers:__tostring()
-	end
-	
-	if self.request._request.headers.method == "HEAD" then
-		if headers then 
-			self.request:write(headers, callback)
-		end
-	end
-	
-	if headers or chunk then
-		self.request:write(headers .. chunk, callback)
-	end
+    local headers
+    local chunk = self._write_buffer:concat() or ''
+    self._write_buffer = deque:new()
+    
+    if not self._headers_written then
+            self._headers_written = true
+            headers = self.headers:__tostring()
+    end
+    
+    if self.request._request.headers.method == "HEAD" then
+            if headers then 
+                    self.request:write(headers, callback)
+            end
+    end
+    
+    if headers or chunk then
+            self.request:write(headers .. chunk, callback)
+    end
 end
 
 --[[ Set request to automatically call finish when request method has been called. Default
 behaviour is to finish the request immediately.   ]]
 function web.RequestHandler:set_auto_finish(bool)
-	fast_assert(type(bool) == "boolean", "bool must be boolean!")
-	self._auto_finish = bool
+    fast_assert(type(bool) == "boolean", "bool must be boolean!")
+    self._auto_finish = bool
 end
 
 --[[ Finishes the HTTP request.
 Cleaning up of different messes etc.    ]]
 function web.RequestHandler:finish(chunk)	
-	fast_assert((not self._finished), [[finish() called twice. Something terrible has happened]])
-	
-	if chunk then
-		self:write(chunk)
-	end
+    fast_assert((not self._finished), "finish() called twice. Something terrible has happened")
+    
+    if chunk then
+        self:write(chunk)
+    end
 
-	if not self._headers_written then
-		if not self:get_header("Content-Length") then
-			self:set_header("Content-Length", self._write_buffer:concat():len())
-		end
-		self.headers:set_status_code(self._status_code)
-		self.headers:set_version("HTTP/1.1")
-	end
-	
-	if self._status_code == 200 then
-		log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
-			self._status_code, 
-			response_codes[self._status_code],
-			self.request._request.headers.method,
-			self.request._request.headers.url,
-			self.request._request.remote_ip,
-                        self.request._request:request_time()))
-	else
-		log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
-			self._status_code, 
-			response_codes[self._status_code],
-			self.request._request.headers.method,
-			self.request._request.headers.url,
-			self.request._request.remote_ip,
-                        self.request._request:request_time()))
-	end
-	
-	self:flush()
-	self.request:finish()
-	self._finished = true
-	self:on_finish()
+    if not self._headers_written then
+        if not self:get_header("Content-Length") then
+                self:set_header("Content-Length", self._write_buffer:concat():len())
+        end
+        self.headers:set_status_code(self._status_code)
+        self.headers:set_version("HTTP/1.1")
+    end
+    
+    if self._status_code == 200 then
+        log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
+                self._status_code, 
+                response_codes[self._status_code],
+                self.request._request.headers.method,
+                self.request._request.headers.url,
+                self.request._request.remote_ip,
+                self.request._request:request_time()))
+    else
+        log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
+                self._status_code, 
+                response_codes[self._status_code],
+                self.request._request.headers.method,
+                self.request._request.headers.url,
+                self.request._request.remote_ip,
+                self.request._request:request_time()))
+    end
+    
+    self:flush()
+    self.request:finish()
+    self._finished = true
+    self:on_finish()
 end
 
 
@@ -289,36 +291,36 @@ end
 --[[ Static files cache class. Files that does not exist in cache are added to cache on first read.   ]]
 web._StaticWebCache = class("_StaticWebCache")
 function web._StaticWebCache:initialize()
-	self.files = {}
+    self.files = {}
 end
 
 --[[ Read complete file. Returns rc and buffer in case read were successfull.  ]]
 function web._StaticWebCache:read_file(path)
-	local fd = io.open(path, "r")
-	if not fd then
-	    return -1, nil
-	end
+    local fd = io.open(path, "r")
+    if not fd then
+        return -1, nil
+    end
 
-	local buf = fd:read("*all")
-	return 0, buf
+    local buf = fd:read("*all")
+    return 0, buf
 end
 
 function web._StaticWebCache:get_file(path)
-        local cached_file = self.files[path]
-        if (cached_file) then
-            return 0, cached_file
-        end
-	-- Fallthrough, read from disk.
-	local rc, buf = self:read_file(path)
-	if rc == 0 then
-            self.files[path] = buf
-            log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
-            ngc.inc("static_cache_objects", 1)
-            ngc.inc("static_cache_bytes", buf:len())
-            return 0, buf
-	else
-	    return -1, nil
-	end
+    local cached_file = self.files[path]
+    if (cached_file) then
+        return 0, cached_file
+    end
+    -- Fallthrough, read from disk.
+    local rc, buf = self:read_file(path)
+    if rc == 0 then
+        self.files[path] = buf
+        log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
+        ngc.inc("static_cache_objects", 1)
+        ngc.inc("static_cache_bytes", buf:len())
+        return 0, buf
+    else
+        return -1, nil
+    end
 
 end
 
@@ -330,26 +332,26 @@ STATIC_CACHE = web._StaticWebCache:new()
 --[[ Static file handler class.  Provide the filesystem path as option in turbo.web.Application.  ]]
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:initialize(app, request, args, options)
-	web.RequestHandler:initialize(app, request, args)	
-	self.path = options
+    web.RequestHandler:initialize(app, request, args)	
+    self.path = options
 end
 
 
 --[[ Determine MIME type according to file exstension.   ]]
 function web.StaticFileHandler:get_mime()
-	local filename = self._url_args[1]
-	fast_assert(filename)
-	local parts = filename:split(".")
-	if #parts == 0 then
-		return -1
-	end
-	local file_ending = parts[#parts]
-	local mime_type = mime_types[file_ending]
-	if mime_type then
-		return 0, mime_type
-	else
-		return -1
-	end
+    local filename = self._url_args[1]
+    fast_assert(filename)
+    local parts = filename:split(".")
+    if #parts == 0 then
+            return -1
+    end
+    local file_ending = parts[#parts]
+    local mime_type = mime_types[file_ending]
+    if mime_type then
+            return 0, mime_type
+    else
+            return -1
+    end
 end
 
 --[[ GET method for static file handling.   ]]
@@ -382,24 +384,24 @@ end
 
 function web.StaticFileHandler:head(path)
     if #self._url_args == 0 or self._url_args[1]:len() == 0 then
-            error(web.HTTPError(404))
+        error(web.HTTPError(404))
     end
 
     local filename = self._url_args[1]
     if filename:match("%.%.") then -- Prevent dir traversing.
-            error(web.HTTPError(401))
+        error(web.HTTPError(401))
     end
 
     local full_path = string.format("%s%s", self.path, escape.unescape(filename))
     local rc, buf = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
-            local rc, mime_type = self:get_mime()
-            if rc == 0 then
-                    self:set_header("Content-Type", mime_type)
-            end
-            self:set_header("Content-Length", buf:len())
+        local rc, mime_type = self:get_mime()
+        if rc == 0 then
+                self:set_header("Content-Type", mime_type)
+        end
+        self:set_header("Content-Length", buf:len())
     else
-            error(web.HTTPError(404)) -- Not found
+        error(web.HTTPError(404)) -- Not found
     end
 end
 
@@ -410,9 +412,9 @@ web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
 function web.ErrorHandler:initialize(app, request, code, message)
     web.RequestHandler:initialize(app, request)
     if (message) then 
-            self:write(message)
+        self:write(message)
     else
-            self:write(response_codes[code])
+        self:write(response_codes[code])
     end
     self:set_status(code)
     self:finish()
@@ -432,9 +434,9 @@ end
 web.Application = class("Application")
 
 function web.Application:initialize(handlers, default_host)
-	self.handlers = handlers
-	self.default_host = default_host
-	self.application_name = "Turbo v1.0"
+    self.handlers = handlers
+    self.default_host = default_host
+    self.application_name = "Turbo v1.0"
 end
 
 --[[ Sets the server name.     ]]
