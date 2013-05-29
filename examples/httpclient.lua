@@ -15,13 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
 local turbo = require "turbo"
-local httpclient = turbo.async.HTTPClient:new()
 local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
 function TwitterFeedHandler:get()
-	local headers, data = coroutine.yield(httpclient:fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed", {
-		method = "GET"
-	}))
+	local headers, data = coroutine.yield(
+		turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed", {
+			method = "GET"
+			}))
 	
 	--if (err ~= nil) then
 	--	error(turbo.web.HTTPError:new(500, "Could not download from twitter.com"))
