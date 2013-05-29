@@ -153,6 +153,7 @@ if not _G.TIME_H then
     
     ]])
 end
+--[[ Current msecs since epoch. Better granularity than Lua builtin. ]]
 function util.gettimeofday()
         local timeval = ffi.new("struct timeval")
         ffi.C.gettimeofday(timeval, nil)
