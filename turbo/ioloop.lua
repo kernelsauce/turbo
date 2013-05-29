@@ -171,7 +171,7 @@ end
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
     local i = 1
-    while(true) do
+    while (true) do
         if (self._timeouts[i] == nil) then
             break
         else
@@ -196,12 +196,8 @@ end
 
 function ioloop.IOLoop:set_interval(msec, callback)
     local i = 1
-    while(true) do
-        if (self._intervals[i] == nil) then
-            break
-        else
-            i = i + 1
-        end
+    while (self._intervals[i] ~= nil) do
+        i = i + 1
     end
 
     self._intervals[i] = _Interval:new(msec, callback)
@@ -264,11 +260,17 @@ function ioloop.IOLoop:start()
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
             for i = 1, timeout_sz do
-		if (self._timeouts[i]:timed_out()) then
-		    self:_run_callback(self._timeouts[i]:callback())
-		    self._timeouts[i] = nil
-                    -- FIXME, adjust timeout.
-		end
+                if (self._timeouts[i] ~= nil) then
+                    local time_until_timeout = self._timeouts[i]:timed_out()
+                    if (time_until_timeout == 0) then
+                        self:_run_callback(self._timeouts[i]:callback())
+                        self._timeouts[i] = nil
+                    else
+                        if (poll_timeout > time_until_timeout) then
+                           poll_timeout = time_until_timeout 
+                        end
+                    end
+                end
 	    end
         end
         local intervals_sz = #self._intervals
@@ -279,7 +281,9 @@ function ioloop.IOLoop:start()
                     local timed_out = self._intervals[i]:timed_out(time_now)
                     if (timed_out == 0) then
                         self:_run_callback(self._intervals[i].callback)
-                        time_now = util.gettimeofday()
+                        -- Get current time to protect against building diminishing interval time
+                        -- on heavy functions.
+                        time_now = util.gettimeofday() 
                         local next_call = self._intervals[i]:set_last_call(time_now)
                         if (next_call < poll_timeout) then
                             poll_timeout = next_call
@@ -345,16 +349,21 @@ end
 
 _Timeout = class('_Timeout')
 function _Timeout:initialize(timestamp, callback)
-	self._timestamp = timestamp or error('No timestamp given to _Timeout class')
-	self._callback = callback or error('No callback given to _Timeout class')
+    self._timestamp = timestamp or error('No timestamp given to _Timeout class')
+    self._callback = callback or error('No callback given to _Timeout class')
 end
 
 function _Timeout:timed_out()
-	return ( time.now() - self._timestamp < 0 )
+    local current_time = util.gettimeofday()
+    if (self._timestamp - current_time <= 0) then
+        return 0
+    else 
+        return self._timestamp - current_time
+    end
 end
 
 function _Timeout:callback()
-	return self._callback
+    return self._callback
 end
 
 
