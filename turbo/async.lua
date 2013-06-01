@@ -24,56 +24,235 @@ local http_response_codes = require "turbo.http_response_codes"
 local coctx =               require "turbo.coctx"
 require "turbo.3rdparty.middleclass"
 
-local fast_assert = util.fast_assert
+local fassert = util.fast_assert
 local AF_INET = socket.AF_INET
 
 
 local async = {} -- async namespace
 
+--[[
+HTTPClient class
+
+Designed to asynchronously communicate with a HTTP server via the Turbo IO Loop.
+The user MUST use Lua's builting coroutines to manage yielding, after doing a
+request. The aim for the client is to support as many standards of HTTP as possible.
+Websockets are not handled by this class. It is the users responsibility to check
+the returned values for errors before usage.
+
+When using this class, keep in mind that it is not supported to launch muliple :fetch()'s
+with the same class. If the instance is already in use then it will return a error.
+
+Note: Do not throw errors in this class. The caller will not recieve them as all the code is
+done outside the yielding coroutines call stack, except for calls to fetch(). But for the
+sake of continuity, there are no raw errors thrown from this method either.
+
+]]
 async.HTTPClient = class("HTTPClient")
 
+
+-- Construct a new HTTPClient instance.
+-- @param family The socket family to use. Defined in turbo.socket. E.g turbo.socket.AF_INET
+-- @param io_loop Explicitly provid a turbo.ioloop.IOLoop instance to use. Default is global instance.
+-- @param max_buffer_size The maximum buffer to use for server response.
+-- @param read_chunk_size The read chunk size. Default is 1024.
 function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chunk_size)
+    self.family = family or socket.AF_INET
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size
-    self.read_chunk_size = read_chunk_size    
+    self.read_chunk_size = read_chunk_size or 1024
+    self.url = url
+    self.method = kwargs.method or "GET"
+end
+
+
+--[[ Fetch a URL.
+@param url The URL to use.
+@param kwargs Optional keyword arguments:
+
+    NAME                DESCRIPTION                                 DEFAULT
+    -----------------------------------------------------------------------
+    "method"            The HTTP method to use.                     Default is "GET"
+    "params"            Provide parameters, table or string.        N/A
+    "cookie"            The cookie to use.                          N/A
+    "keep_alive"        Keep the connection alive, until GC.        Default is false
+    "http_version"      Set HTTP version.                           Default is HTTP1.1
+    "use_gzip"          Use gzip compression.                       Default is true.
+    "allow_redirects"   Allow or disallow redirects.                Default is true.
+    "max_redirects"     Maximum redirections allowed.               Default is 4.
+    "on_headers"        Callback to be called when assembling       N/A
+        request headers. Called with headers as argument.
+    "body"              Request HTTP body.                          N/A
+    "request_timeout"   Total timeout in seconds                    Default is 60 secs.
+        (including connect) for request.
+    "connect_timeout"   Timeout in seconds for connect.             Default is 20 secs.
+    "auth_username"     Authentication user name.                   N/A
+    "auth_password"     Authentication password.                    N/A
+    "user_agent"        User Agent string used in request headers.  Default is "Turbo Client vx.x.x"
+    "file"              File handle to send when doing PUT.         N/A
+
+]]
+
+local errors = {
+     COULD_NOT_CONNECT      = -2
+    ,PARSE_ERROR_HEADERS    = -3
+    ,HTTPS_NOT_SUPPORTED    = -4
+    ,INVALID_SCHEMA         = -5
+    ,CONNECT_TIMEOUT        = -6
+    ,REQUEST_TIMEOUT        = -7
+}
+
+function async.HTTPClient:fetch(url, kwargs)
+    fassert(type(url) == "string", "URL must be string.")
+    self.start_time = util.gettimeofday()
+    self.headers = httputil.HTTPHeaders:new()
+    fassert(self.headers:parse_url(url) == 0, "Invalid URL provided to fetch().")
+    self.hostname = self.headers:get_url_field(httputil.UF.HOST)
+    self.port = self.headers:get_url_field(httputil.UF.PORT)
+    self.path = self.headers:get_url_field(httputil.UF.PATH)
+    self.query = self.headers:get_url_field(httputil.UF.QUERY)
+    self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
+    
+    local sock, msg = socket.new_nonblock_socket(self.family, socket.SOCK_STREAM, 0)
+    fassert(sock ~= -1, msg)
+    self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size, self.read_chunk_size)
+    self.response_headers = nil
+    
+    self.s_idle = true
+    self.s_connecting = false
+    self.s_connected = false
+    self.s_parsing_headers = false
+    self.s_headers_parsed = false
+    self.s_recv_body = false
+    self.s_recv_head = false
+    self.s_callback = false
+    self.s_finalize = false
+    self.s_error = false
+    self.payload = nil
+    self.error_str = ""
+    self.error_code = 0
+    self.start_time = util.gettimeofday()
+    self.url = url
+    self.kwargs = kwargs
+    self.kwargs.method = self.kwargs.method or "GET"
+    self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
+    self.kwargs.connect_timeout = self.kwargs.connect_timeout or 20
+    self.kwargs.request_timeout = self.kwargs.request_timeout or 60
+    self.coctx = coctx.CoroutineContext:new(self.io_loop)
+
+    if (self.schema == "http") then
+        if (self.port == -1) then
+            self.port = 80
+        end
+        self.s_connecting = true
+        self.iostream:connect(self.hostname, self.port, self.family,
+            function()
+                self.s_connecting = false
+                self.s_connected = true
+                self:_handle_connect()
+            end,
+            function(err)
+                self:_throw_error(errors.COULD_NOT_CONNECT, err)
+                log.warning(string.format("[async.lua] Timed out trying to connect to %s", self.hostname))
+            end)
+    elseif (self.schema == "https") then
+        self:_throw_error(errors.HTTPS_NOT_SUPPORTED, "HTTPS protocol is not supported.")
+    else
+        self:_throw_error(errors.INVALID_SCHEMA, "Invalid schema used in URL parameter.")
+    end
+    
+    if (self.s_connecting) then
+        self.connect_timeout_ref = self.io_loop:set_timeout(self.kwargs.connect_timeout * 1000, function()
+            self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after &d msecs", self.kwargs.connect_timeout))
+            log.warning(string.format("[async.lua] Timed out trying to connect to %s", self.hostname))
+        end)
+    end
+
+    return self.coctx
 end
 
 function async.HTTPClient:_handle_connect()
-    self.connecting = false
     self.headers:add("Host", self.hostname)
     self.headers:add("User-Agent", "Turbo v1.0")
     self.headers:add("Connection", "close")
     self.headers:add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
     self.headers:add("Accept-Language", "en-US,en;q=0.8")
     self.headers:add("Cache-Control", "max-age=0")
-    self.headers:set_method(self.method)
+    self.headers:set_method(self.kwargs.method)
     self.headers:set_version("HTTP/1.1")
+    
+    if type(self.kwargs.on_headers) == "function" then
+        -- Call on header callback. Allow the user to modify the
+        -- headers class instance on their own.
+        self.kwargs.on_headers(self.headers)
+    end
     if (self.query ~= -1) then
+        -- URL has a query added to it. 
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
+        -- No query.
         self.headers:set_uri(self.path)
     end
     
     local stringifed_headers = self.headers:stringify_as_request()
+    self.s_recv_head = true
     self.iostream:write(stringifed_headers, function()
-        self.iostream:read_until_pattern("\r?\n\r?\n", function(data) self:_handle_headers(data) end)
+        -- Schedule read until pattern on finished write.
+        self.iostream:read_until_pattern("\r?\n\r?\n", function(data)
+            self.s_recv_head = false
+            self.s_parsing_headers = true
+            self:_handle_headers(data)
+            self.s_parsing_headers = false
+        end)
     end)
+end
+
+function async.HTTPClient:_throw_error(code, msg)
+    -- Add as callback to make sure that errors are always returned after the CoroutineContext has
+    -- ended up in the IOLoop.
+    self.io_loop:add_callback(function()
+        self.s_error = true
+        self.error_code = code
+        self.error_str = msg
+        self:_finalize_request()
+    end)
+end
+
+function async.HTTPClient:_finalize_request()
+    self.s_connected = false
+    self.iostream:close()
+    local res = async.HTTPResponse:new()
+    if (self.s_error == true) then
+        res.error = {
+            code = self.error_code,
+            message = self.error_str
+        }
+    else
+        res.error = nil
+        res.code = self.response_headers:get_status_code()
+        res.reason = http_response_codes[res.code]
+        res.body = self.payload
+        res.request_time = self.finish_time - self.start_time
+        res.headers = self.response_headers
+    end
+    self.coctx:set_arguments({res})
+    self.coctx:finalize_context()
 end
 
 function async.HTTPClient:_handle_headers(data)
     if (not data) then
-        self:_handle_error()
+        -- NYI
     end
         
     self.response_headers = httputil.HTTPHeaders:new()
     local rc, httperrno, errnoname, errnodesc = self.response_headers:parse_response_header(data)
     if (rc == -1) then
-        error(string.format("Could not parse header. %s, %s", errnoname, errnodesc))
+        return _throw_error(errors.PARSE_ERROR_HEADERS, errnodesc)
     end
-    self.header_parsed = true
-    
+    self.s_headers_parsed = true
     local content_length = self.response_headers:get("Content-Length", true)
+    self.s_recv_body = true
     self.iostream:read_bytes(tonumber(content_length), function(data)
+        self.s_recv_body = false
         self:_handle_body(data)
     end)
 end
@@ -81,56 +260,27 @@ end
 function async.HTTPClient:_handle_body(data)
     self.finish_time = util.gettimeofday()
     local status_code = self.response_headers:get_status_code()
-    log.success(string.format("[async.lua] %s %s%s => %d %s %dms", self.method, self.hostname, self.path, status_code, http_response_codes[status_code], self.finish_time - self.start_time))
-    self.iostream:close()
-    self.coctx:set_arguments({self.response_headers, data})
-    self.coctx:finalize_context()
+    log.success(string.format("[async.lua] %s %s%s => %d %s %dms", self.method,
+                              self.hostname,
+                              self.path,
+                              status_code,
+                              http_response_codes[status_code],
+                              self.finish_time - self.start_time))
+    self.payload = data
+    self:_finalize_request()
 end
 
-function async.HTTPClient:_handle_error(err)
-    if (self.err_handler) then
-        if (self.connecting) then
-            
-        elseif (self.header_parsed) then
-            
-        end
-    end
+
+async.HTTPResponse = class("HTTPResponse")
+
+function async.HTTPResponse:initialize()
+    self.request = nil
+    self.code = code
+    self.headers = headers
+    self.body = body
+    self.error = err
+    self.request_time = nil    
 end
 
-function async.HTTPClient:fetch(url, kwargs)
-    fast_assert(type(url) == "string", "URL must be string.")
-    self.headers = httputil.HTTPHeaders:new()
-    local rc = self.headers:parse_url(url)
-    fast_assert(rc == 0, "Invalid URL provided to fetch().")
-    
-    local sock, msg = socket.new_nonblock_socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-    fast_assert(sock ~= -1, msg)
-    self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size, self.read_chunk_size)
-    self.response_headers = nil
-    self.connecting = false
-    self.headers_parsed = false
-
-    self.start_time = util.gettimeofday()
-    self.url = url
-    self.method = kwargs.method or "GET"
-
-    self.hostname = self.headers:get_url_field(httputil.UF.HOST)
-    self.port = self.headers:get_url_field(httputil.UF.PORT)
-    self.path = self.headers:get_url_field(httputil.UF.PATH)
-    self.query = self.headers:get_url_field(httputil.UF.QUERY)
-    if (self.port == -1) then
-        self.port = 80
-    end
-    if (self.headers:get_url_field(httputil.UF.SCHEMA) == "http") then
-        self.connecting = true
-        self.iostream:connect(self.hostname, self.port, AF_INET,
-                              function() self:_handle_connect() end,
-                              function(err) self:_handle_error(err) end)
-    else
-        error("Wrong schema used in fetch() url parameter.")
-    end
-    self.coctx = coctx.CoroutineContext:new(self.io_loop)
-    return self.coctx
-end
 
 return async

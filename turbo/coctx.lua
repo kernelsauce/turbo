@@ -54,8 +54,9 @@ coctx.CoroutineContext = class("CoroutineContext")
 coctx.states = {
      SUSPENDED  = 0x0
     ,DEAD       = 0x1
-    ,WAIT_COND  = 0x2
-    ,SCHED      = 0x3
+    ,WORKING    = 0x2
+    ,WAIT_COND  = 0x3
+    ,SCHED      = 0x4
 }
 
 function coctx.CoroutineContext:initialize(io_loop)
