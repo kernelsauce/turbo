@@ -60,8 +60,6 @@ function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chun
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size
     self.read_chunk_size = read_chunk_size or 1024
-    self.url = url
-    self.method = kwargs.method or "GET"
 end
 
 
@@ -147,7 +145,7 @@ function async.HTTPClient:fetch(url, kwargs)
     self.error_code = 0
     self.start_time = util.gettimeofday()
     self.url = url
-    self.kwargs = kwargs
+    self.kwargs = kwargs or {}
     self.kwargs.method = self.kwargs.method or "GET"
     self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 20
@@ -173,9 +171,9 @@ function async.HTTPClient:fetch(url, kwargs)
         self:_throw_error(errors.INVALID_SCHEMA, "Invalid schema used in URL parameter.")
     end
     if (self.s_connecting) then
-        self.connect_timeout_ref = self.io_loop:set_timeout(self.kwargs.connect_timeout * 1000, function()
+        self.connect_timeout_ref = self.io_loop:add_timeout(self.kwargs.connect_timeout * 1000 + util.gettimeofday(), function()
             self.connect_timeout_ref = nil
-            self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after &d msecs", self.kwargs.connect_timeout))
+            self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after %d msecs", self.kwargs.connect_timeout))
             log.warning(string.format("[async.lua] Timed out trying to connect to %s", self.hostname))
         end)
     end
@@ -185,9 +183,9 @@ end
 function async.HTTPClient:_handle_connect()
     self.io_loop:remove_timeout(self.connect_timeout_ref)
     self.connect_timeout_ref = nil
-    self.request_timeout_ref = self.io_loop:set_timeout(self.kwargs.request_timeout * 1000, function()
+    self.request_timeout_ref = self.io_loop:add_timeout(self.kwargs.request_timeout * 1000 + util.gettimeofday(), function()
         self.request_timeout_ref = nil
-        self:_throw_error(errors.REQUEST_TIMEOUT, string.format("Connect timed out after &d msecs", self.kwargs.connect_timeout))
+        self:_throw_error(errors.REQUEST_TIMEOUT, string.format("Connect timed out after &d secs", self.kwargs.connect_timeout))
         log.warning(string.format("[async.lua] Request to %s timed out.", self.hostname))
     end)
     if (not self.kwargs.body and util.is_in(self.kwargs.method, {"POST", "PATCH", "PUT"})) then
@@ -216,16 +214,19 @@ function async.HTTPClient:_handle_connect()
     end
     local stringifed_headers = self.headers:stringify_as_request()
     local write_buf = stringifed_headers
-    if (self.kwargs.body and type(self.kwargs.body) == "string") then
-        local len = self.kwargs.body:len()
-        self.headers:add("Content-Length", len)
-        write_buf = write_buf .. self.kwargs.body .. "\r\n\r\n"
-        if self.kwargs.method == "POST" then
-            -- NYI preprocessing of table of parameters.
-            self.headers:add("Content-Type", "application/x-www-form-urlencoded")
+    if (self.kwargs.body) then
+        if (type(self.kwargs.body) == "string") then
+            local len = self.kwargs.body:len()
+            self.headers:add("Content-Length", len)
+            write_buf = write_buf .. self.kwargs.body .. "\r\n\r\n"
+            if self.kwargs.method == "POST" then
+                -- NYI preprocessing of table of parameters.
+                self.headers:add("Content-Type", "application/x-www-form-urlencoded")
+            end
+        else
+            self:_throw_error(errors.INVALID_BODY, "Request body is not a string.")
+            return
         end
-    else
-        self._throw_error(errors.INVALID_BODY, "Request body is not a string.")
     end
     self.s_recv_head = true
     self.iostream:write(write_buf, function()
@@ -255,14 +256,16 @@ function async.HTTPClient:_finalize_request()
         self.finish_time = util.gettimeofday()
         local status_code = self.response_headers:get_status_code()
         if (status_code == 200) then
-            log.success(string.format("[async.lua] %s %s%s => %d %s %dms", self.method,
+            log.success(string.format("[async.lua] %s %s%s => %d %s %dms",
+                                      self.kwargs.method,
                                       self.hostname,
                                       self.path,
                                       status_code,
                                       http_response_codes[status_code],
                                       self.finish_time - self.start_time))
         else
-            log.warning(string.format("[async.lua] %s %s%s => %d %s %dms", self.method,
+            log.warning(string.format("[async.lua] %s %s%s => %d %s %dms",
+                                      self.kwargs.method,
                                       self.hostname,
                                       self.path,
                                       status_code,
@@ -270,7 +273,7 @@ function async.HTTPClient:_finalize_request()
                                       self.finish_time - self.start_time))
         end
     else
-        log.error(string.format("[async.lua] %s"), self.error_str)
+        log.error(string.format("[async.lua] %s", self.error_str))
     end
     if (self.request_timeout_ref) then
         self.io_loop:remove_timeout(self.request_timeout_ref)

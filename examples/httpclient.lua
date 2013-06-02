@@ -18,17 +18,15 @@ local turbo = require "turbo"
 local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
 function TwitterFeedHandler:get()
-	local headers, data = coroutine.yield(
-		turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed", {
-			method = "GET"
-			}))
+	local res = coroutine.yield(
+		turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed"))
 	
-	--if (err ~= nil) then
-	--	error(turbo.web.HTTPError:new(500, "Could not download from twitter.com"))
-	--end
+	if (res.error) then
+		error(turbo.web.HTTPError:new(500, res.error.message))
+	end
 	
-	if headers:get_status_code() == 200 then
-		local res = turbo.escape.json_decode(data)
+	if (res.headers:get_status_code() == 200) then
+		local res = turbo.escape.json_decode(res.body)
 		local top_search_result = res.results[1]
 		local text = top_search_result.text
 		local pic = top_search_result.profile_image_url
