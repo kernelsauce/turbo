@@ -36,7 +36,7 @@ end
 
 --[[ Encodes a string into its escaped hexadecimal representation.   ]]
 function escape.escape(s)
-    return gsub(s, "([^A-Za-z0-9_])", function(c)
+    return string.gsub(s, "([^A-Za-z0-9_])", function(c)
         return string.format("%%%02x", string.byte(c))
     end)
 end

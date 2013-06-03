@@ -22,6 +22,8 @@ local socket =              require "turbo.socket_ffi"
 local log =                 require "turbo.log"
 local http_response_codes = require "turbo.http_response_codes"
 local coctx =               require "turbo.coctx"
+local deque =               require "turbo.structs.deque"
+local escape =              require "turbo.escape"
 require "turbo.3rdparty.middleclass"
 
 local fassert = util.fast_assert
@@ -70,7 +72,7 @@ end
     NAME                DESCRIPTION                                 DEFAULT
     -----------------------------------------------------------------------
     "method"            The HTTP method to use.                     Default is "GET"
-    "params"            Provide parameters, table or string.        N/A
+    "params"            Provide parameters as table.                N/A
     "cookie"            The cookie to use.                          N/A
     "keep_alive"        Keep the connection alive, until GC.        Default is false
     "http_version"      Set HTTP version.                           Default is HTTP1.1
@@ -101,6 +103,7 @@ local errors = {
     ,NO_HEADERS             = -8
     ,REQUIRES_BODY          = -9
     ,INVALID_BODY           = -10
+    ,SOCKET_ERROR           = -11
 }
 
 function async.HTTPClient:fetch(url, kwargs)
@@ -123,7 +126,10 @@ function async.HTTPClient:fetch(url, kwargs)
     self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
     if (not old_hostname or old_hostname ~= self.hostname) then
         local sock, msg = socket.new_nonblock_socket(self.family, socket.SOCK_STREAM, 0)
-        fassert(sock ~= -1, msg)
+        if (sock == -1) then 
+            self:_throw_error(errors.SOCKET_ERROR, msg)
+            return self.coctx
+        end
         self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size, self.read_chunk_size)
     elseif (old_hostname == self.hostname and self.s_connected == true) then
         log.devel("[async.lua] Keep-Alive case. Reusing stream.")
@@ -163,7 +169,6 @@ function async.HTTPClient:fetch(url, kwargs)
             end,
             function(err)
                 self:_throw_error(errors.COULD_NOT_CONNECT, err)
-                log.warning(string.format("[async.lua] Timed out trying to connect to %s", self.hostname))
             end)
     elseif (self.schema == "https") then
         self:_throw_error(errors.HTTPS_NOT_SUPPORTED, "HTTPS protocol is not supported.")
@@ -173,8 +178,12 @@ function async.HTTPClient:fetch(url, kwargs)
     if (self.s_connecting) then
         self.connect_timeout_ref = self.io_loop:add_timeout(self.kwargs.connect_timeout * 1000 + util.gettimeofday(), function()
             self.connect_timeout_ref = nil
-            self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after %d msecs", self.kwargs.connect_timeout))
-            log.warning(string.format("[async.lua] Timed out trying to connect to %s", self.hostname))
+            self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after %d secs", self.kwargs.connect_timeout))
+            log.warning(string.format("[async.lua] Connect timed out after %d secs. %s %s%s",
+                                      self.kwargs.connect_timeout,
+                                      self.kwargs.method,
+                                      self.hostname,
+                                      self.path))
         end)
     end
     return self.coctx
@@ -185,10 +194,10 @@ function async.HTTPClient:_handle_connect()
     self.connect_timeout_ref = nil
     self.request_timeout_ref = self.io_loop:add_timeout(self.kwargs.request_timeout * 1000 + util.gettimeofday(), function()
         self.request_timeout_ref = nil
-        self:_throw_error(errors.REQUEST_TIMEOUT, string.format("Connect timed out after &d secs", self.kwargs.connect_timeout))
+        self:_throw_error(errors.REQUEST_TIMEOUT, string.format("Request timed out after %d secs", self.kwargs.connect_timeout))
         log.warning(string.format("[async.lua] Request to %s timed out.", self.hostname))
     end)
-    if (not self.kwargs.body and util.is_in(self.kwargs.method, {"POST", "PATCH", "PUT"})) then
+    if (not self.kwargs.body and not self.kwargs.params and util.is_in(self.kwargs.method, {"POST", "PATCH", "PUT"})) then
         -- Request requires a body.
         self:_throw_error(errors.REQUIRES_BODY, "Standard does not support this request method without a body.")
         return
@@ -196,7 +205,7 @@ function async.HTTPClient:_handle_connect()
     self.headers:add("Host", self.hostname)
     self.headers:add("User-Agent", self.kwargs.user_agent)
     if (self.kwargs.keep_alive ~= true) then
-        self.headers:add("Connection", "close")
+        self.headers:add("Connection", "Close")
     end
     self.headers:set_method(self.kwargs.method:upper())
     self.headers:set_version("HTTP/1.1")
@@ -212,22 +221,47 @@ function async.HTTPClient:_handle_connect()
         -- No query.
         self.headers:set_uri(self.path)
     end
-    local stringifed_headers = self.headers:stringify_as_request()
-    local write_buf = stringifed_headers
+    
+    local write_buf = ""
     if (self.kwargs.body) then
         if (type(self.kwargs.body) == "string") then
             local len = self.kwargs.body:len()
             self.headers:add("Content-Length", len)
             write_buf = write_buf .. self.kwargs.body .. "\r\n\r\n"
-            if self.kwargs.method == "POST" then
-                -- NYI preprocessing of table of parameters.
-                self.headers:add("Content-Type", "application/x-www-form-urlencoded")
-            end
         else
             self:_throw_error(errors.INVALID_BODY, "Request body is not a string.")
             return
         end
     end
+    if (type(self.kwargs.params) == "table") then
+        if self.kwargs.method == "POST" then
+            self.headers:add("Content-Type", "application/x-www-form-urlencoded")
+            local post_data = deque:new()
+            local n = 0
+            for k, v in pairs(self.kwargs.params) do
+                if (n ~= 0) then
+                    post_data:append("&")
+                end
+                n  = n + 1
+                post_data:append(string.format("%s=%s", escape.escape(k), escape.escape(v)))
+            end
+            write_buf = write_buf .. post_data
+        elseif (self.kwargs.method == "GET" and self.query == -1) then
+            local get_url_params = deque:new()
+            local n = 0
+            get_url_params:append("?")
+            for k, v in pairs(self.kwargs.params) do
+                if (n ~= 0) then
+                    get_url_params:append("&")
+                end
+                n  = n + 1
+                get_url_params:append(string.format("%s=%s", escape.escape(k), escape.escape(v)))
+            end
+            self.headers:set_uri(self.headers:get_uri() .. get_url_params)
+        end
+    end
+    local stringifed_headers = self.headers:stringify_as_request()
+    write_buf = stringifed_headers .. write_buf
     self.s_recv_head = true
     self.iostream:write(write_buf, function()
         -- Schedule read until pattern on finished write.
@@ -272,8 +306,6 @@ function async.HTTPClient:_finalize_request()
                                       http_response_codes[status_code],
                                       self.finish_time - self.start_time))
         end
-    else
-        log.error(string.format("[async.lua] %s", self.error_str))
     end
     if (self.request_timeout_ref) then
         self.io_loop:remove_timeout(self.request_timeout_ref)
@@ -315,7 +347,7 @@ function async.HTTPClient:_handle_headers(data)
     self.s_headers_parsed = true
     local content_length = self.response_headers:get("Content-Length", true)
     if (not content_length or content_length == 0)  then
-        -- No content length. This is probably a HEAD request?
+        -- No content length. This is probably a HEAD request or a error?
         self:_finalize_request()
         return
     end

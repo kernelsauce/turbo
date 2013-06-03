@@ -17,31 +17,40 @@ limitations under the License.     ]]
 local turbo = require "turbo"
 local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
-function TwitterFeedHandler:get()
+function TwitterFeedHandler:get(search)
 	local res = coroutine.yield(
-		turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json?q=Twitter&result_type=mixed"))
+		turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json",
+		{
+			params = {
+				q=search,
+				result_type="mixed"
+			}
+		}))
 	
 	if (res.error) then
 		error(turbo.web.HTTPError:new(500, res.error.message))
 	end
 	
 	if (res.headers:get_status_code() == 200) then
-		local res = turbo.escape.json_decode(res.body)
-		local top_search_result = res.results[1]
-		local text = top_search_result.text
-		local pic = top_search_result.profile_image_url
-		self:write(string.format([[
-			<h1>Search for Twitter on Twitter gave this tweet:</h1>
-			<img src="%s">
-			<p>%s</p>
-		]], pic, text))
+		-- Decode and create nice Twitter page!
+		local json = turbo.escape.json_decode(res.body)
+		self:write(string.format([[<h1>Search for %s on Twitter gave these tweets:</h1>]], search))
+		for k, v in ipairs(json.results) do
+			local text = v.text
+			local pic = v.profile_image_url
+			self:write(string.format([[
+				<img src="%s">
+				<p>%s</p>
+				<br />
+			]], pic, text))
+		end
 	else
-		error(turbo.web.HTTPError:new(headers:get_status_code(), "Something bad happened!"))
+		error(turbo.web.HTTPError:new(res.headers:get_status_code(), "Something bad happened!"))
 	end
 end
 
 local application = turbo.web.Application:new({
-	{"/tweet$", TwitterFeedHandler}
+	{"/tweet/(.*)", TwitterFeedHandler}
 })
 
 application:listen(8888)

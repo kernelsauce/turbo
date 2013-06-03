@@ -153,6 +153,15 @@ function deque:getn(pos)
     return l.value
 end
 
+function deque:__concat(source)
+    if (type(self) == "string") then
+        self = self .. source:concat()
+    end
+    return self
+end
+
+--[[ To string metamethod.   ]]
+function deque:__tostring() return self:concat() end
 --[[ Returns element at tail. 	]]
 function deque:peeklast() return self.tail.value end
 --[[ Returns element at head. 	]]
