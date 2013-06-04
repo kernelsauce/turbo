@@ -105,6 +105,7 @@ local errors = {
     ,INVALID_BODY           = -10
     ,SOCKET_ERROR           = -11
 }
+async.errors = errors
 
 function async.HTTPClient:fetch(url, kwargs)
     self.coctx = coctx.CoroutineContext:new(self.io_loop)
@@ -232,8 +233,7 @@ function async.HTTPClient:_handle_connect()
             self:_throw_error(errors.INVALID_BODY, "Request body is not a string.")
             return
         end
-    end
-    if (type(self.kwargs.params) == "table") then
+    elseif (type(self.kwargs.params) == "table") then
         if self.kwargs.method == "POST" then
             self.headers:add("Content-Type", "application/x-www-form-urlencoded")
             local post_data = deque:new()
