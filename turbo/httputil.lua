@@ -235,7 +235,7 @@ function httputil.HTTPHeaders:initialize(raw_request_headers)
     if type(raw_request_headers) == "string" then
 	local rc, httperrno, errnoname, errnodesc = self:parse_request_header(raw_request_headers)
 	if (rc == -1) then
-	    error(string.format("[httputil.lua] Malformed HTTP headers. %s, %s", errnoname, errnodesc))
+	    error(string.format("Malformed HTTP headers. %s, %s", errnoname, errnodesc))
 	end
     end
 end
