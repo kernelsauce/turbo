@@ -1,41 +1,8 @@
---[[
-	
-	http://www.opensource.org/licenses/mit-license.php
+local turbo = require "turbo"
 
-	"Permission is hereby granted, free of charge, to any person obtaining a copy of
-	this software and associated documentation files (the "Software"), to deal in
-	the Software without restriction, including without limitation the rights to
-	use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-	of the Software, and to permit persons to whom the Software is furnished to do
-	so, subject to the following conditions:
-
-	The above copyright notice and this permission notice shall be included in all
-	copies or substantial portions of the Software.
-
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-	SOFTWARE."
-
-  ]]
-
-package.path = "../turbo/?.lua;"  ..package.path 
-
--------------------------------------------------------------------------
---
--- Load modules
---
-local log = require 'log'
-local iostream = require 'iostream'
-local ioloop = require "ioloop"
-local socket = require "socket_ffi"
-
-local socket = socket.new_nonblock_socket(socket.AF.AF_INET, socket.SOCK.SOCK_STREAM, 0)
-local loop = ioloop.instance()
-local stream = iostream.IOStream:new(socket)
+local socket = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET, turbo.socket.SOCK_STREAM, 0)
+local loop = turbo.ioloop.instance()
+local stream = turbo.iostream.IOStream:new(socket)
 
 local parse_headers = function(raw_headers)
 	local HTTPHeader = raw_headers
@@ -52,17 +19,15 @@ local parse_headers = function(raw_headers)
 end
 
 function on_body(data)
-	print('body: \r\n\r\n' .. data)
-
+	assert(data)
 	stream:close()
 	loop:close()
 end
 
 function on_headers(data)
-	print('headers: ' .. data .. '\r\n\r\n')
+	assert(data)
 	local headers = parse_headers(data)
 	local length = tonumber(headers.extras['Content-Length'])
-	log.warning('Parsed headers, now read: ' .. length)
 	stream:read_bytes(length, on_body)
 end
 
@@ -71,6 +36,6 @@ function send_request()
 	stream:read_until("\r\n\r\n", on_headers)
 end
 
-local rc,msg = stream:connect("dagbladet.no", 80, nil, send_request)
+local rc,msg = stream:connect("127.0.0.1", 8888, turbo.socket.AF_INET, send_request)
 
 loop:start()
