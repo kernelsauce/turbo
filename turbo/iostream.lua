@@ -161,7 +161,7 @@ function iostream.IOStream:_handle_connect()
 	    if (self._connect_fail_callback) then
 		self:_connect_fail_callback(sockerr, strerror)
 	    end
-	    error(string.format("[iostream.lua] Connect failed: %s, for fd %d", strerror(sockerr), fd))
+	    error(string.format("[iostream.lua] Connect failed: %s, for fd %d", socket.strerror(sockerr), fd))
 	end
     end
     
@@ -478,17 +478,16 @@ function iostream.IOStream:_read_from_buffer()
 	return true
 	
     elseif (self._read_delimiter ~= nil) then        
-	local loc
 	if (self._read_buffer:not_empty()) then
 	    while true do
-		loc = self._read_buffer:peekfirst():find(self._read_delimiter, 1, true)
+		local chunk = self._read_buffer:peekfirst()
+		local _,loc = chunk:find(self._read_delimiter, 1, true)
 		if (loc) then
 		    local callback = self._read_callback
-		    local delimiter_len = self._read_delimiter:len()
 		    self._read_callback = nil
 		    self._streaming_callback = None
 		    self._read_delimiter = None
-		    self:_run_callback(callback, self:_consume(loc + delimiter_len))
+		    self:_run_callback(callback, self:_consume(loc))
 		    return true
 		end
 		if (self._read_buffer:size() == 1) then
