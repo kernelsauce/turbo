@@ -18,6 +18,7 @@ local turbo = require "turbo"
 local TwitterFeedHandler = class("TwitterFeed", turbo.web.RequestHandler)
 
 function TwitterFeedHandler:get(search)
+	-- Use this handler by directing browser to http://*your hostname*/tweet/*twitter search phrase*
 	local res = coroutine.yield(
 		turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json",
 		{
