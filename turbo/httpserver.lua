@@ -15,13 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.		]]
   
 
-local log = "turbo.log"
 local tcpserver = require "turbo.tcpserver"
 local httputil = require "turbo.httputil"
 local ioloop = require "turbo.ioloop"
 local iostream = require "turbo.iostream"
 local util = require "turbo.util"
+local log = require "turbo.log"
 require('turbo.3rdparty.middleclass')
+
   
 local httpserver = {} -- httpserver namespace
 
@@ -161,8 +162,10 @@ function httpserver.HTTPConnection:_on_headers(data)
 		end)
 
 	if (status == false) then
-		log.notice(string.format("[httpserver.lua] %s", msg))
-		--FIXME: Handle HTTP headers parsing error.
+		-- Invalid headers. Close stream.
+		log.error(string.format("[httpserver.lua] %s", msg))
+		self.stream:close()
+		return
 	end
 	
 	self._request = httpserver.HTTPRequest:new(headers.method, headers.uri, {
