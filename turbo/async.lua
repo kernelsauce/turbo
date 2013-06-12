@@ -53,10 +53,6 @@ async.HTTPClient = class("HTTPClient")
 
 
 -- Construct a new HTTPClient instance.
--- @param family The socket family to use. Defined in turbo.socket. E.g turbo.socket.AF_INET
--- @param io_loop Explicitly provid a turbo.ioloop.IOLoop instance to use. Default is global instance.
--- @param max_buffer_size The maximum buffer to use for server response.
--- @param read_chunk_size The read chunk size. Default is 1024.
 function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chunk_size)
     self.family = family or AF_INET
     self.io_loop = io_loop or ioloop.instance()
@@ -65,31 +61,28 @@ function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chun
 end
 
 
---[[ Fetch a URL.
-@param url The URL to use.
-@param kwargs Optional keyword arguments:
+--[[ Fetch a URL. Kwargs table:
 
-    NAME                DESCRIPTION                                 DEFAULT
-    -----------------------------------------------------------------------
-    "method"            The HTTP method to use.                     Default is "GET"
-    "params"            Provide parameters as table.                N/A
-    "cookie"            The cookie to use.                          N/A
-    "keep_alive"        Keep the connection alive, until GC.        Default is false
-    "http_version"      Set HTTP version.                           Default is HTTP1.1
-    "use_gzip"          Use gzip compression.                       Default is true.
-    "allow_redirects"   Allow or disallow redirects.                Default is true.
-    "max_redirects"     Maximum redirections allowed.               Default is 4.
-    "on_headers"        Callback to be called when assembling       N/A
-        request headers. Called with headers as argument.
-    "body"              Request HTTP body.                          N/A
-    "request_timeout"   Total timeout in seconds                    Default is 60 secs.
-        (including connect) for request.
-    "connect_timeout"   Timeout in seconds for connect.             Default is 20 secs.
-    "auth_username"     Authentication user name.                   N/A
-    "auth_password"     Authentication password.                    N/A
-    "user_agent"        User Agent string used in request headers.  Default is "Turbo Client vx.x.x"
-    "file"              File handle to send when doing PUT.         N/A
-
+NAME                DESCRIPTION                                 DEFAULT
+=================================================================================================
+"method"            The HTTP method to use.                     Default is "GET"
+"params"            Provide parameters as table.                N/A
+"cookie"            The cookie to use.                          N/A
+"keep_alive"        Keep the connection alive, until GC.        Default is false
+"http_version"      Set HTTP version.                           Default is HTTP1.1
+"use_gzip"          Use gzip compression.                       Default is true.
+"allow_redirects"   Allow or disallow redirects.                Default is true.
+"max_redirects"     Maximum redirections allowed.               Default is 4.
+"on_headers"        Callback to be called when assembling       N/A
+    request headers. Called with headers as argument.
+"body"              Request HTTP body.                          N/A
+"request_timeout"   Total timeout in seconds                    Default is 60 secs.
+    (including connect) for request.
+"connect_timeout"   Timeout in seconds for connect.             Default is 20 secs.
+"auth_username"     Authentication user name.                   N/A
+"auth_password"     Authentication password.                    N/A
+"user_agent"        User Agent string used in request headers.  Default is "Turbo Client vx.x.x"
+"file"              File handle to send when doing PUT.         N/A
 ]]
 
 local errors = {
@@ -109,13 +102,13 @@ async.errors = errors
 
 function async.HTTPClient:fetch(url, kwargs)
     self.coctx = coctx.CoroutineContext:new(self.io_loop)
-    if (type(url) ~= "string") then
+    if type(url) ~= "string" then
         self._throw_error(errors.INVALID_URL, "URL must be string.")
         return self.coctx -- Just break.
     end
     self.start_time = util.gettimeofday()
     self.headers = httputil.HTTPHeaders:new()
-    if (self.headers:parse_url(url) ~= 0) then
+    if self.headers:parse_url(url) ~= 0 then
         self:_throw_error(errors.INVALID_URL, "Invalid URL provided.")
         return self.coctx
     end
@@ -125,28 +118,21 @@ function async.HTTPClient:fetch(url, kwargs)
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.query = self.headers:get_url_field(httputil.UF.QUERY)
     self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
-    if (not old_hostname or old_hostname ~= self.hostname) then
+    if not old_hostname or old_hostname ~= self.hostname then
         local sock, msg = socket.new_nonblock_socket(self.family, socket.SOCK_STREAM, 0)
         if (sock == -1) then 
             self:_throw_error(errors.SOCKET_ERROR, msg)
             return self.coctx
         end
         self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size, self.read_chunk_size)
-    elseif (old_hostname == self.hostname and self.s_connected == true) then
+    elseif old_hostname == self.hostname and not self.iostream:closed() then
         log.devel("[async.lua] Keep-Alive case. Reusing stream.")
         -- Keep-Alive hit.
     end
     -- Reset states.
     self.response_headers = nil
-    self.s_connecting = false
-    self.s_connected = false
-    self.s_parsing_headers = false
-    self.s_headers_parsed = false
-    self.s_recv_body = false
-    self.s_recv_head = false
-    self.s_callback = false
-    self.s_finalize = false
-    self.s_error = false
+    self.s_connecting = false -- [[ Connecting state. ]]
+    self.s_error = false --[[ Error state.  ]]
     self.payload = nil
     self.error_str = ""
     self.error_code = 0
@@ -161,11 +147,9 @@ function async.HTTPClient:fetch(url, kwargs)
         if (self.port == -1) then
             self.port = 80
         end
-        self.s_connecting = true
         self.iostream:connect(self.hostname, self.port, self.family,
             function()
                 self.s_connecting = false
-                self.s_connected = true
                 self:_handle_connect()
             end,
             function(err)
@@ -262,14 +246,10 @@ function async.HTTPClient:_handle_connect()
     end
     local stringifed_headers = self.headers:stringify_as_request()
     write_buf = stringifed_headers .. write_buf
-    self.s_recv_head = true
     self.iostream:write(write_buf, function()
         -- Schedule read until pattern on finished write.
         self.iostream:read_until_pattern("\r?\n\r?\n", function(data)
-            self.s_recv_head = false
-            self.s_parsing_headers = true
             self:_handle_headers(data)
-            self.s_parsing_headers = false
         end)
     end)
 end
@@ -314,7 +294,6 @@ function async.HTTPClient:_finalize_request()
         self.io_loop:remove_timeout(self.connect_timeout_ref)
     end
     if (not self.kwargs.keep_alive or self.kwargs.keep_alive == false) then
-        self.s_connected = false
         self.iostream:close()
     end
     local res = async.HTTPResponse:new()
@@ -335,6 +314,13 @@ function async.HTTPClient:_finalize_request()
     self.coctx:finalize_context()
 end
 
+function async.HTTPClient:_handle_1xx_code(code)
+    -- Continue reading.
+    self.iostream:read_until_pattern("\r?\n\r?\n", function(data)
+        self:_handle_headers(data)
+    end)
+end
+
 function async.HTTPClient:_handle_headers(data)
     if (not data) then
         self:_throw_error(errors.NO_HEADERS, "No data recieved after connect. Expected HTTP headers.")
@@ -344,16 +330,18 @@ function async.HTTPClient:_handle_headers(data)
     if (rc == -1) then
         return _throw_error(errors.PARSE_ERROR_HEADERS, "Could not parse HTTP headers: " .. errnodesc)
     end
-    self.s_headers_parsed = true
+    local code = self.response_headers:get_status_code()
+    if (100 <= code and code < 200) then
+        self:_handle_1xx_code(code)
+        return
+    end
     local content_length = self.response_headers:get("Content-Length", true)
     if (not content_length or content_length == 0)  then
         -- No content length. This is probably a HEAD request or a error?
         self:_finalize_request()
         return
     end
-    self.s_recv_body = true
     self.iostream:read_bytes(tonumber(content_length), function(data)
-        self.s_recv_body = false
         self:_handle_body(data)
     end)
 end
