@@ -144,13 +144,21 @@ function httpserver.HTTPConnection:_finish_request()
             disconnect = true
         end
     end
-    self._request = nil
+    --self._request = nil
     self._request_finished = false
     if disconnect then
         self.stream:close()
         return
     end
+    
+if not self.stream:closed() then
     self.stream:read_until("\r\n\r\n", self._header_callback)
+else
+    log.debug("[httpserver.lua] Client hang up. End Keep-Alive session.")
+    self = nil
+    return
+end
+    
 end
 
 
