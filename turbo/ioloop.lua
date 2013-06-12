@@ -104,7 +104,7 @@ end
 
 function ioloop.IOLoop:_run_handler(file_descriptor, events)   
     xpcall(self._handlers[file_descriptor], function(err)
-        log.error("[ioloop.lua] caught error in handler: " .. err)
+        log.debug("[ioloop.lua] Unhandled handler error. " .. err)
         self:remove_handler(file_descriptor)
         ngc.inc("ioloop_handlers_errors_count", 1)
     end, file_descriptor, events)
