@@ -351,7 +351,14 @@ function iostream.IOStream:_run_callback(callback, ...)
     self._pending_callbacks = self._pending_callbacks + 1
     self.io_loop:add_callback(function() 
 	self._pending_callbacks = self._pending_callbacks - 1
-	callback(_callback_arguments)
+	xpcall(
+	    callback,
+	    function(err)
+		log.error(string.format("[iostream.lua] Unhandled error. %s. Closing socket.", err))
+		log.stacktrace(debug.traceback())
+		self:close()
+	    end,
+	    _callback_arguments)
     end)
 end
 
