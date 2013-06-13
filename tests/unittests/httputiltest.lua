@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.     ]]
   
 local turbo = require "turbo"
-require "middleclass"
+require "turbo.3rdparty.middleclass"
 local raw_headers = 
 "GET /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
 "Host: somehost.no\r\n"..
@@ -82,7 +82,7 @@ describe("turbo httputil module", function()
 	headers:add("Age", "0")
         local expected = "HTTP/1.1 304 Not Modified\r\nConnection: keep-alive\r\nDate: Wed, 08 May 2013 15:00:22 GMT\r\nAge: 0\r\nAccept-Ranges: bytes\r\nServer: Turbo/1.0\r\n\r\n"
         assert.equal(headers:__tostring(), expected)
-	assert(headers:__tostring():len() == 142, headers:__tostring():len())
+	assert(headers:__tostring():len() == 139, headers:__tostring():len())
     end)
     
     it("should allow settings and getting of notable values", function()

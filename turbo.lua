@@ -27,19 +27,19 @@ else
 	turbo.VERSION = string.format("%d.%d", turbo.MAJOR_VERSION, turbo.MINOR_VERSION)
 end
 
-turbo.log = require "log"
-turbo.ioloop = require "ioloop"
-turbo.escape = require "escape"
-turbo.httputil = require "httputil"
-turbo.httpserver = require "httpserver"
-turbo.iostream = require "iostream"
-turbo.deque = require "deque"
-turbo.async = require "async"
-turbo.web = require "web"
-turbo.util = require "util"
-turbo.signal = require "signal"
-turbo.socket = require "socket_ffi"
-_G.dump = turbo.log.dump
-_G.join = turbo.util.join
+turbo.log =             require "turbo.log"
+turbo.ioloop =          require "turbo.ioloop"
+turbo.escape =          require "turbo.escape"
+turbo.httputil =        require "turbo.httputil"
+turbo.httpserver =      require "turbo.httpserver"
+turbo.iostream =        require "turbo.iostream"
+turbo.async =           require "turbo.async"
+turbo.web =             require "turbo.web"
+turbo.util =            require "turbo.util"
+turbo.signal =          require "turbo.signal"
+turbo.socket =          require "turbo.socket_ffi"
+turbo.structs =         {}
+turbo.structs.deque =   require "turbo.structs.deque"
+
 
 return turbo

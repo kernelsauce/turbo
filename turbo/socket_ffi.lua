@@ -20,9 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."             ]]
 
-local log = require "log"
-local ffi = require "ffi"
-local util = require "util"
+local log =     require "turbo.log"
+local util =    require "turbo.util"
+local ffi =     require "ffi"
+
 
 if not _G.SOCKET_H then
     _G.SOCKET_H = 1

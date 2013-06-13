@@ -77,32 +77,32 @@ end
 local hex = util.hex
 
 function util.mem_dump(ptr, sz)
-	local voidptr = ffi.cast("unsigned char *", ptr)
-	if (not voidptr) then
-		error("Trying to dump null ptr")
-	end
-        
-	io.write(string.format("Pointer type: %s\nFrom memory location: 0x%s dumping %d bytes\n",
-                               ffi.typeof(ptr),
-                               hex(tonumber(ffi.cast("intptr_t", voidptr))),
-                               sz))
-        local p = 0;
-        local sz_base_1 = sz - 1
-        for i = 0, sz_base_1 do
-            if (p == 10) then
-                p = 0
-                io.write("\n")
-            end
-            local hex_string
-            if (voidptr[i] < 0xf) then
-                hex_string = string.format("0x0%s ", hex(voidptr[i]))
-            else
-                hex_string = string.format("0x%s ", hex(voidptr[i]))
-            end
-            io.write(hex_string)
-            p = p + 1
+    local voidptr = ffi.cast("unsigned char *", ptr)
+    if (not voidptr) then
+            error("Trying to dump null ptr")
+    end
+    
+    io.write(string.format("Pointer type: %s\nFrom memory location: 0x%s dumping %d bytes\n",
+                           ffi.typeof(ptr),
+                           hex(tonumber(ffi.cast("intptr_t", voidptr))),
+                           sz))
+    local p = 0;
+    local sz_base_1 = sz - 1
+    for i = 0, sz_base_1 do
+        if (p == 10) then
+            p = 0
+            io.write("\n")
         end
-	io.write("\n")
+        local hex_string
+        if (voidptr[i] < 0xf) then
+            hex_string = string.format("0x0%s ", hex(voidptr[i]))
+        else
+            hex_string = string.format("0x%s ", hex(voidptr[i]))
+        end
+        io.write(hex_string)
+        p = p + 1
+    end
+    io.write("\n")
 end
 
 
@@ -153,12 +153,40 @@ if not _G.TIME_H then
     
     ]])
 end
+--[[ Current msecs since epoch. Better granularity than Lua builtin. ]]
 function util.gettimeofday()
         local timeval = ffi.new("struct timeval")
         ffi.C.gettimeofday(timeval, nil)
         return (tonumber(timeval.tv_sec) * 1000) + math.floor(tonumber(timeval.tv_usec) / 1000)
 end
 
+ffi.cdef[[
+unsigned long compressBound(unsigned long sourceLen);
+int compress2(uint8_t *dest, unsigned long *destLen,
+	      const uint8_t *source, unsigned long sourceLen, int level);
+int uncompress(uint8_t *dest, unsigned long *destLen,
+	       const uint8_t *source, unsigned long sourceLen);
+]]
+
+local zlib = ffi.load "z"
+--[[ zlib compress.  ]]
+function util.z_compress(txt)
+  local n = zlib.compressBound(#txt)
+  local buf = ffi.new("uint8_t[?]", n)
+  local buflen = ffi.new("unsigned long[1]", n)
+  local res = zlib.compress2(buf, buflen, txt, #txt, 9)
+  assert(res == 0)
+  return ffi.string(buf, buflen[0])
+end
+
+--[[ zlib decompress.  ]]
+function util.z_decompress(comp, n)
+  local buf = ffi.new("uint8_t[?]", n)
+  local buflen = ffi.new("unsigned long[1]", n)
+  local res = zlib.uncompress(buf, buflen, comp, #comp)
+  assert(res == 0)
+  return ffi.string(buf, buflen[0])
+end
 
 --[[  Returns true if value exists in table.        ]]
 function util.is_in(needle, haystack)

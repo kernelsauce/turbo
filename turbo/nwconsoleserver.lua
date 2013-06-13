@@ -14,20 +14,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
-local tcpserver = require "tcpserver"
-local ioloop = require "ioloop"
-local escape = require "escape"
-local ngc = require "nwglobals"
-require "middleclass"
+local tcpserver = require "turbo.tcpserver"
+local ioloop = require "turbo.ioloop"
+local escape = require "turbo.escape"
+local ngc = require "turbo.nwglobals"
+require "turbo.3rdparty.middleclass"
 
 
 local console = {} -- console namespace
 
 console.ConsoleServer = class('ConsoleServer', tcpserver.TCPServer)
 
-function console.ConsoleServer:init(io_loop)
+function console.ConsoleServer:initialize(io_loop)
     io_loop = io_loop or ioloop.instance()
-    tcpserver.TCPServer:init(io_loop)
+    tcpserver.TCPServer:initialize(io_loop)
 end
 
 function console.ConsoleServer:handle_stream(stream, address)
@@ -36,7 +36,7 @@ end
 
 console.ConsoleStream = class("ConsoleStream")
 
-function console.ConsoleStream:init(stream, address)
+function console.ConsoleStream:initialize(stream, address)
     self.stream = stream
     self.address = address    
     stream:read_until("\n\n", function(data) self:handle_request(data) end)
