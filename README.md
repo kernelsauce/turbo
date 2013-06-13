@@ -43,7 +43,7 @@ Turbo.lua Web
 
 Contributions (important read!)
 -----------------------------------------------
-Making a event-driven server is hard work! I would really like to get some people working together with me on this project. All contributions are greatly appreciated. Not only in developing the server, but also in documentation, howto's, a official web site and any other field you think YOU can help. The plan is to take on node.js, Tornado and others!
+Making a event-driven server is hard work! I would really like to get some people working together with me on this project. All contributions are greatly appreciated. Not only in developing the server, but also in documentation, howto's, a official web site and any other field you think YOU can help. The plan is to take on node.js, Tornado and others! If you have any questions then please send them to jhnabrhmsn @ gmail.com .
 
 Introduction
 ------------
