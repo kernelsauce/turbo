@@ -41,6 +41,10 @@ Turbo.lua Web
         application:listen(8888)
         turbo.ioloop.instance():start()
 
+Contributions (important read!)
+-----------------------------------------------
+Making a event-driven server is hard work! I would really like to get some people working together with me on this project. All contributions are greatly appreciated. Not only in developing the server, but also in documentation, howto's, a official web site and any other field you think YOU can help. The plan is to take on node.js, Tornado and others!
+
 Introduction
 ------------
 Turbo Web is a Lua module / toolkit (whatever) for developing web apps in Lua. It is different from all the other
@@ -74,7 +78,6 @@ Turbo Web has dropped support for vanilla Lua because of the decision to drop C 
 which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
 
 All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
-
 
 Performance
 -----------
