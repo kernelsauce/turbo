@@ -21,14 +21,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			]]
 
 
-require('middleclass')
-local log = require "log"
+require 'turbo.3rdparty.middleclass'
+local log = require "turbo.log"
 local ffi = require "ffi"
+
 --[[ Double ended queue class. 	]]
 local deque = class('Deque')
 _G.deque_no = 0
 
-function deque:init()
+function deque:initialize()
         self.head = nil
         self.tail = nil
         self.sz = 0
@@ -152,6 +153,15 @@ function deque:getn(pos)
     return l.value
 end
 
+function deque:__concat(source)
+    if (type(self) == "string") then
+        self = self .. source:concat()
+    end
+    return self
+end
+
+--[[ To string metamethod.   ]]
+function deque:__tostring() return self:concat() end
 --[[ Returns element at tail. 	]]
 function deque:peeklast() return self.tail.value end
 --[[ Returns element at head. 	]]

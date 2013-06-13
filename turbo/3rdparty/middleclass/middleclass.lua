@@ -57,7 +57,7 @@ end
 
 local function _setDefaultInitializeMethod(klass, super)
   klass.initialize = function(instance, ...)
-    return super.init(instance, ...)
+    return super.initialize(instance, ...)
   end
 end
 
@@ -87,7 +87,7 @@ end
 
 function Object.static:new(...)
   local instance = self:allocate()
-  instance:init(...)
+  instance:initialize(...)
   return instance
 end
 
@@ -112,7 +112,7 @@ function Object.static:include( ... )
   return self
 end
 
-function Object:init() end
+function Object:initialize() end
 
 function Object:__tostring() return "instance of " .. tostring(self.class) end
 

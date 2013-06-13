@@ -5,5 +5,7 @@ clean:
 	cd 3rdparty/http-parser; make clean
 
 install:
-	sudo cp -R turbo/* $(LUA_MODULEDIR)
+	sudo mkdir -p $(LUA_MODULEDIR)turbo
+	sudo cp -R turbo/* $(LUA_MODULEDIR)turbo
+	sudo cp turbo.lua $(LUA_MODULEDIR)
 	cd 3rdparty/http-parser; sudo make install

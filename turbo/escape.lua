@@ -20,7 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			]]
 
-local json = require('JSON')
+local json = require('turbo.3rdparty.JSON')
 local escape = {} -- escape namespace
 
 
@@ -36,7 +36,7 @@ end
 
 --[[ Encodes a string into its escaped hexadecimal representation.   ]]
 function escape.escape(s)
-    return gsub(s, "([^A-Za-z0-9_])", function(c)
+    return string.gsub(s, "([^A-Za-z0-9_])", function(c)
         return string.format("%%%02x", string.byte(c))
     end)
 end

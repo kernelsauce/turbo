@@ -14,21 +14,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.		]]
   
-local ffi = require "ffi"
-local bit = require "bit"
-local socket = require "socket_ffi"
-local ioloop = require "ioloop"
-local ngc = require "nwglobals"
-local SOL_SOCKET = socket.SOL_SOCKET
+local socket =      require "turbo.socket_ffi"
+local ioloop =      require "turbo.ioloop"
+local ngc =         require "turbo.nwglobals"
+local ffi =         require "ffi"
+local bit =         require "bit"
+local SOL_SOCKET =  socket.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO_REUSEADDR
-local O_NONBLOCK = socket.O_NONBLOCK
-local F_SETFL = socket.F_SETFL
-local F_GETFL = socket.F_GETFL
+local O_NONBLOCK =  socket.O_NONBLOCK
+local F_SETFL =     socket.F_SETFL
+local F_GETFL =     socket.F_GETFL
 local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET = socket.AF_INET
+local AF_INET =     socket.AF_INET
 local EWOULDBLOCK = socket.EWOULDBLOCK
-local EAGAIN = socket.EAGAIN
+local EAGAIN =      socket.EAGAIN
 
 local sockutils = {} -- sockutils namespace
 
