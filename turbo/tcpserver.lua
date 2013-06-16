@@ -21,6 +21,7 @@ local ioloop =      require "turbo.ioloop"
 local socket =      require "turbo.socket_ffi"
 local sockutil =    require "turbo.sockutil"
 local ngc =         require "turbo.nwglobals"
+local crypto =      require "turbo.crypto"
 local ffi =         require "ffi"
 local bit =         require "bit"
 require "turbo.3rdparty.middleclass"
@@ -40,12 +41,36 @@ local tcpserver = {}  -- tcpserver namespace
 
 tcpserver.TCPServer = class('TCPServer')
 
-function tcpserver.TCPServer:initialize(io_loop, ssl_options)	
+function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size, read_chunk_size)	
     self.io_loop = io_loop or ioloop.instance()
     self.ssl_options = ssl_options
+    self.read_chunk_size = read_chunk_size
+    self.max_buffer_size = max_buffer_size
     self._sockets = {}
     self._pending_sockets = {}
     self._started = false
+    -- Validate SSL options if set.
+    if self.ssl_options then
+        if not type(ssl_options.cert_file) == "string" then
+            error("ssl_options argument is set, but cert_file argument is missing or not a string.")
+        end
+        if not type(ssl_options.key_file) == "string" then
+            error("ssl_options argument is set, but key_file arguments is missing or not a string.")
+        end
+        -- So the only check that is done is that the cert and key file are readable.
+        -- However the validity of the keys are not checked until we create the SSL context.
+        if not util.file_exists(ssl_options.cert_file) then
+            error(string.format("SSL cert_file, %s, does not exist.", ssl_options.cert_file))
+        end
+        if not util.file_exists(ssl_options.key_file) then
+            error(string.format("SSL key_file, %s, does not exist.", ssl_options.key_file))
+        end
+        -- The ssl_create_context function will raise error and exit by its own, so there is
+        -- no need to catch errors.
+        crypto.ssl_init()
+        self._ssl_ctx = crypto.ssl_create_context(self.ssl_options.cert_file, self.ssl_options.key_file)
+        self.ssl_options._ssl_ctx = self._ssl_ctx
+    end
 end
 
 --[[ Start listening on port and address.
@@ -53,7 +78,7 @@ If no address is supplied, * will be used.     ]]
 function tcpserver.TCPServer:listen(port, address)
     assert(port, [[Please specify port for listen() method]])
     local sock = sockutil.bind_sockets(port, address, 1024)
-    log.notice("[tcpserver.lua] TCPServer listening on port: " .. port)
+    log.devel("[tcpserver.lua] TCPServer listening on port: " .. port)
     self:add_sockets({sock})
 end
 
@@ -63,12 +88,13 @@ function tcpserver.TCPServer:add_sockets(sockets)
     if not self.io_loop then
 	    self.io_loop = ioloop.instance()
     end
-    
     for _, sock in ipairs(sockets) do
-	    self._sockets[sock] = sock
-	    sockutil.add_accept_handler(sock,
-			       function(connection, address) self:_handle_connection(connection, address) end,
-			       self.io_loop)
+        self._sockets[sock] = sock
+        sockutil.add_accept_handler(sock,
+            function(connection, address)
+                self:_handle_connection(connection, address)
+            end,
+            self.io_loop)
     end
 end
 
@@ -111,10 +137,11 @@ end
 
 --[[ Handle new connection.    ]]
 function tcpserver.TCPServer:_handle_connection(connection, address)
-    if (self.ssl_options ~= nil) then
-	--FIXME ssl.
+    if (self.ssl_options ~= nil) then	
+        local stream = iostream.SSLIOStream:new(connection, self.io_loop, self.max_buffer_size, self.read_chunk_size)
+        self:handle_stream(stream, address)
     else
-	local stream = iostream.IOStream:new(connection, self.io_loop)
+	local stream = iostream.IOStream:new(connection, self.io_loop, self.max_buffer_size, self.read_chunk_size)
 	self:handle_stream(stream, address)
     end
 end
