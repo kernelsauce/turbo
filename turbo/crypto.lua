@@ -57,7 +57,7 @@ if not _G._SSL_H then
     SSL *SSL_new(SSL_CTX *ctx);
     int	SSL_set_fd(SSL *s, int fd);
     int SSL_accept(SSL *ssl);
-    void SL_free(SSL *ssl);
+    void SSL_free(SSL *ssl);
     int	SSL_accept(SSL *ssl);
     int	SSL_connect(SSL *ssl);
     int	SSL_read(SSL *ssl,void *buf,int num);
@@ -107,10 +107,10 @@ function crypto.ssl_create_context(cert_file, prv_file)
 	error("Could not create SSLv3 server method.")
     end
     local ctx = lssl.SSL_CTX_new(meth)
-    ffi.gc(ctx, lssl.SSL_CTX_free)
-    print(ctx)
     if (ctx == nil) then
 	error("Could not create new SSL context.")
+    else
+	ffi.gc(ctx, lssl.SSL_CTX_free)
     end
     if (lssl.SSL_CTX_use_certificate_file(ctx, cert_file, crypto.SSL_FILETYPE_PEM) <= 0) then
 	error("Could not load SSL certificate file: " .. cert_file)
@@ -123,16 +123,17 @@ end
 
 function crypto.ssl_wrap_sock(fd, ctx)
     local ssl = lssl.SSL_new(ctx)
-    ffi.gc(ssl, lssl.SSL_free)
     local rc = 0
     if (ssl == nil) then
 	return -1, "Could not create new SSL struct."
+    else
+	ffi.gc(ssl, lssl.SSL_free)
     end
-    rc = SSL_set_fd(ssl, fd)
+    rc = lssl.SSL_set_fd(ssl, fd)
     if (rc <= 0) then
 	return -1, "Could not set fd."
     end
-    rc = SSL_accept(ssl)
+    rc = lssl.SSL_accept(ssl)
     if (rc <= 0) then
 	return -1, "Could not do SSL handshake"
     end
@@ -140,6 +141,8 @@ function crypto.ssl_wrap_sock(fd, ctx)
 end
 
 function crypto.ssl_write(ssl, buf, sz) return lssl.SSL_write(ssl, buf, sz) end
-function crypto.ssl_read(ssl, buf, sz) return lssl.SSL_read(ssl, buf, sz) end
+function crypto.ssl_read(ssl, buf, sz)
+    return lssl.SSL_read(ssl, buf, sz)
+end
 
 return crypto

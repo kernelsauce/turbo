@@ -137,8 +137,8 @@ end
 
 --[[ Handle new connection.    ]]
 function tcpserver.TCPServer:_handle_connection(connection, address)
-    if (self.ssl_options ~= nil) then	
-        local stream = iostream.SSLIOStream:new(connection, self.io_loop, self.max_buffer_size, self.read_chunk_size)
+    if (self.ssl_options ~= nil) then
+        local stream = iostream.SSLIOStream:new(connection, self.ssl_options, self.io_loop, self.max_buffer_size, self.read_chunk_size)
         self:handle_stream(stream, address)
     else
 	local stream = iostream.IOStream:new(connection, self.io_loop, self.max_buffer_size, self.read_chunk_size)

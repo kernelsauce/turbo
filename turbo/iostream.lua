@@ -631,7 +631,7 @@ function iostream.SSLIOStream:connect(address, port, family, callback, errhandle
 end
 
 function iostream.SSLIOStream:_do_ssl_handshake()
-    local rc, ssl = crypto.ssl_wrap_sock(self.socket, self._ssl_ctx)
+    local rc, ssl = crypto.ssl_wrap_sock(self.socket, self._ssl_options._ssl_ctx)
     if (rc ~= 0) then
 	log.notice(string.format("[tcpserver.lua] Could not create a SSL connection, %s", ssl))
 	self = nil
@@ -643,7 +643,7 @@ function iostream.SSLIOStream:_do_ssl_handshake()
 end
 
 function iostream.SSLIOStream:_handle_read()	
-    if self._ssl_accepting then
+    if self._ssl_accepting == True then
 	self:_do_ssl_handshake()
 	return
     end
@@ -651,7 +651,7 @@ function iostream.SSLIOStream:_handle_read()
 end
 
 function iostream.SSLIOStream:_handle_write()	
-    if self._ssl_accepting then
+    if self._ssl_accepting == True then
 	self:_do_ssl_handshake()
 	return
     end
@@ -660,7 +660,8 @@ end
 
 function iostream.SSLIOStream:_handle_connect()
     -- FIXME: check if there is cert_file or perv_file set in ssl_options or if there is a _ssl_ctx made.
-    -- Wrap the plain socket with SSL on connect. 
+    -- Wrap the plain socket with SSL on connect.
+    print("_handle_connect")
     local rc, ssl = crypto.ssl_wrap_sock(self.socket, self.ssl_options._ssl_ctx)
     if (rc ~= 0) then
 	log.notice(string.format("[tcpserver.lua] Could not create a SSL connection, %s", ssl))
@@ -678,7 +679,7 @@ function iostream.SSLIOStream:_handle_connect()
 end
 
 function iostream.SSLIOStream:_read_from_socket()
-    if self._ssl_accepting then
+    if self._ssl_accepting == True then
 	-- If the handshake has not been completed do not allow
 	-- any reads to be done...
 	return nil
@@ -713,7 +714,7 @@ function iostream.SSLIOStream:_read_from_socket()
 end
 
 function iostream.SSLIOStream:_handle_write()
-    if self._ssl_accepting then
+    if self._ssl_accepting == True then
 	-- If the handshake has not been completed do not allow
 	-- any writes to be done.
 	return nil
