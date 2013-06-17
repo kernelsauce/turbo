@@ -68,7 +68,11 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size, r
         -- The ssl_create_context function will raise error and exit by its own, so there is
         -- no need to catch errors.
         crypto.ssl_init()
-        self._ssl_ctx = crypto.ssl_create_context(self.ssl_options.cert_file, self.ssl_options.key_file)
+        local rc, ssl_ctx = crypto.ssl_create_server_context(self.ssl_options.cert_file, self.ssl_options.key_file)
+        if rc ~= 0 then
+            error(string.format("Could not create SSL context. %s", crypto.ERR_error_string(rc)))
+        end
+        self._ssl_ctx = ssl_ctx
         self.ssl_options._ssl_ctx = self._ssl_ctx
     end
 end
@@ -99,7 +103,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
 end
 
 --[[ Add a single socket.     ]]
-function tcpserver.TCPServer:add_socket(socket)	self:add_sockets({ socket }) end
+function tcpserver.TCPServer:add_socket(socket)	self:add_sockets({socket}) end
 
 function tcpserver.TCPServer:bind(port, address, backlog)
     local backlog = backlog or 128
@@ -113,7 +117,7 @@ end
 
 --[[ Start the TCPServer.		]]
 function tcpserver.TCPServer:start()	
-	assert(( not self._started ), [[Running started on a already started TCPServer]])
+	assert((not self._started), "Running started on a already started TCPServer.")
 	self._started = true
 	local sockets = self._pending_sockets
 	self._pending_sockets = {}
@@ -137,7 +141,7 @@ end
 
 --[[ Handle new connection.    ]]
 function tcpserver.TCPServer:_handle_connection(connection, address)
-    if (self.ssl_options ~= nil) then
+    if self.ssl_options ~= nil then
         local stream = iostream.SSLIOStream:new(connection, self.ssl_options, self.io_loop, self.max_buffer_size, self.read_chunk_size)
         self:handle_stream(stream, address)
     else

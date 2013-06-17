@@ -58,7 +58,7 @@ function httpserver.HTTPServer:initialize(request_callback, no_keep_alive, io_lo
     self.request_callback = request_callback
     self.no_keep_alive = no_keep_alive
     self.xheaders = xheaders
-    tcpserver.TCPServer:initialize(io_loop, kwargs.ssl_options)
+    tcpserver.TCPServer:initialize(io_loop, kwargs and kwargs.ssl_options)
 end
 
 --[[ Redefine handle_stream method from super class TCPServer.   ]]
