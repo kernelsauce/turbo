@@ -364,7 +364,6 @@ function iostream.IOStream:_run_callback(callback, ...)
 end
 
 function iostream.IOStream:_handle_read()
-    -- FIXME : xpcall ?
     self._pending_callbacks = self._pending_callbacks + 1
     while not self:closed() do
 	-- Read from socket until we get EWOULDBLOCK or equivalient.
@@ -618,7 +617,7 @@ function iostream.SSLIOStream:initialize(fd, ssl_options, io_loop, max_buffer_si
     self._ssl_options = ssl_options
     self._ssl = nil
     iostream.IOStream.initialize(self, fd, io_loop, max_buffer_size, read_chunk_size)
-    self._ssl_accepting = True
+    self._ssl_accepting = true
     self._ssl_connect_callback = nil
     self._server_hostname = nil
 end
@@ -632,8 +631,18 @@ end
 
 function iostream.SSLIOStream:_do_ssl_handshake()
     local rc, ssl = crypto.ssl_wrap_sock(self.socket, self._ssl_options._ssl_ctx)
+    local err = 0
     if (rc ~= 0) then
-	log.notice(string.format("[tcpserver.lua] Could not create a SSL connection, %s", ssl))
+	while (true) do
+	    err = crypto.ERR_get_error()
+	    if (err ~= 0) then
+		local err_str = crypto.ERR_error_string(err)
+		log.warning(string.format("[tcpserver.lua] Could not create a SSL connection. %s", err_str))
+	    else
+		break
+	    end
+	end
+
 	self = nil
 	return
     else
@@ -642,8 +651,8 @@ function iostream.SSLIOStream:_do_ssl_handshake()
     end
 end
 
-function iostream.SSLIOStream:_handle_read()	
-    if self._ssl_accepting == True then
+function iostream.SSLIOStream:_handle_read()
+    if self._ssl_accepting == true then
 	self:_do_ssl_handshake()
 	return
     end
@@ -651,7 +660,7 @@ function iostream.SSLIOStream:_handle_read()
 end
 
 function iostream.SSLIOStream:_handle_write()	
-    if self._ssl_accepting == True then
+    if self._ssl_accepting == true then
 	self:_do_ssl_handshake()
 	return
     end
@@ -661,9 +670,10 @@ end
 function iostream.SSLIOStream:_handle_connect()
     -- FIXME: check if there is cert_file or perv_file set in ssl_options or if there is a _ssl_ctx made.
     -- Wrap the plain socket with SSL on connect.
-    print("_handle_connect")
     local rc, ssl = crypto.ssl_wrap_sock(self.socket, self.ssl_options._ssl_ctx)
+    local err = 0
     if (rc ~= 0) then
+	err = crypto.ERR_get_error()
 	log.notice(string.format("[tcpserver.lua] Could not create a SSL connection, %s", ssl))
 	self = nil
 	return
@@ -679,25 +689,38 @@ function iostream.SSLIOStream:_handle_connect()
 end
 
 function iostream.SSLIOStream:_read_from_socket()
-    if self._ssl_accepting == True then
+    if self._ssl_accepting == true then
 	-- If the handshake has not been completed do not allow
 	-- any reads to be done...
 	return nil
     end
     local errno
+    local err
     local buf = ffi.new("char[?]", self.read_chunk_size)
     local sz = tonumber(crypto.ssl_read(self._ssl, buf, self.read_chunk_size))    
     if (sz == -1) then
-	errno = ffi.errno()
-	if errno == EWOULDBLOCK or errno == EAGAIN then
+	err = crypto.SSL_get_error(self._ssl, sz)
+	if err == crypto.SSL_ERROR_SYSCALL then
+	    errno = ffi.errno()
+	    if errno == EWOULDBLOCK or errno == EAGAIN then
+		return nil
+	    else
+		local fd = self.socket
+		self:close()
+		error(string.format("Error when reading from socket %d. Errno: %d. %s",
+				    fd,
+				    errno,
+				    socket.strerror(errno)))
+	    end
+	elseif err == crypto.SSL_ERROR_WANT_READ then
 	    return nil
 	else
 	    local fd = self.socket
-	    self:close()
-	    error(string.format("Error when reading from socket %d. Errno: %d. %s",
-				fd,
-				errno,
-				socket.strerror(errno)))
+	    local ssl_err = crypto.ERR_get_error()
+	    local ssl_str_err = crypto.ERR_error_string(ssl_err)
+		self:close()
+		error(string.format("SSL error. %s",
+				    ssl_str_err))
 	end
     end
     ngc.inc("tcp_recv_bytes", sz)
@@ -714,35 +737,48 @@ function iostream.SSLIOStream:_read_from_socket()
 end
 
 function iostream.SSLIOStream:_handle_write()
-    if self._ssl_accepting == True then
+    if self._ssl_accepting == true then
 	-- If the handshake has not been completed do not allow
 	-- any writes to be done.
 	return nil
     end
     while self._write_buffer:not_empty() do
 	local errno
+	local err
 	local buf = self._write_buffer:peekfirst()
-	local num_bytes = tonumber(crypto.ssl_write(self._ssl, buf, buf:len()))
-	
-	if (num_bytes == -1) then
-	    errno = ffi.errno()
-	    if (errno == EWOULDBLOCK or errno == EAGAIN) then
-		self._write_buffer_frozen = true
-		break
+	local sz = tonumber(crypto.ssl_write(self._ssl, buf, buf:len()))	
+	if (sz == -1) then
+	    err = crypto.SSL_get_error(self._ssl, sz)
+	    if err == crypto.SSL_ERROR_SYSCALL then
+		errno = ffi.errno()
+		if errno == EWOULDBLOCK or errno == EAGAIN then
+		    return nil
+		else
+		    local fd = self.socket
+		    self:close()
+		    error(string.format("Error when writing to socket %d. Errno: %d. %s",
+					fd,
+					errno,
+					socket.strerror(errno)))
+		end
+	    elseif err == crypto.SSL_ERROR_WANT_WRITE then
+		return nil
+	    else
+		local fd = self.socket
+		local ssl_err = crypto.ERR_get_error()
+		local ssl_str_err = crypto.ERR_error_string(ssl_err)
+		    self:close()
+		    error(string.format("SSL error. %s",
+				ssl_str_err))
 	    end
-	    
-	    local fd = self.socket                    
-	    self:close()
-	    error(string.format("Error when writing to fd %d, %s", fd, socket.strerror(errno)))
 	end
-	
-	ngc.inc("tcp_send_bytes", num_bytes)                
-	if (num_bytes == 0) then
+	ngc.inc("tcp_send_bytes", sz)                
+	if (sz == 0) then
 		self._write_buffer_frozen = true
 		break
 	end
 	self._write_buffer_frozen = false
-	_merge_prefix(self._write_buffer, num_bytes)
+	_merge_prefix(self._write_buffer, sz)
 	self._write_buffer:popleft()
     end
 
