@@ -28,8 +28,8 @@ local application = turbo.web.Application:new({
 
 application:listen(8888, nil, {
 	ssl_options = {
-		key_file = "testkeys/ssl.key",
-		cert_file = "testkeys/ssl.crt"
+		key_file = "./sslkeys/server.key",
+		cert_file = "./sslkeys/server.crt"
 	}
 })
 turbo.ioloop.instance():start()
