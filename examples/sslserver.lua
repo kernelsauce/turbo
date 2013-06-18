@@ -1,4 +1,4 @@
---[[ Turbo Hello World example
+--[[ Turbo HTTPS example
 
 Copyright 2013 John Abrahamsen
 
