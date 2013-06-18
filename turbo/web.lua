@@ -447,7 +447,7 @@ function web.Application:get_server_name(name) return self.application_name end
 
 --[[ Starts the HTTP server for this application on the given port. ]]
 function web.Application:listen(port, address, kwargs)
-    local server = httpserver.HTTPServer:new(self, kwargs)
+    local server = httpserver.HTTPServer:new(self, nil, nil, nil, kwargs)
     server:listen(port, address)
 end
 
