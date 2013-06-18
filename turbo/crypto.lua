@@ -181,7 +181,7 @@ end
 -- @param ctx A struct SSL_CTX *
 -- @return Return code, 0 if successfull. Use ERR_error_string to convert to string.
 -- @return A allocated struct SSL *. Must not be freed! It is garbage collected.
-function crypto.ssl_wrap_sock(fd, ctx)
+function crypto.ssl_wrap_sock(fd, ctx, o_nonblock)
     local err = 0
     local rc = 0
     local ssl = lssl.SSL_new(ctx)
@@ -200,12 +200,22 @@ function crypto.ssl_wrap_sock(fd, ctx)
     end
     lssl.SSL_set_verify(ssl, 0x00, nil);
     lssl.SSL_set_accept_state(ssl)
-    rc = lssl.SSL_do_handshake(ssl)
-    if rc ~= 0 then
+    while true do
+	rc = lssl.SSL_do_handshake(ssl)
 	err = lssl.SSL_get_error(ssl, rc)
-	return 0, ssl
+	-- In case the socket is O_NONBLOCK break out when we get SSL_ERROR_WANT_*.
+	if err == crypto.SSL_ERROR_WANT_READ or err == crypto.SSL_ERROR_WANT_READ then
+	    if o_nonbblock == true then
+		break
+	    end
+	else
+	    break
+	end
     end
-    return err, ssl;
+    if rc < 1 then
+	return rc
+    end
+    return 0, ssl;
 end
 
 function crypto.ssl_write(ssl, buf, sz) return tonumber(lssl.SSL_write(ssl, buf, sz)) end

@@ -630,7 +630,7 @@ function iostream.SSLIOStream:connect(address, port, family, callback, errhandle
 end
 
 function iostream.SSLIOStream:_do_ssl_handshake()
-    local rc, ssl = crypto.ssl_wrap_sock(self.socket, self._ssl_options._ssl_ctx)
+    local rc, ssl = crypto.ssl_wrap_sock(self.socket, self._ssl_options._ssl_ctx, true)
     local err = 0
     if (rc ~= 0) then
 	while (true) do
