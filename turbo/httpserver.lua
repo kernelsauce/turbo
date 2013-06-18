@@ -54,13 +54,11 @@ ioloop_instance:start()   ]]
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
      
-function httpserver.HTTPServer:initialize(request_callback, no_keep_alive, io_loop, xheaders,
-    ssl_options, kwargs)
-    
+function httpserver.HTTPServer:initialize(request_callback, no_keep_alive, io_loop, xheaders, kwargs)
     self.request_callback = request_callback
-    self.no_keep_alive = no_keep_alive or false
-    self.xheaders = xheaders or false
-    tcpserver.TCPServer:initialize(io_loop, ssl_options, kwargs)
+    self.no_keep_alive = no_keep_alive
+    self.xheaders = xheaders
+    tcpserver.TCPServer:initialize(io_loop, kwargs and kwargs.ssl_options)
 end
 
 --[[ Redefine handle_stream method from super class TCPServer.   ]]
@@ -75,9 +73,7 @@ Represents a running connection to the server. Basically a helper class to HTTPS
 httpserver.HTTPConnection = class('HTTPConnection')
 
 
-function httpserver.HTTPConnection:initialize(stream, address, request_callback,
-    no_keep_alive, xheaders)
-
+function httpserver.HTTPConnection:initialize(stream, address, request_callback, no_keep_alive, xheaders)
     self.stream = stream
     self.address = address
     self.request_callback = request_callback
