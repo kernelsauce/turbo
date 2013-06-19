@@ -16,7 +16,6 @@ limitations under the License.		]]
   
 local socket =      require "turbo.socket_ffi"
 local ioloop =      require "turbo.ioloop"
-local ngc =         require "turbo.nwglobals"
 local ffi =         require "ffi"
 local bit =         require "bit"
 local SOL_SOCKET =  socket.SOL_SOCKET
@@ -51,29 +50,23 @@ function sockutils.bind_sockets(port, address, backlog)
     if (fd == -1) then
 	errno = ffi.errno()
 	error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", errno, socket.strerror(errno)))		
-    end
-    ngc.inc("tcp_open_sockets", 1)
-    
+    end    
     rc, msg = socket.set_nonblock_flag(fd)
     if (rc ~= 0) then
 	error("[iostream.lua] " .. msg)
-    end
-    
+    end    
     rc, msg = socket.set_reuseaddr_opt(fd)
     if (rc ~= 0) then
 	error("[tcpserver.lua] " .. msg)
     end
-
     if (socket.bind(fd, ffi.cast("struct sockaddr *", serv_addr), ffi.sizeof(serv_addr)) ~= 0) then
 	    errno = ffi.errno()
 	    error(string.format("[tcpserver.lua Errno %d] Could not bind to address. %s", errno, socket.strerror(errno)))		
     end
-
     if (socket.listen(fd, backlog) ~= 0) then 
 	    errno = ffi.errno()
 	    error(string.format("[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s", errno, fd, socket.strerror(errno)))
-    end
-    
+    end    
     --log.devel(string.format("[tcpserver.lua] Listening to socket fd %d", fd))
     return fd
 end
@@ -109,7 +102,6 @@ function sockutils.add_accept_handler(sock, callback, io_loop)
 					  s_addr_ptr[2],
 					  s_addr_ptr[3])
 	    
-	    ngc.inc("tcp_open_sockets", 1)
 	    
 	    callback(client_fd, address)
 	end

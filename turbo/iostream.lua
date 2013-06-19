@@ -21,7 +21,6 @@ local deque = 		require "turbo.structs.deque"
 local socket = 		require "turbo.socket_ffi"
 local util = 		require "turbo.util"
 local crypto =		require "turbo.crypto"
-local ngc = 		require "turbo.nwglobals"
 local bit = 		require "bit"
 local ffi = 		require "ffi"
 require "turbo.3rdparty.middleclass"
@@ -169,7 +168,7 @@ function iostream.IOStream:_handle_connect()
     if self._connect_callback then
 	    local callback = self._connect_callback
 	    self._connect_callback  = nil
-	    self:_run_callback(callback)
+	    self:_run_callback(callback, self)
     end
     self._connecting = false
 end
@@ -275,7 +274,6 @@ function iostream.IOStream:close()
 	end
 	
 	socket.close(self.socket)
-	ngc.dec("tcp_open_sockets", 1)                
 	self.socket = nil
 	
 	if self._close_callback and self._pending_callbacks == 0 then
@@ -286,6 +284,7 @@ function iostream.IOStream:close()
     end
 end
 
+function iostream.IOStream:_close_self_cb() self:close() end
 
 --[[ Main event handler for the IOStream.     ]]
 function iostream.IOStream:_handle_events(fd, events)	
@@ -324,7 +323,7 @@ function iostream.IOStream:_handle_events(fd, events)
 		-- _handle_write, so don't close the IOStream until those
 		-- callbacks have had a chance to run.
 		
-		self.io_loop:add_callback(function() self:close() end)
+		self.io_loop:add_callback(self._close_self_cb, self)
 		return
 	end
 		
@@ -346,21 +345,25 @@ function iostream.IOStream:_handle_events(fd, events)
 	end
 end
 
+
+local function _run_callback_error_handler(err)
+    log.error(string.format("[iostream.lua] Unhandled error. %s. Closing socket.", err))
+    log.stacktrace(debug.traceback())
+end
+
+function iostream.IOStream:_run_callback_protected(func, ...)
+    self._pending_callbacks = self._pending_callbacks - 1
+    local success = xpcall(func, _run_callback_error_handler, ...)
+    if (success == false) then
+	self:close()
+    end
+end
+
 function iostream.IOStream:_run_callback(callback, ...)
     local _callback_arguments = ...
     self:_maybe_add_error_listener()
     self._pending_callbacks = self._pending_callbacks + 1
-    self.io_loop:add_callback(function() 
-	self._pending_callbacks = self._pending_callbacks - 1
-	xpcall(
-	    callback,
-	    function(err)
-		log.error(string.format("[iostream.lua] Unhandled error. %s. Closing socket.", err))
-		log.stacktrace(debug.traceback())
-		self:close()
-	    end,
-	    _callback_arguments)
-    end)
+    self.io_loop:add_callback(self._run_callback_protected, self, callback, _callback_arguments)
 end
 
 function iostream.IOStream:_handle_read()
@@ -415,7 +418,7 @@ function iostream.IOStream:_read_from_socket()
         local buf = ffi.new("char[?]", self.read_chunk_size)
         local sz = tonumber(socket.recv(self.socket, buf, self.read_chunk_size, 0))
         --log.devel(string.format("[iostream.lua] _read_from_socket read %d bytes from fd %d", sz, self.socket))
-        
+    
         if (sz == -1) then
             errno = ffi.errno()
             if errno == EWOULDBLOCK or errno == EAGAIN then
@@ -429,15 +432,11 @@ function iostream.IOStream:_read_from_socket()
                                     socket.strerror(errno)))
             end
         end
-        
-        ngc.inc("tcp_recv_bytes", sz)
         local chunk = ffi.string(buf, sz)
-
 	if not chunk then
 		self:close()
 		return nil
 	end
-	
 	if chunk == "" then
 		self:close()
 		return nil
@@ -545,8 +544,6 @@ function iostream.IOStream:_handle_write()
 	    self:close()
 	    error(string.format("Error when writing to fd %d, %s", fd, socket.strerror(errno)))
 	end
-	
-	ngc.inc("tcp_send_bytes", num_bytes)                
 	if (num_bytes == 0) then
 		self._write_buffer_frozen = true
 		break
@@ -563,21 +560,25 @@ function iostream.IOStream:_handle_write()
     end
 end
 
+function iostream.IOStream:_add_io_state_cb(fd, events)
+    self:_handle_events(fd, events)
+end
+
 --[[ Add IO state to IOLoop.         ]]
 function iostream.IOStream:_add_io_state(state)
     if not self.socket then
-	    -- Connection has been closed, can not add state.
-	    return
+	-- Connection has been closed, can not add state.
+	return
     end
     if not self._state then
 	self._state = bitor(ioloop.ERROR, state)
-	self.io_loop:add_handler(self.socket, self._state, 
-	    function(file_descriptor, events) 
-		    self:_handle_events(file_descriptor, events)
-	    end )
+	self.io_loop:add_handler(self.socket,
+				 self._state,
+				 self._add_io_state_cb,
+				 self)
     elseif bitand(self._state, state) == 0 then
-	    self._state = bitor(self._state, state)
-	    self.io_loop:update_handler(self.socket, self._state)
+	self._state = bitor(self._state, state)
+	self.io_loop:update_handler(self.socket, self._state)
     end	
 end
 
@@ -626,7 +627,7 @@ function iostream.SSLIOStream:connect(address, port, family, callback, errhandle
     -- We steal the on_connect callback from the caller. And make sure that we do handshaking
     -- before anyone else.
     self._ssl_connect_callback = callback
-    iostream.IOStream.connect(self, address, port, family, function() self:_handle_connect() end, errhandler)
+    iostream.IOStream.connect(self, address, port, family, self._handle_connect, errhandler)
 end
 
 function iostream.SSLIOStream:_do_ssl_handshake()
@@ -723,7 +724,6 @@ function iostream.SSLIOStream:_read_from_socket()
 				    ssl_str_err))
 	end
     end
-    ngc.inc("tcp_recv_bytes", sz)
     local chunk = ffi.string(buf, sz)
     if not chunk then
 	    self:close()
@@ -772,7 +772,6 @@ function iostream.SSLIOStream:_handle_write()
 				ssl_str_err))
 	    end
 	end
-	ngc.inc("tcp_send_bytes", sz)                
 	if (sz == 0) then
 		self._write_buffer_frozen = true
 		break

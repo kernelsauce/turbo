@@ -20,7 +20,6 @@ local iostream =    require "turbo.iostream"
 local ioloop =      require "turbo.ioloop"
 local socket =      require "turbo.socket_ffi"
 local sockutil =    require "turbo.sockutil"
-local ngc =         require "turbo.nwglobals"
 local crypto =      require "turbo.crypto"
 local ffi =         require "ffi"
 local bit =         require "bit"
@@ -129,7 +128,6 @@ function tcpserver.TCPServer:stop()
     for fd, sock in pairs(self._sockets) do
 	self.io_loop:remove_handler(fd)
 	assert(socket.close(sock) == 0)
-	ngc.dec("tcp_open_sockets", 1)
     end
 end
 
