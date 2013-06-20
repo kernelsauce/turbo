@@ -71,41 +71,44 @@ function sockutils.bind_sockets(port, address, backlog)
     return fd
 end
 
+local function _add_accept_hander_cb(fd, events, callback, ...)
+    while true do 
+        local errno
+        local client_addr = ffi.new("struct sockaddr")
+        local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
+        --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
+        local client_fd = socket.accept(fd, client_addr, client_addr_sz)
+        
+        if (client_fd == -1) then
+            errno = ffi.errno()
+            if (errno == EWOULDBLOCK or errno == EAGAIN) then
+                break
+            else
+                log.error(string.format("[tcpserver.lua Errno %d] Could not accept connection. %s", errno, socket.strerror(errno)))
+                break
+            end
+        end
+        
+        local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
+        local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
+        
+        local address = string.format("%d.%d.%d.%d",
+                                      s_addr_ptr[0],
+                                      s_addr_ptr[1],
+                                      s_addr_ptr[2],
+                                      s_addr_ptr[3])
+        if (#{...} > 0) then
+            callback(..., client_fd, address)
+        else
+            callback(client_fd, address)
+        end
+    end
+end
 
 --[[ Add accept handler for socket with given callback. Either supply a IOLoop object, or the global instance will be used...   ]]
-function sockutils.add_accept_handler(sock, callback, io_loop)	
+function sockutils.add_accept_handler(sock, callback, io_loop, ...)	
     local io_loop = io_loop or ioloop.instance()
-    io_loop:add_handler(sock, ioloop.READ, function(fd, events)
-	while true do
-	    local errno
-	    local client_addr = ffi.new("struct sockaddr")
-	    local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
-	    --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
-	    local client_fd = socket.accept(fd, client_addr, client_addr_sz)
-
-	    if (client_fd == -1) then
-		errno = ffi.errno()
-		if (errno == EWOULDBLOCK or errno == EAGAIN) then
-		    break
-		else
-		    log.error(string.format("[tcpserver.lua Errno %d] Could not accept connection. %s", errno, socket.strerror(errno)))
-		    break
-		end
-	    end
-	    
-	    local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
-	    local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
-	    
-	    local address = string.format("%d.%d.%d.%d",
-					  s_addr_ptr[0],
-					  s_addr_ptr[1],
-					  s_addr_ptr[2],
-					  s_addr_ptr[3])
-	    
-	    
-	    callback(client_fd, address)
-	end
-    end)
+    io_loop:add_handler(sock, ioloop.READ, _add_accept_hander_cb, callback, ...)
 end
 
 return sockutils

@@ -82,8 +82,8 @@ function httpserver.HTTPConnection:initialize(stream, address, request_callback,
     self._request = nil
     self._request_finished = false
     self.arguments = {}
-    self._header_callback = function(http_request) self:_on_headers(http_request) end
-    self.stream:read_until("\r\n\r\n", self._header_callback)
+    self._header_callback = self._on_headers
+    self.stream:read_until("\r\n\r\n", self._header_callback, self)
     self._write_callback = nil
 end
 
@@ -94,7 +94,7 @@ function httpserver.HTTPConnection:write(chunk, callback)
 
     if not self.stream:closed() then
         self._write_callback = callback
-        self.stream:write(chunk, function() self:_on_write_complete() end )
+        self.stream:write(chunk, self._on_write_complete, self)
     end
 end
 
@@ -147,26 +147,26 @@ function httpserver.HTTPConnection:_finish_request()
         return
     end
     
-if not self.stream:closed() then
-    self.stream:read_until("\r\n\r\n", self._header_callback)
-else
-    log.debug("[httpserver.lua] Client hang up. End Keep-Alive session.")
-    self = nil
-    return
-end
-    
+    if not self.stream:closed() then
+        self.stream:read_until("\r\n\r\n", self._header_callback, self)
+    else
+        log.debug("[httpserver.lua] Client hang up. End Keep-Alive session.")
+        self = nil
+        return
+    end
 end
 
+local function _on_headers_error_handler(err)
+    log.error(string.format("[httpserver.lua] %s", msg))
+end
 
 function httpserver.HTTPConnection:_on_headers(data)
     local headers
-    local status, msg = pcall(function()
-        headers = httputil.HTTPHeaders:new(data)
-    end)
+    local status, headers = xpcall(httputil.HTTPHeaders, _on_headers_error_handler, data)
 
     if (status == false) then
         -- Invalid headers. Close stream.
-        log.error(string.format("[httpserver.lua] %s", msg))
+        -- Log line is printed by error handler describing the reason.       
         self.stream:close()
         return
     end
@@ -188,7 +188,7 @@ function httpserver.HTTPConnection:_on_headers(data)
             self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
         end
 
-        self.stream:read_bytes(content_length, function(data) self:_on_request_body(data) end)
+        self.stream:read_bytes(content_length, self._on_request_body, self)
         return
     end
     
@@ -297,10 +297,10 @@ end
 
 --[[ Write chunk to the connection that made the request. Call
 callback when write is done.    ]]
-function httpserver.HTTPRequest:write(chunk, callback)
+function httpserver.HTTPRequest:write(chunk, callback, ...)
     local callback = callback
     assert(type(chunk) == "string")
-    self.connection:write(chunk, callback)
+    self.connection:write(chunk, callback, ...)
 end
 
 --[[ Finish the request. Close connection.    ]]
@@ -325,6 +325,7 @@ function httpserver.HTTPRequest:request_time()
 end
 
 function httpserver.HTTPRequest:_valid_ip(ip)
+    --FIXME: This is IP validation is broken!
     local ip = ip or ''
     return ip:find("[%d+%.]+") or nil
 end

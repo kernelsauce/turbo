@@ -93,11 +93,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
     end
     for _, sock in ipairs(sockets) do
         self._sockets[sock] = sock
-        sockutil.add_accept_handler(sock,
-            function(connection, address)
-                self:_handle_connection(connection, address)
-            end,
-            self.io_loop)
+        sockutil.add_accept_handler(sock, self._handle_connection, self.io_loop, self)
     end
 end
 

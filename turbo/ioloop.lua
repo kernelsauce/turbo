@@ -21,6 +21,7 @@ local socket = require "turbo.socket_ffi"
 local coctx = require "turbo.coctx"
 require "turbo.3rdparty.middleclass"
 
+local unpack = util.funpack
 local ioloop = {} -- ioloop namespace
 
 local _poll_implementation = nil
@@ -111,7 +112,7 @@ function ioloop.IOLoop:_run_handler(fd, events)
     -- handler index 1 = function
     -- handler index 2 = vararg
     if #handler[2] > 0 then
-        ok = xpcall(_run_handler_protected, _run_handler_error_handler, handler[1], unpack(handler[2]), fd, events)
+        ok = xpcall(_run_handler_protected, _run_handler_error_handler, handler[1], fd, events, unpack(handler[2]))
     else
         ok = xpcall(_run_handler_protected, _run_handler_error_handler, handler[1], fd, events)
     end

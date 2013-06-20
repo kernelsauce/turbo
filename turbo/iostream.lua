@@ -36,7 +36,7 @@ local EWOULDBLOCK = 	socket.EWOULDBLOCK
 local EINPROGRESS = 	socket.EINPROGRESS
 local EAGAIN = 		socket.EAGAIN
 
-
+local unpack = util.funpack
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max  
 
 --[[ Replace the first entries in a deque of strings with a single string of up to size bytes.         ]]
@@ -111,7 +111,7 @@ function iostream.IOStream:initialize(provided_socket, io_loop, max_buffer_size,
 end
 
 --[[ Connect to a address without blocking.  		]]
-function iostream.IOStream:connect(address, port, family, callback, errhandler)
+function iostream.IOStream:connect(address, port, family, callback, errhandler, ...)
     assert(type(address) == "string", "argument #1 to connect() not a string.")
     assert(type(port) == "number", "argument #2 to connect() not a number.")
     assert((not family or type(family) == "number"), "argument #3 to connect() not a number")
@@ -144,7 +144,7 @@ function iostream.IOStream:connect(address, port, family, callback, errhandler)
 	end
     end
     
-    self._connect_callback = callback
+    self._connect_callback = {callback, {...}}
     self:_add_io_state(ioloop.WRITE)
     return 0
 end
@@ -159,7 +159,7 @@ function iostream.IOStream:_handle_connect()
 	    self:close()
 	    local strerror = socket.strerror(sockerr)
 	    if (self._connect_fail_callback) then
-		self:_connect_fail_callback(sockerr, strerror)
+		self._connect_fail_callback(sockerr, strerror)
 	    end
 	    error(string.format("[iostream.lua] Connect failed: %s, for fd %d", socket.strerror(sockerr), fd))
 	end
@@ -168,16 +168,16 @@ function iostream.IOStream:_handle_connect()
     if self._connect_callback then
 	    local callback = self._connect_callback
 	    self._connect_callback  = nil
-	    self:_run_callback(callback, self)
+	    self:_run_callback(callback)
     end
     self._connecting = false
 end
 
 --[[ Call callback when the given delimiter is read.        ]]
-function iostream.IOStream:read_until(delimiter, callback)
+function iostream.IOStream:read_until(delimiter, callback, ...)
     assert((not self._read_callback), "Already reading.")
     self._read_delimiter = delimiter
-    self._read_callback = callback
+    self._read_callback = {callback, {...}}
     self:_initial_read()
 end
 
@@ -185,12 +185,12 @@ end
 --[[ Call callback when we read the given number of bytes
 If a streaming_callback argument is given, it will be called with chunks of data as they become available, 
 and the argument to the final call to callback will be empty.  ]]
-function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback)
+function iostream.IOStream:read_bytes(num_bytes, callback, streaming_callback, ...)
     assert((not self._read_callback), "Already reading.")
     assert(type(num_bytes) == 'number', 'num_bytes argument must be a number')
     self._read_bytes = num_bytes
-    self._read_callback = callback
-    self._streaming_callback = streaming_callback
+    self._read_callback = {callback, {...}}
+    self._streaming_callback = {streaming_callback, {...}}
     self:_initial_read()
 end
 
@@ -202,14 +202,14 @@ chunks of data as they become available, and the argument to the
 final call to callback will be empty.
 
 This method respects the max_buffer_size set in the IOStream object.   ]]
-function iostream.IOStream:read_until_close(callback, streaming_callback)	
+function iostream.IOStream:read_until_close(callback, streaming_callback, ...)	
     assert((not self._read_callback), "Already reading.")
     if self:closed() then
 	    self:_run_callback(callback, self:_consume(self._read_buffer_size))
 	    return
     end
     self._read_until_close = true
-    self._read_callback = callback
+    self._read_callback = {callback, {...}}
     self._streaming_callback = streaming_callback
     self:_add_io_state(ioloop.READ)
 end
@@ -227,9 +227,9 @@ function iostream.IOStream:_initial_read()
     self:_add_io_state(ioloop.READ)
 end
 
-function iostream.IOStream:read_until_pattern(lpattern, callback)
+function iostream.IOStream:read_until_pattern(lpattern, callback, ...)
     assert(type(lpattern) == "string", "lpattern parameter not a string.")
-    self._read_callback = callback
+    self._read_callback = {callback, {...}}
     self._read_pattern = lpattern
     self:_initial_read()
 end
@@ -240,13 +240,13 @@ If callback is given, we call it when all of the buffered write
 data has been successfully written to the stream. If there was
 previously buffered write data and an old write callback, that
 callback is simply overwritten with this new callback.    ]]
-function iostream.IOStream:write(data, callback)
+function iostream.IOStream:write(data, callback, ...)
     assert((type(data) == 'string'), [[data argument to write() is not a string]])
     self:_check_closed()
     if data then
 	    self._write_buffer:append(data)
     end
-    self._write_callback = callback
+    self._write_callback = {callback, {...}}
     self:_handle_write()
     
     if self._write_buffer:not_empty() then
@@ -256,7 +256,9 @@ function iostream.IOStream:write(data, callback)
 end	
 
 --[[ Sets the given callback to be called via the :close() method on close.		]]
-function iostream.IOStream:set_close_callback(callback) self._close_callback = callback end
+function iostream.IOStream:set_close_callback(callback, ...)
+    self._close_callback = {callback, {...}}
+end
 
 
 --[[ Close this stream and clean up.      ]]
@@ -283,8 +285,6 @@ function iostream.IOStream:close()
 	end
     end
 end
-
-function iostream.IOStream:_close_self_cb() self:close() end
 
 --[[ Main event handler for the IOStream.     ]]
 function iostream.IOStream:_handle_events(fd, events)	
@@ -323,7 +323,7 @@ function iostream.IOStream:_handle_events(fd, events)
 		-- _handle_write, so don't close the IOStream until those
 		-- callbacks have had a chance to run.
 		
-		self.io_loop:add_callback(self._close_self_cb, self)
+		self.io_loop:add_callback(self.close, self)
 		return
 	end
 		
@@ -360,10 +360,18 @@ function iostream.IOStream:_run_callback_protected(func, ...)
 end
 
 function iostream.IOStream:_run_callback(callback, ...)
-    local _callback_arguments = ...
     self:_maybe_add_error_listener()
     self._pending_callbacks = self._pending_callbacks + 1
-    self.io_loop:add_callback(self._run_callback_protected, self, callback, _callback_arguments)
+    if (#callback[2] > 0) then
+	self.io_loop:add_callback(self._run_callback_protected,
+				  self, callback[1],
+				  unpack(callback[2]),
+				  ...)
+    else
+	self.io_loop:add_callback(self._run_callback_protected,
+				  self, callback[1],
+				  ...)	
+    end
 end
 
 function iostream.IOStream:_handle_read()
@@ -411,14 +419,13 @@ end
 
 
 --[[ Reads from the socket.
-Return the data chunk or nil if theres nothing to read.      ]]	
+Return the data chunk or nil if theres nothing to read.      ]]
 function iostream.IOStream:_read_from_socket()
         --log.devel(string.format("[iostream.lua] _read_from_socket called with fd %d", self.socket))
         local errno
-        local buf = ffi.new("char[?]", self.read_chunk_size)
+	local buf = ffi.new("char[?]", self.read_chunk_size)
         local sz = tonumber(socket.recv(self.socket, buf, self.read_chunk_size, 0))
         --log.devel(string.format("[iostream.lua] _read_from_socket read %d bytes from fd %d", sz, self.socket))
-    
         if (sz == -1) then
             errno = ffi.errno()
             if errno == EWOULDBLOCK or errno == EAGAIN then
@@ -560,8 +567,8 @@ function iostream.IOStream:_handle_write()
     end
 end
 
-function iostream.IOStream:_add_io_state_cb(fd, events)
-    self:_handle_events(fd, events)
+local function _add_io_state_cb(fd, events, inst)
+    inst:_handle_events(fd, events)
 end
 
 --[[ Add IO state to IOLoop.         ]]
@@ -574,7 +581,7 @@ function iostream.IOStream:_add_io_state(state)
 	self._state = bitor(ioloop.ERROR, state)
 	self.io_loop:add_handler(self.socket,
 				 self._state,
-				 self._add_io_state_cb,
+				 _add_io_state_cb,
 				 self)
     elseif bitand(self._state, state) == 0 then
 	self._state = bitor(self._state, state)

@@ -210,6 +210,13 @@ function util.file_exists(name)
     end
 end
 
+function util.funpack(t, i)
+    i = i or 1
+    if t[i] ~= nil then
+        return t[i], util.funpack(t, i + 1)
+    end
+end
+
 return util
 
 
