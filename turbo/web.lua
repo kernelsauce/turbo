@@ -25,6 +25,7 @@ local ngc =             require "turbo.nwglobals"
 local util =            require "turbo.util"
 require('turbo.3rdparty.middleclass')
 
+local unpack = util.funpack
 local is_in = util.is_in
 local fast_assert = util.fast_assert
 
@@ -48,9 +49,7 @@ function web.RequestHandler:initialize(application, request, url_args, kwargs)
     self:clear()
 
     if self.request._request.headers:get("Connection") then
-        self.request.stream:set_close_callback(function()
-            self:on_connection_close()
-        end)
+        self.request.stream:set_close_callback(self.on_connection_close, self)
     end
 
     self:on_create(kwargs)
@@ -315,8 +314,6 @@ function web._StaticWebCache:get_file(path)
     if rc == 0 then
         self.files[path] = buf
         log.notice(string.format("[web.lua] Added %s (%d bytes) to static file cache. ", path, buf:len()))
-        ngc.inc("static_cache_objects", 1)
-        ngc.inc("static_cache_bytes", buf:len())
         return 0, buf
     else
         return -1, nil
@@ -476,7 +473,7 @@ function web.Application:__call(request)
     local handlers, args, options = self:_get_request_handlers(request)
     if handlers then	
         handler = handlers:new(self, request, args, options)
-        local status, err = pcall(function() handler:_execute() end)
+        local status, err = pcall(handler._execute, handler)
         if err then
             if instanceOf(web.HTTPError, err) then
                 handler = web.ErrorHandler:new(self, request, err.code, err.message)

@@ -1,4 +1,4 @@
---[[ Epoll bindings through the LuaJIT FFI Library
+--[[ Epoll FFI
 
 Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 
@@ -22,47 +22,36 @@ SOFTWARE."			]]
 
 local ffi = require "ffi"
 
-if (ffi.abi("32bit")) then
-	ffi.cdef[[
-		typedef union epoll_data {
-			void        *ptr;
-			int          fd;
-			uint32_t     u32;
-			uint64_t     u64;
-		} epoll_data_t;
-	
-		struct epoll_event {
-			uint32_t     events;      /* Epoll events */
-			epoll_data_t data;        /* User data variable */
-		};
-	
-		typedef struct epoll_event epoll_event;
-	
-		int epoll_create(int size);
-		int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
-		int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
-	]]
+ffi.cdef[[
+typedef union epoll_data {
+	void        *ptr;
+	int          fd;
+	uint32_t     u32;
+	uint64_t     u64;
+} epoll_data_t;
+]]
+if (ffi.abi("32bit")) then -- struct epoll_event is declared packed on 64 bit, but not on 32 bit.
+ffi.cdef[[
+struct epoll_event {
+	uint32_t     events;      /* Epoll events */
+	epoll_data_t data;        /* User data variable */
+};
+]]
 else
-	ffi.cdef[[
-		typedef union epoll_data {
-			void        *ptr;
-			int          fd;
-			uint32_t     u32;
-			uint64_t     u64;
-		} epoll_data_t;
-	
-		struct epoll_event {
-			uint32_t     events;      /* Epoll events */
-			epoll_data_t data;        /* User data variable */
-		} __attribute__ ((__packed__));
-	
-		typedef struct epoll_event epoll_event;
-	
-		int epoll_create(int size);
-		int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
-		int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
-	]]
+ffi.cdef[[	
+struct epoll_event {
+	uint32_t     events;      /* Epoll events */
+	epoll_data_t data;        /* User data variable */
+} __attribute__ ((__packed__));
+]]
 end
+ffi.cdef[[
+typedef struct epoll_event epoll_event;
+
+int epoll_create(int size);
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+]]
 
 local epoll = {
 	EPOLL_CTL_ADD = 1,
@@ -78,12 +67,10 @@ local epoll = {
 }
 
 
---[[ Create a new epoll fd. Returns the fd of the created epoll instance and -1 and errno on error.   
-Note on max_events: Since Linux 2.6.8, the size argument is unused, but must be greater than zero. 
-(The kernel dynamically sizes the required data structures without needing this initial hint.)	]]
-function epoll.epoll_create(max_events)
-	max_events = max_events or 100
-	local fd = ffi.C.epoll_create(max_events)
+--- Create a new epoll fd. Returns the fd of the created epoll instance and -1 and errno on error.
+-- @return epoll fd on success, else -1 and errno.
+function epoll.epoll_create()
+	local fd = ffi.C.epoll_create(124)
 
 	if fd == -1 then
 		return -1, ffi.errno()
@@ -93,27 +80,34 @@ function epoll.epoll_create(max_events)
 end
 
 
---[[ Control a epoll fd.  		
-EPOLL_CTL_ADD
-	Register the target file descriptor fd on the epoll 
-	instance referred to by the file descriptor epfd and 
-	associate the event event with the internal file linked 
-	to fd.
-
-EPOLL_CTL_MOD
-	Change the event event associated with the target file 
-	descriptor fd.
-
-EPOLL_CTL_DEL
-	Remove (deregister) the target file descriptor fd from 
-	the epoll instance referred to by epfd.  The event is 
-	ignored and can be NULL.
-	
-Returns 0 on success and -1 on error together with errno.   ]]
+--- Control a epoll fd.
+-- @param epfd Epoll fd to control
+-- @param op Operation for the target fd:
+-- 	EPOLL_CTL_ADD
+--	Register the target file descriptor fd on the epoll 
+--	instance referred to by the file descriptor epfd and 
+--	associate the event event with the internal file linked 
+--	to fd.
+--
+--	EPOLL_CTL_MOD
+--	Change the event event associated with the target file 
+--	descriptor fd.
+--
+--	EPOLL_CTL_DEL
+--	Remove (deregister) the target file descriptor fd from 
+--	the epoll instance referred to by epfd.  The epoll_events is 
+--	ignored and can be nil.
+-- @param fd The fd to control.
+-- @param epoll_events The events bit mask to set. Defined in epoll.EPOLL_EVENTS.
+-- @return 0 on success and -1 on error together with errno.
+local _event = ffi.new("epoll_event")
 function epoll.epoll_ctl(epfd, op, fd, epoll_events)
-	local event = ffi.new("epoll_event", epoll_events)
-	event.data.fd = fd
-	local rc = ffi.C.epoll_ctl(epfd, op, fd, event)
+	local rc
+	
+	ffi.fill(_event, ffi.sizeof(_event), 0)
+	_event.data.fd = fd
+	_event.events = epoll_events
+	rc = ffi.C.epoll_ctl(epfd, op, fd, _event)
 	if (rc == -1) then
 		return -1, ffi.errno()
 	end
@@ -122,43 +116,25 @@ end
 
 
 
---[[ Wait for events on a epoll instance.    
-The epoll_wait() system call waits for events on the epoll 
-instance referred to by the file descriptor epfd.  The 
-memory area pointed to by events will contain the events 
-that will be available for the caller.  Up to maxevents are 
-returned by epoll_wait().  The maxevents argument must be 
-greater than zero.
-
-The call waits for a maximum time of timeout milliseconds.  
-Specifying a timeout of -1 makes epoll_wait() wait 
-indefinitely, while specifying a timeout equal to zero makes 
-epoll_wait() to return immediately even if no events are 
-available (return code equal to zero).
-
-Returns a structure containing all of the fd's and their events:
-	{{fd, events}, {fd, events}}
-On error -1 and errno are returned.      ]]
-function epoll.epoll_wait(epfd, timeout, max_events)
-	max_events = max_events or 100
-	local events = ffi.new("struct epoll_event[?]", max_events)
-	local num_events = ffi.C.epoll_wait(epfd, events, max_events, timeout)
-	
+--- Wait for events on a epoll instance.    
+-- @param epfd Epoll fd to wait on.
+-- @param timeout How long to wait if no events occur.
+-- @return Returns a structure containing all of the fd's and their events: {{fd, events}, {fd, events}}
+-- @return On error, -1 and errno are returned.      
+local _events = ffi.new("struct epoll_event[124]")
+function epoll.epoll_wait(epfd, timeout)
+	local num_events = ffi.C.epoll_wait(epfd, _events, 124, timeout)
 	if num_events == -1 then
 		return -1, ffi.errno()
-	end
-	  
+	end  
 	local events_t = {}
 	if num_events == 0 then
 		return events_t
 	end
-
-	local num_events_base_1 = num_events - 1
-
-	for i = 0, num_events_base_1 do
-		events_t[#events_t + 1 ] = {events[i].data.fd, events[i].events} 
+	num_events = num_events - 1
+	for i = 0, num_events do
+		events_t[#events_t + 1 ] = {_events[i].data.fd, _events[i].events} 
 	end
-
 	return events_t
 end
 
