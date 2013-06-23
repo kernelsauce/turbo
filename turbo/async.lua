@@ -141,13 +141,13 @@ function async.HTTPClient:fetch(url, kwargs)
     self.kwargs = kwargs or {}
     self.kwargs.method = self.kwargs.method or "GET"
     self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
-    self.kwargs.connect_timeout = self.kwargs.connect_timeout or 20
+    self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
     self.kwargs.request_timeout = self.kwargs.request_timeout or 60
     if (self.schema == "http") then
         if (self.port == -1) then
             self.port = 80
         end
-        self.iostream:connect(self.hostname, self.port, self.family,
+        local rc, msg = self.iostream:connect(self.hostname, self.port, self.family,
             function()
                 self.s_connecting = false
                 self:_handle_connect()
@@ -155,22 +155,24 @@ function async.HTTPClient:fetch(url, kwargs)
             function(err)
                 self:_throw_error(errors.COULD_NOT_CONNECT, err)
             end)
+        if rc ~= 0 then
+            self:_throw_error(errors.COULD_NOT_CONNECT, msg)
+            return self.coctx            
+        end
     elseif (self.schema == "https") then
         self:_throw_error(errors.HTTPS_NOT_SUPPORTED, "HTTPS protocol is not supported.")
     else
         self:_throw_error(errors.INVALID_SCHEMA, "Invalid schema used in URL parameter.")
     end
-    if (self.s_connecting) then
-        self.connect_timeout_ref = self.io_loop:add_timeout(self.kwargs.connect_timeout * 1000 + util.gettimeofday(), function()
-            self.connect_timeout_ref = nil
-            self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after %d secs", self.kwargs.connect_timeout))
-            log.warning(string.format("[async.lua] Connect timed out after %d secs. %s %s%s",
-                                      self.kwargs.connect_timeout,
-                                      self.kwargs.method,
-                                      self.hostname,
-                                      self.path))
-        end)
-    end
+    self.connect_timeout_ref = self.io_loop:add_timeout(self.kwargs.connect_timeout * 1000 + util.gettimeofday(), function()
+        self.connect_timeout_ref = nil
+        self:_throw_error(errors.CONNECT_TIMEOUT, string.format("Connect timed out after %d secs", self.kwargs.connect_timeout))
+        log.warning(string.format("[async.lua] Connect timed out after %d secs. %s %s%s",
+                                  self.kwargs.connect_timeout,
+                                  self.kwargs.method,
+                                  self.hostname,
+                                  self.path))
+    end)
     return self.coctx
 end
 

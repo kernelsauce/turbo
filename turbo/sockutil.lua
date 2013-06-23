@@ -16,6 +16,7 @@ limitations under the License.		]]
   
 local socket =      require "turbo.socket_ffi"
 local ioloop =      require "turbo.ioloop"
+local log =         require "turbo.log"
 local ffi =         require "ffi"
 local bit =         require "bit"
 local SOL_SOCKET =  socket.SOL_SOCKET
@@ -47,23 +48,23 @@ function sockutils.bind_sockets(port, address, backlog)
     serv_addr.sin_port = socket.htons(port);
     
     local fd = socket.socket(AF_INET, SOCK_STREAM, 0)
-    if (fd == -1) then
+    if fd == -1 then
 	errno = ffi.errno()
 	error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", errno, socket.strerror(errno)))		
     end    
     rc, msg = socket.set_nonblock_flag(fd)
-    if (rc ~= 0) then
+    if rc ~= 0 then
 	error("[iostream.lua] " .. msg)
     end    
     rc, msg = socket.set_reuseaddr_opt(fd)
-    if (rc ~= 0) then
+    if rc ~= 0 then
 	error("[tcpserver.lua] " .. msg)
     end
-    if (socket.bind(fd, ffi.cast("struct sockaddr *", serv_addr), ffi.sizeof(serv_addr)) ~= 0) then
+    if socket.bind(fd, ffi.cast("struct sockaddr *", serv_addr), ffi.sizeof(serv_addr)) ~= 0 then
 	    errno = ffi.errno()
 	    error(string.format("[tcpserver.lua Errno %d] Could not bind to address. %s", errno, socket.strerror(errno)))		
     end
-    if (socket.listen(fd, backlog) ~= 0) then 
+    if socket.listen(fd, backlog) ~= 0 then 
 	    errno = ffi.errno()
 	    error(string.format("[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s", errno, fd, socket.strerror(errno)))
     end    
@@ -71,7 +72,7 @@ function sockutils.bind_sockets(port, address, backlog)
     return fd
 end
 
-local function _add_accept_hander_cb(fd, events, callback, ...)
+local function _add_accept_hander_cb(arg, fd, events)
     while true do 
         local errno
         local client_addr = ffi.new("struct sockaddr")
@@ -79,7 +80,7 @@ local function _add_accept_hander_cb(fd, events, callback, ...)
         --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
         local client_fd = socket.accept(fd, client_addr, client_addr_sz)
         
-        if (client_fd == -1) then
+        if client_fd == -1 then
             errno = ffi.errno()
             if (errno == EWOULDBLOCK or errno == EAGAIN) then
                 break
@@ -97,18 +98,18 @@ local function _add_accept_hander_cb(fd, events, callback, ...)
                                       s_addr_ptr[1],
                                       s_addr_ptr[2],
                                       s_addr_ptr[3])
-        if (#{...} > 0) then
-            callback(..., client_fd, address)
+        if arg[2] then
+            arg[1](arg[2], client_fd, address)
         else
-            callback(client_fd, address)
+            arg[1](client_fd, address)
         end
     end
 end
 
 --[[ Add accept handler for socket with given callback. Either supply a IOLoop object, or the global instance will be used...   ]]
-function sockutils.add_accept_handler(sock, callback, io_loop, ...)	
+function sockutils.add_accept_handler(sock, callback, io_loop, arg)	
     local io_loop = io_loop or ioloop.instance()
-    io_loop:add_handler(sock, ioloop.READ, _add_accept_hander_cb, callback, ...)
+    io_loop:add_handler(sock, ioloop.READ, _add_accept_hander_cb, {callback, arg})
 end
 
 return sockutils

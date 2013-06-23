@@ -41,7 +41,9 @@ else
     error([[Could not load a poll module. Make sure you are running this with LuaJIT. Standard Lua is not supported.]])
 end
 
-
+--- Create or get the global IOLoop instance.
+-- Multiple calls to this function returns the same IOLoop.
+-- @return IOLoop class instance.
 function ioloop.instance()
     if _G.io_loop_instance then
         return _G.io_loop_instance
@@ -68,23 +70,38 @@ function ioloop.IOLoop:initialize()
     signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
-function ioloop.IOLoop:add_handler(file_descriptor, events, handler, ...)
+--- Add handler function for given event mask on fd.
+-- @param file_descriptor File descriptor to bind handler for.
+-- @param events Events bit mask.
+-- @param handler Function handler.
+-- @param arg Argument for function handler. Handler is called with this as first argument.
+-- @return true if successfull else false.
+function ioloop.IOLoop:add_handler(file_descriptor, events, handler, arg)
     local rc, errno = self._poll:register(file_descriptor, bit.bor(events, ioloop.ERROR))
     if (rc ~= 0) then
         log.notice(string.format("[ioloop.lua] register() in add_handler() failed: %s", socket.strerror(errno)))
-        return -1
+        return false
     end
-    self._handlers[file_descriptor] = {handler, {...}}
+    self._handlers[file_descriptor] = {handler, arg}
+    return true
 end
 
+--- Update existing handler function.
+-- @param file_descriptor File descriptor to bind handler for.
+-- @param events Events bit mask.
+-- @return true if successfull else false.
 function ioloop.IOLoop:update_handler(file_descriptor, events)
     local rc, errno = self._poll:modify(file_descriptor, bit.bor(events, ioloop.ERROR))
     if (rc ~= 0) then
         log.notice(string.format("[ioloop.lua] register() in update_handler() failed: %s", socket.strerror(errno)))
-        return -1
+        return false
     end
+    return true
 end
 
+--- Remove existing handler function.
+-- @param file_descriptor File descriptor to bind handler for.
+-- @return true if successfull else false.
 function ioloop.IOLoop:remove_handler(file_descriptor)	
     if not self._handlers[file_descriptor] then
         return
@@ -92,9 +109,10 @@ function ioloop.IOLoop:remove_handler(file_descriptor)
     local rc, errno = self._poll:unregister(file_descriptor)
     if (rc ~= 0) then
         log.notice(string.format("[ioloop.lua] register() in remove_handler() failed: %s", socket.strerror(errno)))
-        return -1
+        return false
     end
     self._handlers[file_descriptor] = nil
+    return true
 end
 
 local function _run_handler_error_handler(err)
@@ -102,17 +120,17 @@ local function _run_handler_error_handler(err)
     log.stacktrace(debug.traceback())
 end
 
-local function _run_handler_protected(func, ...)
-    func(...)
+local function _run_handler_protected(func, arg, fd, events)
+    func(arg, fd, events)
 end
 
 function ioloop.IOLoop:_run_handler(fd, events)
     local ok
     local handler = self._handlers[fd]
     -- handler index 1 = function
-    -- handler index 2 = vararg
-    if #handler[2] > 0 then
-        ok = xpcall(_run_handler_protected, _run_handler_error_handler, handler[1], fd, events, unpack(handler[2]))
+    -- handler index 2 = arg
+    if handler[2] then
+        ok = xpcall(_run_handler_protected, _run_handler_error_handler, handler[1], handler[2], fd, events)
     else
         ok = xpcall(_run_handler_protected, _run_handler_error_handler, handler[1], fd, events)
     end
@@ -123,12 +141,19 @@ function ioloop.IOLoop:_run_handler(fd, events)
     end
 end
 
-
+--- Check if IOLoop is currently in a running state.
+-- @return true or false.
 function ioloop.IOLoop:running() return self._running end
 
-function ioloop.IOLoop:add_callback(callback, ...)
-    self._callbacks[#self._callbacks + 1] = {callback, {...}}
+--- Add a callback to the IOLoop.
+-- @param callback Function to run on next iteration.
+-- @param arg Optional argument to call callback with as first argument.
+function ioloop.IOLoop:add_callback(callback, arg)
+    self._callbacks[#self._callbacks + 1] = {callback, arg}
 end
+
+--- List all callbacks scheduled.
+-- @return table with all callbacks.
 function ioloop.IOLoop:list_callbacks() return self._callbacks end
 
 local function _run_callback_error_handler(err)
@@ -136,14 +161,14 @@ local function _run_callback_error_handler(err)
     log.stacktrace(debug.traceback())
 end
 
-local function _run_callback_protected(callback,  vararg)
-    xpcall(callback, _run_callback_error_handler, unpack(vararg))
+local function _run_callback_protected(func, arg)
+    xpcall(func, _run_callback_error_handler, arg)
 end
 
 function ioloop.IOLoop:_run_callback(callback)
     local co = coroutine.create(_run_callback_protected)
     -- callback index 1 = function
-    -- callback index 2 = vararg
+    -- callback index 2 = arg
     local rc = self:_resume_coroutine(co, {callback[1], callback[2]})
     return rc
 end
@@ -155,11 +180,11 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
         -- Function as argument. Call.
         err, yielded = coroutine.resume(co, arg())
     elseif arg_t == "table" then
-        -- Table with arguments. Unpack.
-        err, yielded = coroutine.resume(co, unpack(arg))
+        -- Callback table.
+        err, yielded = coroutine.resume(co, arg[1], arg[2])
     else
         -- Plain resume.
-        err, yielded = coroutine.resume(co, nil)
+        err, yielded = coroutine.resume(co, arg)
     end
     st = coroutine.status(co)
     if (st == "suspended") then
@@ -188,14 +213,18 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
     return 0
 end
 
+--- Finalize a coroutine context.
+-- @param A CourtineContext instance.
+-- @return True if suscessfull else false.
 function ioloop.IOLoop:finalize_coroutine_context(coctx)
     local coroutine = self._co_ctxs[coctx]
     if not coroutine then
         log.warning("[ioloop.lua] Trying to finalize a coroutine context that there are no reference to.")
-        return -1
+        return false
     end
     self._co_ctxs[coctx] = nil 
     self:_resume_coroutine(coroutine, coctx:get_coroutine_arguments())
+    return true
 end
 
 function ioloop.IOLoop:add_timeout(timestamp, callback)
@@ -240,18 +269,8 @@ function ioloop.IOLoop:clear_interval(ref)
     end
 end
 
-function ioloop.IOLoop:_start_console_server()
-    local console = require "turbo.nwconsoleserver"   
-    local console_server = console.ConsoleServer:new(self)
-    console_server:listen(27000, 0x0)    
-end
-
-
 function ioloop.IOLoop:start()    
     self._running = true
-    if _G.NW_CONSOLE then
-        self:_start_console_server()
-    end
     while true do
         local poll_timeout = 3600        
         local co_cbs_sz = #self._co_cbs
@@ -287,7 +306,7 @@ function ioloop.IOLoop:start()
                 if (self._timeouts[i] ~= nil) then
                     local time_until_timeout = self._timeouts[i]:timed_out()
                     if (time_until_timeout == 0) then
-                        self:_run_callback(self._timeouts[i]:callback())
+                        self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
                     else
                         if (poll_timeout > time_until_timeout) then
@@ -296,6 +315,10 @@ function ioloop.IOLoop:start()
                     end
                 end
 	    end
+            if #self._callbacks > 0 then
+                -- Callback has been scheduled for next iteration. Drop timeout.
+                poll_timeout = 0
+            end
         end
         local intervals_sz = #self._intervals
         if (intervals_sz ~= 0) then
@@ -304,7 +327,7 @@ function ioloop.IOLoop:start()
                 if (self._intervals[i] ~= nil) then
                     local timed_out = self._intervals[i]:timed_out(time_now)
                     if (timed_out == 0) then
-                        self:_run_callback(self._intervals[i].callback)
+                        self:_run_callback({self._intervals[i].callback})
                         -- Get current time to protect against building diminishing interval time
                         -- on heavy functions.
                         time_now = util.gettimeofday() 
@@ -319,6 +342,10 @@ function ioloop.IOLoop:start()
                         end
                     end
                 end
+            end
+            if #self._callbacks > 0 then
+                -- Callback has been scheduled for next iteration. Drop timeout.
+                poll_timeout = 0
             end
         end
         if self._stopped then 
