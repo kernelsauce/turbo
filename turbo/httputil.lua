@@ -401,10 +401,10 @@ function httputil.HTTPHeaders:parse_response_header(raw_headers)
     return sz
 end
 
+local nw = ffi.new("struct turbo_parser_wrapper")
 function httputil.HTTPHeaders:parse_request_header(raw_headers)
-    local nw = ffi.new("struct turbo_parser_wrapper")
+    
     local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 0)
-    ffi.gc(nw, libturbo_parser.turbo_parser_wrapper_exit)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
@@ -432,6 +432,7 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
         end        
     end
     
+    libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz;
 end
 
