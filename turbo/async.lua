@@ -115,6 +115,7 @@ function async.HTTPClient:fetch(url, kwargs)
     local old_hostname = self.hostname
     self.hostname = self.headers:get_url_field(httputil.UF.HOST)
     self.port = self.headers:get_url_field(httputil.UF.PORT)
+    self.port = tonumber(self.port)
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.query = self.headers:get_url_field(httputil.UF.QUERY)
     self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
@@ -199,14 +200,18 @@ function async.HTTPClient:_handle_connect()
         -- headers class instance on their own.
         self.kwargs.on_headers(self.headers)
     end
+
+    if (self.path == -1) then
+        self.path = ""
+    end
+
     if (self.query ~= -1) then
-        -- URL has a query added to it. 
+        print("self.query != -1", self.query)
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
-        -- No query.
         self.headers:set_uri(self.path)
     end
-    
+
     local write_buf = ""
     if (self.kwargs.body) then
         if (type(self.kwargs.body) == "string") then
