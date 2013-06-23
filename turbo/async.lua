@@ -115,6 +115,7 @@ function async.HTTPClient:fetch(url, kwargs)
     local old_hostname = self.hostname
     self.hostname = self.headers:get_url_field(httputil.UF.HOST)
     self.port = self.headers:get_url_field(httputil.UF.PORT)
+    self.port = tonumber(self.port)
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.query = self.headers:get_url_field(httputil.UF.QUERY)
     self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
