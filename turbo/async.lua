@@ -204,7 +204,12 @@ function async.HTTPClient:_handle_connect()
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
         -- No query.
-        self.headers:set_uri(self.path)
+        if self.path ~= -1 then
+            self.headers:set_uri(self.path)
+        else
+            -- No path
+            self.headers:set_uri("")
+        end
     end
     
     local write_buf = ""
