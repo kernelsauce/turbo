@@ -199,19 +199,18 @@ function async.HTTPClient:_handle_connect()
         -- headers class instance on their own.
         self.kwargs.on_headers(self.headers)
     end
+
+    if (self.path == -1) then
+        self.path = ""
+    end
+
     if (self.query ~= -1) then
-        -- URL has a query added to it. 
+        print("self.query != -1", self.query)
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
-        -- No query.
-        if self.path ~= -1 then
-            self.headers:set_uri(self.path)
-        else
-            -- No path
-            self.headers:set_uri("")
-        end
+        self.headers:set_uri(self.path)
     end
-    
+
     local write_buf = ""
     if (self.kwargs.body) then
         if (type(self.kwargs.body) == "string") then
