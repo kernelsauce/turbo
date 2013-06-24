@@ -134,11 +134,11 @@ log.success = function(str)
     local offset
     if sz + str:len() > 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
     end
 end
 
@@ -182,11 +182,11 @@ log.error = function(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
     end
 end
 
@@ -198,11 +198,11 @@ log.warning = function(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
     end
 end
 
@@ -218,11 +218,11 @@ log.devel = function(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
     end
 end
 
