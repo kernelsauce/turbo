@@ -297,10 +297,10 @@ end
 
 --[[ Write chunk to the connection that made the request. Call
 callback when write is done.    ]]
-function httpserver.HTTPRequest:write(chunk, callback, ...)
+function httpserver.HTTPRequest:write(chunk, callback, arg)
     local callback = callback
     assert(type(chunk) == "string")
-    self.connection:write(chunk, callback, ...)
+    self.connection:write(chunk, callback, arg)
 end
 
 --[[ Finish the request. Close connection.    ]]
