@@ -22,7 +22,6 @@ SOFTWARE."             ]]
 
 local util = require "turbo.util"
 local ffi = require "ffi"
-require "turbo.nwcolors"
 
 local log = {} -- log namespace.
 
