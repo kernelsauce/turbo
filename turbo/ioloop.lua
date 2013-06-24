@@ -214,7 +214,7 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
 end
 
 --- Finalize a coroutine context.
--- @param A CourtineContext instance.
+-- @param coctx A CourtineContext instance.
 -- @return True if suscessfull else false.
 function ioloop.IOLoop:finalize_coroutine_context(coctx)
     local coroutine = self._co_ctxs[coctx]
@@ -353,17 +353,14 @@ function ioloop.IOLoop:start()
             self.stopped = false
             break
         end
-        local events, errno = self._poll:poll(poll_timeout)
-        if (type(events) == "table") then
-            for i = 1, #events do
-                -- index 1 = fd
-                -- index 2 = events bitmask
-                self:_run_handler(events[i][1], events[i][2])
+        local rc, num, events = self._poll:poll(poll_timeout)
+        if rc == 0  then
+            num = num - 1 -- Base 0 loop
+            for i = 0, num do
+                self:_run_handler(events[i].data.fd, events[i].events)
             end
-        elseif (type(events) == "number") then
-            if (events == -1) then
-                log.notice(string.format("[ioloop.lua] poll() returned errno %d", errno))
-            end
+        elseif (rc == -1) then
+            log.notice(string.format("[ioloop.lua] poll() returned errno %d", errno))
         end
     end
 end
@@ -423,30 +420,30 @@ _EPoll_FFI = class('_EPoll_FFI')
 
 -- Internal class for epoll-based event loop using the epoll_ffi module.
 function _EPoll_FFI:initialize()
-	self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
+    self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
 end
 
 function _EPoll_FFI:fileno()
-	return self._epoll_fd
+    return self._epoll_fd
 end
 
 function _EPoll_FFI:register(file_descriptor, events)
-	return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD, 
-		file_descriptor, events)
+    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD, 
+        file_descriptor, events)
 end
 
 function _EPoll_FFI:modify(file_descriptor, events)
-	return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD, 
-		file_descriptor, events)
+    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD, 
+        file_descriptor, events)
 end
 
 function _EPoll_FFI:unregister(file_descriptor)
-	return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
-		file_descriptor, 0)	
+    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
+        file_descriptor, 0)	
 end
 
 function _EPoll_FFI:poll(timeout)
-	return epoll_ffi.epoll_wait(self._epoll_fd, timeout)
+    return epoll_ffi.epoll_wait(self._epoll_fd, timeout)
 end
 
 return ioloop
