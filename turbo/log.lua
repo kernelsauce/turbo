@@ -20,7 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."             ]]
 
-local util = require "turbo.util"  
+local util = require "turbo.util"
+local ffi = require "ffi"
 require "turbo.nwcolors"
 
 local log = {} -- log namespace.
@@ -57,7 +58,7 @@ log.stringify = function (t, name, indent)
 	  cart = cart .. indent .. field
 
 	  if type(value) ~= "table" then
-	 cart = cart .. " = " .. basicSerialize(value) .. ";\n"
+            cart = cart .. " = " .. basicSerialize(value) .. ";\n"
 	  else
 	 if saved[value] then
 		cart = cart .. " = {}; -- " .. saved[value]
@@ -80,7 +81,7 @@ log.stringify = function (t, name, indent)
 		   cart = cart .. indent .. "};\n"
 		end
 	 end
-	  end
+        end
    end
 
    name = name or "__unnamed__"
@@ -92,42 +93,137 @@ log.stringify = function (t, name, indent)
    return cart .. autoref
 end	
 
+
+ffi.cdef([[
+    struct tm
+    {
+      int tm_sec;			/* Seconds.	[0-60] (1 leap second) */
+      int tm_min;			/* Minutes.	[0-59] */
+      int tm_hour;			/* Hours.	[0-23] */
+      int tm_mday;			/* Day.		[1-31] */
+      int tm_mon;			/* Month.	[0-11] */
+      int tm_year;			/* Year	- 1900.  */
+      int tm_wday;			/* Day of week.	[0-6] */
+      int tm_yday;			/* Days in year.[0-365]	*/
+      int tm_isdst;			/* DST.		[-1/0/1]*/
+      long int __tm_gmtoff;		/* Seconds east of UTC.  */
+      const char *__tm_zone;	/* Timezone abbreviation.  */
+    };
+    
+    typedef long time_t;
+    size_t strftime(char* ptr, size_t maxsize, const char* format, const struct tm* timeptr);
+    struct tm *localtime(const time_t *timer);
+    time_t time(time_t* timer);
+    int fputs(const char *str, void *stream); // Stream defined as void to avoid pulling in FILE.
+    int snprintf(char *s, size_t n, const char *format, ...);
+    int sprintf ( char * str, const char * format, ... );
+]])
+
+local buf = ffi.new("char[4096]") -- Buffer for log lines.
+local time_t = ffi.new("time_t[1]")
+
 --[[ Usefull table printer for debug.       ]]
 log.dump = function(stuff, description)
-	print(log.stringify(stuff, description))
+    io.stdout:write(log.stringify(stuff, description) .. "\n")
 end
 
 log.success = function(str)
-	print(nwcolors.green .. "[S " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
-end
-
---[[ Prints a warning to stdout.      ]]
-log.warning = function(str)	
-	print(nwcolors.yellow .. "[W " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() > 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
 end
 
 --[[ Prints a notice to stdout.  ]]
 log.notice = function(str)
-	print(nwcolors.white .. "[I " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "[I %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
 end
 
 --[[ Prints a notice to stdout.  ]]
 log.debug = function(str)
-	print(nwcolors.white .. "[D " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "[D %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
 end
 
 --[[ Prints a error to stdout.  ]]
 log.error = function(str)	
-	print(nwcolors.red .. "[E " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[31m[E %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
+end
+
+--[[ Prints a warning to stdout.      ]]
+log.warning = function(str)	
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[33m[W %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
 end
 
 --[[ Prints a error to stdout.  ]]
 log.stacktrace = function(str)	
-	print(nwcolors.red .. str .. nwcolors.reset)
+    io.stdout:write(nwcolors.red .. str .. nwcolors.reset .. "\n")
 end
 
 log.devel = function(str)
-        print(nwcolors.cyan .. "[d " .. os.date("%X", util.gettimeofday() / 1000) .. '] ' .. str .. nwcolors.reset)
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[36m[d %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
 end
 
 return log
