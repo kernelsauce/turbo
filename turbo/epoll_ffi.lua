@@ -127,15 +127,7 @@ function epoll.epoll_wait(epfd, timeout)
 	if num_events == -1 then
 		return -1, ffi.errno()
 	end  
-	local events_t = {}
-	if num_events == 0 then
-		return events_t
-	end
-	num_events = num_events - 1
-	for i = 0, num_events do
-		events_t[#events_t + 1 ] = {_events[i].data.fd, _events[i].events} 
-	end
-	return events_t
+	return 0, num_events, _events
 end
 
 return epoll
