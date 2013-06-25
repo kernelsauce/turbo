@@ -92,32 +92,6 @@ log.stringify = function (t, name, indent)
    return cart .. autoref
 end	
 
-
-ffi.cdef([[
-    struct tm
-    {
-      int tm_sec;			/* Seconds.	[0-60] (1 leap second) */
-      int tm_min;			/* Minutes.	[0-59] */
-      int tm_hour;			/* Hours.	[0-23] */
-      int tm_mday;			/* Day.		[1-31] */
-      int tm_mon;			/* Month.	[0-11] */
-      int tm_year;			/* Year	- 1900.  */
-      int tm_wday;			/* Day of week.	[0-6] */
-      int tm_yday;			/* Days in year.[0-365]	*/
-      int tm_isdst;			/* DST.		[-1/0/1]*/
-      long int __tm_gmtoff;		/* Seconds east of UTC.  */
-      const char *__tm_zone;	/* Timezone abbreviation.  */
-    };
-    
-    typedef long time_t;
-    size_t strftime(char* ptr, size_t maxsize, const char* format, const struct tm* timeptr);
-    struct tm *localtime(const time_t *timer);
-    time_t time(time_t* timer);
-    int fputs(const char *str, void *stream); // Stream defined as void to avoid pulling in FILE.
-    int snprintf(char *s, size_t n, const char *format, ...);
-    int sprintf ( char * str, const char * format, ... );
-]])
-
 local buf = ffi.new("char[4096]") -- Buffer for log lines.
 local time_t = ffi.new("time_t[1]")
 
@@ -166,7 +140,7 @@ log.debug = function(str)
     if sz + str:len() < 4094 then
         -- Use static buffer.
         ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
+        ffi.C.fputs(buf, io.stderr)
     else
         -- Use Lua string.
         io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
@@ -182,7 +156,7 @@ log.error = function(str)
     if sz + str:len() < 4094 then
         -- Use static buffer.
         ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
+        ffi.C.fputs(buf, io.stderr)
     else
         -- Use Lua string.
         io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
@@ -198,7 +172,7 @@ log.warning = function(str)
     if sz + str:len() < 4094 then
         -- Use static buffer.
         ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
+        ffi.C.fputs(buf, io.stderr)
     else
         -- Use Lua string.
         io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
@@ -206,9 +180,7 @@ log.warning = function(str)
 end
 
 --[[ Prints a error to stdout.  ]]
-log.stacktrace = function(str)	
-    io.stdout:write(nwcolors.red .. str .. nwcolors.reset .. "\n")
-end
+log.stacktrace = function(str)	io.stderr:write(str .. "\n") end
 
 log.devel = function(str)
     ffi.C.time(time_t)
