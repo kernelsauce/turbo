@@ -253,26 +253,34 @@ function httputil.HTTPHeaders:parse_url(url)
 end
 
 function httputil.HTTPHeaders:get_url_field(UF_prop)
-    fast_assert(self.http_parser_url, "parse_request_header() or parse_url() has not been used to parse the URL, get_url_field is not supported.")
+    if not self.http_parser_url then
+	error("parse_request_header() or parse_url() has not been used to parse the URL, get_url_field is not supported.")
+    end
     return parse_url_part(self.uri, self.http_parser_url, UF_prop)
 end
 
 function httputil.HTTPHeaders:set_uri(uri)
-    fast_assert(type(uri) == "string", [[method set_url requires string, were: %s]], type(uri))
+    if type(uri) ~= "string" then
+	error(string.format([[method set_url requires string, were: %s]], type(uri)))
+    end
     self.uri = uri
 end
 
 function httputil.HTTPHeaders:get_uri() return self.uri end
 
 function httputil.HTTPHeaders:set_content_length(len)
-    fast_assert(type(len) == "number", [[method set_content_length requires number, was: %s]], type(len))
+    if type(len) ~= "number" then
+	error(string.format[[method set_content_length requires number, was: %s]], type(len))
+    end
     self.content_length = len
 end
 
 function httputil.HTTPHeaders:get_content_length() return self.content_length end
 
 function httputil.HTTPHeaders:set_method(method)
-    fast_assert(type(method) == "string", [[method set_method requires string, was: %s]], type(method))
+    if type(method) ~= "string" then
+	error(string.format([[method set_method requires string, was: %s]], type(method)))
+    end
     self.method = method
 end
 
@@ -281,7 +289,9 @@ function httputil.HTTPHeaders:get_method() return self.method end
 --[[ Set the HTTP version.
 Applies most probably for response headers.  ]]
 function httputil.HTTPHeaders:set_version(version)
-    fast_assert(type(version) == "string", [[method set_version requires string, was: %s]], type(version))
+    if type(version) ~= "string" then
+	error(string.format([[method set_version requires string, was: %s]], type(version)))
+    end
     self.version = version
 end
 
@@ -291,8 +301,12 @@ function httputil.HTTPHeaders:get_version() return self.version or nil end
 --[[ Set the status code.
 Applies most probably for response headers.      ]]
 function httputil.HTTPHeaders:set_status_code(code)
-    fast_assert(type(code) == "number", [[method set_status_code requires int.]])
-    fast_assert(status_codes[code], [[Invalid HTTP status code given: %d]], code)
+    if type(code) ~= "number" then
+	error([[method set_status_code requires int.]])
+    end
+    if not status_codes[code] then
+	error(string.format([[Invalid HTTP status code given: %d]], code))
+    end
     self.status_code = code
 end
 
@@ -304,29 +318,27 @@ end
 
 --[[ Get one argument of the header.  ]]
 function httputil.HTTPHeaders:get_argument(argument)
-        if not self._arguments_parsed then
-            self._arguments = parse_arguments(self:get_url_field(httputil.UF.QUERY))
-            self._arguments_parsed = true
-        end
-	local arguments = self:get_arguments()
-	if arguments then
-		if type(arguments[argument]) == "table" then
-			return arguments[argument]
-		
-		elseif type(arguments[argument]) == "string" then
-			return { arguments[argument] }
-			
-		end
+    if not self._arguments_parsed then
+	self._arguments = parse_arguments(self:get_url_field(httputil.UF.QUERY))
+	self._arguments_parsed = true
+    end
+    local arguments = self:get_arguments()
+    if arguments then
+	if type(arguments[argument]) == "table" then
+	    return arguments[argument]
+	elseif type(arguments[argument]) == "string" then
+	    return { arguments[argument] }
 	end
+    end
 end
 
 --[[ Get all arguments of the header. ]]
 function httputil.HTTPHeaders:get_arguments()
-        if not self._arguments_parsed then
-            self._arguments = parse_arguments(self:get_url_field(httputil.UF.QUERY))
-            self._arguments_parsed = true
-        end
-	return self._arguments or nil
+    if not self._arguments_parsed then
+	self._arguments = parse_arguments(self:get_url_field(httputil.UF.QUERY))
+	self._arguments_parsed = true
+    end
+    return self._arguments or nil
 end
 
 --[[ Get given key from headers.	]]
@@ -349,10 +361,14 @@ end
 
 --[[ Add a key with value to the headers.     ]]
 function httputil.HTTPHeaders:add(key, value)
-	fast_assert(type(key) == "string", [[method add key parameter must be a string.]])
-	fast_assert((type(value) == "string" or type(value) == "number"), [[method add value parameters must be a string or number.]])
-	fast_assert((not self._header_table[key]), [[trying to add a value to a existing key]])
-	self._header_table[key] = value
+    if type(key) ~= "string" then
+	error([[method add key parameter must be a string.]])
+    elseif not (type(value) == "string" or type(value) == "number") then
+	error([[method add value parameters must be a string or number.]])
+    elseif self._header_table[key] then
+	error([[trying to add a value to a existing key]])
+    end
+    self._header_table[key] = value
 end
 
 
@@ -360,14 +376,19 @@ end
 If key exists then the value is overwritten.
 If key does not exists a new is created with its value.   ]]
 function httputil.HTTPHeaders:set(key, value)	
-	fast_assert(type(key) == "string", [[method add key parameter must be a string.]])
-	fast_assert((type(value) == "string" or type(value) == "number"), [[method add value parameters must be a string or number.]])	
-	self._header_table[key]	= value
+    if type(key) ~= "string" then
+	error([[method add key parameter must be a string.]])
+    elseif not (type(value) ~= "string" or type(value) ~= "number") then
+	error([[method add value parameters must be a string or number.]])
+    end
+    self._header_table[key]	= value
 end
 
 --[[ Remove key from headers.    ]]
 function httputil.HTTPHeaders:remove(key)
-    fast_assert(type(key) == "string", "method remove key parameter must be a string.")
+    if type(key) ~= "string" then
+	error("method remove key parameter must be a string.")
+    end
     self._header_table[key]  = nil
 end
 
@@ -449,10 +470,15 @@ function httputil.HTTPHeaders:stringify_as_request()
                          buffer:concat())
 end
 
+local _time_str_buf = ffi.new("char[2048]")
+local _time_t_headers = ffi.new("time_t[1]")
 function httputil.HTTPHeaders:stringify_as_response()
     local buffer = deque:new()
+    ffi.C.time(_time_t_headers)
+    local tm = ffi.C.gmtime(_time_t_headers)
+    local sz = ffi.C.strftime(_time_str_buf, 2048, "%a, %d %b %Y %H:%M:%S GMT", tm)
     if not self:get("Date") then
-            self:add("Date", os.date("!%a, %d %b %Y %X GMT", os.time()))
+            self:add("Date", ffi.string(_time_str_buf, sz))
     end
     for key, value in pairs(self._header_table) do
             buffer:append(string.format("%s: %s\r\n", key , value));
@@ -469,7 +495,9 @@ function httputil.HTTPHeaders:__tostring() return self:stringify_as_response() e
 
 
 function httputil.parse_post_arguments(data)
-    fast_assert(type(data) == "string", "data into _parse_post_arguments() not a string.")
+    if type(data) ~= "string" then
+	error("data argument not a string.")
+    end
     local arguments_string = data:match("?(.+)")
     local arguments = {}
     local elements = 0;
