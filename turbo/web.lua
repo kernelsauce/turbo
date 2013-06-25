@@ -21,13 +21,11 @@ local deque =           require "turbo.structs.deque"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
-local ngc =             require "turbo.nwglobals"
 local util =            require "turbo.util"
 require('turbo.3rdparty.middleclass')
 
 local unpack = util.funpack
 local is_in = util.is_in
-local fast_assert = util.fast_assert
 
 local web = {} -- web namespace
 
@@ -115,7 +113,9 @@ function web.RequestHandler:get_header(key) return self.headers:get(key) end
 
 --[[ Sets the status for our response.   ]]
 function web.RequestHandler:set_status(status_code)
-    fast_assert(type(status_code) == "number", [[set_status method requires number.]])
+    if type(status_code) ~= "number" then
+        error("set_status method requires number.")
+    end
     self._status_code = status_code
 end
 
@@ -225,19 +225,21 @@ end
 --[[ Set request to automatically call finish when request method has been called. Default
 behaviour is to finish the request immediately.   ]]
 function web.RequestHandler:set_auto_finish(bool)
-    fast_assert(type(bool) == "boolean", "bool must be boolean!")
+    if type(bool) ~= "boolean" then
+        error("bool must be boolean!")
+    end
     self._auto_finish = bool
 end
 
 --[[ Finishes the HTTP request.
 Cleaning up of different messes etc.    ]]
 function web.RequestHandler:finish(chunk)	
-    fast_assert((not self._finished), "finish() called twice. Something terrible has happened")
-    
+    if self._finished then
+        error("finish() called twice. Something terrible has happened")
+    end
     if chunk then
         self:write(chunk)
     end
-
     if not self._headers_written then
         if not self:get_header("Content-Length") then
                 self:set_header("Content-Length", self._write_buffer:concat():len())
@@ -245,7 +247,6 @@ function web.RequestHandler:finish(chunk)
         self.headers:set_status_code(self._status_code)
         self.headers:set_version("HTTP/1.1")
     end
-    
     if self._status_code == 200 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
                 self._status_code, 
@@ -263,7 +264,6 @@ function web.RequestHandler:finish(chunk)
                 self.request._request.remote_ip,
                 self.request._request:request_time()))
     end
-    
     self:flush()
     self.request:finish()
     self._finished = true
@@ -420,7 +420,9 @@ end
 --[[ HTTPError exception class. Raisable from RequestHandler instances. Provide code and optional message.  ]]
 web.HTTPError = class("HTTPError")
 function web.HTTPError:initialize(code, message)
-    fast_assert(type(code) == "number", "HTTPError code argument must be number.")
+    if type(code) ~= "number" then
+        error("HTTPError code argument must be number.")
+    end
     self.code = code
     self.message = message and message or response_codes[code]
 end
