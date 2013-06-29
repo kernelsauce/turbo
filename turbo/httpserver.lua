@@ -198,11 +198,17 @@ end
 function httpserver.HTTPConnection:_on_request_body(data)
     self._request.body = data
     local content_type = self._request.headers:get("Content-Type")
-    
+
+	local tablelen = function(t)
+		local c = 0
+		for _ in pairs(t) do c = c + 1 end
+		return c
+	end
+
     if content_type then
         if content_type:find("x-www-form-urlencoded", 1, true) then
             local arguments = httputil.parse_post_arguments(self._request.body)
-            if #arguments > 0 then
+            if tablelen(arguments) > 0 then
                 self._request.arguments = arguments
             end
         elseif content_type:find("multipart/form-data", 1, true) then
