@@ -201,7 +201,7 @@ function httpserver.HTTPConnection:_on_request_body(data)
     
     if content_type then
         if content_type:find("x-www-form-urlencoded", 1, true) then
-            local arguments = httputil._parse_post_arguments(self._request.body)
+            local arguments = httputil.parse_post_arguments(self._request.body)
             if #arguments > 0 then
                 self._request.arguments = arguments
             end
