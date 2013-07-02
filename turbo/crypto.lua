@@ -152,7 +152,7 @@ function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, ver
 
     -- Turbo comes with a builtin CA certificates list, scraped out of a standard Ubuntu install.
     -- The user is free to specify his own list.
-    ca_cert_path = ca_cert_path or "/src/turbo/turbo/ca-certificates.crt"
+    ca_cert_path = ca_cert_path or "ca-certificates.crt"
     meth = sslv or lssl.SSLv23_client_method()
     if meth == nil then
 	err = lssl.ERR_peek_error()
@@ -184,12 +184,12 @@ function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, ver
 	    return -1, "Private and public keys does not match"
 	end
     end
-    if lssl.SSL_CTX_load_verify_locations(ctx, ca_cert_path, nil) ~= 1 then
-	err = lssl.ERR_peek_error()
-	lssl.ERR_clear_error()
-	return err, crypto.ERR_error_string(err)
-    end
     if verify == true then
+	if lssl.SSL_CTX_load_verify_locations(ctx, ca_cert_path, nil) ~= 1 then
+	    err = lssl.ERR_peek_error()
+	    lssl.ERR_clear_error()
+	    return err, crypto.ERR_error_string(err)
+	end
 	lssl.SSL_CTX_set_verify(ctx, crypto.SSL_VERIFY_PEER, nil); 
 	lssl.SSL_CTX_set_verify_depth(ctx, 1);
     end
