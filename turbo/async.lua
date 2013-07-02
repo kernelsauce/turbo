@@ -24,6 +24,7 @@ local http_response_codes = require "turbo.http_response_codes"
 local coctx =               require "turbo.coctx"
 local deque =               require "turbo.structs.deque"
 local escape =              require "turbo.escape"
+local crypto =              require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
 local fassert = util.fast_assert
@@ -32,32 +33,35 @@ local AF_INET = socket.AF_INET
 
 local async = {} -- async namespace
 
---[[
-HTTPClient class
 
-Designed to asynchronously communicate with a HTTP server via the Turbo IO Loop.
-The user MUST use Lua's builting coroutines to manage yielding, after doing a
-request. The aim for the client is to support as many standards of HTTP as possible.
-Websockets are not handled by this class. It is the users responsibility to check
-the returned values for errors before usage.
-
-When using this class, keep in mind that it is not supported to launch muliple :fetch()'s
-with the same class. If the instance is already in use then it will return a error.
-
-Note: Do not throw errors in this class. The caller will not recieve them as all the code is
-done outside the yielding coroutines call stack, except for calls to fetch(). But for the
-sake of continuity, there are no raw errors thrown from this method either.
-
-]]
+--- HTTPClient class
+--
+-- Designed to asynchronously communicate with a HTTP server via the Turbo IO Loop.
+-- The user MUST use Lua's builting coroutines to manage yielding, after doing a
+-- request. The aim for the client is to support as many standards of HTTP as possible.
+-- Websockets are not handled by this class. It is the users responsibility to check
+-- the returned values for errors before usage.
+--
+-- When using this class, keep in mind that it is not supported to launch muliple :fetch()'s
+-- with the same class. If the instance is already in use then it will return a error.
+--
+-- Note: Do not throw errors in this class. The caller will not recieve them as all the code is
+-- done outside the yielding coroutines call stack, except for calls to fetch(). But for the
+-- sake of continuity, there are no raw errors thrown from this method either.
 async.HTTPClient = class("HTTPClient")
 
 
--- Construct a new HTTPClient instance.
-function async.HTTPClient:initialize(family, io_loop, max_buffer_size, read_chunk_size)
+--- Construct a new HTTPClient instance.
+-- ssl_options kwargs:
+-- "priv_file" SSL / HTTPS private key file.              
+-- "cert_file" SSL / HTTPS certificate key file.          
+-- "verify_ca" SSL / HTTPS verify servers certificate.    
+-- "ca_path" SSL / HTTPS CA certificate verify location 
+function async.HTTPClient:initialize(family, io_loop, ssl_options, max_buffer_size, read_chunk_size)
     self.family = family or AF_INET
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size
-    self.read_chunk_size = read_chunk_size or 1024
+    self.ssl_options = ssl_options
 end
 
 
@@ -68,7 +72,6 @@ NAME                DESCRIPTION                                 DEFAULT
 "method"            The HTTP method to use.                     Default is "GET"
 "params"            Provide parameters as table.                N/A
 "cookie"            The cookie to use.                          N/A
-"keep_alive"        Keep the connection alive, until GC.        Default is false
 "http_version"      Set HTTP version.                           Default is HTTP1.1
 "use_gzip"          Use gzip compression.                       Default is true.
 "allow_redirects"   Allow or disallow redirects.                Default is true.
@@ -97,6 +100,7 @@ local errors = {
     ,REQUIRES_BODY          = -9
     ,INVALID_BODY           = -10
     ,SOCKET_ERROR           = -11
+    ,SSL_ERROR              = -12
 }
 async.errors = errors
 
@@ -119,16 +123,10 @@ function async.HTTPClient:fetch(url, kwargs)
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.query = self.headers:get_url_field(httputil.UF.QUERY)
     self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
-    if not old_hostname or old_hostname ~= self.hostname then
-        local sock, msg = socket.new_nonblock_socket(self.family, socket.SOCK_STREAM, 0)
-        if (sock == -1) then 
-            self:_throw_error(errors.SOCKET_ERROR, msg)
-            return self.coctx
-        end
-        self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size, self.read_chunk_size)
-    elseif old_hostname == self.hostname and not self.iostream:closed() then
-        log.devel("[async.lua] Keep-Alive case. Reusing stream.")
-        -- Keep-Alive hit.
+    local sock, msg = socket.new_nonblock_socket(self.family, socket.SOCK_STREAM, 0)
+    if (sock == -1) then 
+        self:_throw_error(errors.SOCKET_ERROR, msg)
+        return self.coctx
     end
     -- Reset states.
     self.response_headers = nil
@@ -145,9 +143,11 @@ function async.HTTPClient:fetch(url, kwargs)
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
     self.kwargs.request_timeout = self.kwargs.request_timeout or 60
     if (self.schema == "http") then
+        -- Standard HTTP connect.
         if (self.port == -1) then
             self.port = 80
         end
+        self.iostream = iostream.IOStream:new(sock, self.io_loop, self.max_buffer_size)
         local rc, msg = self.iostream:connect(self.hostname, self.port, self.family,
             function()
                 self.s_connecting = false
@@ -161,9 +161,46 @@ function async.HTTPClient:fetch(url, kwargs)
             return self.coctx            
         end
     elseif (self.schema == "https") then
-        self:_throw_error(errors.HTTPS_NOT_SUPPORTED, "HTTPS protocol is not supported.")
+        -- HTTPS connect.
+        -- Create context if not already done.
+        if not self.ssl_options or not self.ssl_options._ssl_ctx then
+            -- SSL options does not have to be set by the user to use SSL.
+            self.ssl_options = self.ssl_options or {}
+            crypto.ssl_init()
+            local rc, ctx_or_err = crypto.ssl_create_client_context(self.ssl_options.priv_key,
+                                                                    self.ssl_options.cert_key,
+                                                                    self.ssl_options.ca_path,
+                                                                    self.ssl_options.verify_ca)
+            if rc ~= 0 then
+                self:_throw_error(errors.SSL_ERROR, string.format("Could not create SSL context. %s", ctx_or_err))
+                return self.coctx            
+            end
+            -- Set SSL context to this class. This means that we only support one SSL context per instance!
+            -- The user must create more class instances if he wishes to do so.
+            self.ssl_options._ssl_ctx = ctx_or_err
+            self.ssl_options._type = 1
+        end
+        if (self.port == -1) then
+            self.port = 443
+        end
+        self.iostream = iostream.SSLIOStream:new(sock, self.ssl_options, self.io_loop, self.max_buffer_size)
+        local rc, msg = self.iostream:connect(self.hostname, self.port, self.family,
+            function()
+                self.s_connecting = false
+                self:_handle_connect()
+            end,
+            function(err)
+                self:_throw_error(errors.COULD_NOT_CONNECT, err)
+            end)
+        if rc ~= 0 then
+            -- If connect fails without blocking the hostname is most probably not resolvable.
+            self:_throw_error(errors.COULD_NOT_CONNECT, msg)
+            return self.coctx            
+        end
     else
+        -- Some other strange schema that not is HTTP or supported at all.
         self:_throw_error(errors.INVALID_SCHEMA, "Invalid schema used in URL parameter.")
+        return self.coctx
     end
     self.connect_timeout_ref = self.io_loop:add_timeout(self.kwargs.connect_timeout * 1000 + util.gettimeofday(), function()
         self.connect_timeout_ref = nil
@@ -192,9 +229,7 @@ function async.HTTPClient:_handle_connect()
     end    
     self.headers:add("Host", self.hostname)
     self.headers:add("User-Agent", self.kwargs.user_agent)
-    if (self.kwargs.keep_alive ~= true) then
-        self.headers:add("Connection", "Close")
-    end
+    self.headers:add("Connection", "Close") -- No keep-alive support at this point.
     self.headers:set_method(self.kwargs.method:upper())
     self.headers:set_version("HTTP/1.1")
     if type(self.kwargs.on_headers) == "function" then
@@ -300,11 +335,13 @@ function async.HTTPClient:_finalize_request()
     if (self.connect_timeout_ref) then
         self.io_loop:remove_timeout(self.connect_timeout_ref)
     end
-    if (not self.kwargs.keep_alive or self.kwargs.keep_alive == false) then
+    if self.iostream then 
         self.iostream:close()
+        self.iostream = nil
     end
     local res = async.HTTPResponse:new()
     if (self.s_error == true) then
+        log.error(string.format("[async.lua] Error code %d. %s", self.error_code, self.error_str))
         res.error = {
             code = self.error_code,
             message = self.error_str

@@ -67,11 +67,11 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size, r
         -- The ssl_create_context function will raise error and exit by its own, so there is
         -- no need to catch errors.
         crypto.ssl_init()
-        local rc, ssl_ctx = crypto.ssl_create_server_context(self.ssl_options.cert_file, self.ssl_options.key_file)
+        local rc, ctx_or_err = crypto.ssl_create_server_context(self.ssl_options.cert_file, self.ssl_options.key_file)
         if rc ~= 0 then
-            error(string.format("Could not create SSL context. %s", crypto.ERR_error_string(rc)))
+            error(string.format("Could not create SSL context. %s", ctx_or_err))
         end
-        self._ssl_ctx = ssl_ctx
+        self._ssl_ctx = ctx_or_err
         self.ssl_options._ssl_ctx = self._ssl_ctx
     end
 end

@@ -19,10 +19,7 @@ local ffi = require "ffi"
 local crypto = {} -- crypto namespace
 local lssl = ffi.load("ssl")
 
-if not _G._SSL_H then
-_G._SSL_H = 1
 ffi.cdef [[
-
 /* Typedef structs to void as we never access their members and they are massive
 in ifdef's etc and are best left as blackboxes! */
 typedef void SSL_METHOD;
@@ -52,25 +49,29 @@ int SSL_library_init(void);
 void EVP_cleanup(void);
 SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth);
 void SSL_CTX_free(SSL_CTX *);
-int	SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
-int	SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type);
+int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
+int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type);
 int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, const char *CApath);
+int SSL_CTX_check_private_key(const SSL_CTX *ctx);
 
 SSL *SSL_new(SSL_CTX *ctx);
 void SSL_set_connect_state(SSL *s);
 void SSL_set_accept_state(SSL *s);
 int SSL_do_handshake(SSL *s);
-int	SSL_set_fd(SSL *s, int fd);
+int SSL_set_fd(SSL *s, int fd);
 int SSL_accept(SSL *ssl);
 void SSL_free(SSL *ssl);
-int	SSL_accept(SSL *ssl);
-int	SSL_connect(SSL *ssl);
-int	SSL_read(SSL *ssl,void *buf,int num);
-int	SSL_peek(SSL *ssl,void *buf,int num);
-int	SSL_write(SSL *ssl,const void *buf,int num);
+int SSL_accept(SSL *ssl);
+int SSL_connect(SSL *ssl);
+int SSL_read(SSL *ssl,void *buf,int num);
+int SSL_peek(SSL *ssl,void *buf,int num);
+int SSL_write(SSL *ssl,const void *buf,int num);
 void SSL_set_verify(SSL *s, int mode,int (*callback)(int ok,void *ctx));
-int	SSL_set_cipher_list(SSL *s, const char *str);
-int	SSL_get_error(const SSL *s,int ret_code);
+int SSL_set_cipher_list(SSL *s, const char *str);
+int SSL_get_error(const SSL *s, int ret_code);
+void SSL_CTX_set_verify_depth(SSL_CTX *ctx, int depth);
+void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, void *);
+
 
 /* From openssl/err.h  */
 unsigned long ERR_get_error(void);
@@ -89,7 +90,6 @@ const char *ERR_lib_error_string(unsigned long e);
 const char *ERR_func_error_string(unsigned long e);
 const char *ERR_reason_error_string(unsigned long e);
 ]]
-end
 
 crypto.X509_FILETYPE_PEM =		1
 crypto.X509_FILETYPE_ASN1 = 		2
@@ -105,9 +105,25 @@ crypto.SSL_ERROR_SYSCALL =		5 -- look at error stack/return value/errno
 crypto.SSL_ERROR_ZERO_RETURN =		6
 crypto.SSL_ERROR_WANT_CONNECT =		7
 crypto.SSL_ERROR_WANT_ACCEPT =		8
+-- use either SSL_VERIFY_NONE or SSL_VERIFY_PEER, the last 2 options
+-- are 'ored' with SSL_VERIFY_PEER if they are desired
+crypto.SSL_VERIFY_NONE =		0x00
+crypto.SSL_VERIFY_PEER =		0x01
+crypto.SSL_VERIFY_FAIL_IF_NO_PEER_CERT =0x02
+crypto.SSL_VERIFY_CLIENT_ONCE =		0x04
 
 crypto.ERR_get_error = lssl.ERR_get_error
 crypto.SSL_get_error = lssl.SSL_get_error
+crypto.lib = lssl
+
+--- Convert OpenSSL unsigned long error to string.
+-- @param rc unsigned long error from OpenSSL library.
+-- @returns Lua string.
+function crypto.ERR_error_string(rc)
+    local buf = ffi.new("char[256]")
+    lssl.ERR_error_string_n(rc, buf, ffi.sizeof(buf))
+    return ffi.string(buf)
+end
 
 --- Initialize the SSL library.
 -- Can be called multiple times without causing any pain. If the
@@ -121,104 +137,121 @@ function crypto.ssl_init()
     end
 end
 
---- Convert OpenSSL unsigned long error to string.
--- @param rc unsigned long error from OpenSSL library.
--- @returns Lua string.
-function crypto.ERR_error_string(rc)
-    local buf = ffi.new("char[100]")
-    lssl.ERR_error_string_n(rc, buf, ffi.sizeof(buf))
-    return ffi.string(buf)
+--- Create a client type SSL context.
+-- @param cert_file (optional) Certificate file 
+-- @param prv_file (optional) Key file 
+-- @param ca_cert_path (optional) Path to CA certificates. Turbo is shipped with a builtin from Ubuntu 12.10.
+-- @param verify (optional) Verify the hosts certificate with CA. 
+-- @param sslv (optional) SSL version to use.
+-- @return Return code. 0 if successfull, else a OpenSSL error code and a SSL error string, or -1 and a error string.
+-- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
+function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, verify, sslv)
+    local meth
+    local ctx
+    local err = 0
+
+    -- Turbo comes with a builtin CA certificates list, scraped out of a standard Ubuntu install.
+    -- The user is free to specify his own list.
+    ca_cert_path = ca_cert_path or "/src/turbo/turbo/ca-certificates.crt"
+    meth = sslv or lssl.SSLv23_client_method()
+    if meth == nil then
+	err = lssl.ERR_peek_error()
+	lssl.ERR_clear_error()
+	return err, crypto.ERR_error_string(err)
+    end
+    ctx = lssl.SSL_CTX_new(meth)
+    if ctx == nil then
+	err = lssl.ERR_peek_error()
+	lssl.ERR_clear_error()
+	return err, crypto.ERR_error_string(err)
+    else
+	ffi.gc(ctx, lssl.SSL_CTX_free)
+    end
+    -- If client certifactes are set, load them and verify.
+    if type(cert_file) == "string" and type(prv_file) == "string" then
+	if lssl.SSL_CTX_use_certificate_file(ctx, cert_file, crypto.SSL_FILETYPE_PEM) <= 0 then
+	    err = lssl.ERR_peek_error()
+	    lssl.ERR_clear_error()
+	    return err, crypto.ERR_error_string(err)
+	end
+	if lssl.SSL_CTX_use_PrivateKey_file(ctx, prv_file, crypto.SSL_FILETYPE_PEM) <= 0 then
+	    err = lssl.ERR_peek_error()
+	    lssl.ERR_clear_error()
+	    return err, crypto.ERR_error_string(err)
+	end
+	-- Check if pub and priv key matches each other.
+	if lssl.SSL_CTX_check_private_key(ctx) ~= 1 then
+	    return -1, "Private and public keys does not match"
+	end
+    end
+    if lssl.SSL_CTX_load_verify_locations(ctx, ca_cert_path, nil) ~= 1 then
+	err = lssl.ERR_peek_error()
+	lssl.ERR_clear_error()
+	return err, crypto.ERR_error_string(err)
+    end
+    if verify == true then
+	lssl.SSL_CTX_set_verify(ctx, crypto.SSL_VERIFY_PEER, nil); 
+	lssl.SSL_CTX_set_verify_depth(ctx, 1);
+    end
+    return err, ctx
 end
 
---- Simplified SSL_CTX constructor.
--- This function raises errors on failure. If not caught they will exit your program.
+--- Create a server type SSL context.
 -- @param cert_file Certificate file (public key)
 -- @param prv_file Key file (private key)
--- @param sslver (optional) SSL version to use.
--- @return Return code. 0 if successfull.
+-- @param sslv (optional) SSL version to use.
+-- @return Return code. 0 if successfull, else a OpenSSL error code and a SSL error string, or -1 and a error string.
 -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
 function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
     local meth
     local ctx
     local err = 0
     
-    if (not cert_file) then
-	return -1;
-    elseif (not prv_file) then
-	err = lssl.ERR_peek_error()
-	lssl.ERR_clear_error()
-	return -1;
+    if not cert_file then
+	return -1, "No cert file given in arguments";
+    elseif not prv_file then
+	return -1, "No priv file given in arguments";
     end
     meth = sslv or lssl.SSLv23_server_method()
     if meth == nil then
 	err = lssl.ERR_peek_error()
 	lssl.ERR_clear_error()
-	return err
+	return err, crypto.ERR_error_string(err)
     end
     ctx = lssl.SSL_CTX_new(meth)
     if ctx == nil then
 	err = lssl.ERR_peek_error()
 	lssl.ERR_clear_error()
-	return err
+	return err, crypto.ERR_error_string(err)
     else
 	ffi.gc(ctx, lssl.SSL_CTX_free)
     end    
     if lssl.SSL_CTX_use_certificate_file(ctx, cert_file, crypto.SSL_FILETYPE_PEM) <= 0 then
 	err = lssl.ERR_peek_error()
 	lssl.ERR_clear_error()
-	return err
+	return err, crypto.ERR_error_string(err)
     end
     if lssl.SSL_CTX_use_PrivateKey_file(ctx, prv_file, crypto.SSL_FILETYPE_PEM) <= 0 then
 	err = lssl.ERR_peek_error()
 	lssl.ERR_clear_error()
-	return err
+	return err, crypto.ERR_error_string(err)
     end
     return err, ctx
 end
 
---- Wrap a already connected socket with SSL and do handshake.
--- @param fd A connected socket, not already wrapped with SSL.
--- @param ctx A struct SSL_CTX *
--- @return Return code, 0 if successfull. Use ERR_error_string to convert to string.
--- @return A allocated struct SSL *. Must not be freed! It is garbage collected.
-function crypto.ssl_wrap_sock(fd, ctx, o_nonblock)
-    local err = 0
-    local rc = 0
-    local ssl = lssl.SSL_new(ctx)
-    
-    if ssl == nil then
-	err = lssl.ERR_peek_error()
-	lssl.ERR_clear_error()
-	return err
-    else
-	ffi.gc(ssl, lssl.SSL_free)
+
+function crypto.SSL_write(ssl, buf, sz)
+    if ssl == nil or buf == nil then
+	error("SSL_write passed null pointer.")
     end
-    if lssl.SSL_set_fd(ssl, fd) <= 0 then
-	err = lssl.ERR_peek_error()
-	lssl.ERR_clear_error()
-	return err
-    end
-    lssl.SSL_set_verify(ssl, 0x00, nil);
-    lssl.SSL_set_accept_state(ssl)
-    while true do
-	rc = lssl.SSL_do_handshake(ssl)
-	err = lssl.SSL_get_error(ssl, rc)
-	-- In case the socket is O_NONBLOCK break out when we get SSL_ERROR_WANT_*.
-	if err == crypto.SSL_ERROR_WANT_READ or err == crypto.SSL_ERROR_WANT_READ then
-	    if o_nonbblock == true then
-		break
-	    end
-	else
-	    break
-	end
-    end
-    if rc < 1 then
-	return rc
-    end
-    return 0, ssl;
+    return lssl.SSL_write(ssl, buf, sz)
 end
 
-function crypto.ssl_write(ssl, buf, sz) return tonumber(lssl.SSL_write(ssl, buf, sz)) end
-function crypto.ssl_read(ssl, buf, sz) return tonumber(lssl.SSL_read(ssl, buf, sz)) end
+function crypto.SSL_read(ssl, buf, sz)
+    if ssl == nil or buf == nil then
+	error("SSL_read passed null pointer.")
+    end
+    return lssl.SSL_read(ssl, buf, sz)
+end
 
 return crypto
