@@ -72,14 +72,13 @@ function sockutils.bind_sockets(port, address, backlog)
     return fd
 end
 
+local client_addr = ffi.new("struct sockaddr")
+local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
 local function _add_accept_hander_cb(arg, fd, events)
     while true do 
         local errno
-        local client_addr = ffi.new("struct sockaddr")
-        local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
         --log.devel(string.format("[tcpserver.lua] Accepting connection on socket fd %d", fd))
-        local client_fd = socket.accept(fd, client_addr, client_addr_sz)
-        
+        local client_fd = socket.accept(fd, client_addr, client_addr_sz)        
         if client_fd == -1 then
             errno = ffi.errno()
             if (errno == EWOULDBLOCK or errno == EAGAIN) then
@@ -89,10 +88,8 @@ local function _add_accept_hander_cb(arg, fd, events)
                 break
             end
         end
-        
         local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
         local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
-        
         local address = string.format("%d.%d.%d.%d",
                                       s_addr_ptr[0],
                                       s_addr_ptr[1],
