@@ -270,16 +270,15 @@ function web.RequestHandler:finish(chunk)
     self:on_finish()
 end
 
-
 --[[ Main execution of the RequestHandler class.     ]]
-function web.RequestHandler:_execute(args)
+function web.RequestHandler:_execute()
     if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
         error(web.HTTPError:new(405))
     end
 
     self:prepare()
     if not self._finished then
-        self[self.request._request.method:lower()](self, unpack(self._url_args), kwargs)
+        self[self.request._request.method:lower()](self, unpack(self._url_args))
         if self._auto_finish and not self._finished then
                 self:finish()
         end
@@ -337,7 +336,9 @@ end
 --[[ Determine MIME type according to file exstension.   ]]
 function web.StaticFileHandler:get_mime()
     local filename = self._url_args[1]
-    fast_assert(filename)
+      if not filename then
+        error("No filename suplied to get_mime()")
+      end
     local parts = filename:split(".")
     if #parts == 0 then
             return -1
@@ -464,8 +465,7 @@ function web.Application:_get_request_handlers(request)
         local pattern = handler[1]
         local match = {path:match(pattern)}
         if #match > 0 then
-            local args = match
-            return handler[2], args, handler[3]
+            return handler[2], match, handler[3]
         end
     end
 end

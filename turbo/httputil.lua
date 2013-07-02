@@ -496,28 +496,9 @@ function httputil.HTTPHeaders:__tostring() return self:stringify_as_response() e
 
 function httputil.parse_post_arguments(data)
     if type(data) ~= "string" then
-	error("data argument not a string.")
+		error("data argument not a string.")
     end
-    local arguments_string = data:match("?(.+)")
-    local arguments = {}
-    local elements = 0;
-    for k, v in arguments_string:gmatch("([^&=]+)=([^&]+)") do
-	elements = elements + 1;
-	if (elements > 256) then
-	    break
-	end
-	v = v:gsub("+", " "):gsub("%%(%w%w)", function(s) return char(tonumber(s,16)) end);
-	if (not arguments[k]) then
-		arguments[k] = v;
-	else
-	    if (type(arguments[k]) == "string") then
-	        local tmp = arguments[k];
-		arguments[k] = {tmp};
-	    end
-	    table.insert(arguments[k], v);
-	end
-    end
-    return arguments
+	return parse_arguments(data)
 end
 
 --[[ Parse multipart form data.    ]]

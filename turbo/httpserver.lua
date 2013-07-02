@@ -12,7 +12,7 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.		]]
+limitations under the License.        ]]
  
 
 local tcpserver = require "turbo.tcpserver"
@@ -99,7 +99,7 @@ function httpserver.HTTPConnection:write(chunk, callback)
 end
 
 --[[ Finishes the request.   ]]
-function httpserver.HTTPConnection:finish()	
+function httpserver.HTTPConnection:finish()    
     assert(self._request, "Request closed")
     self._request_finished = true
     if not self.stream:writing() then
@@ -198,13 +198,11 @@ end
 function httpserver.HTTPConnection:_on_request_body(data)
     self._request.body = data
     local content_type = self._request.headers:get("Content-Type")
-    
+
     if content_type then
         if content_type:find("x-www-form-urlencoded", 1, true) then
-            local arguments = httputil._parse_post_arguments(self._request.body)
-            if #arguments > 0 then
-                self._request.arguments = arguments
-            end
+            local arguments = httputil.parse_post_arguments(self._request.body)
+            self._request.arguments = arguments
         elseif content_type:find("multipart/form-data", 1, true) then
             self.arguments = httputil.parse_multipart_data(self._request.body) or {}
         end
@@ -253,7 +251,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     self.method = method
     self.uri = uri
     self.version = args.version or version
-    self.headers = headers or httputil.HTTPHeaders:new()	
+    self.headers = headers or httputil.HTTPHeaders:new()    
     self.body = body or ""
 
     if connection and connection.xheaders then
@@ -289,7 +287,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
 end
 
 
---[[  Returns true if requester supports HTTP 1.1.  	]]
+--[[  Returns true if requester supports HTTP 1.1.      ]]
 function httpserver.HTTPRequest:supports_http_1_1()
     return self.version == "HTTP/1.1"
 end
