@@ -120,8 +120,8 @@ local function _run_handler_error_handler(err)
     log.stacktrace(debug.traceback())
 end
 
-local function _run_handler_protected(func, arg, fd, events)
-    func(arg, fd, events)
+local function _run_handler_protected(ioloop_fd_callback, arg, fd, events)
+    ioloop_fd_callback(arg, fd, events)
 end
 
 function ioloop.IOLoop:_run_handler(fd, events)
@@ -269,7 +269,7 @@ function ioloop.IOLoop:clear_interval(ref)
     end
 end
 
-function ioloop.IOLoop:start()    
+function ioloop.IOLoop:start()
     self._running = true
     while true do
         local poll_timeout = 3600        
@@ -296,10 +296,6 @@ function ioloop.IOLoop:start()
                 poll_timeout = 0
             end
         end
-        if #self._callbacks > 0 then
-            -- Callback has been scheduled for next iteration. Drop timeout.
-            poll_timeout = 0
-        end
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
             for i = 1, timeout_sz do
@@ -315,10 +311,6 @@ function ioloop.IOLoop:start()
                     end
                 end
 	    end
-            if #self._callbacks > 0 then
-                -- Callback has been scheduled for next iteration. Drop timeout.
-                poll_timeout = 0
-            end
         end
         local intervals_sz = #self._intervals
         if (intervals_sz ~= 0) then
@@ -343,15 +335,15 @@ function ioloop.IOLoop:start()
                     end
                 end
             end
-            if #self._callbacks > 0 then
-                -- Callback has been scheduled for next iteration. Drop timeout.
-                poll_timeout = 0
-            end
         end
         if self._stopped then 
             self.running = false
             self.stopped = false
             break
+        end
+        if #self._callbacks > 0 then
+            -- Callback has been scheduled for next iteration. Drop timeout.
+            poll_timeout = 0
         end
         local rc, num, events = self._poll:poll(poll_timeout)
         if rc == 0  then
