@@ -395,17 +395,16 @@ end
 function httputil.HTTPHeaders:get_errno() return self.errno end
 
 
+local nw = ffi.new("struct turbo_parser_wrapper") 
 function httputil.HTTPHeaders:parse_response_header(raw_headers)
-    local nw = ffi.new("struct turbo_parser_wrapper")
     local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 1)
-    ffi.gc(nw, libturbo_parser.turbo_parser_wrapper_exit)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
-        local errno_name = libturbo_parser.http_errno_name(self.errno)
-        local errno_desc = libturbo_parser.http_errno_description(self.errno)
-        libturbo_parser.turbo_parser_wrapper_exit(nw)
-        return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
+        local errno_name = ffi.string(libturbo_parser.http_errno_name(self.errno))
+        local errno_desc = ffi.string(libturbo_parser.http_errno_description(self.errno))
+	libturbo_parser.turbo_parser_wrapper_exit(nw)
+        return -1, self.errno, errno_name, errno_desc
     end
     
     local major_version = nw.parser.http_major
@@ -418,22 +417,20 @@ function httputil.HTTPHeaders:parse_response_header(raw_headers)
         local value = ffi.string(nw.header_key_values[i].value)
         self:set(key, value)
     end
-    
+    libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz
 end
 
-local nw = ffi.new("struct turbo_parser_wrapper")
 function httputil.HTTPHeaders:parse_request_header(raw_headers)
-    
     local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 0)
     
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
-        local errno_name = libturbo_parser.http_errno_name(self.errno)
-        local errno_desc = libturbo_parser.http_errno_description(self.errno)
-        return -1, self.errno, ffi.string(errno_name), ffi.string(errno_desc)
+        local errno_name = ffi.string(libturbo_parser.http_errno_name(self.errno))
+        local errno_desc = ffi.string(libturbo_parser.http_errno_description(self.errno))
+	libturbo_parser.turbo_parser_wrapper_exit(nw)
+        return -1, self.errno, errno_name, errno_desc
     end
-    
     if (sz > 0) then      
         local major_version = nw.parser.http_major
         local minor_version = nw.parser.http_minor
@@ -452,7 +449,6 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
             self:set(key, value)
         end        
     end
-    
     libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz;
 end
