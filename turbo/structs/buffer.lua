@@ -88,6 +88,10 @@ function Buffer:append_right(data, len)
     end
 end
 
+--- Append Lua string to right side of buffer.
+-- @param str Lua string
+function Buffer:append_luastr_right(str) Buffer:append_right(str, str:len()) end
+
 --- Prepend data to buffer.
 -- @param data The data to prepend in char * form.
 -- @param len The length of the data in bytes.
@@ -116,6 +120,10 @@ function Buffer:append_left(data, len)
 	self.tbuffer.sz = new_sz
     end
 end
+
+--- Append Lua string to left side of buffer.
+-- @param str Lua string
+function Buffer:append_luastr_left(str) Buffer:append_left(str, str:len()) end
 
 --- Pop bytes from left side of buffer. If sz exceeds size of buffer then a
 -- error is raised. Note: does not release memory allocated.
