@@ -352,7 +352,7 @@ function ioloop.IOLoop:start()
                 self:_run_handler(events[i].data.fd, events[i].events)
             end
         elseif (rc == -1) then
-            log.notice(string.format("[ioloop.lua] poll() returned errno %d", errno))
+            log.notice(string.format("[ioloop.lua] poll() returned errno %d", ffi.errno()))
         end
     end
 end
