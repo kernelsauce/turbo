@@ -1,6 +1,8 @@
 CC?=gcc
 AR?=ar
 
+PREFIX?=/usr/local/lib
+
 CPPFLAGS += -I.
 CPPFLAGS_DEBUG = $(CPPFLAGS) -DHTTP_PARSER_STRICT=1
 CPPFLAGS_DEBUG += $(CPPFLAGS_DEBUG_EXTRA)
@@ -58,7 +60,7 @@ library_turbo: libturbo_parser.o
 	$(CC) -shared -o libturbo_parser.so libturbo_parser.o http_parser.o
 	
 install: library_turbo
-	sudo install libturbo_parser.so /usr/lib/libturbo_parser.so
+	sudo install libturbo_parser.so $(PREFIX)/lib/libturbo_parser.so
 
 package: http_parser.o
 	$(AR) rcs libhttp_parser.a http_parser.o
