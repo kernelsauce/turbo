@@ -1,8 +1,8 @@
 .. _apiref:
 
-**************************
-Turbo Web API Reference
-**************************
+***********************
+Turbo.lua API Reference
+***********************
 
 .. highlight:: lua
 

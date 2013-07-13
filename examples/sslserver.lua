@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.     ]]
 
 
+TURBO_SSL = true
 local turbo = require "turbo"
 
 local SSL_Handler = class("SSL_Handler", turbo.web.RequestHandler)
