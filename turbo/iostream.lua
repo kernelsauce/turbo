@@ -199,8 +199,7 @@ end
 -- read_until should be used instead of read_until_pattern wherever possible 
 -- because of the overhead of doing pattern matching.
 -- @param delimiter (String) Delimiter sequence, text or binary.
--- @param callback (Function) Optional callback. If no callback is given, 
--- recieved data is simpy discared.
+-- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
 function iostream.IOStream:read_until(delimiter, callback, arg)
@@ -216,8 +215,7 @@ end
 -- doing plain text matching then using read_until is recommended for
 -- less overhead.
 -- @param pattern (String) Lua pattern string.
--- @param callback (Function) Optional callback. If no callback is given, 
--- recieved data is simpy discared.
+-- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
 function iostream.IOStream:read_until_pattern(pattern, callback, arg)
@@ -233,8 +231,7 @@ end
 -- of data as they become available, and the argument to the final call to 
 -- callback will be empty.
 -- @param num_bytes (Number) The amount of bytes to read.
--- @param callback (Function) Optional callback. If no callback is given, 
--- recieved data is simpy discared.
+-- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
 -- @param streaming_callback (Funcion) Optional callback to be called as 
@@ -261,8 +258,7 @@ end
 -- data as they become available, and the argument to the final call to 
 -- callback will be empty. This method respects the max_buffer_size set in the
 -- IOStream instance.
--- @param callback (Function) Optional callback. If no callback is given, 
--- recieved data is simpy discared.
+-- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
 -- @param streaming_callback (Funcion) Optional callback to be called as 
@@ -310,7 +306,9 @@ end
 
 --- Are the stream currently being read from? 
 -- @return (Boolean) true or false
-function iostream.IOStream:reading() return self._read_callback and true or false end
+function iostream.IOStream:reading() 
+    return self._read_callback and true or false 
+end
 
 --- Are the stream currently being written too.
 -- @return (Boolean) true or false
@@ -833,7 +831,8 @@ function iostream.SSLIOStream:_do_ssl_handshake()
             err = crypto.lib.ERR_peek_error()
             crypto.lib.ERR_clear_error()
             error(string.format(
-                "Could not do SSL handshake. Failed to set socket fd to SSL*. %s", 
+                "Could not do SSL handshake. \
+                    Failed to set socket fd to SSL*. %s", 
                 crypto.ERR_error_string(err)))
         end
         if self._ssl_options._type == 1 then
@@ -846,58 +845,59 @@ function iostream.SSLIOStream:_do_ssl_handshake()
     rc = crypto.lib.SSL_do_handshake(ssl)
     err = crypto.lib.SSL_get_error(ssl, rc)
     if rc ~= 1 then
-    -- In case the socket is O_NONBLOCK break out when we get SSL_ERROR_WANT_* 
-    -- or equal syscall return code.
-    if err == crypto.SSL_ERROR_WANT_READ or 
-        err == crypto.SSL_ERROR_WANT_READ then
-        return
-    elseif err == crypto.SSL_ERROR_SYSCALL then
-        -- Error on socket.
-        errno = ffi.errno()
-        if errno == EWOULDBLOCK or errno == EINPROGRESS then
+        -- In case the socket is O_NONBLOCK break out when we get  
+        -- SSL_ERROR_WANT_* or equal syscall return code.
+        if err == crypto.SSL_ERROR_WANT_READ or 
+            err == crypto.SSL_ERROR_WANT_READ then
             return
-        elseif errno ~= 0 then
-            local fd = self.socket
-            self:close()
-            error(
-                string.format("Error when reading from fd %d. Errno: %d. %s",
-                fd,
-                errno,
-                socket.strerror(errno)))
+        elseif err == crypto.SSL_ERROR_SYSCALL then
+            -- Error on socket.
+            errno = ffi.errno()
+            if errno == EWOULDBLOCK or errno == EINPROGRESS then
+                return
+            elseif errno ~= 0 then
+                local fd = self.socket
+                self:close()
+                error(
+                    string.format("Error when reading from fd %d. \
+                        Errno: %d. %s",
+                    fd,
+                    errno,
+                    socket.strerror(errno)))
+            else
+                -- Popular belief ties this branch to disconnects before  
+                -- handshake is completed.
+                local fd = self.socket
+                self:close()
+                error(string.format(
+                    "Could not do SSL handshake. Client connection closed.",
+                    fd,
+                    errno,
+                    socket.strerror(errno)))
+            end
+        elseif err == crypto.SSL_ERROR_SSL then
+            err = crypto.lib.ERR_peek_error()
+            crypto.lib.ERR_clear_error()
+            error(string.format("Could not do SSL handshake. SSL error. %s", 
+                crypto.ERR_error_string(err)))
         else
-            -- Popular belief ties this branch to disconnects before handshake 
-            -- is completed.
-            local fd = self.socket
-            self:close()
-            error(string.format(
-                "Could not do SSL handshake. Client connection closed.",
-                fd,
-                errno,
-                socket.strerror(errno)))
+            error(
+                string.format(
+                    "Could not do SSL handshake. SSL_do_hanshake returned %d", 
+                    err))
         end
-    elseif err == crypto.SSL_ERROR_SSL then
-        err = crypto.lib.ERR_peek_error()
-        crypto.lib.ERR_clear_error()
-        error(string.format("Could not do SSL handshake. SSL error. %s", 
-            crypto.ERR_error_string(err)))
     else
-        error(
-            string.format(
-                "Could not do SSL handshake. SSL_do_hanshake returned %d", 
-                err))
-    end
-else
-    -- Connection established. Set accepting flag to false and thereby allow 
-    -- writes and reads over the socket.
-    self._ssl_accepting = false
-    if self._ssl_connect_callback then
-        local _ssl_connect_callback = self._ssl_connect_callback
-        local _ssl_connect_callback_arg = self._ssl_connect_callback_arg
-        self._ssl_connect_callback = nil
-        self._ssl_connect_callback_arg = nil
-        _ssl_connect_callback(_ssl_connect_callback_arg)
-    end
-end 
+        -- Connection established. Set accepting flag to false and thereby  
+        -- allow writes and reads over the socket.
+        self._ssl_accepting = false
+        if self._ssl_connect_callback then
+            local _ssl_connect_callback = self._ssl_connect_callback
+            local _ssl_connect_callback_arg = self._ssl_connect_callback_arg
+            self._ssl_connect_callback = nil
+            self._ssl_connect_callback_arg = nil
+            _ssl_connect_callback(_ssl_connect_callback_arg)
+        end
+    end 
 end
 
 function iostream.SSLIOStream:_handle_read()
@@ -935,30 +935,30 @@ end
 
 function iostream.SSLIOStream:_read_from_socket()
     if self._ssl_accepting == true then
-    -- If the handshake has not been completed do not allow
-    -- any reads to be done...
-    return nil
-end
-local errno
-local err
-local sz = crypto.SSL_read(self._ssl, buf, 4096)
-if (sz == -1) then
-    err = crypto.SSL_get_error(self._ssl, sz)
-    if err == crypto.SSL_ERROR_SYSCALL then
-        errno = ffi.errno()
-        if errno == EWOULDBLOCK or errno == EAGAIN then
-            return nil
-        else
-            local fd = self.socket
-            self:close()
-            error(string.format(
-                "Error when reading from socket %d. Errno: %d. %s",
-                fd,
-                errno,
-                socket.strerror(errno)))
-        end
+        -- If the handshake has not been completed do not allow
+        -- any reads to be done...
+        return
+    end
+    local errno
+    local err
+    local sz = crypto.SSL_read(self._ssl, buf, 4096)
+    if (sz == -1) then
+        err = crypto.SSL_get_error(self._ssl, sz)
+        if err == crypto.SSL_ERROR_SYSCALL then
+            errno = ffi.errno()
+            if errno == EWOULDBLOCK or errno == EAGAIN then
+                return
+            else
+                local fd = self.socket
+                self:close()
+                error(string.format(
+                    "Error when reading from socket %d. Errno: %d. %s",
+                    fd,
+                    errno,
+                    socket.strerror(errno)))
+            end
         elseif err == crypto.SSL_ERROR_WANT_READ then
-            return nil
+            return
         else
             local fd = self.socket
             local ssl_err = crypto.ERR_get_error()
@@ -969,45 +969,41 @@ if (sz == -1) then
         end
     end
     local chunk = ffi.string(buf, sz)
-    if not chunk then
-        self:close()
-        return nil
-    end
     if chunk == "" then
         self:close()
-        return nil
+        return
     end
     return chunk
 end
 
 function iostream.SSLIOStream:_handle_write()
     if self._ssl_accepting == true then
-    -- If the handshake has not been completed do not allow
-    -- any writes to be done.
-    return nil
-end
-while self._write_buffer:not_empty() do
-    local errno
-    local err
-    local buf = self._write_buffer:peekfirst()
-    local sz = crypto.SSL_write(self._ssl, buf, buf:len())
-    if (sz == -1) then
-        err = crypto.SSL_get_error(self._ssl, sz)
-        if err == crypto.SSL_ERROR_SYSCALL then
-            errno = ffi.errno()
-            if errno == EWOULDBLOCK or errno == EAGAIN then
-                return nil
-            else
-                local fd = self.socket
-                self:close()
-                error(string.format(
-                    "Error when writing to socket %d. Errno: %d. %s",
-                    fd,
-                    errno,
-                    socket.strerror(errno)))
-            end
+        -- If the handshake has not been completed do not allow any writes to
+        -- be done.
+        return nil
+    end
+    while self._write_buffer:not_empty() do
+        local errno
+        local err
+        local buf = self._write_buffer:peekfirst()
+        local sz = crypto.SSL_write(self._ssl, buf, buf:len())
+        if (sz == -1) then
+            err = crypto.SSL_get_error(self._ssl, sz)
+            if err == crypto.SSL_ERROR_SYSCALL then
+                errno = ffi.errno()
+                if errno == EWOULDBLOCK or errno == EAGAIN then
+                    return
+                else
+                    local fd = self.socket
+                    self:close()
+                    error(string.format(
+                        "Error when writing to socket %d. Errno: %d. %s",
+                        fd,
+                        errno,
+                        socket.strerror(errno)))
+                end
             elseif err == crypto.SSL_ERROR_WANT_WRITE then
-                return nil
+                return
             else
                 local fd = self.socket
                 local ssl_err = crypto.ERR_get_error()
@@ -1025,7 +1021,6 @@ while self._write_buffer:not_empty() do
         _merge_prefix(self._write_buffer, sz)
         self._write_buffer:popleft()
     end
-
     if self._write_buffer:not_empty() == false and self._write_callback then
         local callback = self._write_callback
         local arg = self._write_callback_arg
