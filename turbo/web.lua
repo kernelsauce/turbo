@@ -558,6 +558,11 @@ function web.Application:get_server_name() return self.application_name end
 -- @param address (String) The address to bind to in unsigned integer hostlong
 -- format. 0 = all addresses available.
 function web.Application:listen(port, address, kwargs)
+    -- Key word arguments supported:
+    -- ** SSL Options **
+    -- To enable SSL remember to set the _G.TURBO_SSL global.
+    -- "key_file" = SSL key file if a SSL enabled server is wanted.
+    -- "cert_file" = Certificate file. key_file must also be set.
     local server = httpserver.HTTPServer:new(self, nil, nil, nil, kwargs)
     server:listen(port, address)
 end
