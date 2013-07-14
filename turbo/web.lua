@@ -330,6 +330,9 @@ web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:initialize(app, request, args, options)
     web.RequestHandler:initialize(app, request, args)	
     self.path = options
+    if self.path:sub(self.path:len()) ~= "/" then
+        self.path = self.path .. "/"
+    end
 end
 
 
