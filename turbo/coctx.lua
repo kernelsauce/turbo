@@ -1,4 +1,6 @@
--- Turbo Coroutine Context module
+--- Turbo.lua Coroutine Context module
+-- Tools to handle yielding of RequestHandlers and asynchronous requests.
+-- Simple, yet effective.
 --
 -- Copyright 2011, 2012, 2013 John Abrahamsen
 --

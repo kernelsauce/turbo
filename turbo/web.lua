@@ -555,7 +555,7 @@ function web.Application:get_server_name() return self.application_name end
 -- instance to its request_callback parameter and calling its listen() 
 -- method.
 -- @param port (Number) The port number to bind to.
--- @param address (String) The address to bind to in unsigned integer hostlong
+-- @param address (Number) The address to bind to in unsigned integer hostlong
 -- format. 0 = all addresses available.
 function web.Application:listen(port, address, kwargs)
     -- Key word arguments supported:

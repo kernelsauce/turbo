@@ -36,18 +36,19 @@ local sockutils = {} -- sockutils namespace
 --[[ Binds sockets to port and address.
 If not address is defined then * will be used.
 If no backlog size is given then 128 connections will be used.      ]]
-function sockutils.bind_sockets(port, address, backlog)
-    local backlog = backlog or 128
-    local address = address or INADDRY_ANY
+function sockutils.bind_sockets(port, address, backlog, family)
     local serv_addr = ffi.new("struct sockaddr_in") 
     local errno
     local rc, msg
-    
-    serv_addr.sin_family = AF_INET;
+
+    address = address or INADDRY_ANY
+    backlog = backlog or 128
+    family = family or AF_INET
+    serv_addr.sin_family = family;
     serv_addr.sin_addr.s_addr = socket.htonl(address);
     serv_addr.sin_port = socket.htons(port);
     
-    local fd = socket.socket(AF_INET, SOCK_STREAM, 0)
+    local fd = socket.socket(family, SOCK_STREAM, 0)
     if fd == -1 then
 	errno = ffi.errno()
 	error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", errno, socket.strerror(errno)))		

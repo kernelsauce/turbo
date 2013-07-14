@@ -1,4 +1,4 @@
---- Turbo.lua IOStream module.
+--- Turbo.lua IO Stream module.
 -- High-level wrappers for asynchronous socket communication.
 -- All API's are callback based and depend on the __Turbo IOLoop module__.
 --

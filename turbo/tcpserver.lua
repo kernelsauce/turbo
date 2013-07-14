@@ -1,4 +1,4 @@
--- Turbo.lua TCP Server module
+--- Turbo.lua TCP Server module
 -- A simple non-blocking extensible TCP Server based on the IOStream class.
 -- Includes SSL support. Used as base for the Turbo HTTP Server.
 --
