@@ -361,12 +361,12 @@ function web.StaticFileHandler:get(path)
             error(web.HTTPError(404))
     end
 
-    local filename = self._url_args[1]
+    local filename = escape.unescape(self._url_args[1])
     if filename:match("%.%.") then -- Prevent dir traversing.
             error(web.HTTPError(401))
     end
 
-    local full_path = string.format("%s%s", self.path, escape.unescape(filename))
+    local full_path = string.format("%s%s", self.path, filename)
     local rc, buf = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
         local rc, mime_type = self:get_mime()
