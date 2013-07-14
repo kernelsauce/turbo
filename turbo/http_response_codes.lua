@@ -1,4 +1,4 @@
--- Turbo.lua HTTP Response code list.
+--- Turbo.lua HTTP Response code list.
 --
 -- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 --

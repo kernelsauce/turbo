@@ -1,4 +1,4 @@
--- Turbo.lua Escape module
+--- Turbo.lua Escape module
 --
 -- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
 --
@@ -21,39 +21,47 @@
 -- SOFTWARE."		
 
 local json = require('turbo.3rdparty.JSON')
+
 local escape = {} -- escape namespace
 
-
 --- JSON stringify a table.
+-- @param lua_table_or_value Value to JSON encode.
+-- @note May raise a error if table could not be decoded.
 function escape.json_encode(lua_table_or_value) 
 	return json:encode(lua_table_or_value) 
 end
 
 --- Decode a JSON string to table.
+-- @param json_string_literal (String) JSON enoded string to decode into
+-- Lua primitives.
+-- @return (Table)
 function escape.json_decode(json_string_literal) 
 	return json:decode(json_string_literal) 
 end
 
+local function _unhex(hex) return string.char(tonumber(hex, 16)) end
 --- Unescape a escaped hexadecimal representation string.
+-- @param s (String) String to unescape.
 function escape.unescape(s)
-    return string.gsub(s, "%%(%x%x)", function(hex) return string.char(tonumber(hex, 16)) end)
+    return string.gsub(s, "%%(%x%x)", _unhex)
 end
 
+local function _hex(c)
+    return string.format("%%%02x", string.byte(c))
+end
 --- Encodes a string into its escaped hexadecimal representation.
+-- @param s (String) String to escape.
 function escape.escape(s)
-    return string.gsub(s, "([^A-Za-z0-9_])", function(c)
-        return string.format("%%%02x", string.byte(c))
-    end)
+    return string.gsub(s, "([^A-Za-z0-9_])", hex)
 end
 
 local function make_set(t)
 	local s = {}
-	for i,v in ipairs(t) do
+	for i, v in ipairs(t) do
 		s[t[i]] = 1
 	end
 	return s
 end
-
 --- These are allowed withing a path segment, along with alphanum
 -- other characters must be escaped.
 function escape.protect_segment(s)

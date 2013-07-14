@@ -22,7 +22,7 @@ SOFTWARE."			]]
 
 local ffi = require "ffi"
 
---[[ Extends the string library with a split method.   ]]
+--- Extends the standard string library with a split method.
 function string:split(sep, max, pattern)	
 	assert(sep ~= '')
 	assert(max == nil or max >= 1)

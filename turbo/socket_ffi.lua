@@ -24,80 +24,76 @@ local log =     require "turbo.log"
 local util =    require "turbo.util"
 local ffi =     require "ffi"
 
+ffi.cdef([[
 
-if not _G.SOCKET_H then
-    _G.SOCKET_H = 1
-    ffi.cdef([[
+struct sockaddr {
+    unsigned short    sa_family;    // address family, AF.AF_xxx
+    char              sa_data[14];  // 14 bytes of protocol address
+};
 
-    struct sockaddr {
-        unsigned short    sa_family;    // address family, AF.AF_xxx
-        char              sa_data[14];  // 14 bytes of protocol address
-    };
-    
-    struct in_addr {
-        unsigned long s_addr;          // load with inet_pton()
-    };
-    
-    struct in6_addr {
-        unsigned char   s6_addr[16];   // load with inet_pton()
-    };
-    
-    // IPv4 AF.AF_INET sockets:
-    
-    struct sockaddr_in {
-        short            sin_family;   // e.g. AF.AF_INET, AF.AF_INET6
-        unsigned short   sin_port;     // e.g. htons(3490)
-        struct in_addr   sin_addr;     // see struct in_addr, below
-        char             sin_zero[8];  // zero this if you want to
-    } __attribute__ ((__packed__));   
-    
-    // IPv6 AF.AF_INET6 sockets:
-    
-    struct sockaddr_in6 {
-        uint16_t       sin6_family;   // address family, AF.AF_INET6
-        uint16_t       sin6_port;     // port number, Network Byte Order
-        uint32_t       sin6_flowinfo; // IPv6 flow information
-        struct in6_addr sin6_addr;     // IPv6 address
-        uint32_t       sin6_scope_id; // Scope ID
-    };
+struct in_addr {
+    unsigned long s_addr;          // load with inet_pton()
+};
 
-    typedef int32_t socklen_t;
-                 
-    extern char *strerror(int errnum);
-    extern int32_t socket (int32_t domain, int32_t type, int32_t protocol);
-    extern int32_t bind (int32_t fd, const struct sockaddr * addr, socklen_t len);
-    extern int32_t listen (int32_t fd, int32_t backlog);
-    extern int32_t dup(int32_t oldfd);
-    extern int32_t close (int fd);
-    extern int32_t connect (int32_t fd, const struct sockaddr * addr, socklen_t len);
-    extern int32_t setsockopt (int32_t fd, int32_t level, int32_t optname, const void *optval, socklen_t optlen);
-    extern int32_t getsockopt (int32_t fd, int32_t level, int32_t optname, void * optval, socklen_t * optlen);
-    extern int32_t accept (int32_t fd, struct sockaddr * addr, socklen_t * addr_len);
-    extern uint32_t ntohl (uint32_t netlong);
-    extern uint32_t htonl (uint32_t hostlong);
-    extern uint16_t ntohs (uint16_t netshort);
-    extern uint16_t htons (uint16_t hostshort);
-    extern int32_t inet_pton (int32_t af, const char *cp, void *buf);
-    extern const char *inet_ntop (int32_t af, const void *cp, char *buf, socklen_t len);
-    extern char *inet_ntoa (struct in_addr in);
-    extern int32_t fcntl (int32_t fd, int32_t cmd, int32_t opt); /* Notice the non canonical form, int32_t instead of ...     */
-    ]])
-    
-    if ffi.abi("32bit") then
-	ffi.cdef [[
-	    extern int32_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
-	    extern int32_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
-	    extern int32_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
-	    extern int32_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);
-	]]
-    elseif ffi.abi("64bit") then
-	ffi.cdef [[
-	    extern int64_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
-	    extern int64_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
-	    extern int64_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
-	    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);	    
-	]]
-    end
+struct in6_addr {
+    unsigned char   s6_addr[16];   // load with inet_pton()
+};
+
+// IPv4 AF.AF_INET sockets:
+
+struct sockaddr_in {
+    short            sin_family;   // e.g. AF.AF_INET, AF.AF_INET6
+    unsigned short   sin_port;     // e.g. htons(3490)
+    struct in_addr   sin_addr;     // see struct in_addr, below
+    char             sin_zero[8];  // zero this if you want to
+} __attribute__ ((__packed__));   
+
+// IPv6 AF.AF_INET6 sockets:
+
+struct sockaddr_in6 {
+    uint16_t       sin6_family;   // address family, AF.AF_INET6
+    uint16_t       sin6_port;     // port number, Network Byte Order
+    uint32_t       sin6_flowinfo; // IPv6 flow information
+    struct in6_addr sin6_addr;     // IPv6 address
+    uint32_t       sin6_scope_id; // Scope ID
+};
+
+typedef int32_t socklen_t;
+             
+extern char *strerror(int errnum);
+extern int32_t socket (int32_t domain, int32_t type, int32_t protocol);
+extern int32_t bind (int32_t fd, const struct sockaddr * addr, socklen_t len);
+extern int32_t listen (int32_t fd, int32_t backlog);
+extern int32_t dup(int32_t oldfd);
+extern int32_t close (int fd);
+extern int32_t connect (int32_t fd, const struct sockaddr * addr, socklen_t len);
+extern int32_t setsockopt (int32_t fd, int32_t level, int32_t optname, const void *optval, socklen_t optlen);
+extern int32_t getsockopt (int32_t fd, int32_t level, int32_t optname, void * optval, socklen_t * optlen);
+extern int32_t accept (int32_t fd, struct sockaddr * addr, socklen_t * addr_len);
+extern uint32_t ntohl (uint32_t netlong);
+extern uint32_t htonl (uint32_t hostlong);
+extern uint16_t ntohs (uint16_t netshort);
+extern uint16_t htons (uint16_t hostshort);
+extern int32_t inet_pton (int32_t af, const char *cp, void *buf);
+extern const char *inet_ntop (int32_t af, const void *cp, char *buf, socklen_t len);
+extern char *inet_ntoa (struct in_addr in);
+extern int32_t fcntl (int32_t fd, int32_t cmd, int32_t opt); /* Notice the non canonical form, int32_t instead of ...     */
+]])
+
+if ffi.abi("32bit") then
+ffi.cdef [[
+    extern int32_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
+    extern int32_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
+    extern int32_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
+    extern int32_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);
+]]
+elseif ffi.abi("64bit") then
+ffi.cdef [[
+    extern int64_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
+    extern int64_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
+    extern int64_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
+    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);	    
+]]
 end
 
 local octal = function (s) return tonumber(s, 8) end
