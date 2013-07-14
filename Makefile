@@ -18,6 +18,6 @@ install:
 	mkdir -p $(LUAJIT_MODULEDIR)/turbo
 	cp -R turbo/* $(LUA_MODULEDIR)/turbo
 	cp turbo.lua $(LUA_MODULEDIR)
-	cp -R turbo/* $(LUAJIT_MODULEDIR)
+	cp -R turbo/* $(LUAJIT_MODULEDIR)/turbo
 	cp turbo.lua $(LUAJIT_MODULEDIR)
 	make -C 3rdparty/http-parser install PREFIX=$(PREFIX)
