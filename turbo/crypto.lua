@@ -19,78 +19,7 @@ local ffi = require "ffi"
 
 local crypto = {} -- crypto namespace
 local lssl = ffi.load("ssl")
-
--- Note: Typedef structs to void as we never access their members and they are
--- massive in ifdef's etc and are best left as blackboxes! 
-ffi.cdef [[
-typedef void SSL_METHOD;
-typedef void SSL_CTX;
-typedef void SSL;
-
-const SSL_METHOD *SSLv3_server_method(void);  /* SSLv3 */
-const SSL_METHOD *SSLv3_client_method(void);  /* SSLv3 */
-const SSL_METHOD *SSLv23_method(void);		  /* SSLv3 but can rollback to v2 */
-const SSL_METHOD *SSLv23_server_method(void); /* SSLv3 but can rollback to v2 */
-const SSL_METHOD *SSLv23_client_method(void); /* SSLv3 but can rollback to v2 */
-const SSL_METHOD *TLSv1_method(void);		  /* TLSv1.0 */
-const SSL_METHOD *TLSv1_server_method(void);  /* TLSv1.0 */
-const SSL_METHOD *TLSv1_client_method(void);  /* TLSv1.0 */
-const SSL_METHOD *TLSv1_1_method(void);		  /* TLSv1.1 */
-const SSL_METHOD *TLSv1_1_server_method(void);/* TLSv1.1 */
-const SSL_METHOD *TLSv1_1_client_method(void);/* TLSv1.1 */    
-const SSL_METHOD *TLSv1_2_method(void);		  /* TLSv1.2 */
-const SSL_METHOD *TLSv1_2_server_method(void);/* TLSv1.2 */
-const SSL_METHOD *TLSv1_2_client_method(void);/* TLSv1.2 */
-
-/* From openssl/ssl.h */
-void OPENSSL_add_all_algorithms_noconf(void);
-void SSL_load_error_strings(void);
-void ERR_free_strings(void);
-int SSL_library_init(void);
-void EVP_cleanup(void);
-SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth);
-void SSL_CTX_free(SSL_CTX *);
-int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
-int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type);
-int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, 
-	const char *CApath);
-int SSL_CTX_check_private_key(const SSL_CTX *ctx);
-
-SSL *SSL_new(SSL_CTX *ctx);
-void SSL_set_connect_state(SSL *s);
-void SSL_set_accept_state(SSL *s);
-int SSL_do_handshake(SSL *s);
-int SSL_set_fd(SSL *s, int fd);
-int SSL_accept(SSL *ssl);
-void SSL_free(SSL *ssl);
-int SSL_accept(SSL *ssl);
-int SSL_connect(SSL *ssl);
-int SSL_read(SSL *ssl,void *buf,int num);
-int SSL_peek(SSL *ssl,void *buf,int num);
-int SSL_write(SSL *ssl,const void *buf,int num);
-void SSL_set_verify(SSL *s, int mode,int (*callback)(int ok,void *ctx));
-int SSL_set_cipher_list(SSL *s, const char *str);
-int SSL_get_error(const SSL *s, int ret_code);
-void SSL_CTX_set_verify_depth(SSL_CTX *ctx, int depth);
-void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, void *);
-
-/* From openssl/err.h  */
-unsigned long ERR_get_error(void);
-unsigned long ERR_peek_error(void);
-unsigned long ERR_peek_error_line(const char **file,int *line);
-unsigned long ERR_peek_error_line_data(const char **file,int *line,
-				       const char **data,int *flags);
-unsigned long ERR_peek_last_error(void);
-unsigned long ERR_peek_last_error_line(const char **file,int *line);
-unsigned long ERR_peek_last_error_line_data(const char **file,int *line,
-				       const char **data,int *flags);
-void ERR_clear_error(void );
-char *ERR_error_string(unsigned long e,char *buf);
-void ERR_error_string_n(unsigned long e, char *buf, size_t len);
-const char *ERR_lib_error_string(unsigned long e);
-const char *ERR_func_error_string(unsigned long e);
-const char *ERR_reason_error_string(unsigned long e);
-]]
+require "turbo.cdef"
 
 crypto.X509_FILETYPE_PEM =			1
 crypto.X509_FILETYPE_ASN1 = 		2

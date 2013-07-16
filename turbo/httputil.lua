@@ -34,114 +34,13 @@ local escape = 		require "turbo.escape"
 local util = 		require "turbo.util"
 local ffi = 		require "ffi"
 local libturbo_parser = ffi.load "libturbo_parser"
+require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
 local fast_assert = util.fast_assert
 local b = string.byte
 
 local httputil = {} -- httputil namespace
-
-if not _G.HTTP_PARSER_H then
-    _G.HTTP_PARSER_H = 1
-    ffi.cdef[[
-    
-    enum http_parser_url_fields
-    { UF_SCHEMA           = 0
-    , UF_HOST             = 1
-    , UF_PORT             = 2
-    , UF_PATH             = 3
-    , UF_QUERY            = 4
-    , UF_FRAGMENT         = 5
-    , UF_USERINFO         = 6
-    , UF_MAX              = 7
-    };
-    
-    struct http_parser {
-    /** PRIVATE **/
-    unsigned char type : 2;     /* enum http_parser_type */
-    unsigned char flags : 6;    /* F_* values from 'flags' enum; semi-public */
-    unsigned char state;        /* enum state from http_parser.c */
-    unsigned char header_state; /* enum header_state from http_parser.c */
-    unsigned char index;        /* index into current matcher */
-  
-    uint32_t nread;          /* # bytes read in various scenarios */
-    uint64_t content_length; /* # bytes in body (0 if no Content-Length header) */
-  
-    /** READ-ONLY **/
-    unsigned short http_major;
-    unsigned short http_minor;
-    unsigned short status_code; /* responses only */
-    unsigned char method;       /* requests only */
-    unsigned char http_errno : 7;
-    
-    /* 1 = Upgrade header was present and the parser has exited because of that.
-     * 0 = No upgrade header present.
-     * Should be checked when http_parser_execute() returns in addition to
-     * error checking.
-     */
-    unsigned char upgrade : 1;
-  
-    /** PUBLIC **/
-    void *data; /* A pointer to get hook to the "connection" or "socket" object */
-    };
-      
-    struct http_parser_url {
-      uint16_t field_set;           /* Bitmask of (1 << UF_*) values */
-      uint16_t port;                /* Converted UF_PORT string */
-    
-      struct {
-        uint16_t off;               /* Offset into buffer in which field starts */
-        uint16_t len;               /* Length of run in buffer */
-      } field_data[7];
-    };
-    
-    struct turbo_key_value_field{
-        char *key; ///< Header key.
-        char *value; ///< Value corresponding to key.
-    };
-    
-    /** Used internally  */
-    enum header_state{
-        NOTHING,
-        FIELD,
-        VALUE
-    };
-    
-    /** Wrapper struct for http_parser.c to avoid using callback approach.   */
-    struct turbo_parser_wrapper{
-        struct http_parser parser;
-        int32_t http_parsed_with_rc;
-        struct http_parser_url url;
-    
-        bool finished; ///< Set on headers completely parsed, should always be true.
-        char *url_str;
-        char *body;
-        const char *data; ///< Used internally.
-    
-        bool headers_complete;
-        enum header_state header_state; ///< Used internally.
-        int32_t header_key_values_sz; ///< Size of key values in header that is in header_key_values member.
-        struct turbo_key_value_field **header_key_values;
-    
-    };
-    
-    extern size_t turbo_parser_wrapper_init(struct turbo_parser_wrapper *dest, const char* data, size_t len, int32_t type);
-    /** Free memory and memset 0 if PARANOID is defined.   */
-    extern void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
-    
-    int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
-    /** Check if a given field is set in http_parser_url  */
-    extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
-    extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
-    /* Return a string name of the given error */
-    const char *http_errno_name(int32_t err);
-    /* Return a string description of the given error */
-    const char *http_errno_description(int32_t err);
-    
-    void free(void* ptr);
-    ]]
-end
-
 
 local method_map = {
     [0] = "DELETE",
@@ -420,7 +319,7 @@ end
 function httputil.HTTPHeaders:add(key, value)
     if type(key) ~= "string" then
 	   error([[method add key parameter must be a string.]])
-    elseif not type(value) == "string" or type(value) == "number" then
+    elseif not (type(value) == "string" or type(value) == "number") then
 	   error([[method add value parameters must be a string or number.]])
     elseif self._header_table[key] then
 	   error([[trying to add a value to a existing key]])
@@ -435,7 +334,7 @@ end
 function httputil.HTTPHeaders:set(key, value)	
     if type(key) ~= "string" then
 	   error([[method add key parameter must be a string.]])
-    elseif not type(value) ~= "string" or type(value) ~= "number" then
+    elseif not (type(value) == "string" or type(value) == "number") then
 	   error([[method add value parameters must be a string or number.]])
     end
     self._header_table[key]	= value

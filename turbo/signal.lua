@@ -21,21 +21,14 @@
 -- SOFTWARE."           
 
 local ffi = require "ffi"
+require "turbo.cdef"
 
-ffi.cdef([[
-typedef void (*sighandler_t) (int32_t);
-extern sighandler_t signal (int32_t signum, sighandler_t handler);
-]])
-
-return {
-    
+return {    
     signal = ffi.C.signal
-    
     -- Fake signal functions.
     , SIG_ERR =	ffi.cast("sighandler_t", -1)	--[[ Error return.  ]]
     , SIG_DFL =	ffi.cast("sighandler_t", 0)	--[[ Default action.  ]]
     , SIG_IGN =	ffi.cast("sighandler_t", 1)	--[[ Ignore signal.  ]]   
-    
     -- Signals.
     ,	SIGHUP	=	1	--[[ Hangup (POSIX).  ]]
     ,	SIGINT	=	2	--[[ Interrupt (ANSI).  ]]
@@ -72,6 +65,5 @@ return {
     ,	SIGPWR =	30	--[[ Power failure restart (System V).  ]]
     ,   SIGSYS =	31	--[[ Bad system call.  ]]
     ,   SIGUNUSED =	31
-    
     ,	_NSIG	=	65	--[[ Biggest signal number + 1 (including real-time signals).  ]]
 }

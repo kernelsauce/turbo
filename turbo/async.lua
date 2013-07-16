@@ -80,10 +80,6 @@ local async = {} -- async namespace
 -- is handled inside the IOLoop, however using the class standalone it would 
 -- be required that you use IOLoop:add_callback to place a function on the 
 -- IOLoop and yield from within that function.
-
-if res.error then
-    error(turbo.web.HTTPError:new(500, res.error.message))
-end
 async.HTTPClient = class("HTTPClient")
 
 

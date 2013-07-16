@@ -21,40 +21,7 @@
 -- SOFTWARE."
 
 local ffi = require "ffi"
-
-ffi.cdef[[
-typedef union epoll_data {
-	void        *ptr;
-	int          fd;
-	uint32_t     u32;
-	uint64_t     u64;
-} epoll_data_t;
-]]
-if (ffi.abi("32bit")) then 
--- struct epoll_event is declared packed on 64 bit, 
---but not on 32 bit.
-ffi.cdef[[
-struct epoll_event {
-	uint32_t     events;      /* Epoll events */
-	epoll_data_t data;        /* User data variable */
-};
-]]
-else
-ffi.cdef[[	
-struct epoll_event {
-	uint32_t     events;      /* Epoll events */
-	epoll_data_t data;        /* User data variable */
-} __attribute__ ((__packed__));
-]]
-end
-ffi.cdef[[
-typedef struct epoll_event epoll_event;
-
-int epoll_create(int size);
-int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
-int epoll_wait(int epfd, struct epoll_event *events, int maxevents, 
-	int timeout);
-]]
+require "turbo.cdef"
 
 -- Defines for epoll_ctl.
 local epoll = {

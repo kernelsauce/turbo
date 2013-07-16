@@ -14,28 +14,21 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.	
 
+require "turbo.cdef"
 require 'turbo.3rdparty.middleclass'
 local ffi = require "ffi"
 
-if not _G._BUFFER_H then
-    _G._BUFFER_H = 1
-    ffi.cdef([[
-	void *malloc(size_t sz);
-	void *realloc (void* ptr, size_t size);
-	void free(void *ptr);
-	int sprintf(char * str, const char * format, ...);
-	int printf(const char *format, ...);
-	void *memmove(void * destination, const void * source, size_t num);
-	int memcmp(const void * ptr1, const void * ptr2, size_t num);
-	int snprintf(char *s, size_t n, const char *format, ...);
-	     
+ffi.cdef([[
 	struct tbuffer{
 	    char *data;
 	    size_t mem;
 	    size_t sz;
 	};
-	
-    ]])
+]])
+
+if not _G._BUFFER_H then
+    _G._BUFFER_H = 1
+
 end
 
 --- Low-level Buffer class.

@@ -122,7 +122,7 @@ function httpserver.HTTPConnection:finish()
 end
 
 local function _on_headers_error_handler(err)
-    log.error(string.format("[httpserver.lua] %s", msg))
+    log.error(string.format("[httpserver.lua] %s", err))
 end
 
 --- Handles incoming headers. The HTTPHeaders class is used to parse
