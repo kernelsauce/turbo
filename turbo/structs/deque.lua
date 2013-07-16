@@ -30,9 +30,9 @@ local deque = class('Deque')
 _G.deque_no = 0
 
 function deque:initialize()
-        self.head = nil
-        self.tail = nil
-        self.sz = 0
+    self.head = nil
+    self.tail = nil
+    self.sz = 0
 end
 
 --[[ Append elements to tail.  ]]

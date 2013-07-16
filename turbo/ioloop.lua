@@ -1,4 +1,4 @@
---- Turbo.lua IOLoop module
+--- Turbo.lua I/O Loop module
 -- Single threaded I/O event loop implementation. The module handles socket 
 -- events and timeouts and scheduled intervals with millisecond precision.
 --
@@ -147,43 +147,6 @@ function ioloop.IOLoop:remove_handler(fd)
     end
     self._handlers[fd] = nil
     return true
-end
-
---- Error handler for IOLoop:_run_handler.
-local function _run_handler_error_handler(err)
-    log.debug("[ioloop.lua] Uncaught error in handler. " .. err)
-    log.stacktrace(debug.traceback())
-end
-
---- Run callbacks protected with error handlers. Because errors can always
--- happen! If a handler errors, the handler is removed from the IOLoop, and
--- never called again.
-function ioloop.IOLoop:_run_handler(fd, events)
-    local ok
-    local handler = self._handlers[fd]
-    -- handler[1] = function.
-    -- handler[2] = optional first argument for function.
-    -- If there is no optional argument, do not add it as parameter to the
-    -- function as that create a big nuisance for consumers of the API.
-    if handler[2] then
-        ok = xpcall(
-            handler[1],
-            _run_handler_error_handler, 
-            handler[2], 
-            fd, 
-            events)
-    else
-        ok = xpcall(
-            handler[1],
-            _run_handler_error_handler,
-            fd, 
-            events)
-    end
-    if ok == false then
-        -- Error in handler caught by _run_handler_error_handler.
-        -- Remove the handler for the fd as its most likely broken.
-        self:remove_handler(fd) 
-    end
 end
 
 --- Check if IOLoop is currently in a running state.
@@ -380,6 +343,43 @@ function ioloop.IOLoop:close()
     self._stopped = true
     self._callbacks = {}
     self._handlers = {}
+end
+
+--- Error handler for IOLoop:_run_handler.
+local function _run_handler_error_handler(err)
+    log.debug("[ioloop.lua] Uncaught error in handler. " .. err)
+    log.stacktrace(debug.traceback())
+end
+
+--- Run callbacks protected with error handlers. Because errors can always
+-- happen! If a handler errors, the handler is removed from the IOLoop, and
+-- never called again.
+function ioloop.IOLoop:_run_handler(fd, events)
+    local ok
+    local handler = self._handlers[fd]
+    -- handler[1] = function.
+    -- handler[2] = optional first argument for function.
+    -- If there is no optional argument, do not add it as parameter to the
+    -- function as that create a big nuisance for consumers of the API.
+    if handler[2] then
+        ok = xpcall(
+            handler[1],
+            _run_handler_error_handler, 
+            handler[2], 
+            fd, 
+            events)
+    else
+        ok = xpcall(
+            handler[1],
+            _run_handler_error_handler,
+            fd, 
+            events)
+    end
+    if ok == false then
+        -- Error in handler caught by _run_handler_error_handler.
+        -- Remove the handler for the fd as its most likely broken.
+        self:remove_handler(fd) 
+    end
 end
 
 local function _run_callback_error_handler(err)

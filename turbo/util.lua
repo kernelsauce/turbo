@@ -1,24 +1,24 @@
---[[ Turbo Utilities module.
-
-Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
-
-"Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE."			]]
+-- Turbo.lua Utilities module.
+--
+-- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
+--
+-- "Permission is hereby granted, free of charge, to any person obtaining a copy of
+-- this software and associated documentation files (the "Software"), to deal in
+-- the Software without restriction, including without limitation the rights to
+-- use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+-- of the Software, and to permit persons to whom the Software is furnished to do
+-- so, subject to the following conditions:
+--
+-- The above copyright notice and this permission notice shall be included in all
+-- copies or substantial portions of the Software.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+-- SOFTWARE."		
 
 local ffi = require "ffi"
 
@@ -50,7 +50,7 @@ end
 
 local util = {}
 
---[[ Join a list into a string with  given delimiter.   ]]
+--- Join a list into a string with  given delimiter. 
 function util.join(delimiter, list)
 	local len = getn(list)
 	if len == 0 then 
@@ -106,7 +106,7 @@ function util.mem_dump(ptr, sz)
 end
 
 
---[[ Merge two tables to one.   ]]
+--- Merge two tables to one.
 function util.tablemerge(t1, t2)
     for k, v in pairs(t2) do
         if (type(v) == "table") and (type(t1[k] or false) == "table") then
@@ -117,7 +117,6 @@ function util.tablemerge(t1, t2)
     end
     return t1
 end
-
 
 function util.fast_assert(condition, ...) 
     if not condition then
@@ -175,7 +174,8 @@ if not _G.TIME_H then
     
     ]])
 end
---[[ Current msecs since epoch. Better granularity than Lua builtin. ]]
+
+--- Current msecs since epoch. Better granularity than Lua builtin.
 function util.gettimeofday()
         local timeval = ffi.new("struct timeval")
         ffi.C.gettimeofday(timeval, nil)
@@ -191,7 +191,7 @@ int uncompress(uint8_t *dest, unsigned long *destLen,
 ]]
 
 local zlib = ffi.load "z"
---[[ zlib compress.  ]]
+--- zlib compress.
 function util.z_compress(txt)
   local n = zlib.compressBound(#txt)
   local buf = ffi.new("uint8_t[?]", n)
@@ -201,7 +201,7 @@ function util.z_compress(txt)
   return ffi.string(buf, buflen[0])
 end
 
---[[ zlib decompress.  ]]
+--- zlib decompress.
 function util.z_decompress(comp, n)
   local buf = ffi.new("uint8_t[?]", n)
   local buflen = ffi.new("unsigned long[1]", n)
@@ -210,7 +210,7 @@ function util.z_decompress(comp, n)
   return ffi.string(buf, buflen[0])
 end
 
---[[  Returns true if value exists in table.        ]]
+--- Returns true if value exists in table.
 function util.is_in(needle, haystack)
 	if not needle or not haystack then return nil end
 	local i
