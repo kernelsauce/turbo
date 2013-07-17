@@ -97,7 +97,7 @@ function httputil.HTTPHeaders:initialize(raw_request_headers)
     self.content_length = nil
     self.http_parser_url = nil -- for http_wrapper.c
     self._arguments = {}
-    self._header_table = {}
+    self._fields = {}
     self._arguments_parsed = false
     if type(raw_request_headers) == "string" then
     	local rc, httperrno, errnoname, errnodesc = 
@@ -294,26 +294,48 @@ end
 -- @param key (String) The key to get.
 -- @param caseinsensitive (Boolean) If true then the key will be matched without
 -- regard for case sensitivity.
--- @return The value of the key, or nil not existing.
+-- @return The value of the key, or nil not existing. May return a table if 
+-- multiple keys are set.
 function httputil.HTTPHeaders:get(key, caseinsensitive)
-    local fast_path = self._header_table[key]
-    if fast_path then
-        return fast_path
-    elseif caseinsensitive == true then
-        -- Slow path, match against lowered chars.
-        local match_key = key:lower()
-        for key, value in pairs(self._header_table) do
-            local lowerkey = key:lower()
-            if lowerkey == match_key then
-                return value
+    local value
+    local cnt = 0
+    if caseinsensitive == false then
+        for i = 1, #self._fields do
+            if self._fields[i] and self._fields[i][1] == key then
+                if cnt == 0 then
+                    value = self._fields[i][2]
+                    cnt = 1
+                elseif cnt == 1 then
+                    value = {value, self._fields[i][2]}
+                    cnt = 2
+                else
+                    value[#value + 1] = self._fields[i][2]
+                    cnt = cnt + 1
+                end
             end
         end
+    else
+        key = key:lower()
+        for i = 1, #self._fields do
+            if self._fields[i] and self._fields[i][1]:lower() == key then
+                if cnt == 0 then
+                    value = self._fields[i][2]
+                    cnt = 1
+                elseif cnt == 1 then
+                    value = {value, self._fields[i][2]}
+                    cnt = 2
+                else
+                    value[#value + 1] = self._fields[i][2]
+                    cnt = cnt + 1
+                end
+            end
+        end       
     end
-    return nil
+    return value, cnt
 end
 
---- Add a key with value to the headers. Does not allow overwrite of existing
--- keys.
+--- Add a key with value to the headers. Supports adding multiple values to 
+-- one key. E.g mutiple "Set-Cookie" header fields.
 -- @param key (String) Key to add to headers. Must be string or error is raised.
 -- @param value (String or Number) Value to associate with the key. 
 function httputil.HTTPHeaders:add(key, value)
@@ -321,32 +343,46 @@ function httputil.HTTPHeaders:add(key, value)
 	   error([[method add key parameter must be a string.]])
     elseif not (type(value) == "string" or type(value) == "number") then
 	   error([[method add value parameters must be a string or number.]])
-    elseif self._header_table[key] then
-	   error([[trying to add a value to a existing key]])
     end
-    self._header_table[key] = value
+    self._fields[#self._fields + 1] = {key, value}
 end
 
 
---- Set a key with value to the headers. Allows overwriting existing key.
--- @param key (String) Key to add to headers. Must be string or error is raised.
+--- Set a key with value to the headers. Overwiting existing key.
+-- @param key (String) Key to set to headers. Must be string or error is raised.
 -- @param value (String) Value to associate with the key.
-function httputil.HTTPHeaders:set(key, value)	
+function httputil.HTTPHeaders:set(key, value, caseinsensitive)	
     if type(key) ~= "string" then
 	   error([[method add key parameter must be a string.]])
     elseif not (type(value) == "string" or type(value) == "number") then
 	   error([[method add value parameters must be a string or number.]])
     end
-    self._header_table[key]	= value
+    self:remove(key, caseinsensitive)
+    self:add(key, value)
 end
 
 --- Remove key from headers.
--- @param key (String) Key to add to headers. Must be string or error is raised.
-function httputil.HTTPHeaders:remove(key)
+-- @param key (String) Key to remove from headers. Must be string or error is raised.
+-- @param caseinsensitive (Boolean) If true then the key will be matched without
+-- regard for case sensitivity.
+function httputil.HTTPHeaders:remove(key, caseinsensitive)
     if type(key) ~= "string" then
 	   error("method remove key parameter must be a string.")
     end
-    self._header_table[key]  = nil
+    if caseinsensitive == false then
+        for i = 1, #self._fields do
+            if self._fields[i] and self._fields[i][1] == key then
+                self._fields[i] = nil
+            end
+        end
+    else
+        key = key:lower()
+        for i = 1, #self._fields do
+            if self._fields[i] and self._fields[i][1]:lower() == key then
+                self._fields[i] = nil
+            end
+        end       
+    end
 end
 
 --- Internal method to get errno returned by http-parser.c.
@@ -376,7 +412,7 @@ function httputil.HTTPHeaders:parse_response_header(raw_headers)
     for i = 0, keyvalue_sz, 1 do
         local key = ffi.string(nw.header_key_values[i].key)
         local value = ffi.string(nw.header_key_values[i].value)
-        self:set(key, value)
+        self:add(key, value)
     end
     libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz
@@ -402,7 +438,7 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
 	   libturbo_parser.turbo_parser_wrapper_exit(nw)
        return -1, self.errno, errno_name, errno_desc
     end
-    if (sz > 0) then      
+    if sz > 0 then      
         local major_version = nw.parser.http_major
         local minor_version = nw.parser.http_minor
         local version_str = string.format(
@@ -419,7 +455,7 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
         for i = 0, keyvalue_sz, 1 do
             local key = ffi.string(nw.header_key_values[i].key)
             local value = ffi.string(nw.header_key_values[i].value)
-            self:set(key, value)
+            self:add(key, value)
         end        
     end
     libturbo_parser.turbo_parser_wrapper_exit(nw)
@@ -430,8 +466,11 @@ end
 -- @return (String) HTTP header string excluding final delimiter.
 function httputil.HTTPHeaders:stringify_as_request()
     local buffer = deque:new()
-    for key, value in pairs(self._header_table) do
-        buffer:append(string.format("%s: %s\r\n", key , value));
+    for i = 1, #self._fields do
+        if self._fields[i] then
+            buffer:append(string.format("%s: %s\r\n", 
+                self._fields[i][1], self._fields[i][2]));    
+        end
     end
     return string.format("%s %s %s\r\n%s\r\n",
         self.method,
@@ -443,21 +482,25 @@ end
 local _time_str_buf = ffi.new("char[2048]")
 local _time_t_headers = ffi.new("time_t[1]")
 --- Stringify data set in class as a HTTP response header.
+-- If not "Date" field is set, it will be generated automatically.
 -- @return (String) HTTP header string excluding final delimiter.
 function httputil.HTTPHeaders:stringify_as_response()
     local buffer = deque:new()
-    ffi.C.time(_time_t_headers)
-    local tm = ffi.C.gmtime(_time_t_headers)
-    local sz = ffi.C.strftime(
-        _time_str_buf, 
-        2048, 
-        "%a, %d %b %Y %H:%M:%S GMT", 
-        tm)
     if not self:get("Date") then
+        ffi.C.time(_time_t_headers)
+        local tm = ffi.C.gmtime(_time_t_headers)
+        local sz = ffi.C.strftime(
+            _time_str_buf, 
+            2048, 
+            "%a, %d %b %Y %H:%M:%S GMT", 
+            tm)
         self:add("Date", ffi.string(_time_str_buf, sz))
     end
-    for key, value in pairs(self._header_table) do
-        buffer:append(string.format("%s: %s\r\n", key , value));
+    for i = 1 , #self._fields do
+        if self._fields[i] then
+            buffer:append(string.format("%s: %s\r\n", 
+                self._fields[i][1], self._fields[i][2]));    
+        end
     end
     return string.format("%s %d %s\r\n%s\r\n",
         self.version,
@@ -466,7 +509,7 @@ function httputil.HTTPHeaders:stringify_as_response()
         buffer:concat())    
 end
 
---- Convinence method to return HTTPHeaders:stringify_as_response on string
+--- Convinience method to return HTTPHeaders:stringify_as_response on string
 -- conversion.
 function httputil.HTTPHeaders:__tostring() 
     return self:stringify_as_response() 
