@@ -162,7 +162,7 @@ end
 function util.is_in(needle, haystack)
 	if not needle or not haystack then return nil end
 	local i
-	for i = 1, #needle, 1 do 
+	for i = 1, #haystack, 1 do 
 		if needle == haystack[i] then
 			return true
 		end
