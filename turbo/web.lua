@@ -427,7 +427,7 @@ function web.StaticFileHandler:get(path)
         error(web.HTTPError(404))
     end
     local filename = self._url_args[1]
-    if filename:match("..", true) then -- Prevent dir traversing.
+    if filename:match("%.%.") then -- Prevent dir traversing.
         error(web.HTTPError(401))
     end
     local full_path = string.format("%s%s", self.path, 
