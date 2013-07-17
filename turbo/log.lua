@@ -1,62 +1,216 @@
---[[ Turbo Log module
-
-Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
-
-"Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE."             ]]
+--- Turbo.lua Log module
+-- A simple log writer implementation with different levels and standard
+-- formatting. Messages written is appended to level and timestamp. You
+-- can turn off unwanted categories by modifiying the table at log.categories.
+--
+-- For messages shorter than 4096 bytes a static buffer is used to 
+-- improve performance. C time.h functions are used as Lua builtin's is
+-- not compiled by LuaJIT. This statement applies to all log functions, except
+-- log.dump.
+--
+-- Example output:
+-- [S 2013/07/15 18:58:03] [web.lua] 200 OK GET / (127.0.0.1) 0ms
+--
+-- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
+--
+-- "Permission is hereby granted, free of charge, to any person obtaining a copy of
+-- this software and associated documentation files (the "Software"), to deal in
+-- the Software without restriction, including without limitation the rights to
+-- use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+-- of the Software, and to permit persons to whom the Software is furnished to do
+-- so, subject to the following conditions:
+--
+-- The above copyright notice and this permission notice shall be included in all
+-- copies or substantial portions of the Software.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+-- SOFTWARE."
 
 local util = require "turbo.util"
 local ffi = require "ffi"
 
-local log = {} -- log namespace.
+local log = {
+    ["categories"] = {
+        -- Enable or disable global log categories.
+        -- The categories can be modified at any time.
+        ["success"] = true,
+        ["notice"] = true,
+        ["warning"] = true,
+        ["error"] = true,
+        ["debug"] = true,
+        ["development"] = false
+    }
+} -- log namespace.
 
+local buf = ffi.new("char[4096]") -- Buffer for log lines.
+local time_t = ffi.new("time_t[1]")
 
-log.stringify = function (t, name, indent)
-   local cart     -- a container
-   local autoref  -- for self references
+--- Log to stdout. Success category.
+-- Use for successfull events etc.
+-- @note Messages are printed with green color.
+-- @param str (String) Message to output.
+function log.success(str)
+    if log.categories.success == false then
+        return
+    end
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() > 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+    end
+end
 
-   local function isemptytable(t) return next(t) == nil end
-   local function basicSerialize (o)
-	  local so = tostring(o)
-	  if type(o) == "function" then
-	 local info = debug.getinfo(o, "S")
-	 -- info.name is nil because o is not a calling level
-	 if info.what == "C" then
-		return string.format("%q", so .. ", C function")
-	 else
-		-- the information is defined through lines
-		return string.format("%q", so .. ", defined in (" ..
-		info.linedefined .. "-" .. info.lastlinedefined ..
-		")" .. info.source)
-	 end
-	  elseif type(o) == "number" or type(o) == "boolean" then
-	 return so
-	  else
-	 return string.format("%q", so)
-	  end
-   end
+--- Log to stdout. Notice category.
+-- Use for notices, typically non-critical messages to give a hint.
+-- @note Messages are printed with white color.
+-- @param str (String) Message to output.
+function log.notice(str)
+    if log.categories.notice == false then
+        return
+    end
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "[I %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
+end
+
+--- Log to stderr. Warning category.
+-- Use for warnings.
+-- @note Messages are printed with yellow color.
+-- @param str (String) Message to output.
+function log.warning(str)
+    if log.categories.warning == false then
+        return
+    end    
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[33m[W %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stderr)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+    end
+end
+
+--- Log to stderr. Error category.
+-- Use for critical errors, when something is clearly wrong.
+-- @note Messages are printed with red color.
+-- @param str (String) Message to output.
+function log.error(str) 
+    if log.categories.error == false then
+        return
+    end    
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[31m[E %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stderr)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+    end
+end
+
+--- Log to stdout. Debug category.
+-- Use for debug messages not critical for releases.
+-- @note Messages are printed with white color.
+-- @param str (String) Message to output.
+function log.debug(str)
+    if log.categories.debug == false then
+        return
+    end    
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "[D %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+    end
+end
+
+--- Log to stdout. Development category.
+-- Use for development purpose messages.
+-- @note Messages are printed with cyan color.
+-- @param str (String) Message to output.
+function log.devel(str)
+    if log.categories.devel == false then
+        return
+    end    
+    ffi.C.time(time_t)
+    local tm = ffi.C.localtime(time_t)
+    local sz = ffi.C.strftime(buf, 4096, "\x1b[36m[d %Y/%m/%d %H:%M:%S] ", tm)
+    local offset
+    if sz + str:len() < 4094 then
+        -- Use static buffer.
+        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.fputs(buf, io.stdout)
+    else
+        -- Use Lua string.
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+    end
+end
+
+--- Stringify Lua table.
+function log.stringify(t, name, indent)
+    local cart     -- a container
+    local autoref  -- for self references
+    local function isemptytable(t) return next(t) == nil end
+    local function basicSerialize (o)
+        local so = tostring(o)
+        if type(o) == "function" then
+            local info = debug.getinfo(o, "S")
+            -- info.name is nil because o is not a calling level
+            if info.what == "C" then
+                return string.format("%q", so .. ", C function")
+            else
+                -- the information is defined through lines
+                return string.format("%q", so .. ", defined in (" ..
+                    info.linedefined .. "-" .. info.lastlinedefined ..
+                    ")" .. info.source)
+            end
+        elseif type(o) == "number" or type(o) == "boolean" then
+            return so
+        else
+            return string.format("%q", so)
+        end
+    end
     local function addtocart (value, name, indent, saved, field)
         indent = indent or ""
         saved = saved or {}
         field = field or name
-    
         cart = cart .. indent .. field
-    
         if type(value) ~= "table" then
             cart = cart .. " = " .. basicSerialize(value) .. ";\n"
         else
@@ -83,118 +237,26 @@ log.stringify = function (t, name, indent)
             end
         end
     end
-   name = name or "__unnamed__"
-   if type(t) ~= "table" then
-	  return name .. " = " .. basicSerialize(t)
-   end
-   cart, autoref = "", ""
-   addtocart(t, name, indent)
-   return cart .. autoref
-end	
+    name = name or "__unnamed__"
+    if type(t) ~= "table" then
+        return name .. " = " .. basicSerialize(t)
+    end
+    cart, autoref = "", ""
+    addtocart(t, name, indent)
+    return cart .. autoref
+end
 
-local buf = ffi.new("char[4096]") -- Buffer for log lines.
-local time_t = ffi.new("time_t[1]")
-
---[[ Usefull table printer for debug.       ]]
-log.dump = function(stuff, description)
+--- Usefull pretty printer for debug purposes.
+-- @param stuff Value to print. All supported.
+-- @param description (String) Optional description of the value dumped.
+function log.dump(stuff, description)
     io.stdout:write(log.stringify(stuff, description) .. "\n")
 end
 
-log.success = function(str)
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() > 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
-    end
-end
-
---[[ Prints a notice to stdout.  ]]
-log.notice = function(str)
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "[I %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
-    end
-end
-
---[[ Prints a notice to stdout.  ]]
-log.debug = function(str)
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "[D %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stderr)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
-    end
-end
-
---[[ Prints a error to stdout.  ]]
-log.error = function(str)	
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[31m[E %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stderr)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
-    end
-end
-
---[[ Prints a warning to stdout.      ]]
-log.warning = function(str)	
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[33m[W %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stderr)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
-    end
-end
-
---[[ Prints a error to stdout.  ]]
-log.stacktrace = function(str)	io.stderr:write(str .. "\n") end
-
-log.devel = function(str)
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[36m[d %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
-    end
-end
+--- Log stacktrace to stderr.
+-- Use for warnings.
+-- @note Messages are printed with white color.
+-- @param str (String) Message to output.
+function log.stacktrace(str) io.stderr:write(str .. "\n") end
 
 return log

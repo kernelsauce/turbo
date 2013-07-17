@@ -8,10 +8,10 @@ LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
-	make -C 3rdparty/http-parser
+	make -C deps/http-parser
 
 clean:
-	make -C 3rdparty/http-parser  clean
+	make -C deps/http-parser  clean
 
 install:
 	mkdir -p $(LUA_MODULEDIR)/turbo

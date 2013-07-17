@@ -1,41 +1,35 @@
---[[ Double ended queue for Lua
-
-Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
-
-"Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE."			]]
+-- Turbo.lua Double ended queue implementation
+--
+-- Copyright 2013 John Abrahamsen
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+-- http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.   
 
 
 require 'turbo.3rdparty.middleclass'
 local log = require "turbo.log"
 local ffi = require "ffi"
 
---[[ Double ended queue class. 	]]
+--- Double ended queue class.
 local deque = class('Deque')
 _G.deque_no = 0
 
 function deque:initialize()
-        self.head = nil
-        self.tail = nil
-        self.sz = 0
+    self.head = nil
+    self.tail = nil
+    self.sz = 0
 end
 
---[[ Append elements to tail.  ]]
+--- Append elements to tail.
 function deque:append(item)
     if (not self.tail) then
         self.tail = {next = nil, prev = nil, value = item}
@@ -48,7 +42,7 @@ function deque:append(item)
     self.sz = self.sz + 1
 end
 
---[[ Append element to head. 	]]
+--- Append element to head.
 function deque:appendleft(item)
     if (not self.head) then
         self.head = {next = nil, prev = nil, value = item}
@@ -61,7 +55,7 @@ function deque:appendleft(item)
     self.sz = self.sz + 1
 end
 
---[[ Removes element at tail and returns it. 	]]
+--- Removes element at tail and returns it.
 function deque:pop()
     if (not self.tail) then
         return nil
@@ -79,7 +73,7 @@ function deque:pop()
     return value
 end
 
---[[ Removes element at head and returns it. 	]]
+--- Removes element at head and returns it.
 function deque:popleft()
     if (not self.head) then
         return nil
@@ -99,7 +93,7 @@ end
 
 function deque:size() return self.sz end
 
---[[ Find length of all elements in deque combined.  Slow.]]
+--- Find length of all elements in deque combined. Slow.
 function deque:strlen()
     local l = self.head
     if (not l) then
@@ -114,7 +108,7 @@ function deque:strlen()
     end
 end
 
---[[ Concat all elements in deque.  Slow.]]
+--- Concat all elements in deque. Slow.
 function deque:concat()
     local l = self.head
     if (not l) then
@@ -134,7 +128,7 @@ function deque:concat()
             i = i + len
             l = l.next        
         end
-        return ffi.string(buf, sz) or ""
+        return ffi.string(buf, sz)
     end
 end
 
@@ -160,13 +154,12 @@ function deque:__concat(source)
     return self
 end
 
---[[ To string metamethod.   ]]
+--- To string metamethod. 
 function deque:__tostring() return self:concat() end
---[[ Returns element at tail. 	]]
+--- Returns element at tail. 
 function deque:peeklast() return self.tail.value end
---[[ Returns element at head. 	]]
+--- Returns element at head.
 function deque:peekfirst() return self.head.value end
-
 
 function deque:not_empty()
     return self.head ~= nil

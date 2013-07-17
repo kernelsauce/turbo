@@ -40,7 +40,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Turbo Web'
+project = u'Turbo.lua'
 copyright = u'2013, John Abrahamsen'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -183,7 +183,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'TurboWeb.tex', u'Turbo Web Documentation',
+  ('index', 'TurboWeb.tex', u'Turbo.lua Documentation',
    u'John Abrahamsen', 'manual'),
 ]
 
@@ -213,7 +213,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'turboweb', u'Turbo Web Documentation',
+    ('index', 'turboweb', u'Turbo.lua Documentation',
      [u'John Abrahamsen'], 1)
 ]
 
@@ -227,7 +227,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'TurboWeb', u'Turbo Web Documentation',
+  ('index', 'TurboWeb', u'Turbo.lua Documentation',
    u'John Abrahamsen', 'TurboWeb', 'One line description of project.',
    'Miscellaneous'),
 ]
