@@ -39,7 +39,7 @@ crypto.SSL_ERROR_WANT_ACCEPT =		8
 -- with SSL_VERIFY_PEER if they are desired
 crypto.SSL_VERIFY_NONE =		0x00
 crypto.SSL_VERIFY_PEER =		0x01
-crypto.SSL_VERIFY_FAIL_IF_NO_PEER_CERT =0x02
+crypto.SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 0x02
 crypto.SSL_VERIFY_CLIENT_ONCE =		0x04
 
 crypto.ERR_get_error = lssl.ERR_get_error

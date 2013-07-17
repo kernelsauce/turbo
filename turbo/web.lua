@@ -102,7 +102,7 @@ function web.RequestHandler:get(...) error(web.HTTPError:new(405)) end
 function web.RequestHandler:post(...) error(web.HTTPError:new(405)) end
 function web.RequestHandler:delete(...) error(web.HTTPError:new(405)) end
 function web.RequestHandler:put(...) error(web.HTTPError:new(405)) end
-function web.RequestHandler:options(...)	error(web.HTTPError:new(405)) end
+function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 
 --*************** Input ***************
 
@@ -115,13 +115,13 @@ function web.RequestHandler:get_argument(name, default, strip)
     -- FIXME: Implement strip and slow-path case insensitive option.
     local args = self:get_arguments(name, strip)
     if type(args) == "string" then
-            return args
+        return args
     elseif type(args) == "table" and #args > 0 then 
-            return args[1]
+        return args[1]
     elseif default then
-            return default
+        return default
     else
-            error(web.HTTPError:new(400))
+        error(web.HTTPError:new(400))
     end
 end
 
@@ -131,10 +131,8 @@ end
 function web.RequestHandler:get_arguments(name, strip)
     -- FIXME: Implement strip and slow-path case insensitive option.
     local values = {}
-    
     if self.request.arguments[name] then
         values = self.request.arguments[name]
-
     elseif self.request._request.arguments[name] then
         values = self.request._request.arguments[name]
     end

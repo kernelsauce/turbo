@@ -28,7 +28,17 @@ local httpserver = {} -- httpserver namespace
 
 -- HTTPServer based on TCPServer, IOStream and IOLoop classes.
 -- This class is used by the Application class to serve its RequestHandlers.
---  
+-- The server itself is only responsible for handling incoming requests, no
+-- response to the request is produced, that is the purpose of the request
+-- callback given as argument on initialization. The callback recieves the
+-- HTTPRequest class instance produced for the incoming request and can 
+-- by data provided in that instance decide on how it want to respond to 
+-- the client. The callback must produce a valid HTTP response header and
+-- optionally a response body and use the HTTPRequest:write method.
+--
+-- The server supports SSL, HTTP/1.1 Keep-Alive and optionally HTTP/1.0
+-- Keep-Alive if the header field is specified.
+--
 -- Example usage of HTTPServer:
 --
 -- local httpserver = require('turbo.httpserver')
