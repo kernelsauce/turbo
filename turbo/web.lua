@@ -145,12 +145,12 @@ end
 function web.RequestHandler:clear()
     self.headers = httputil.HTTPHeaders:new()
     self:set_default_headers()
-    self:set_header("Content-Type", "text/html; charset=UTF-8")
-    self:set_header("Server", self.application.application_name)
+    self:add_header("Content-Type", "text/html; charset=UTF-8")
+    self:add_header("Server", self.application.application_name)
     if not self.request._request:supports_http_1_1() then
-        local con = self.request._request.headers:get("Connection", true)
+        local con = self.request._request.headers:get("Connection")
         if con == "Keep-Alive" then
-            self:set_header("Connection", "Keep-Alive")
+            self:add_header("Connection", "Keep-Alive")
         end
     end
     self._write_buffer = deque:new()
@@ -212,7 +212,7 @@ function web.RequestHandler:redirect(url, permanent)
     end
     local status = permanent and 302 or 301
     self:set_status(status)
-    self:set_header("Location", url)
+    self:add_header("Location", url)
     self:finish()
 end
 
@@ -226,7 +226,7 @@ function web.RequestHandler:write(chunk)
         error("write() method was called after finish().")
     end
     if type(chunk) == "table" then
-        self:set_header("Content-Type", "application/json; charset=UTF-8")
+        self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     end
     self._write_buffer:append(chunk)
@@ -280,27 +280,27 @@ function web.RequestHandler:finish(chunk)
     end
     if not self._headers_written then
         if not self:get_header("Content-Length") then
-                self:set_header("Content-Length", self._write_buffer:concat():len())
+            self:add_header("Content-Length", self._write_buffer:concat():len())
         end
         self.headers:set_status_code(self._status_code)
         self.headers:set_version("HTTP/1.1")
     end
     if self._status_code == 200 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
-                self._status_code, 
-                response_codes[self._status_code],
-                self.request._request.headers.method,
-                self.request._request.headers.url,
-                self.request._request.remote_ip,
-                self.request._request:request_time()))
+            self._status_code, 
+            response_codes[self._status_code],
+            self.request._request.headers.method,
+            self.request._request.headers.url,
+            self.request._request.remote_ip,
+            self.request._request:request_time()))
     else
         log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
-                self._status_code, 
-                response_codes[self._status_code],
-                self.request._request.headers.method,
-                self.request._request.headers.url,
-                self.request._request.remote_ip,
-                self.request._request:request_time()))
+            self._status_code, 
+            response_codes[self._status_code],
+            self.request._request.headers.method,
+            self.request._request.headers.url,
+            self.request._request.remote_ip,
+            self.request._request:request_time()))
     end
     self:flush()
     self.request:finish()
@@ -434,11 +434,11 @@ function web.StaticFileHandler:get(path)
     if rc == 0 then
         local rc, mime_type = self:get_mime()
         if rc == 0 then
-            self:set_header("Content-Type", mime_type)
+            self:add_header("Content-Type", mime_type)
         end
-        self:set_header("Content-Length", buf:len())
-        self:set_header("Cache-Control", "max-age=31536000")
-        self:set_header("Expires", os.date("!%a, %d %b %Y %X GMT", 
+        self:add_header("Content-Length", buf:len())
+        self:add_header("Cache-Control", "max-age=31536000")
+        self:add_header("Expires", os.date("!%a, %d %b %Y %X GMT", 
             self.request._request._start_time + 31536000))
         self:write(buf)
     else
@@ -462,9 +462,9 @@ function web.StaticFileHandler:head(path)
     if rc == 0 then
         local rc, mime_type = self:get_mime()
         if rc == 0 then
-            self:set_header("Content-Type", mime_type)
+            self:add_header("Content-Type", mime_type)
         end
-        self:set_header("Content-Length", buf:len())
+        self:add_header("Content-Length", buf:len())
     else
         error(web.HTTPError(404)) -- Not found
     end

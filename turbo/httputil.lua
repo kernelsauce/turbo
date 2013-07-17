@@ -299,22 +299,7 @@ end
 function httputil.HTTPHeaders:get(key, caseinsensitive)
     local value
     local cnt = 0
-    if caseinsensitive == false then
-        for i = 1, #self._fields do
-            if self._fields[i] and self._fields[i][1] == key then
-                if cnt == 0 then
-                    value = self._fields[i][2]
-                    cnt = 1
-                elseif cnt == 1 then
-                    value = {value, self._fields[i][2]}
-                    cnt = 2
-                else
-                    value[#value + 1] = self._fields[i][2]
-                    cnt = cnt + 1
-                end
-            end
-        end
-    else
+    if caseinsensitive == true then
         key = key:lower()
         for i = 1, #self._fields do
             if self._fields[i] and self._fields[i][1]:lower() == key then
@@ -329,7 +314,22 @@ function httputil.HTTPHeaders:get(key, caseinsensitive)
                     cnt = cnt + 1
                 end
             end
-        end       
+        end      
+    else
+        for i = 1, #self._fields do
+            if self._fields[i] and self._fields[i][1] == key then
+                if cnt == 0 then
+                    value = self._fields[i][2]
+                    cnt = 1
+                elseif cnt == 1 then
+                    value = {value, self._fields[i][2]}
+                    cnt = 2
+                else
+                    value[#value + 1] = self._fields[i][2]
+                    cnt = cnt + 1
+                end
+            end
+        end
     end
     return value, cnt
 end
