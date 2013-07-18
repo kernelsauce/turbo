@@ -34,23 +34,30 @@ Its main features and design principles are:
 
 - Small footprint
 
+
+Object oriented Lua
+-------------------
+Turbo.lua are programmed in a object oriented fashion. There are many ways to do 
+object orientation in Lua, this library uses the Middleclass module. Which is documented
+at https://github.com/kikito/middleclass/wiki. Middleclass is being used internally in 
+Turbo Web, but is also exposed to the user when inheriting from classes such as the
+``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
+easy to learn if you are used to Python, Java or C++. 
+
 Turbo.lua is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details. Some modules 
 are dual licensed with both MIT and Apache 2.0 licenses.
 
 
-Contents:
+API documentation
+-----------------
 
 .. toctree::
    :maxdepth: 3
 
    apiref
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   web
+   ioloop
+   iostream
+   httputil
+   util
 

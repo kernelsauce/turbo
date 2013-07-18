@@ -87,13 +87,31 @@ function web.RequestHandler:settings() return self.application.settings end
 -- been found to be supported.
 function web.RequestHandler:prepare() end
 
+--- Redefine this method if you want to do something straight after the class 
+-- has been initialized. This is called after a request has been 
+-- recieved, and before the HTTP method has been verified against supported
+-- methods. So if a not supported method is requested, this method is still 
+-- called.
+function web.RequestHandler:on_create(kwargs) end
+
+--- Redefine this method after your likings. Called after the end of a request.
+-- Usage of this method could be something like a clean up etc.
+function web.RequestHandler:on_finish() end
+
+--- Redefine this method to set HTTP headers at the beginning of all the 
+-- request recieved by the RequestHandler. For example setting some kind 
+-- of cookie or adjusting the Server key in the headers would be sensible
+-- to do in this method.
+function web.RequestHandler:set_default_headers() end
+
 --- Standard methods for RequestHandler class. 
--- Implement any of the following methods to handle corresponding HTTP request.
+-- Subclass RequestHandler and implement any of the following methods to handle
+-- the corresponding HTTP request.
 -- If not implemented they will provide a 405 (Method Not Allowed).
 -- These methods recieve variable arguments, depending on what the Application
 -- instance calling them has captured from the pattern matching of the request
 -- URL. The methods are run protected, so they are error safe. When a error
--- occurs in the execution of these methods the the request is given a 
+-- occurs in the execution of these methods the request is given a 
 -- 500 Internal Server Error response. In debug mode, the stack trace leading
 -- to the crash is also a part of the response. If not debug mode is set, then
 -- only the status code is set.
@@ -110,7 +128,10 @@ function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 -- If default value is not given the argument is considered to be required and 
 -- will result in a raise of a HTTPError 400 Bad Request if the argument does 
 -- not exist.
--- @return Value of argument.
+-- @param name (String) Name of the argument to get.
+-- @param default (String) Optional fallback value in case argument is not set.
+-- @param strip (Boolean) Remove whitespace from head and tail of string.
+-- @return Value of argument if set.
 function web.RequestHandler:get_argument(name, default, strip)  
     -- FIXME: Implement strip and slow-path case insensitive option.
     local args = self:get_arguments(name, strip)
@@ -127,6 +148,8 @@ end
 
 --- Returns the values of the argument with the given name.
 -- Will return a empty table if argument does not exist.
+-- @param name (String) Name of the argument to get.
+-- @param strip (Boolean) Remove whitespace from head and tail of string.
 -- @return (Table) Argument values.
 function web.RequestHandler:get_arguments(name, strip)
     -- FIXME: Implement strip and slow-path case insensitive option.
@@ -158,8 +181,7 @@ function web.RequestHandler:clear()
 end
 
 --- Add the given name and value pair to the HTTP response headers.
--- Raises error if the key is already set in the header. To overwite use the
--- set_header method instead.
+-- To overwite use the set_header method instead.
 -- @param name (String) Key string for header field.
 -- @param value (String or number) Value for header field.
 function web.RequestHandler:add_header(name, value)	
@@ -177,7 +199,8 @@ end
 
 --- Returns the current value set to given key.
 -- @param name (String) Key string for header field.
--- @return Value of header field.
+-- @return Value of header field or nil if not set, may return a table
+-- if multiple values with same key exists.
 function web.RequestHandler:get_header(key) return self.headers:get(key) end
 
 --- Sets the HTTP status code for our response. 
@@ -190,15 +213,9 @@ function web.RequestHandler:set_status(status_code)
     self._status_code = status_code
 end
 
----  Returns the status code currently set for our response.
+---  Get the curent status code of the HTTP response headers.
 -- @return (Number) Current HTTP status code.
 function web.RequestHandler:get_status() return self._status_code end
-
---- Redefine this method to set HTTP headers at the beginning of all the 
--- request recieved by the RequestHandler. For example setting some kind 
--- of cookie or adjusting the Server key in the headers would be sensible
--- to do in this method.
-function web.RequestHandler:set_default_headers() end
 
 --- Redirect client to another URL. Sets headers and finish request.   
 -- User can not send data after this.
@@ -308,21 +325,8 @@ function web.RequestHandler:finish(chunk)
     self:on_finish()
 end
 
---*************** Events ***************
-
---- Redefine this method after your likings. Called after the end of a request.
--- Usage of this method could be something like a clean up etc.
-function web.RequestHandler:on_finish() end
-
 --- Called in asynchronous handlers when the connection is closed.
 function web.RequestHandler:on_connection_close() end
-
---- Redefine this method if you want to do something straight after the class 
--- has been initialized. This is called after a request has been 
--- recieved, and before the HTTP method has been verified against supported
--- methods. So if a not supported method is requested, this method is still 
--- called.
-function web.RequestHandler:on_create(kwargs) end
 
 
 --- Main entry point for the Application class.
@@ -530,11 +534,11 @@ end
 web.Application = class("Application")
 
 --- Initialize a new Application class instance.
--- @param handlers {Table} As described above.
+-- @param handlers (Table) As described above.
 -- @param default_host (String) Redirect to URL if no matching handler is 
 -- found.
 function web.Application:initialize(handlers, default_host)
-    self.handlers = handlers
+    self.handlers = handlers or {}
     self.default_host = default_host
     self.application_name = "Turbo v1.0"
 end
@@ -548,6 +552,14 @@ end
 --- Returns the server name.
 -- @return (String) Server name.
 function web.Application:get_server_name() return self.application_name end
+
+--- Add handler to Application.
+-- @param pattern (String) Lua pattern string.
+-- @param handler (RequestHandler class)
+-- @param arg Argument for handler.
+function web.Application:add_handler(pattern, handler, arg)
+    self.handler[#self.handler + 1] = {pattern, handler, arg}
+end
 
 --- Starts an HTTP server for this application on the given port.
 -- This is really just a convinence method. The same effect can be achieved

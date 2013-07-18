@@ -1,0 +1,380 @@
+.. _web:
+
+*******************************
+turbo.web -- Core web framework
+*******************************
+
+The Turbo.lua Web framework is modeled after the framework offered by
+Tornado (http://www.tornadoweb.org/), which again is based on web.py (http://webpy.org/) and 
+Google's webapp (http://code.google.com/appengine/docs/python/tools/webapp/)
+Some modifications has been made to make it fit better into the Lua
+eco system. The web framework utilizes asynchronous features that allow it
+to scale to large numbers of open connections (thousands). The framework support
+comet polling.
+
+Create a web server that listens to port 8888 and prints the canoncial Hello world on 
+a GET request is very easy:
+
+.. code-block:: lua
+   :linenos:
+
+	local turbo = require('turbo')
+
+	local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+	function ExampleHandler:get() 
+		self:write("Hello world!") 
+	end
+
+	local application = turbo.web.Application({ 
+		{"/$", ExampleHandler}
+	})
+	application:listen(8888)
+	turbo.ioloop.instance():start()
+
+
+RequestHandler class
+~~~~~~~~~~~~~~~~~~~~
+Base RequestHandler class. The heart of Turbo.lua.
+The usual flow of using Turbo.lua is sub-classing the RequestHandler
+class and implementing the HTTP request methods described in 
+self.SUPPORTED_METHODS. The main goal of this class is to wrap a HTTP
+request and offer utilities to respond to the request. Requests are 
+deligated to RequestHandler's by the Application class.
+The RequestHandler class are implemented so that it should be subclassed to process HTTP requests.
+
+It is possible to modify self.SUPPORT_METHODS to add support for more methods if that is wanted.
+
+Entry points
+------------
+
+.. function:: RequestHandler:on_create(kwargs)
+
+	Redefine this method if you want to do something straight after the class 
+	has been initialized. This is called after a request has been 
+	recieved, and before the HTTP method has been verified against supported
+	methods. So if a not supported method is requested, this method is still 
+	called.
+        
+        :param kwargs: The keyword arguments that you initialize the class with.
+        :type kwargs: Table
+
+.. function:: RequestHandler:prepare()
+
+	Redefine this method if you want to do something after the class has been
+	initialized. This method unlike on_create, is only called if the method has
+	been found to be supported.
+
+.. function:: RequestHandler:on_finish()
+
+	Called after the end of a request. Useful for e.g a cleanup routine.
+
+.. function:: RequestHandler:set_default_headers()
+
+	Redefine this method to set HTTP headers at the beginning of all the 
+	request recieved by the RequestHandler. For example setting some kind 
+	of cookie or adjusting the Server key in the headers would be sensible
+	to do in this method.
+
+*Subclass RequestHandler and implement any of the following methods to handle
+the corresponding HTTP request.
+If not implemented they will provide a 405 (Method Not Allowed).
+These methods recieve variable arguments, depending on what the Application
+instance calling them has captured from the pattern matching of the request
+URL. The methods are run protected, so they are error safe. When a error
+occurs in the execution of these methods the request is given a 
+500 Internal Server Error response. In debug mode, the stack trace leading
+to the crash is also a part of the response. If not debug mode is set, then
+only the status code is set.*
+
+.. function:: RequestHandler:get(...)	
+	
+	HTTP GET reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces. E.g /users/(.*)$ would provide anything after /users/ as first parameter.
+
+.. function:: RequestHandler:post(...)
+
+	HTTP POST reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
+
+.. function:: RequestHandler:head(...)
+
+	HTTP HEAD reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
+
+.. function:: RequestHandler:delete(...)
+
+	HTTP DELETE reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
+
+.. function:: RequestHandler:put(...)
+
+	HTTP PUT reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
+
+.. function:: RequestHandler:options(...)
+
+	HTTP OPTIONS reqests handler.
+        
+        :param ...: Parameters from matched URL pattern with braces.
+
+Input
+-----
+
+.. function:: RequestHandler:get_argument(name, default, strip)
+
+	Returns the value of the argument with the given name.
+	If default value is not given the argument is considered to be required and 
+	will result in a raise of a HTTPError 400 Bad Request if the argument does 
+	not exist.
+
+	:param name: Name of the argument to get.
+	:type name: String
+	:param default: Optional fallback value in case argument is not set.
+	:type default: String
+	:param strip: Remove whitespace from head and tail of string.
+	:type strip: Boolean
+	:rtype: String 
+
+.. function:: RequestHandler:get_arguments(name, strip)
+
+	Returns the values of the argument with the given name. Should be used when you expect multiple arguments values with same name. Strip will take away whitespaces at head and tail where 		applicable.
+	
+	Returns a empty table if argument does not exist.
+	
+	:param name: Name of the argument to get.
+	:type name: String
+	:param strip: Remove whitespace from head and tail of string.
+	:type strip: Boolean
+    :rtype: Table
+
+.. attribute:: RequestHandler.request 
+
+	``turbo.httpserver.HTTPRequest`` class instance for this request. This object contains e.g ``turbo.httputil.HTTPHeader`` and the body payload etc. See the documentation for the classes for more details.
+
+Output
+------
+
+.. function:: RequestHandler:write(chunk)
+
+	Writes the given chunk to the output buffer.			
+	To write the output to the network, call the ``turbo.web.RequestHandler:flush()`` method.
+	If the given chunk is a Lua table, it will be automatically
+	stringifed to JSON.
+        
+        :param chunk: Data chunk to write to underlying connection.
+        :type chunk: String
+
+.. function:: RequestHandler:finish(chunk)
+
+	Finishes the HTTP request. This method can only be called once for each
+	request. This method flushes all data in the write buffer.
+        
+        :param chunk: Final data to write to stream before finishing.
+        :type chunk: String
+
+.. function:: RequestHandler:flush(callback)
+
+	Flushes the current output buffer to the IO stream.
+			
+	If callback is given it will be run when the buffer has 
+	been written to the socket. Note that only one callback flush
+	callback can be present per request. Giving a new callback
+	before the pending has been run leads to discarding of the
+	current pending callback. For HEAD method request the chunk 
+	is ignored and only headers are written to the socket.
+        
+        :param callback: Function to call after the buffer has been flushed.
+        :type callback: Function
+
+.. function:: RequestHandler:clear()
+	
+	Reset all headers, empty write buffer in a request.
+
+.. function:: RequestHandler:add_header(name, value)
+
+	Add the given name and value pair to the HTTP response headers.
+        
+        :param name: Key string for header field.
+        :type name: String
+        :param value: Value for header field.
+        :type value: String
+
+.. function:: RequestHandler:set_header(name, value)
+
+	Set the given name and value pair of the HTTP response headers. If name exists then the value is overwritten.
+        
+        :param name: Key string for header field.
+        :type name: String
+        :param value: Value for header field.
+        :type value: String
+        
+.. function:: RequestHandler:get_header(name)
+
+	Returns the current value of the given name in the HTTP response headers. Returns nil if not set.
+        
+        :param name: Name of value to get.
+        :type name: String
+        :rtype: String or nil
+
+.. function:: RequestHandler:set_status(code)
+	
+	Set the status code of the HTTP response headers. Must be number or error is raised.
+	
+	:param code: HTTP status code to set.
+	:type code: Number
+
+.. function:: RequestHandler:get_status()
+	
+	Get the curent status code of the HTTP response headers.
+	
+	:rtype: Number
+
+.. function:: RequestHandler:redirect(url, permanent)
+
+	Redirect client to another URL. Sets headers and finish request. User can not send data after this.
+        
+	:param url: The URL to redirect to.
+	:type url: String
+	:param permanent: Flag this as a permanent redirect or temporary.
+	:type permanent: Boolean
+
+Misc
+----
+
+.. function:: web.RequestHandler:set_async(bool)
+
+	Set handler to not call finish() when request method has been called and
+	returned. Default is false. When set to true, the user must explicitly call
+	finish.
+
+	:param bool:
+	:type bool: Boolean
+
+HTTPError class
+~~~~~~~~~~~~~~~
+This error is raisable from RequestHandler instances. It provides a 
+convinent and safe way to handle errors in handlers. E.g it is allowed to
+do this:
+
+.. code-block:: lua
+   :linenos:
+
+	function MyHandler:get()
+	    local item = self.get_argument("item")
+	     if not find_in_store(item) then
+	         error(turbo.web.HTTPError(400, "Could not find item in store"))
+	     end
+	     ...
+	end
+
+The result is that the status code is set to 400 and the message is sent as
+the body of the request. The request is always finished on error. 
+
+.. function:: HTTPError(code, message)
+	
+	Create a new HTTPError class instance.
+	
+	:param code: The HTTP status code to send to send to client.
+	:type code: Number
+	:param message: Optional message to pass as body in the response.
+	:type message: String
+
+
+StaticFileHandler class
+~~~~~~~~~~~~~~~~~~~~~~~
+A simple static file handler. All files are cached in memory after initial request. 
+If you are planning to serve big files, then it is recommended to use a
+proper static file web server instead. For small files that can be kept 
+in memory it is ok.
+
+Usage:
+
+.. code-block:: lua
+   :linenos:
+
+	local application = turbo.web.Application({ 
+		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+	})
+
+
+Application class
+~~~~~~~~~~~~~~~~~
+The Application class is a collection of request handler classes that make together up a web application. Example:
+
+.. code-block:: lua
+   :linenos:
+	
+	local application = turbo.web.Application({ 
+		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+		{"/$", ExampleHandler},
+		{"/item/(%d*)", ItemHandler}
+	})
+
+The constructor of this class takes a "map" of URL patterns and their respective handlers. The third element in the table are optional parameters the handler class might have.
+E.g the ``turbo.web.StaticFileHandler`` class takes the root path for your static handler. This element could also be another table for multiple arguments.
+
+The first element in the table is the URL that the application class matches incoming request with to determine how to serve it. These URLs simply be a URL or a any kind of Lua pattern.
+
+The ItemHandler URL pattern is an example on how to map numbers from URL to your handlers. Pattern encased in parantheses are used as parameters when calling the request methods in your handlers.
+
+*Note: Patterns are matched in a sequential manner. If a request matches multiple
+handler pattern's only the first handler matched is delegated the request. Therefore, it is important to write good patterns.* 
+
+A good read on Lua patterns matching can be found here: http://www.wowwiki.com/Pattern_matching.
+
+.. function:: web.Application(handlers, default_host)
+
+	Initialize a new Application class instance.
+	:param handlers: As described above. Table of tables with pattern to handler binding.
+	:type handlers: Table
+	:param default_host: Redirect to URL if no matching handler is found.
+	:type default_host: String
+
+.. function:: web.Application:add_handler(pattern, handler, arg)
+
+	Add handler to Application.
+
+	:param pattern: Lua pattern string.
+	:type pattern: String
+	:param handler: 
+	:type handler: RequestHandler based class
+	:param arg: Argument for handler.
+
+.. function:: Application:listen(port, address, kwargs)
+	
+	Starts an HTTP server for this application on the given port.
+	This is really just a convinence method. The same effect can be achieved
+	by creating a ``turbo.httpserver.HTTPServer`` class instance and assigning the Application instance to its request_callback parameter and calling its listen() 
+	method.
+	 
+	:param port: TCP port to bind server to.
+	:type port: Number
+	:param address: Optional address to bind server to. Use ``turbo.socket.htonl()`` to create address. We use the unsigned integer hostlong format of the IP.
+	:type address: Number
+	:param kwargs: Keyword arguments
+	:type kwargs: Table
+
+	Available keyword arguments:
+
+	* "key_file" (String) - Path to SSL key file if a SSL enabled server is wanted.
+	* "cert_file" (String) - Path to certificate file. key_file must also be set.
+
+*Note: If you are going to use SSL the global _G.TURBO_SSL must be set to true!*
+
+.. function:: Application:set_server_name(name)
+
+	Sets the name of the server. Used in the response headers.
+	
+	:param name: The name used in HTTP responses. Default is "Turbo vx.x"
+	:type name: String
+
+.. function:: Application:get_server_name()
+
+	Gets the current name of the server.
+	:rtype: String
+	

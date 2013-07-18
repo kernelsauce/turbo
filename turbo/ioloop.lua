@@ -68,7 +68,7 @@ function ioloop.instance()
     end
 end
 
---- IOLoop is level triggered I/O loop, with additional support for timeout
+--- IOLoop is a level triggered I/O loop, with additional support for timeout
 -- and time interval callbacks.
 -- Heavily influenced by ioloop.py in the Tornado web framework.
 -- @note Only one instance of IOLoop can ever run at the same time!
@@ -130,7 +130,7 @@ function ioloop.IOLoop:update_handler(fd, events)
     return true
 end
 
---- Update existing handler function's trigger events.
+--- Remove a existing handler from the IO Loop.
 -- @param fd (Number) File descriptor to remove handler from.
 -- @return (Boolean) true if successfull else false.
 function ioloop.IOLoop:remove_handler(fd)	
@@ -337,7 +337,7 @@ end
 --- Close the I/O loop. 
 -- This call must be made from within the running I/O loop via a 
 -- callback, timeout, or interval. Notice: All pending callbacks and handlers 
--- are cleared upon 
+-- are cleared upon close.
 function ioloop.IOLoop:close()
     self._running = false
     self._stopped = true
