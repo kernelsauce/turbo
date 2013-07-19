@@ -56,6 +56,7 @@ API documentation
 
    apiref
    web
+   async
    ioloop
    iostream
    httputil

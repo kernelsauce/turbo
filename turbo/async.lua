@@ -71,9 +71,9 @@ local async = {} -- async namespace
 --  defined in async.errors.
 -- self.request_time = (Number) msec used to process request.
 --
--- It is allways to idea to first check if the self.error member is set before,
--- using the response. If it is set, this means that most of the other members 
--- is not available. The request were not successfull.
+-- It is allways a good idea to first check if the self.error member is set
+-- before, using the response. If it is set, this means that most of the other
+-- members is not available. The request were not successfull.
 --
 -- Also remember that HTTPClient:fetch must be called from within the IOLoop
 -- as a callback. Using it directly in a RequestHandler method is fine as that
@@ -83,14 +83,16 @@ local async = {} -- async namespace
 async.HTTPClient = class("HTTPClient")
 
 
---- Construct a new HTTPClient instance.
+--- Create a new HTTPClient class instance.
+-- One instance can serve 1 request at a time. If multiple request should be
+-- sent then create multiple instances.
 -- ssl_options kwargs:
 -- "priv_file" SSL / HTTPS private key file.              
 -- "cert_file" SSL / HTTPS certificate key file.          
 -- "verify_ca" SSL / HTTPS verify servers certificate.    
 -- "ca_path" SSL / HTTPS CA certificate verify location 
-function async.HTTPClient:initialize(family, io_loop, ssl_options, max_buffer_size, read_chunk_size)
-    self.family = family or AF_INET
+function async.HTTPClient:initialize(ssl_options, io_loop, max_buffer_size)
+    self.family = AF_INET
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size
     self.ssl_options = ssl_options
@@ -113,6 +115,7 @@ local errors = {
 async.errors = errors
 
 --- Fetch a URL. 
+-- @param url (String) URL to fetch.
 -- @param kwargs (table) Optional keyword arguments
 -- ** Available options **
 -- "method" = The HTTP method to use. Default is "GET"
