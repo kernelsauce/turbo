@@ -60,5 +60,12 @@ API documentation
    ioloop
    iostream
    httputil
+   httpserver
+   tcpserver
    util
+   sockutil
+   escape
+   log
+
+
 

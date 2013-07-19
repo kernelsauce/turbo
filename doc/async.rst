@@ -77,7 +77,7 @@ Usage inside a ``turbo.web.RequestHandler`` method:
 
     SSL_ERROR              - SSL error, check message.
 
-.. function:: async.HTTPClient:fetch(url, kwargs)
+.. function:: HTTPClient:fetch(url, kwargs)
 
 	:param url: URL to fetch.
 	:type url: String

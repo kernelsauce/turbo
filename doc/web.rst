@@ -142,17 +142,15 @@ Input
 
 .. function:: RequestHandler:get_arguments(name, strip)
 
-	Returns the values of the argument with the given name. Should be used when you expect multiple arguments values with same name. Strip will take away whitespaces at head and tail where 		applicable.
-	
-	Returns a empty table if argument does not exist.
+	Returns the values of the argument with the given name. Should be used when you expect multiple arguments values with same name. Strip will take away whitespaces at head and tail where 		applicable. Returns a empty table if argument does not exist.
 	
 	:param name: Name of the argument to get.
 	:type name: String
 	:param strip: Remove whitespace from head and tail of string.
 	:type strip: Boolean
-    :rtype: Table
+	:rtype: Table
 
-.. attribute:: RequestHandler.request 
+:RequestHandler.request:
 
 	``turbo.httpserver.HTTPRequest`` class instance for this request. This object contains e.g ``turbo.httputil.HTTPHeader`` and the body payload etc. See the documentation for the classes for more details.
 

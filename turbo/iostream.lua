@@ -103,7 +103,7 @@ local iostream = {} -- iostream namespace
 -- defined on class initialization.
 iostream.IOStream = class('IOStream')
 
---- Initialize a new IOStream class instance.
+--- Create a new IOStream instance.
 -- @param fd (Number) File descriptor, either open or closed. If closed then, 
 -- the IOStream:connect() method can be used to connect.
 -- @param io_loop (IOLoop object) IOLoop class instance to use for event 
@@ -215,7 +215,7 @@ end
 -- doing plain text matching then using read_until is recommended for
 -- less overhead.
 -- @param pattern (String) Lua pattern string.
--- @param callback (Function) Callback function.
+-- @param callback (Function) Callback function. 
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
 function iostream.IOStream:read_until_pattern(pattern, callback, arg)
@@ -234,7 +234,7 @@ end
 -- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
--- @param streaming_callback (Funcion) Optional callback to be called as 
+-- @param streaming_callback (Function) Optional callback to be called as 
 -- chunks become available.
 -- @param streaming_arg Optional argument for callback. If arg is given then
 -- it will be the first argument for the callback and the data will be the 
@@ -737,8 +737,15 @@ function iostream.IOStream:_handle_connect()
             local fd = self.socket
             self:close()
             local strerror = socket.strerror(sockerr)
-            if (self._connect_fail_callback) then
-                self._connect_fail_callback(sockerr, strerror)
+            if self._connect_fail_callback then
+                if self._connect_callback_arg then
+                    self._connect_fail_callback(
+                        self._connect_callback_arg, 
+                        sockerr, 
+                        strerror)
+                else
+                    self._connect_fail_callback(sockerr, strerror)
+                end
             end
             error(string.format(
                 "[iostream.lua] Connect failed: %s, for fd %d", 

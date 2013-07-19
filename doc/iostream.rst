@@ -4,7 +4,7 @@
 turbo.iostream -- High-level asynchronous streaming sockets
 ****************************************************************
 
-The turbo.iostream namespace contains the IOStream and SSLIOStream classes, which are abstractions to provide easy to use streaming sockets.
+The turbo.iostream namespace contains the IOStream and SSLIOStream classes, which are abstractions to provide easy to use streaming sockets. All API's are callback based and depend on the ``turbo.ioloop.IOLoop`` class.
 
 IOStream class
 ~~~~~~~~~~~~~~
@@ -12,53 +12,79 @@ The IOStream class is implemented through the use of the IOLoop class, and are u
 and support callbacks for most of its operations. For read operations the class supports methods suchs as read until delimiter, read n bytes and read until close. The class has
 its own write buffer and there is no need to buffer data at any other level. The default maximum write buffer is defined to 100 MB. This can be defined on class initialization.
 
-.. function:: IOStream(provided_socket, io_loop, max_buffer_size, read_chunk_size)
+.. function:: IOStream(fd, io_loop, max_buffer_size)
 
 	Create a new IOStream instance.
 	
-	:param provided_socket: File descriptor, either open or closed. If closed then, the ``IOStream:connect()`` method can be used to connect.
-	:type provided_socket: Number
+	:param fd: File descriptor, either open or closed. If closed then, the ``turbo.iostream.IOStream:connect()`` method can be used to connect.
+	:type fd: Number
 	:param io_loop: IOLoop class instance to use for event processing. If none is set then the global instance is used, see the ``ioloop.instance()`` function.
 	:type io_loop: IOLoop object
 	:param max_buffer_size: The maximum number of bytes that can be held in internal buffer before flushing must occur. If none is set, 104857600 are used as default.
 	:type max_buffer_size: Number
-	:param read_chunk_size: The read chunk size that the underlying socket read call is called with. If none is set 4096 are used as default.
-	:type read_chunk_size: Number
-        :rtype: IOStream object
+    :rtype: IOStream object
 	
-.. function:: IOStream:connect(host, port, callback)
+.. function:: IOStream:connect(address, port, family, callback, errhandler, arg)
 
-	Connect a socket to given host and port. Specified callback is called upon connection established.
+	Connect to a address without blocking. To successfully use this method it is neccessary to check
+	the return value, and also assign a error handler function. 
 	
 	:param host: The host to connect to. Either hostname or IP.
 	:type host: String
 	:param port: The port to connect to. E.g 80.
 	:type port: Number
-	:param callback: Function to call on connect.
+	:param family: Socket family. Optional. Pass nil to guess.
+	:param callback: Optional callback for "on successfull connect"
 	:type callback: Function
+	:param errhandler: Optional callback for "on error". Called with errno and its string representation as arguments.
+	:type errhandler: Function
+	:param arg: Optional argument for callback. callback and errhandler are called with this as first argument.
+	:rtype: Number. -1 + error message on error, 0 on success.
 	
-.. function:: IOStream:read_until(delimiter, callback)
+.. function:: IOStream:read_until(delimiter, callback, arg)
 
-	Read from a connected socket up until delimiter, then call callback. The callback recieves the data read as a parameter.
+	Read until delimiter, then call callback with recieved data. The callback 
+	recieves the data read as a parameter. Delimiter is plain text, and does 
+	not support Lua patterns. See read_until_pattern for that functionality. 
+	read_until should be used instead of read_until_pattern wherever possible 
+	because of the overhead of doing pattern matching.
 	
-	:param delimiter: The string to read up until. E.g "\r\n\r\n".
+	:param delimiter: Delimiter sequence, text or binary.
 	:type delimiter: String
-	:param callback: Function to call when data has been read up until delimiter. The function is called with the recieved data as first parameter.
-	:type callback: Function with one parameter.
-	
-.. function:: IOStream:read_bytes(num_bytes, callback, streaming_callback)
+	:param callback:  Callback function. The function is called with the recieved data as parameter.
+	:type callback: Function
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
+
+.. function:: IOStream:read_until_pattern(pattern, callback, arg)
+
+	Read until pattern is matched, then call callback with recieved data. 
+	The callback recieves the data read as a parameter. If you only are
+	doing plain text matching then using read_until is recommended for
+	less overhead.
+
+	:param pattern: Lua pattern string.
+	:type pattern: String
+	:param callback: Callback function. The function is called with the recieved data as parameter.
+	:type callback: Function
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
+
+.. function:: IOStream:read_bytes(num_bytes, callback, arg, streaming_callback, streaming_arg)
 	
 	Call callback when we read the given number of bytes.
-	If a streaming_callback argument is given, it will be called with chunks of data as they become available, and the argument to the final call to callback will be empty. 
+	If a streaming_callback argument is given, it will be called with chunks 
+	of data as they become available, and the argument to the final call to 
+	callback will be empty.
 	
-	:param num_bytes: Number of bytes to read before calling callback with the recieved bytes.
+	:param num_bytes: The amount of bytes to read.
 	:type num_bytes: Number
-	:param callback: Function to call when specified amount of bytes is available.
-	:type callback: Function with one parameter.
-	:param streaming_callback: Function to call as bytes become available.
-	:type streaming_callback: Function with one parameter.
+	:param callback: Callback function. The function is called with the recieved data as parameter.
+	:type callback: Function
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
+	:param streaming_callback: Optional callback to be called as chunks become available.
+	:type streaming_callback: Function
+	:param streaming_arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 	
-.. function:: IOStream:read_until_close(callback, streaming_callback)
+.. function:: IOStream:read_until_close(callback, arg, streaming_callback, streaming_arg)
 
 	Reads all data from the socket until it is closed.
 	If a streaming_callback argument is given, it will be called with
@@ -68,10 +94,12 @@ its own write buffer and there is no need to buffer data at any other level. The
 	
 	:param callback: Function to call when connection has been closed.
 	:type callback: Function with one parameter or nil.
-	:param streaming_callback: Function to call as bytes become available.
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
+	:param streaming_callback: Function to call as chunks become available.
 	:type callback: Function with one parameter or nil.
+	:param streaming_arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 	
-.. function:: IOStream:write(data, callback)
+.. function:: IOStream:write(data, callback, arg)
 
 	Write the given data to this stream.
 	If callback is given, we call it when all of the buffered write
@@ -83,12 +111,15 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:type data: String
 	:param callback: Function to be called when data has been written to stream.
 	:type callback: Function
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback.
 	
-.. function:: IOStream:set_close_callback(callback)
+.. function:: IOStream:set_close_callback(callback, arg)
 
 	Set a callback to be called when the stream is closed.
 	
+	:param callback: Function to call on close.
 	:type callback: Function
+	:param arg: Optional argument for callback.
 	
 .. function:: IOStream:close()
 
@@ -111,3 +142,37 @@ its own write buffer and there is no need to buffer data at any other level. The
 	Has the stream been closed?
 	
 	:rtype: Boolean
+
+SSLIOStream class
+~~~~~~~~~~~~~~~~~
+The class is a extended IOStream class and uses
+OpenSSL for its implementation. All of the methods in its super class IOStream, are available. Obviously a SSL tunnel software is a more optimal approach than this, as there
+is quite a bit of overhead in handling SSL connections.
+For this class to be available, the global ``_G.TURBO_SSL``
+must be set.
+
+.. function:: SSLIOStream(fd, ssl_options, io_loop, max_buffer_size)
+
+	Create a new SSLIOStream instance. You can use:
+
+	* ``turbo.crypto.ssl_create_client_context``
+	* ``turbo.crypto.ssl_create_server_context``
+	to create a SSL context to pass in the ssl_options argument.
+	
+	ssl_options table should contain:
+
+	* "_ssl_ctx" - SSL_CTX pointer created with context functions in crypto.lua.
+	* "_type" - Optional number, 0 or 1. 0 indicates that the context is a server context, and 1 indicates a client context. If not set, it is presumed to be a server context.
+
+	:param fd: File descriptor, either open or closed. If closed then, the ``turbo.iostream IOStream:connect()`` method can be used to connect.
+	:type fd: Number
+	:param ssl_options: SSL arguments.
+	:type ssl_options: Table
+	:param io_loop: IOLoop class instance to use for event processing. If none is set then the global instance is used, see the ``ioloop.instance()`` function.
+	:type io_loop: IOLoop object
+	:param max_buffer_size: The maximum number of bytes that can be held in internal buffer before flushing must occur. If none is set, 104857600 are used as default.
+	:type max_buffer_size: Number
+	:rtype: IOStream object
+
+
+
