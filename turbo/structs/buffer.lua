@@ -23,6 +23,7 @@ ffi.cdef([[
 	    char *data;
 	    size_t mem;
 	    size_t sz;
+	    size_t sz_hint;
 	};
 ]])
 
@@ -60,6 +61,7 @@ function Buffer:initialize(size_hint)
     self.tbuffer.mem = size_hint
     self.tbuffer.sz = 0
     self.tbuffer.data = ptr
+    self.tbuffer.sz_hint = size_hint
 end
 
 --- Append data to buffer.
@@ -82,12 +84,14 @@ function Buffer:append_right(data, len)
 		self.tbuffer.mem = new_mem
 		self.tbuffer.sz = new_sz
     end
+    return self
 end
 
 --- Append Lua string to right side of buffer.
 -- @param str Lua string
 function Buffer:append_luastr_right(str) 
-	Buffer:append_right(str, str:len()) 
+	self:append_right(str, str:len()) 
+	return self
 end
 
 --- Prepend data to buffer.
@@ -120,11 +124,15 @@ function Buffer:append_left(data, len)
 		self.tbuffer.mem = new_mem
 		self.tbuffer.sz = new_sz
     end
+    return self
 end
 
 --- Append Lua string to left side of buffer.
 -- @param str Lua string
-function Buffer:append_luastr_left(str) Buffer:append_left(str, str:len()) end
+function Buffer:append_luastr_left(str) 
+	self:append_left(str, str:len()) 
+	return self
+end
 
 --- Pop bytes from left side of buffer. If sz exceeds size of buffer then a
 -- error is raised. Note: does not release memory allocated.
@@ -136,6 +144,7 @@ function Buffer:pop_left(sz)
 		ffi.C.memmove(self.tbuffer.data, self.tbuffer.data + sz, move)
 		self.tbuffer.sz = move
     end
+    return self
 end
 
 --- Pop bytes from right side of the buffer. If sz exceeds size of buffer then
@@ -146,6 +155,7 @@ function Buffer:pop_right(sz)
     else
 		self.tbuffer.sz = self.tbuffer.sz - sz
     end
+    return self
 end
 
 --- Create a "deep" copy of the buffer.
@@ -155,6 +165,22 @@ function Buffer:copy()
     return new
 end
 
+--- Shrink buffer memory usage to its minimum.
+function Buffer:shrink()
+	if self.tbuffer.sz_hint > self.tbuffer.sz or
+		self.tbuffer.sz == self.tbuffer.mem then
+		-- Current size is smaller than size hint or current size equals memory
+		-- allocated. Bail.
+		return self
+	end
+	local ptr = ffi.C.realloc(self.tbuffer.data, self.tbuffer.sz)
+	if ptr == 0 then
+	    error("No memory.")
+	end
+	self.tbuffer.data = ptr
+	return self
+end
+
 --- Clear buffer. Note: does not release memory allocated.
 -- @param wipe Zero fill allocated memory range.
 function Buffer:clear(wipe)
@@ -162,6 +188,7 @@ function Buffer:clear(wipe)
 		ffi.fill(self.tbuffer.data, self.tbuffer.mem, 0)
     end
     self.tbuffer.sz = 0
+    return self
 end
 
 --- Get current size of the buffer.
