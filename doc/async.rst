@@ -55,27 +55,27 @@ Usage inside a ``turbo.web.RequestHandler`` method:
 
 	Numeric error codes set in the HTTPResponse returned by ``HTTPClient:fetch``:
     
-    INVALID_URL            - URL could not be parsed.
+	    INVALID_URL            - URL could not be parsed.
 
-    INVALID_SCHEMA         - Invalid URL schema
+	    INVALID_SCHEMA         - Invalid URL schema
 
-    COULD_NOT_CONNECT      - Could not connect, check message.
+	    COULD_NOT_CONNECT      - Could not connect, check message.
 
-    PARSE_ERROR_HEADERS    - Could not parse response headers.
+	    PARSE_ERROR_HEADERS    - Could not parse response headers.
 
-    CONNECT_TIMEOUT        - Connect timed out.
+	    CONNECT_TIMEOUT        - Connect timed out.
 
-    REQUEST_TIMEOUT        - Request timed out.
+	    REQUEST_TIMEOUT        - Request timed out.
 
-    NO_HEADERS             - Shouldn't happen.
+	    NO_HEADERS             - Shouldn't happen.
 
-    REQUIRES_BODY          - Expected a HTTP body, but none set.
+	    REQUIRES_BODY          - Expected a HTTP body, but none set.
 
-    INVALID_BODY           - Request body is not a string.
+	    INVALID_BODY           - Request body is not a string.
 
-    SOCKET_ERROR           - Socket error, check message.
+	    SOCKET_ERROR           - Socket error, check message.
 
-    SSL_ERROR              - SSL error, check message.
+	    SSL_ERROR              - SSL error, check message.
 
 .. function:: HTTPClient:fetch(url, kwargs)
 

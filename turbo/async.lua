@@ -111,6 +111,7 @@ local errors = {
     ,INVALID_BODY           = -10 -- Request body is not a string.
     ,SOCKET_ERROR           = -11 -- Socket error, check message.
     ,SSL_ERROR              = -12 -- SSL error, check message.
+    ,BUSY                   = -13 -- Operation in progress.
 }
 async.errors = errors
 
@@ -136,10 +137,15 @@ async.errors = errors
 -- "user_agent" = User Agent string used in request headers. Default 
 -- is "Turbo Client vx.x.x"
 function async.HTTPClient:fetch(url, kwargs)
+    if self.in_progress then
+        self._throw_error(errors.BUSY, "HTTPClient is busy.")
+        return coctx.CoroutineContext:new(self.io_loop)
+    end
     self.coctx = coctx.CoroutineContext:new(self.io_loop)
+    self.in_progress = true
     if type(url) ~= "string" then
         self._throw_error(errors.INVALID_URL, "URL must be string.")
-        return self.coctx -- Just break.
+        return self.coctx
     end
     self.start_time = util.gettimeofday()
     self.headers = httputil.HTTPHeaders:new()
@@ -163,6 +169,7 @@ function async.HTTPClient:fetch(url, kwargs)
         return self.coctx
     end
     -- Reset states from previous fetch.
+    self.redirects = 0
     self.response_headers = nil
     self.s_connecting = false 
     self.s_error = false 
@@ -172,6 +179,7 @@ function async.HTTPClient:fetch(url, kwargs)
     self.start_time = util.gettimeofday()
     self.url = url
     self.kwargs = kwargs or {}
+    self.redirect_max = self.kwargs.max_redirects or 4
     self.kwargs.method = self.kwargs.method or "GET"
     self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
@@ -307,7 +315,6 @@ function async.HTTPClient:_handle_connect()
         self.path = ""
     end
     if self.query ~= -1 then
-        print("self.query != -1", self.query)
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
         self.headers:set_uri(self.path)
@@ -454,6 +461,13 @@ function async.HTTPClient:_handle_headers(data)
     if (100 <= code and code < 200) then
         self:_handle_1xx_code(code)
         return
+    end
+    if code == 301 and self.redirect < self.redirect_max then
+        local redirect_loc = self.response_headers:get("Location", true)
+        if redirect_loc then
+            -- FIXME: handle redirect here.
+            self.redirect = self.redirect + 1
+        end
     end
     local content_length = self.response_headers:get("Content-Length", true)
     if not content_length or content_length == 0  then
