@@ -25,6 +25,7 @@
 local log =         require "turbo.log"
 local ioloop =      require "turbo.ioloop"
 local deque =       require "turbo.structs.deque"
+local buffer =      require "turbo.structs.buffer"
 local socket =      require "turbo.socket_ffi"
 local util =        require "turbo.util"
 -- __Global value__ _G.TURBO_SSL allows the user to enable the SSL module.
@@ -51,46 +52,6 @@ local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
 _G.TURBO_SOCKET_BUFFER_SZ = _G.TURBO_SOCKET_BUFFER_SZ or 4096
 local buf = ffi.new("char[?]", _G.TURBO_SOCKET_BUFFER_SZ)
 
---- Replace the first entries in a deque of strings with a single string of up
--- to size bytes.
--- @param deque (Deque instance)
--- @param size (Number) The size to concat and place in index 1.
--- @return Deque passed in.
-local function _merge_prefix(deque, size)
-    if size ~= 0 then
-        if deque:size() == 1 and deque:peekfirst():len() <= size then
-            return deque
-        end
-        
-        local prefix = {}
-        local remaining = size
-
-        while deque:not_empty() and remaining > 0 do
-            local chunk = deque:popleft()
-            if chunk:len() > remaining then
-                deque:appendleft(chunk:sub(remaining + 1))
-                chunk = chunk:sub(0, remaining)
-            end
-            prefix[#prefix + 1] = chunk
-            remaining = remaining - chunk:len()
-        end
-
-        if #prefix > 0 then
-            deque:appendleft(table.concat(prefix))
-        end
-        if (not deque:not_empty()) then
-            deque:append("")
-        end
-        return deque
-    end
-end
-
-local function _double_prefix(deque)
-    local new_len = max(deque:peekfirst():len() * 2,
-        deque:peekfirst():len() + deque:getn(1):len())
-    _merge_prefix(deque, new_len)
-end
-
 local iostream = {} -- iostream namespace
 
 --- The IOStream class is implemented through the use of the IOLoop class, 
@@ -116,9 +77,13 @@ function iostream.IOStream:initialize(fd, io_loop, max_buffer_size)
     self.socket = assert(fd, "argument #1, fd, is not a number.")
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size or 104857600
-    self._read_buffer = deque()
+    self._read_buffer = buffer(1024)
     self._read_buffer_size = 0
-    self._write_buffer = deque()
+    self._read_buffer_offset = 0
+    self._read_scan_offset = 0
+    self._write_buffer = buffer(1024)
+    self._write_buffer_size = 0
+    self._write_buffer_offset = 0
     self._write_buffer_frozen = false
     self._read_delimiter = nil
     self._read_pattern = nil
@@ -207,6 +172,7 @@ function iostream.IOStream:read_until(delimiter, callback, arg)
     self._read_delimiter = delimiter
     self._read_callback = callback
     self._read_callback_arg = arg
+    self._read_scan_offset = 0
     self:_initial_read()
 end
 
@@ -223,6 +189,7 @@ function iostream.IOStream:read_until_pattern(pattern, callback, arg)
     self._read_callback = callback
     self._read_callback_arg = arg
     self._read_pattern = pattern
+    self._read_scan_offset = 0
     self:_initial_read()
 end
 
@@ -268,7 +235,9 @@ end
 -- second.
 function iostream.IOStream:read_until_close(callback, arg, streaming_callback, 
     streaming_arg)   
-    assert((not self._read_callback), "Already reading.")
+    if self._read_callback then
+        error("Already reading.")
+    end
     if self:closed() then
         self:_run_callback(callback, arg, 
             self:_consume(self._read_buffer_size))
@@ -287,18 +256,17 @@ end
 -- been successfully written to the stream. If there was previously buffered 
 -- write data and an old write callback, that callback is simply overwritten 
 -- with this new callback.
+-- @param data (String) Data to write to stream.
 -- @param callback (Function) Optional callback to call when chunk is flushed.
 -- @param arg Optional argument for callback.
 function iostream.IOStream:write(data, callback, arg)
-    assert((type(data) == 'string'), "data argument to write() is not a string")
     self:_check_closed()
-    if data then
-        self._write_buffer:append(data)
-    end
+    self._write_buffer:append_luastr_right(data)
+    self._write_buffer_size = self._write_buffer_size + data:len()
     self._write_callback = callback
     self._write_callback_arg = arg
     self:_handle_write()
-    if self._write_buffer:not_empty() then
+    if self._write_buffer:len() ~= 0 then
         self:_add_io_state(ioloop.WRITE)
     end
     self:_maybe_add_error_listener()
@@ -312,7 +280,7 @@ end
 
 --- Are the stream currently being written too.
 -- @return (Boolean) true or false
-function iostream.IOStream:writing() return self._write_buffer:not_empty() end
+function iostream.IOStream:writing() return self._write_buffer:len() ~= 0 end
 
 --- Sets the given callback to be called via the :close() method on close.
 -- @param callback (Function) Optional callback to call when connection is 
@@ -526,28 +494,21 @@ function iostream.IOStream:_read_from_socket()
                 socket.strerror(errno)))
         end
     end
-    local chunk = ffi.string(buf, sz)
-    -- FIXME: ffi.string never returns nil.
-    -- if not chunk then
-    --     self:close()
-    --     return nil
-    -- end
-    if chunk == "" then
+    if sz == 0 then
         self:close()
         return nil
     end
-    return chunk
+    return buf, sz
 end
 
 --- Read from the socket and append to the read buffer. 
 --  @return Amount of bytes appended to self._read_buffer.
 function iostream.IOStream:_read_to_buffer()
-    local chunk = self:_read_from_socket()
-    if not chunk then
+    local ptr, sz = self:_read_from_socket()
+    if not ptr then
         return 0
     end
-    local sz = chunk:len()
-    self._read_buffer:append(chunk)
+    self._read_buffer:append_right(ptr, sz)
     self._read_buffer_size = self._read_buffer_size + sz
     if self._read_buffer_size >= self.max_buffer_size then
         log.error('Reached maximum read buffer size')
@@ -557,11 +518,19 @@ function iostream.IOStream:_read_to_buffer()
     return sz
 end
 
+--- Get the current read buffer pointer and size.
+function iostream.IOStream:_get_buffer_ptr()
+    local ptr, sz = self._read_buffer:get()
+    ptr = ptr + self._read_buffer_offset
+    sz = sz - self._read_buffer_offset
+    return ptr, sz
+end
+
 --- Attempts to complete the currently pending read from the buffer.
 -- @return (Boolean) Returns true if the enqued read was completed, else false.
 function iostream.IOStream:_read_from_buffer()
     -- Handle streaming callbacks first.
-    if self._streaming_callback ~= nil and self._read_buffer_size then
+    if self._streaming_callback ~= nil and self._read_buffer_size ~= 0 then
         local bytes_to_consume = self._read_buffer_size
         if self.read_bytes ~= nil then
             bytes_to_consume = min(self._read_bytes, bytes_to_consume)
@@ -585,63 +554,80 @@ function iostream.IOStream:_read_from_buffer()
         self:_run_callback(callback, arg, self:_consume(num_bytes))
         return true
     -- Handle read_until.
-    elseif (self._read_delimiter ~= nil) then        
-        if (self._read_buffer:not_empty()) then
-            while true do
-                local chunk = self._read_buffer:peekfirst()
-                local _,loc = chunk:find(self._read_delimiter, 1, true)
-                if (loc) then
-                    local callback = self._read_callback
-                    local arg = self._read_callback_arg
-                    self._read_callback = nil
-                    self._read_callback_arg = nil
-                    self._streaming_callback = None
-                    self._streaming_callback_arg = nil
-                    self._read_delimiter = None
-                    self:_run_callback(callback, arg, self:_consume(loc))
-                    return true
+    elseif self._read_delimiter ~= nil then        
+        if self._read_buffer_size ~= 0 then
+            local ptr, sz = self:_get_buffer_ptr()
+            local delimiter_sz = self._read_delimiter:len()
+            ptr = ptr + self._read_scan_offset
+            sz = sz - self._read_scan_offset
+            local loc = util.TBM(
+                ffi.cast("const char *", self._read_delimiter), 
+                delimiter_sz,
+                ptr,
+                sz)
+            if loc then
+                local delimiter_end = loc + delimiter_sz
+                local callback = self._read_callback
+                local arg = self._read_callback_arg
+                self._read_callback = nil
+                self._read_callback_arg = nil
+                self._streaming_callback = nil
+                self._streaming_callback_arg = nil
+                self._read_delimiter = nil
+                self._read_scan_offset = delimiter_end
+                if arg then
+                    self:_run_callback(callback, 
+                        arg, 
+                        self:_consume(delimiter_end))
+                else
+                    self:_run_callback(callback, self:_consume(delimiter_end))
                 end
-                if (self._read_buffer:size() == 1) then
-                    break
-                end
-                _double_prefix(self._read_buffer)
+                return true
             end
+            self._read_scan_offset = sz
         end
     -- Handle read_until_pattern.
-    elseif (self._read_pattern ~= nil) then
-        if (self._read_buffer:not_empty()) then
-            while true do
-                local chunk = self._read_buffer:peekfirst()
-                local s_start, s_end = chunk:find(self._read_pattern, 1, false)
-                if (s_start) then
-                    local callback = self._read_callback
-                    local arg = self._read_callback_arg
-                    self._read_callback = nil
-                    self._read_callback_arg = nil
-                    self._streaming_callback = None
-                    self._streaming_callback_arg = nil
-                    self._read_pattern = nil
-                    self:_run_callback(callback, arg, self:_consume(s_end))
-                    return true
-                end
-                if (self._read_buffer:size() == 1) then
-                    break
-                end
-                _double_prefix(self._read_buffer)
+    elseif self._read_pattern ~= nil then
+        if self._read_buffer_size ~= 0 then            
+            -- Slow buffer to Lua string conversion.
+            -- Made even worse by a new allocation in self:_consume of a
+            -- different size.
+            local ptr, sz = self:_get_buffer_ptr()
+            local chunk = ffi.string(ptr, sz)
+            local s_start, s_end = chunk:find(self._read_pattern, 1, false)
+            if (s_start) then
+                local callback = self._read_callback
+                local arg = self._read_callback_arg
+                self._read_callback = nil
+                self._read_callback_arg = nil
+                self._streaming_callback = nil
+                self._streaming_callback_arg = nil
+                self._read_pattern = nil
+                self._read_scan_offset = s_end
+                self:_run_callback(callback, arg, self:_consume(s_end))
+                return true
             end
+            self._read_scan_offset = sz
         end
     end
     return false
 end
 
+function iostream.IOStream:_get_write_buffer_ptr()
+    local ptr, sz = self._write_buffer:get()
+    ptr = ptr + self._write_buffer_offset
+    sz = sz - self._write_buffer_offset
+    return ptr, sz
+end
+
 function iostream.IOStream:_handle_write()
-    while self._write_buffer:not_empty() do
+    while self._write_buffer_size ~= 0 do
         local errno, fd
-        local buf = self._write_buffer:peekfirst()
+        local buf, sz = self:_get_write_buffer_ptr()
         local num_bytes = tonumber(socket.send(
             self.socket, 
             buf, 
-            buf:len(), 
+            sz, 
             0))
         if num_bytes == -1 then
             errno = ffi.errno()
@@ -665,15 +651,20 @@ function iostream.IOStream:_handle_write()
             break
         end
         self._write_buffer_frozen = false
-        _merge_prefix(self._write_buffer, num_bytes)
-        self._write_buffer:popleft()
+        self._write_buffer_offset = self._write_buffer_offset + num_bytes
+        self._write_buffer_size = self._write_buffer_size - num_bytes
     end
-    if self._write_buffer:not_empty() == false and self._write_callback then
-        local callback = self._write_callback
-        local arg = self._write_callback_arg
-        self._write_callback = nil
-        self._write_callback_arg = nil
-        self:_run_callback(callback, arg)
+    if self._write_buffer_size == 0 then
+        self._write_buffer:clear()
+        self._write_buffer_offset = 0
+        if self._write_callback then
+            -- Current buffer completely flushed.
+            local callback = self._write_callback
+            local arg = self._write_callback_arg
+            self._write_callback = nil
+            self._write_callback_arg = nil
+            self:_run_callback(callback, arg)
+        end
     end
 end
 
@@ -700,14 +691,23 @@ function iostream.IOStream:_consume(loc)
     if loc == 0 then
         return ""
     end
-    _merge_prefix(self._read_buffer, loc)
     self._read_buffer_size = self._read_buffer_size - loc
-    return self._read_buffer:popleft()
+    local ptr, sz = self._read_buffer:get()
+    local chunk = ffi.string(ptr + self._read_buffer_offset, loc)
+    self._read_buffer_offset = self._read_buffer_offset + loc
+    if self._read_buffer_offset == sz then
+        -- Buffer reached end. Reset offset and size.
+        -- We could in theory shrink buffer here but, it is faster
+        -- to let it stay as is.
+        self._read_buffer:clear()
+        self._read_buffer_offset = 0
+    end
+    return chunk
 end
 
 function iostream.IOStream:_check_closed()
     if not self.socket then
-        error("[iostream.lua] Socket operation on closed stream.")
+        error("Socket operation on closed stream.")
     end
 end
 
