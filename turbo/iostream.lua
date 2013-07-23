@@ -84,25 +84,9 @@ function iostream.IOStream:initialize(fd, io_loop, max_buffer_size)
     self._write_buffer = buffer(1024)
     self._write_buffer_size = 0
     self._write_buffer_offset = 0
-    self._write_buffer_frozen = false
-    self._read_delimiter = nil
-    self._read_pattern = nil
-    self._read_bytes = nil
-    self._read_until_close = false
-    self._read_callback = nil
-    self._read_callback_arg = nil
-    self._streaming_callback = nil
-    self._streaming_callback_arg = nil
-    self._write_callback = nil
-    self._write_callback_arg = nil
-    self._close_callback = nil
-    self._close_callback_arg = nil
-    self._connect_callback = nil
-    self._connect_callback_arg = nil
-    self._connecting = false
-    self._state = nil
     self._pending_callbacks = 0
-    
+    self._read_until_close = false
+    self._connecting = false
     local rc, msg = socket.set_nonblock_flag(self.socket)
     if (rc == -1) then
         error("[iostream.lua] " .. msg)
@@ -260,17 +244,66 @@ end
 -- @param callback (Function) Optional callback to call when chunk is flushed.
 -- @param arg Optional argument for callback.
 function iostream.IOStream:write(data, callback, arg)
+    if self._const_write_buffer then 
+        error("Can not perform write when there is a ongoing zero copy write \
+            operation.")
+    end
     self:_check_closed()
     self._write_buffer:append_luastr_right(data)
     self._write_buffer_size = self._write_buffer_size + data:len()
     self._write_callback = callback
     self._write_callback_arg = arg
     self:_handle_write()
-    if self._write_buffer:len() ~= 0 then
+    if self._write_buffer_size ~= 0 then
+        -- Might finish write on intial write in some cases.
+        -- If not add to write handler to IOLoop.
         self:_add_io_state(ioloop.WRITE)
     end
     self:_maybe_add_error_listener()
 end 
+
+--- Write the given buffer class instance to the stream.
+function iostream.IOStream:write_buffer(buf, callback, arg)
+    if self._const_write_buffer then 
+        error("Can not perform write when there is a ongoing zero copy write \
+            operation.")
+    end
+    self:_check_closed()
+    local ptr, sz = buf:get()
+    self._write_buffer:append_right(ptr, sz)
+    self._write_buffer_size = self._write_buffer_size + sz
+    self._write_callback = callback
+    self._write_callback_arg = arg
+    self:_handle_write()
+    if self._write_buffer_size ~= 0 then
+        self:_add_io_state(ioloop.WRITE)
+    end
+    self:_maybe_add_error_listener()
+end
+
+--- Write the given buffer class instance to the stream without
+-- copying. This means that this write MUST complete before any other
+-- writes can be performed. There is a barrier in place to stop this from 
+-- happening. A error is raised if this happens. This method is recommended
+-- when you are serving static data, it refrains from copying the contents of 
+-- the buffer into its the buffer in the IOStream, at the cost of not allowing
+-- more data being added to the internal buffer before this write is finished.
+-- @param buf (Buffer class instance) Will not be modified.
+function iostream.IOStream:write_zero_copy(buf, callback, arg)
+    if self:writing() then
+        error("Can perform zero copy write when there is unfinished writes \
+            in stream.")
+    end
+    self._const_write_buffer = buf
+    self._write_buffer_offset = 0
+    self._write_callback = callback
+    self._write_callback_arg = arg
+    self:_handle_write()
+    if self._const_read_buffer:len() ~= self._write_buffer_offset then
+        self:_add_io_state(ioloop.WRITE)
+    end
+    self:_maybe_add_error_listener()
+end
 
 --- Are the stream currently being read from? 
 -- @return (Boolean) true or false
@@ -280,7 +313,7 @@ end
 
 --- Are the stream currently being written too.
 -- @return (Boolean) true or false
-function iostream.IOStream:writing() return self._write_buffer:len() ~= 0 end
+function iostream.IOStream:writing() return self._write_buffer_size ~= 0 end
 
 --- Sets the given callback to be called via the :close() method on close.
 -- @param callback (Function) Optional callback to call when connection is 
@@ -556,6 +589,11 @@ function iostream.IOStream:_read_from_buffer()
     -- Handle read_until.
     elseif self._read_delimiter ~= nil then        
         if self._read_buffer_size ~= 0 then
+            if not self._read_buffer then
+                log.devel("No read buffer?")
+                self:close()
+                return
+            end
             local ptr, sz = self:_get_buffer_ptr()
             local delimiter_sz = self._read_delimiter:len()
             ptr = ptr + self._read_scan_offset
@@ -593,9 +631,11 @@ function iostream.IOStream:_read_from_buffer()
             -- Made even worse by a new allocation in self:_consume of a
             -- different size.
             local ptr, sz = self:_get_buffer_ptr()
-            local chunk = ffi.string(ptr, sz)
+            local chunk = ffi.string(
+                ptr + self._read_scan_offset, 
+                sz - self._read_scan_offset)
             local s_start, s_end = chunk:find(self._read_pattern, 1, false)
-            if (s_start) then
+            if s_start then
                 local callback = self._read_callback
                 local arg = self._read_callback_arg
                 self._read_callback = nil
@@ -621,49 +661,99 @@ function iostream.IOStream:_get_write_buffer_ptr()
 end
 
 function iostream.IOStream:_handle_write()
-    while self._write_buffer_size ~= 0 do
-        local errno, fd
-        local buf, sz = self:_get_write_buffer_ptr()
-        local num_bytes = tonumber(socket.send(
-            self.socket, 
-            buf, 
-            sz, 
-            0))
-        if num_bytes == -1 then
-            errno = ffi.errno()
-            if errno == EWOULDBLOCK or errno == EAGAIN then
-                self._write_buffer_frozen = true
-                break
-            elseif errno == EPIPE or errno == ECONNRESET then
-                -- Connection reset. Close the socket.
+    local errno, fd, buf, sz
+    if self._const_write_buffer then
+        -- The reference is removed once the write is complete.
+        buf, sz = self._const_write_buffer:get()
+        while sz ~= self._write_buffer_offset do
+            -- Pointer will not change while inside this loop, so we do not
+            -- have to reget the pointer for every iteration, just recalculate
+            -- address and size with new offset.
+            local ptr = buf + self._write_buffer_offset
+            local _sz = sz - self._write_buffer_offset
+            local num_bytes = tonumber(socket.send(
+                self.socket, 
+                ptr, 
+                _sz, 
+                0))
+            if num_bytes == -1 then
+                errno = ffi.errno()
+                if errno == EWOULDBLOCK or errno == EAGAIN then
+                    return
+                elseif errno == EPIPE or errno == ECONNRESET then
+                    -- Connection reset. Close the socket.
+                    self:close()
+                    fd = self.socket
+                    log.warning(string.format("Connection closed on fd %d.", fd))
+                    return
+                end
+                fd = self.socket                
                 self:close()
-                fd = self.socket
-                log.warning(string.format("Connection closed on fd %d.", fd))
+                error(string.format("Error when writing to fd %d, %s", 
+                    fd, 
+                    socket.strerror(errno)))
             end
-            fd = self.socket                
-            self:close()
-            error(string.format("Error when writing to fd %d, %s", 
-                fd, 
-                socket.strerror(errno)))
+            if num_bytes == 0 then
+                return
+            end
+            self._write_buffer_offset = self._write_buffer_offset + num_bytes
         end
-        if num_bytes == 0 then
-            self._write_buffer_frozen = true
-            break
+        if sz == self._write_buffer_offset then
+            -- Buffer reached end. Remove reference to const write buffer.
+            self._const_write_buffer = nil
+            self._write_buffer_offset = 0
+            if self._write_callback then
+                -- Current buffer completely flushed.
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
         end
-        self._write_buffer_frozen = false
-        self._write_buffer_offset = self._write_buffer_offset + num_bytes
-        self._write_buffer_size = self._write_buffer_size - num_bytes
-    end
-    if self._write_buffer_size == 0 then
-        self._write_buffer:clear()
-        self._write_buffer_offset = 0
-        if self._write_callback then
-            -- Current buffer completely flushed.
-            local callback = self._write_callback
-            local arg = self._write_callback_arg
-            self._write_callback = nil
-            self._write_callback_arg = nil
-            self:_run_callback(callback, arg)
+    else
+        while self._write_buffer_size ~= 0 do
+            buf, sz = self:_get_write_buffer_ptr()
+            local num_bytes = tonumber(socket.send(
+                self.socket, 
+                buf, 
+                sz, 
+                0))
+            if num_bytes == -1 then
+                errno = ffi.errno()
+                if errno == EWOULDBLOCK or errno == EAGAIN then
+                    return
+                elseif errno == EPIPE or errno == ECONNRESET then
+                    -- Connection reset. Close the socket.
+                    self:close()
+                    fd = self.socket
+                    log.warning(string.format("Connection closed on fd %d.", fd))
+                    return
+                end
+                fd = self.socket                
+                self:close()
+                error(string.format("Error when writing to fd %d, %s", 
+                    fd, 
+                    socket.strerror(errno)))
+            end
+            if num_bytes == 0 then
+                return
+            end
+            self._write_buffer_offset = self._write_buffer_offset + num_bytes
+            self._write_buffer_size = self._write_buffer_size - num_bytes
+        end
+        if self._write_buffer_size == 0 then
+            -- Buffer reached end. Reset offset and size.
+            self._write_buffer:clear()
+            self._write_buffer_offset = 0
+            if self._write_callback then
+                -- Current buffer completely flushed.
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
         end
     end
 end
@@ -1021,10 +1111,8 @@ function iostream.SSLIOStream:_handle_write()
             end
         end
         if (sz == 0) then
-            self._write_buffer_frozen = true
             break
         end
-        self._write_buffer_frozen = false
         _merge_prefix(self._write_buffer, sz)
         self._write_buffer:popleft()
     end
