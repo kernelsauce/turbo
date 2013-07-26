@@ -105,20 +105,57 @@ function httpserver.HTTPConnection:initialize(stream, address,
     self._request_finished = false
     self.arguments = {}
     self._header_callback = self._on_headers
-    self._write_callback = nil
-    self._request = nil
     self.stream:read_until("\r\n\r\n", self._header_callback, self)
 end
 
 --- Writes a chunk of output to the stream.
 -- @param chunk (String) Data chunk to write to underlying IOStream.
 -- @param callback (Function) Optional callback called when socket is flushed.
-function httpserver.HTTPConnection:write(chunk, callback)
-    local callback = callback
-    assert(self._request, "Request closed")
+-- @param arg Optional first argument for callback.
+function httpserver.HTTPConnection:write(chunk, callback, arg)
+    if not self._request then
+        error("Request closed.")
+    end
     if not self.stream:closed() then
         self._write_callback = callback
+        self._write_callback_arg = arg
         self.stream:write(chunk, self._on_write_complete, self)
+    end
+end
+
+--- Write a Buffer class instance to the stream.
+-- @param buf (Buffer class instance)
+-- @param callback Optional callback when socket is flushed.
+-- @param arg Optional first argument for callback.
+function httpserver.HTTPConnection:write_buffer(buf, callback, arg)
+    if not self._request then
+        error("Request closed.")
+    end    
+    if not self.stream:closed() then
+        self._write_callback = callback
+        self._write_callback_arg = arg
+        self.stream:write_buffer(buf, self._on_write_complete, self)
+    end
+end
+
+--- Write a Buffer class instance without copying it into the IOStream internal
+-- buffer. Some considerations has to be done when using this. Any prior calls
+-- to HTTPConnection:write or HTTPConnection:write_buffer must have completed
+-- before this method can be used. The zero copy write must complete before any
+-- other writes may be done. Also the buffer class should not be modified
+-- while the write is being completed. Failure to follow these advice will lead
+-- to undefined behaviour.
+-- @param buf (Buffer class instance)
+-- @param callback Optional callback when socket is flushed.
+-- @param arg Optional first argument for callback.
+function httpserver.HTTPConnection:write_zero_copy(buf, callback, arg)
+    if not self._request then
+        error("Request closed.")
+    end
+    if not self.stream:closed() then
+        self._write_callback = callback
+        self._write_callback_arg = arg
+        self.stream:write_zero_copy(buf, self._on_write_complete, self)
     end
 end
 
@@ -132,7 +169,7 @@ function httpserver.HTTPConnection:finish()
 end
 
 local function _on_headers_error_handler(err)
-    log.error(string.format("[httpserver.lua] %s", err))
+    log.error(string.format("[httpserver.lua] Invalid request. %s", err))
 end
 
 --- Handles incoming headers. The HTTPHeaders class is used to parse
@@ -225,8 +262,10 @@ end
 function httpserver.HTTPConnection:_on_write_complete()
     if self._write_callback then
         local callback = self._write_callback
+        local arg = self._write_callback_arg
         self._write_callback = nil
-        callback()
+        self._write_callback_arg = nil
+        callback(arg)
     end
     if self._request_finished and not self.stream:writing() then
         self:_finish_request()
