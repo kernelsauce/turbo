@@ -191,33 +191,6 @@ function Buffer:clear(wipe)
     return self
 end
 
-function Buffer:find()
--- char *
--- strnstr(s, find, slen)
--- 	const char *s;
--- 	const char *find;
--- 	size_t slen;
--- {
--- 	char c, sc;
--- 	size_t len;
-
--- 	if ((c = *find++) != '\0') {
--- 		len = strlen(find);
--- 		do {
--- 			do {
--- 				if (slen-- < 1 || (sc = *s++) == '\0')
--- 					return (NULL);
--- 			} while (sc != c);
--- 			if (len > slen)
--- 				return (NULL);
--- 		} while (strncmp(s, find, len) != 0);
--- 		s--;
--- 	}
--- 	return ((char *)s);
--- }
-
-end
-
 --- Get current size of the buffer.
 -- @return size of buffer in bytes.
 function Buffer:len() return self.tbuffer.sz end
