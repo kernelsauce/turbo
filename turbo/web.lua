@@ -25,6 +25,7 @@ local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
 local httpserver =      require "turbo.httpserver"
 local deque =           require "turbo.structs.deque"
+local buffer =          require "turbo.structs.buffer"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
@@ -172,11 +173,12 @@ function web.RequestHandler:clear()
     self:add_header("Server", self.application.application_name)
     if not self.request._request:supports_http_1_1() then
         local con = self.request._request.headers:get("Connection")
-        if con == "Keep-Alive" then
+        if con == "Keep-Alive" or con == "keep-alive" then
             self:add_header("Connection", "Keep-Alive")
         end
     end
     self._write_buffer = deque:new()
+    self._write_buffer_size = 0
     self._status_code = 200
 end
 
@@ -246,6 +248,7 @@ function web.RequestHandler:write(chunk)
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     end
+    self._write_buffer_size = self._write_buffer_size + chunk:len()
     self._write_buffer:append(chunk)
 end
 
@@ -256,22 +259,29 @@ end
 -- discarding of the current pending callback. For HEAD method request the 
 -- chunk is ignored and only headers are written to the socket.
 -- @param callback (Function) Callback function.
-function web.RequestHandler:flush(callback)
+function web.RequestHandler:flush(callback, arg)
+    -- FIXME: Headers must be properly set before this method is called.
     local headers
     local chunk = self._write_buffer:concat() or ''
     self._write_buffer = deque:new()
     if not self._headers_written then
+        if not self:get_header("Content-Length") then
+            error("flush called before Content-Length were set in headers, \
+                not supported.")
+        end
         self._headers_written = true
         headers = self.headers:__tostring()
     end
     if self.request._request.headers.method == "HEAD" then
         if headers then 
-            self.request:write(headers, callback)
+            self.request:write(headers, callback, arg)
         end
+        return
     end
     if headers or chunk then
-        self.request:write(string.format("%s%s", headers, chunk), callback)
+        self.request:write(string.format("%s%s", headers, chunk), callback, arg)
     end
+    self._write_buffer_size = 0
 end
 
 --- Set handler to not call finish() when request method has been called and
@@ -297,7 +307,8 @@ function web.RequestHandler:finish(chunk)
     end
     if not self._headers_written then
         if not self:get_header("Content-Length") then
-            self:add_header("Content-Length", self._write_buffer:concat():len())
+            self:add_header("Content-Length", 
+                self._write_buffer_size)
         end
         self.headers:set_status_code(self._status_code)
         self.headers:set_version("HTTP/1.1")
@@ -360,7 +371,10 @@ function web._StaticWebCache:read_file(path)
     if not fd then
         return -1, nil
     end
-    local buf = fd:read("*all")
+    local file = fd:read("*all")
+    local sz = file:len()
+    local buf = buffer(sz)
+    buf:append_right(file, sz)
     return 0, buf
 end
 
@@ -380,7 +394,7 @@ function web._StaticWebCache:get_file(path)
         log.notice(string.format(
             "[web.lua] Added %s (%d bytes) to static file cache. ", 
             path, 
-            buf:len()))
+            tonumber(buf:len())))
         return 0, buf
     else
         return -1, nil
@@ -425,6 +439,17 @@ function web.StaticFileHandler:get_mime()
     end
 end
 
+function web.StaticFileHandler:_body_flushed_cb()
+    self:finish()
+end
+
+function web.StaticFileHandler:_headers_flushed_cb()
+    self.request:write_zero_copy(
+        self._static_buffer, 
+        self._body_flushed_cb, 
+        self)
+end
+
 --- GET method for static file handling.
 -- @param path The path captured from request.
 function web.StaticFileHandler:get(path)
@@ -432,21 +457,25 @@ function web.StaticFileHandler:get(path)
         error(web.HTTPError(404))
     end
     local filename = escape.unescape(self._url_args[1])
-    if filename:match("%.%.") then -- Prevent dir traversing.
+    if filename:match("%.%.", 0, true) then -- Prevent dir traversing.
         error(web.HTTPError(401))
     end
     local full_path = string.format("%s%s", self.path, filename)
     local rc, buf = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
+        self:set_async(true)
+        self._static_buffer = buf
         local rc, mime_type = self:get_mime()
         if rc == 0 then
             self:add_header("Content-Type", mime_type)
         end
-        self:add_header("Content-Length", buf:len())
+        self.headers:set_status_code(200)
+        self.headers:set_version("HTTP/1.1")
+        self:add_header("Content-Length", tonumber(buf:len()))
         self:add_header("Cache-Control", "max-age=31536000")
         self:add_header("Expires", os.date("!%a, %d %b %Y %X GMT", 
             self.request._request._start_time + 31536000))
-        self:write(buf)
+        self:flush(self._headers_flushed_cb, self)
     else
         error(web.HTTPError(404)) -- Not found
     end
