@@ -32,6 +32,7 @@ local util = require "turbo.util"
 local signal = require "turbo.signal"
 local socket = require "turbo.socket_ffi"
 local coctx = require "turbo.coctx"
+local ffi = require "ffi"
 require "turbo.3rdparty.middleclass"
 
 local unpack = util.funpack
@@ -347,8 +348,7 @@ end
 
 --- Error handler for IOLoop:_run_handler.
 local function _run_handler_error_handler(err)
-    log.debug("[ioloop.lua] Uncaught error in handler. " .. err)
-    log.stacktrace(debug.traceback())
+    log.debug("[ioloop.lua] " .. err)
 end
 
 --- Run callbacks protected with error handlers. Because errors can always
