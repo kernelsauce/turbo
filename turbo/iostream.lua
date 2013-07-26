@@ -245,8 +245,10 @@ end
 -- @param arg Optional argument for callback.
 function iostream.IOStream:write(data, callback, arg)
     if self._const_write_buffer then 
-        error("Can not perform write when there is a ongoing zero copy write \
-            operation.")
+        error(string.format("Can not perform write when there is a ongoing \
+            zero copy write operation. At offset %d of %d bytes", 
+            tonumber(self._write_buffer_offset), 
+            tonumber(self._const_write_buffer:len())))
     end
     self:_check_closed()
     self._write_buffer:append_luastr_right(data)
@@ -265,8 +267,10 @@ end
 --- Write the given buffer class instance to the stream.
 function iostream.IOStream:write_buffer(buf, callback, arg)
     if self._const_write_buffer then 
-        error("Can not perform write when there is a ongoing zero copy write \
-            operation.")
+        error(string.format("Can not perform write when there is a ongoing \
+            zero copy write operation. At offset %d of %d bytes", 
+            tonumber(self._write_buffer_offset), 
+            tonumber(self._const_write_buffer:len())))
     end
     self:_check_closed()
     local ptr, sz = buf:get()
@@ -290,16 +294,19 @@ end
 -- more data being added to the internal buffer before this write is finished.
 -- @param buf (Buffer class instance) Will not be modified.
 function iostream.IOStream:write_zero_copy(buf, callback, arg)
-    if self:writing() then
-        error("Can perform zero copy write when there is unfinished writes \
-            in stream.")
+    if self._write_buffer_size ~= 0 then
+        error(string.format("Can not perform zero copy write when there are \
+            unfinished writes in stream. At offset %d of %d bytes", 
+            self._write_buffer_offset, 
+            self._write_buffer:len()))
     end
+    self:_check_closed()
     self._const_write_buffer = buf
     self._write_buffer_offset = 0
     self._write_callback = callback
     self._write_callback_arg = arg
     self:_handle_write()
-    if self._const_read_buffer:len() ~= self._write_buffer_offset then
+    if self._const_write_buffer then
         self:_add_io_state(ioloop.WRITE)
     end
     self:_maybe_add_error_listener()
@@ -313,7 +320,9 @@ end
 
 --- Are the stream currently being written too.
 -- @return (Boolean) true or false
-function iostream.IOStream:writing() return self._write_buffer_size ~= 0 end
+function iostream.IOStream:writing() 
+    return self._write_buffer_size ~= 0 or self._const_write_buffer
+end
 
 --- Sets the given callback to be called via the :close() method on close.
 -- @param callback (Function) Optional callback to call when connection is 
@@ -684,7 +693,9 @@ function iostream.IOStream:_handle_write()
                     -- Connection reset. Close the socket.
                     self:close()
                     fd = self.socket
-                    log.warning(string.format("Connection closed on fd %d.", fd))
+                    log.warning(string.format(
+                        "Connection closed on fd %d.", 
+                        fd))
                     return
                 end
                 fd = self.socket                
@@ -700,8 +711,8 @@ function iostream.IOStream:_handle_write()
         end
         if sz == self._write_buffer_offset then
             -- Buffer reached end. Remove reference to const write buffer.
-            self._const_write_buffer = nil
             self._write_buffer_offset = 0
+            self._const_write_buffer = nil
             if self._write_callback then
                 -- Current buffer completely flushed.
                 local callback = self._write_callback
@@ -727,7 +738,9 @@ function iostream.IOStream:_handle_write()
                     -- Connection reset. Close the socket.
                     self:close()
                     fd = self.socket
-                    log.warning(string.format("Connection closed on fd %d.", fd))
+                    log.warning(string.format(
+                        "Connection closed on fd %d.", 
+                        fd))
                     return
                 end
                 fd = self.socket                
