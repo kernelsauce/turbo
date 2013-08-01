@@ -348,7 +348,7 @@ end
 
 --- Error handler for IOLoop:_run_handler.
 local function _run_handler_error_handler(err)
-    log.debug("[ioloop.lua] " .. err)
+    log.debug("[ioloop.lua] Handler error: " .. err)
 end
 
 --- Run callbacks protected with error handlers. Because errors can always
