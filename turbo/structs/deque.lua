@@ -31,7 +31,7 @@ end
 
 --- Append elements to tail.
 function deque:append(item)
-    if (not self.tail) then
+    if not self.tail then
         self.tail = {next = nil, prev = nil, value = item}
         self.head = self.tail
     else
@@ -44,7 +44,7 @@ end
 
 --- Append element to head.
 function deque:appendleft(item)
-    if (not self.head) then
+    if not self.head then
         self.head = {next = nil, prev = nil, value = item}
         self.tail = self.head
     else
@@ -57,7 +57,7 @@ end
 
 --- Removes element at tail and returns it.
 function deque:pop()
-    if (not self.tail) then
+    if not self.tail then
         return nil
     end
     local value = self.tail.value
@@ -75,12 +75,12 @@ end
 
 --- Removes element at head and returns it.
 function deque:popleft()
-    if (not self.head) then
+    if not self.head then
         return nil
     end
     local value = self.head.value
     local new_head = self.head.next
-    if (not new_head) then
+    if not new_head then
         self.head = nil
         self.tail = nil
     else
@@ -96,11 +96,11 @@ function deque:size() return self.sz end
 --- Find length of all elements in deque combined. Slow.
 function deque:strlen()
     local l = self.head
-    if (not l) then
+    if not l then
         return 0
     else
         local sz = 0
-        while (l) do
+        while l do
             sz = l.value:len() + sz
             l = l.next            
         end
@@ -111,18 +111,18 @@ end
 --- Concat all elements in deque. Slow.
 function deque:concat()
     local l = self.head
-    if (not l) then
+    if not l then
         return ""
     else
         local sz = 0
-        while (l) do
+        while l do
             sz = l.value:len() + sz
             l = l.next            
         end
         local buf = ffi.new("char[?]", sz)
         l = self.head
         local i = 0
-        while (l) do
+        while l do
             local len = l.value:len()
             ffi.copy(buf + i, l.value, len)
             i = i + len
@@ -148,7 +148,7 @@ function deque:getn(pos)
 end
 
 function deque:__concat(source)
-    if (type(self) == "string") then
+    if type(self) == "string" then
         self = self .. source:concat()
     end
     return self
