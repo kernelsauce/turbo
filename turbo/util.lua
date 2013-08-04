@@ -25,28 +25,26 @@ require "turbo.cdef"
 
 --- Extends the standard string library with a split method.
 function string:split(sep, max, pattern)	
-	assert(sep ~= '')
-	assert(max == nil or max >= 1)
+    assert(sep ~= '')
+    assert(max == nil or max >= 1)
 
-	local aRecord = {}
+    local aRecord = {}
+    if self:len() > 0 then
+        local bPlain = not pattern
+        max = max or -1
 
-	if self:len() > 0 then
-		local bPlain = not pattern
-		max = max or -1
-
-		local nField=1 nStart=1
-		local nFirst,nLast = self:find(sep, nStart, bPlain)
-		while nFirst and max ~= 0 do
-			aRecord[nField] = self:sub(nStart, nFirst-1)
-			nField = nField+1
-			nStart = nLast+1
-			nFirst,nLast = self:find(sep, nStart, bPlain)
-			max = max-1
-		end
-		aRecord[nField] = self:sub(nStart)
-	end
-
-	return aRecord
+        local nField=1 nStart=1
+        local nFirst, nLast = self:find(sep, nStart, bPlain)
+        while nFirst and max ~= 0 do
+            aRecord[nField] = self:sub(nStart, nFirst-1)
+            nField = nField+1
+            nStart = nLast+1
+            nFirst, nLast = self:find(sep, nStart, bPlain)
+            max = max-1
+        end
+        aRecord[nField] = self:sub(nStart)
+    end
+    return aRecord
 end
 
 local util = {}
@@ -55,13 +53,13 @@ local util = {}
 function util.join(delimiter, list)
 	local len = getn(list)
 	if len == 0 then 
-	   return "" 
-	end
-	local string = list[1]
-	for i = 2, len do 
-            string = string .. delimiter .. list[i] 
-	end
-	return string
+        return "" 
+    end
+    local string = list[1]
+    for i = 2, len do 
+        string = string .. delimiter .. list[i] 
+    end
+    return string
 end
 
 function util.hex(num)
@@ -72,21 +70,24 @@ function util.hex(num)
         s = string.sub(hexstr, mod+1, mod+1) .. s
         num = math.floor(num / 16)
     end
-    if s == '' then s = '0' end
+    if s == '' then 
+        s = '0' 
+    end
     return s
 end
 local hex = util.hex
 
 function util.mem_dump(ptr, sz)
     local voidptr = ffi.cast("unsigned char *", ptr)
-    if (not voidptr) then
-            error("Trying to dump null ptr")
+    if not voidptr then
+        error("Trying to dump null ptr")
     end
-    
-    io.write(string.format("Pointer type: %s\nFrom memory location: 0x%s dumping %d bytes\n",
-                           ffi.typeof(ptr),
-                           hex(tonumber(ffi.cast("intptr_t", voidptr))),
-                           sz))
+
+    io.write(string.format("Pointer type: %s\
+        From memory location: 0x%s dumping %d bytes\n",
+        ffi.typeof(ptr),
+        hex(tonumber(ffi.cast("intptr_t", voidptr))),
+        sz))
     local p = 0;
     local sz_base_1 = sz - 1
     for i = 0, sz_base_1 do
@@ -119,48 +120,39 @@ function util.tablemerge(t1, t2)
     return t1
 end
 
-function util.fast_assert(condition, ...) 
-    if not condition then
-       if next({...}) then
-          local s,r = pcall(function (...) return(string.format(...)) end, ...)
-          if s then
-             error(r, 2)
-          end
-       end
-       error("assertion failed!", 2)
-    end
-end
-
 --- Current msecs since epoch. Better granularity than Lua builtin.
 function util.gettimeofday()
-        local timeval = ffi.new("struct timeval")
-        ffi.C.gettimeofday(timeval, nil)
-        return (tonumber(timeval.tv_sec) * 1000) + math.floor(tonumber(timeval.tv_usec) / 1000)
+    local timeval = ffi.new("struct timeval")
+    ffi.C.gettimeofday(timeval, nil)
+    return (tonumber(timeval.tv_sec) * 1000) + 
+        math.floor(tonumber(timeval.tv_usec) / 1000)
 end
 
 local zlib = ffi.load "z"
 --- zlib compress.
 function util.z_compress(txt)
-  local n = zlib.compressBound(#txt)
-  local buf = ffi.new("uint8_t[?]", n)
-  local buflen = ffi.new("unsigned long[1]", n)
-  local res = zlib.compress2(buf, buflen, txt, #txt, 9)
-  assert(res == 0)
-  return ffi.string(buf, buflen[0])
+    local n = zlib.compressBound(#txt)
+    local buf = ffi.new("uint8_t[?]", n)
+    local buflen = ffi.new("unsigned long[1]", n)
+    local res = zlib.compress2(buf, buflen, txt, #txt, 9)
+    assert(res == 0)
+    return ffi.string(buf, buflen[0])
 end
 
 --- zlib decompress.
 function util.z_decompress(comp, n)
-  local buf = ffi.new("uint8_t[?]", n)
-  local buflen = ffi.new("unsigned long[1]", n)
-  local res = zlib.uncompress(buf, buflen, comp, #comp)
-  assert(res == 0)
-  return ffi.string(buf, buflen[0])
+    local buf = ffi.new("uint8_t[?]", n)
+    local buflen = ffi.new("unsigned long[1]", n)
+    local res = zlib.uncompress(buf, buflen, comp, #comp)
+    assert(res == 0)
+    return ffi.string(buf, buflen[0])
 end
 
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
-	if not needle or not haystack then return nil end
+	if not needle or not haystack then 
+        return nil 
+    end
 	local i
 	for i = 1, #haystack, 1 do 
 		if needle == haystack[i] then
@@ -170,11 +162,15 @@ function util.is_in(needle, haystack)
 	return
 end
 
+
+--- Check if file exists on local filesystem.
+-- @param name Full path to file
+-- @return True or false.
 function util.file_exists(name)
-   local f = io.open(name, "r")
-   if f ~= nil then
-       io.close(f)
-       return true
+    local f = io.open(name, "r")
+    if f ~= nil then
+        io.close(f)
+        return true
     else
         return false
     end
@@ -184,6 +180,140 @@ function util.funpack(t, i)
     i = i or 1
     if t[i] ~= nil then
         return t[i], util.funpack(t, i + 1)
+    end
+end
+
+local ASIZE = 128
+local function suffixes(x, m, suff)
+    local f, g, i
+  
+    suff[m - 1] = m
+    g = m - 1
+    i = m - 2
+    while i >= 0 do 
+        if i > g and suff[i + m - 1 - f] < i - g then
+            suff[i] = suff[i + m - 1 - f]
+        else 
+            if i < g then
+                g = i;
+            end
+            f = i
+            while g >= 0 and x[g] == x[g + m - 1 - f] do
+                g = g - 1
+            end
+            suff[i] = f - g
+        end
+        i = i -1
+    end
+end
+
+local function preBmGs(x, m, bmGs)
+    local i, j
+    local suff = {}
+
+    suffixes(x, m, suff);
+    i = 0
+    while i < m do
+        bmGs[i] = m
+        i = i + 1
+    end
+    j = 0
+    i = m - 1
+    while i >= 0 do
+        if suff[i] == i + 1 then
+            while j < m - 1 - i do
+                if bmGs[j] == m then
+                    bmGs[j] = m - 1 - i;
+                end
+            j = j + 1
+            end
+        end
+        i = i -1
+    end
+    i = 0
+    while i <= m - 2 do
+        bmGs[m - 1 - suff[i]] = m - 1 - i;
+        i = i +1
+    end
+end
+
+local function preBmBc(x, m, bmBc)
+    local i = 0
+    for i = 0, ASIZE do
+        bmBc[i] = m
+    end
+    while i < m - 1 do
+        bmBc[x[i]] = m - i - 1;
+        i = i + 1
+    end
+end
+
+local suffix_cache = {}
+
+--- Turbo Booyer-Moore memory search algorithm. 
+-- Search through arbitrary memory and find first occurence of given byte sequence.
+-- @param x char* Needle memory pointer
+-- @param m int Needle size
+-- @param y char* Haystack memory pointer
+-- @param n int Haystack size.
+-- @param cache Use suffix cache. Only makes sense if you are doing multiple 
+-- passes with same needle.
+function util.TBM(x, m, y, n, cache)
+    local bcShift, i, j, shift, u, v, turboShift 
+    local bmGs, bmBc
+    m = tonumber(m)
+    n = tonumber(n)
+  
+    if cache then
+        local p = ffi.string(x, m)
+        if not suffix_cache[p] then
+            -- Preprocessing
+            bmGs, bmBc = {}, {}
+            preBmGs(x, m, bmGs);
+            preBmBc(x, m, bmBc);
+            suffix_cache[p] = {bmGs, bmBc}
+        else
+            bmGs, bmBc = suffix_cache[p][1], suffix_cache[p][2]
+        end
+    else
+        -- Preprocessing
+        bmGs, bmBc = {}, {}
+        preBmGs(x, m, bmGs);
+        preBmBc(x, m, bmBc);
+    end
+    -- Searching
+    j = 0
+    u = 0
+    shift = m
+    while j <= n - m do
+        i = m -1
+        while i >= 0 and x[i] == y[i + j] do
+            i = i - 1
+            if u ~= 0 and i == m - 1 - shift then
+                i = i - u
+            end
+        end
+        if i < 0 then
+            -- Match
+            --shift = bmGs[0]
+            --u = m - shift
+            return j
+        else
+            v = m - 1 - i;
+            turboShift = u - v;
+            bcShift = bmBc[y[i + j]] - m + 1 + i;
+            shift = math.max(turboShift, bcShift);
+            shift = math.max(shift, bmGs[i]);
+            if shift == bmGs[i] then
+                u = math.min(m - shift, v)
+            else
+                if turboShift < bcShift then
+                    shift = math.max(shift, u + 1);
+                    u = 0
+                end
+            end
+        end
+        j = j + shift
     end
 end
 
