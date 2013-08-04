@@ -25,6 +25,7 @@ local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
 local httpserver =      require "turbo.httpserver"
 local deque =           require "turbo.structs.deque"
+local buffer =          require "turbo.structs.buffer"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
@@ -70,8 +71,8 @@ function web.RequestHandler:initialize(application, request, url_args, kwargs)
     self.arguments = {}
     -- Set standard headers by calling the clear method.
     self:clear() 
-    if self.request._request.headers:get("Connection") then
-        self.request.stream:set_close_callback(self.on_connection_close, self)
+    if self.request.headers:get("Connection") then
+        self.request.connection.stream:set_close_callback(self.on_connection_close, self)
     end
     self:on_create(kwargs)
 end
@@ -156,8 +157,8 @@ function web.RequestHandler:get_arguments(name, strip)
     local values = {}
     if self.request.arguments[name] then
         values = self.request.arguments[name]
-    elseif self.request._request.arguments[name] then
-        values = self.request._request.arguments[name]
+    elseif self.request.arguments[name] then
+        values = self.request.arguments[name]
     end
     return values
 end
@@ -168,15 +169,15 @@ end
 function web.RequestHandler:clear()
     self.headers = httputil.HTTPHeaders:new()
     self:set_default_headers()
-    self:add_header("Content-Type", "text/html; charset=UTF-8")
     self:add_header("Server", self.application.application_name)
-    if not self.request._request:supports_http_1_1() then
-        local con = self.request._request.headers:get("Connection")
-        if con == "Keep-Alive" then
+    if not self.request:supports_http_1_1() then
+        local con = self.request.headers:get("Connection")
+        if con == "Keep-Alive" or con == "keep-alive" then
             self:add_header("Connection", "Keep-Alive")
         end
     end
     self._write_buffer = deque:new()
+    self._write_buffer_size = 0
     self._status_code = 200
 end
 
@@ -246,6 +247,7 @@ function web.RequestHandler:write(chunk)
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     end
+    self._write_buffer_size = self._write_buffer_size + chunk:len()
     self._write_buffer:append(chunk)
 end
 
@@ -256,22 +258,26 @@ end
 -- discarding of the current pending callback. For HEAD method request the 
 -- chunk is ignored and only headers are written to the socket.
 -- @param callback (Function) Callback function.
-function web.RequestHandler:flush(callback)
+function web.RequestHandler:flush(callback, arg)
     local headers
-    local chunk = self._write_buffer:concat() or ''
+    local chunk = self._write_buffer:concat()
     self._write_buffer = deque:new()
     if not self._headers_written then
         self._headers_written = true
-        headers = self.headers:__tostring()
+        headers = self:_gen_headers()
     end
-    if self.request._request.headers.method == "HEAD" then
-        if headers then 
-            self.request:write(headers, callback)
+    if headers then
+        if self.request.headers.method == "HEAD" then
+            self.request:write(headers, callback, arg)
+        elseif chunk:len() ~= 0 then
+            self.request:write(string.format("%s%s", headers, chunk), callback, arg)
+        else
+            self.request:write(headers, callback, arg)
         end
+    elseif chunk:len() ~= 0 then
+        self.request:write(chunk, callback, arg)
     end
-    if headers or chunk then
-        self.request:write(string.format("%s%s", headers, chunk), callback)
-    end
+    self._write_buffer_size = 0
 end
 
 --- Set handler to not call finish() when request method has been called and
@@ -285,6 +291,22 @@ function web.RequestHandler:set_async(bool)
     self._auto_finish = bool == false
 end
 
+function web.RequestHandler:_gen_headers()
+    if not self:get_header("Content-Type") then
+        -- No content type is set, assume that it is text/html.
+        -- This might not be preferable in all cases.
+        self:add_header("Content-Type", "text/html; charset=UTF-8")
+    end
+    if not self:get_header("Content-Length") then
+        -- No length is set, add current write buffer size.
+        self:add_header("Content-Length", 
+            self._write_buffer_size)
+    end
+    self.headers:set_status_code(self._status_code)
+    self.headers:set_version("HTTP/1.1")
+    return self.headers:stringify_as_response()
+end
+
 --- Finishes the HTTP request. This method can only be called once for each
 -- request. This method flushes all data in the write buffer.
 -- @param chunk (String) Final data to write to stream before finishing.
@@ -295,29 +317,22 @@ function web.RequestHandler:finish(chunk)
     if chunk then
         self:write(chunk)
     end
-    if not self._headers_written then
-        if not self:get_header("Content-Length") then
-            self:add_header("Content-Length", self._write_buffer:concat():len())
-        end
-        self.headers:set_status_code(self._status_code)
-        self.headers:set_version("HTTP/1.1")
-    end
     if self._status_code == 200 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request._request.headers.method,
-            self.request._request.headers.url,
-            self.request._request.remote_ip,
-            self.request._request:request_time()))
+            self.request.headers.method,
+            self.request.headers.url,
+            self.request.remote_ip,
+            self.request:request_time()))
     else
         log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request._request.headers.method,
-            self.request._request.headers.url,
-            self.request._request.remote_ip,
-            self.request._request:request_time()))
+            self.request.headers.method,
+            self.request.headers.url,
+            self.request.remote_ip,
+            self.request:request_time()))
     end
     self:flush()
     self.request:finish()
@@ -333,12 +348,12 @@ function web.RequestHandler:on_connection_close() end
 function web.RequestHandler:_execute()
     -- Supported methods can be extended in inheriting classes by setting the
     -- self.SUPPORT_METHODS table.
-    if not is_in(self.request._request.method, self.SUPPORTED_METHODS) then
+    if not is_in(self.request.method, self.SUPPORTED_METHODS) then
         error(web.HTTPError:new(405))
     end
     self:prepare()
     if not self._finished then
-        self[self.request._request.method:lower()](self, unpack(self._url_args))
+        self[self.request.method:lower()](self, unpack(self._url_args))
         if self._auto_finish and not self._finished then
             self:finish()
         end
@@ -360,7 +375,10 @@ function web._StaticWebCache:read_file(path)
     if not fd then
         return -1, nil
     end
-    local buf = fd:read("*all")
+    local file = fd:read("*all")
+    local sz = file:len()
+    local buf = buffer(sz)
+    buf:append_right(file, sz)
     return 0, buf
 end
 
@@ -380,7 +398,7 @@ function web._StaticWebCache:get_file(path)
         log.notice(string.format(
             "[web.lua] Added %s (%d bytes) to static file cache. ", 
             path, 
-            buf:len()))
+            tonumber(buf:len())))
         return 0, buf
     else
         return -1, nil
@@ -397,7 +415,7 @@ STATIC_CACHE = web._StaticWebCache:new() -- Global cache.
 -- in memory it is ok.
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:initialize(app, request, args, options)
-    web.RequestHandler:initialize(app, request, args)	
+    web.RequestHandler.initialize(self, app, request, args)	
     self.path = options
     if self.path:sub(self.path:len()) ~= "/" then
         self.path = self.path .. "/"
@@ -425,6 +443,13 @@ function web.StaticFileHandler:get_mime()
     end
 end
 
+function web.StaticFileHandler:_headers_flushed_cb()
+    self.request:write_zero_copy(
+        self._static_buffer, 
+        self.finish, 
+        self)
+end
+
 --- GET method for static file handling.
 -- @param path The path captured from request.
 function web.StaticFileHandler:get(path)
@@ -432,21 +457,25 @@ function web.StaticFileHandler:get(path)
         error(web.HTTPError(404))
     end
     local filename = escape.unescape(self._url_args[1])
-    if filename:match("%.%.") then -- Prevent dir traversing.
+    if filename:match("%.%.", 0, true) then -- Prevent dir traversing.
         error(web.HTTPError(401))
     end
     local full_path = string.format("%s%s", self.path, filename)
     local rc, buf = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
+        self:set_async(true)
+        self._static_buffer = buf
         local rc, mime_type = self:get_mime()
         if rc == 0 then
             self:add_header("Content-Type", mime_type)
         end
-        self:add_header("Content-Length", buf:len())
+        self.headers:set_status_code(200)
+        self.headers:set_version("HTTP/1.1")
+        self:add_header("Content-Length", tonumber(buf:len()))
         self:add_header("Cache-Control", "max-age=31536000")
         self:add_header("Expires", os.date("!%a, %d %b %Y %X GMT", 
-            self.request._request._start_time + 31536000))
-        self:write(buf)
+            self.request._start_time + 31536000))
+        self:flush(web.StaticFileHandler._headers_flushed_cb, self)
     else
         error(web.HTTPError(404)) -- Not found
     end
@@ -503,7 +532,7 @@ end
 web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
 
 function web.ErrorHandler:initialize(app, request, code, message)
-    web.RequestHandler:initialize(app, request)
+    web.RequestHandler.initialize(self, app, request)
     if (message) then 
         self:write(message)
     else
@@ -584,7 +613,7 @@ end
 -- class.
 -- @param request (HTTPRequest instance)
 function web.Application:_get_request_handlers(request)
-    local path = request._request.path and request._request.path:lower()
+    local path = request.path and request.path:lower()
     if not path then 
         path = "/"
     end
@@ -628,7 +657,6 @@ function web.Application:__call(request)
     else
         handler = web.ErrorHandler:new(self, request, 404)
     end
-    return handler
 end
 
 return web
