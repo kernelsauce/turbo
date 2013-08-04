@@ -127,7 +127,7 @@ async.errors = errors
 -- "allow_redirects" = Allow or disallow redirects. Default is true.
 -- "max_redirects" = Maximum redirections allowed. Default is 4.
 -- "on_headers" = Callback to be called when assembling request headers. Called
---  with headers as argument.
+--  with headers as argument.-- Default to port 80 if not specified in URL.
 -- "body" = Request HTTP body in plain form.
 -- "request_timeout" = Total timeout in seconds (including connect) for 
 -- request. Default is 60 seconds.
@@ -139,6 +139,8 @@ async.errors = errors
 function async.HTTPClient:fetch(url, kwargs)
     if self.in_progress then
         self._throw_error(errors.BUSY, "HTTPClient is busy.")
+        -- This client is busy with another request.
+        -- Do not overwrite the already existing co ctx.
         return coctx.CoroutineContext:new(self.io_loop)
     end
     self.coctx = coctx.CoroutineContext:new(self.io_loop)
@@ -153,10 +155,8 @@ function async.HTTPClient:fetch(url, kwargs)
         self:_throw_error(errors.INVALID_URL, "Invalid URL provided.")
         return self.coctx
     end
-    local old_hostname = self.hostname
     self.hostname = self.headers:get_url_field(httputil.UF.HOST)
-    self.port = self.headers:get_url_field(httputil.UF.PORT)
-    self.port = tonumber(self.port)
+    self.port = tonumber(self.headers:get_url_field(httputil.UF.PORT))
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.query = self.headers:get_url_field(httputil.UF.QUERY)
     self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
@@ -164,7 +164,7 @@ function async.HTTPClient:fetch(url, kwargs)
         socket.SOCK_STREAM, 
         0)
     if sock == -1 then 
-        -- Could not create a new socket.
+        -- Could not create a new socket. Highly unlikely case.
         self:_throw_error(errors.SOCKET_ERROR, msg)
         return self.coctx
     end
@@ -179,14 +179,24 @@ function async.HTTPClient:fetch(url, kwargs)
     self.start_time = util.gettimeofday()
     self.url = url
     self.kwargs = kwargs or {}
+    -- Set sane defaults for kwargs if not present.
     self.redirect_max = self.kwargs.max_redirects or 4
     self.kwargs.method = self.kwargs.method or "GET"
     self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
     self.kwargs.request_timeout = self.kwargs.request_timeout or 60
+    -- Check if a body is present for HTTP request methods that requires so.
+    if not self.kwargs.body and not self.kwargs.params and 
+        util.is_in(self.kwargs.method, {"POST", "PATCH", "PUT"}) then
+        -- Request requires a body.
+        self:_throw_error(errors.REQUIRES_BODY, 
+            "Standard does not support this request method without a body.")
+        return self.coctx
+    end    
     if self.schema == "http" then
         -- Standard HTTP connect.
-        if (self.port == -1) then
+        if self.port == -1 then
+            -- Default to port 80 if not specified in URL.
             self.port = 80
         end
         self.iostream = iostream.IOStream:new(
@@ -196,14 +206,12 @@ function async.HTTPClient:fetch(url, kwargs)
         local rc, msg = self.iostream:connect(self.hostname, 
             self.port, 
             self.family,
-            function()
-                self.s_connecting = false
-                self:_handle_connect()
-            end,
-            function(err)
-                self:_throw_error(errors.COULD_NOT_CONNECT, err)
-            end)
+            self._handle_connect,
+            self._handle_connect_fail,
+            self)
         if rc ~= 0 then
+            -- If connect fails without blocking the hostname is most probably 
+            -- not resolvable.
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
             return self.coctx            
         end
@@ -212,6 +220,8 @@ function async.HTTPClient:fetch(url, kwargs)
         -- Create context if not already done.
         if not self.ssl_options or not self.ssl_options._ssl_ctx then
             -- SSL options does not have to be set by the user to use SSL.
+            -- It is a available optimizations if the user wants to avoid
+            -- recreating new SSL contexts for every fetch.
             self.ssl_options = self.ssl_options or {}
             crypto.ssl_init()
             local rc, ctx_or_err = crypto.ssl_create_client_context(
@@ -232,6 +242,7 @@ function async.HTTPClient:fetch(url, kwargs)
             self.ssl_options._type = 1
         end
         if self.port == -1 then
+            -- Default to port 443 if not specified in URL.
             self.port = 443
         end
         self.iostream = iostream.SSLIOStream:new(
@@ -243,16 +254,10 @@ function async.HTTPClient:fetch(url, kwargs)
             self.hostname, 
             self.port, 
             self.family,
-            function()
-                self.s_connecting = false
-                self:_handle_connect()
-            end,
-            function(err)
-                self:_throw_error(errors.COULD_NOT_CONNECT, err)
-            end)
+            self._handle_connect,
+            self._handle_connect_fail,
+            self)
         if rc ~= 0 then
-            -- If connect fails without blocking the hostname is most probably 
-            -- not resolvable.
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
             return self.coctx            
         end
@@ -265,41 +270,41 @@ function async.HTTPClient:fetch(url, kwargs)
     -- Add connect timeout.
     self.connect_timeout_ref = self.io_loop:add_timeout(
         self.kwargs.connect_timeout * 1000 + util.gettimeofday(), 
-        function()
-            self.connect_timeout_ref = nil
-            self:_throw_error(errors.CONNECT_TIMEOUT, string.format(
-                "Connect timed out after %d secs", 
-                self.kwargs.connect_timeout))
-            log.warning(string.format(
-                "[async.lua] Connect timed out after %d secs. %s %s%s",
-                self.kwargs.connect_timeout,
-                self.kwargs.method,
-                self.hostname,
-                self.path))
-        end)
+        self._handle_connect_timeout,
+        self)
+
+    -- Assuming the method is yielded the returned context is placed in the 
+    -- IOLoop, awaiting further work.
+    self.coctx:set_state(coctx.states.WAIT_COND)
     return self.coctx
 end
 
+function async.HTTPClient:_handle_connect_timeout()
+    log.warning(string.format(
+        "[async.lua] Connect timed out after %d secs. %s %s%s",
+        self.kwargs.connect_timeout,
+        self.kwargs.method,
+        self.hostname,
+        self.path))
+    self.connect_timeout_ref = nil
+    self:_throw_error(errors.CONNECT_TIMEOUT, string.format(
+        "Connect timed out after %d secs", 
+        self.kwargs.connect_timeout))
+end
+
+function async.HTTPClient:_handle_connect_fail(err, strerr)
+    self:_throw_error(errors.COULD_NOT_CONNECT, strerr)
+end
+
 function async.HTTPClient:_handle_connect()
+    self.s_connecting = false
     self.io_loop:remove_timeout(self.connect_timeout_ref)
     self.connect_timeout_ref = nil
     self.request_timeout_ref = self.io_loop:add_timeout(
         self.kwargs.request_timeout * 1000 + util.gettimeofday(), 
-        function()
-            self.request_timeout_ref = nil
-            self:_throw_error(errors.REQUEST_TIMEOUT, 
-                string.format("Request timed out after %d secs", 
-                    self.kwargs.connect_timeout))
-            log.warning(string.format(
-                "[async.lua] Request to %s timed out.", self.hostname))
-        end)
-    if not self.kwargs.body and not self.kwargs.params and 
-        util.is_in(self.kwargs.method, {"POST", "PATCH", "PUT"}) then
-        -- Request requires a body.
-        self:_throw_error(errors.REQUIRES_BODY, 
-            "Standard does not support this request method without a body.")
-        return
-    end    
+        self._handle_request_timeout,
+        self)
+
     self.headers:add("Host", self.hostname)
     self.headers:add("User-Agent", self.kwargs.user_agent)
     -- No keep-alive support at this point.
@@ -366,83 +371,28 @@ function async.HTTPClient:_handle_connect()
     end
     local stringifed_headers = self.headers:stringify_as_request()
     write_buf = stringifed_headers .. write_buf
-    self.iostream:write(write_buf, function()
-        -- Schedule read until pattern on finished write.
-        self.iostream:read_until_pattern("\r?\n\r?\n", function(data)
-            self:_handle_headers(data)
-        end)
-    end)
+    self.iostream:write(write_buf, self._headers_written_cb, self)
 end
 
-function async.HTTPClient:_throw_error(code, msg)
-    -- Add as callback to make sure that errors are always returned after the
-    -- CoroutineContext has ended up in the IOLoop.
-    self.io_loop:add_callback(function()
-        self.s_error = true
-        self.error_code = code
-        self.error_str = msg
-        self:_finalize_request()
-    end)
+function async.HTTPClient:_headers_written_cb()
+    self.iostream:read_until_pattern("\r?\n\r?\n", self._handle_headers, self)
 end
 
-function async.HTTPClient:_finalize_request()
-    if (not self.s_error) then 
-        self.finish_time = util.gettimeofday()
-        local status_code = self.response_headers:get_status_code()
-        if (status_code == 200) then
-            log.success(string.format("[async.lua] %s %s%s => %d %s %dms",
-              self.kwargs.method,
-              self.hostname,
-              self.path,
-              status_code,
-              http_response_codes[status_code],
-              self.finish_time - self.start_time))
-        else
-            log.warning(string.format("[async.lua] %s %s%s => %d %s %dms",
-              self.kwargs.method,
-              self.hostname,
-              self.path,
-              status_code,
-              http_response_codes[status_code],
-              self.finish_time - self.start_time))
-        end
-    end
-    if (self.request_timeout_ref) then
-        self.io_loop:remove_timeout(self.request_timeout_ref)
-    end
-    if (self.connect_timeout_ref) then
-        self.io_loop:remove_timeout(self.connect_timeout_ref)
-    end
-    if self.iostream then 
-        self.iostream:close()
-        self.iostream = nil
-    end
-    local res = async.HTTPResponse:new()
-    if (self.s_error == true) then
-        log.error(string.format("[async.lua] Error code %d. %s", 
-            self.error_code, 
-            self.error_str))
-        res.error = {
-            code = self.error_code,
-            message = self.error_str
-        }
-    else
-        res.error = nil
-        res.code = self.response_headers:get_status_code()
-        res.reason = http_response_codes[res.code]
-        res.body = self.payload
-        res.request_time = self.finish_time - self.start_time
-        res.headers = self.response_headers
-    end
-    self.coctx:set_arguments({res})
-    self.coctx:finalize_context()
+function async.HTTPClient:_handle_request_timeout()
+    self.request_timeout_ref = nil
+    log.warning(string.format(
+        "[async.lua] Request to %s timed out.", self.hostname))
+    self:_throw_error(errors.REQUEST_TIMEOUT, 
+        string.format("Request timed out after %d secs", 
+            self.kwargs.connect_timeout))
 end
 
 function async.HTTPClient:_handle_1xx_code(code)
     -- Continue reading.
-    self.iostream:read_until_pattern("\r?\n\r?\n", function(data)
-        self:_handle_headers(data)
-    end)
+    self.iostream:read_until_pattern(
+        "\r?\n\r?\n", 
+        self._handle_headers,
+        self)
 end
 
 function async.HTTPClient:_handle_headers(data)
@@ -475,14 +425,77 @@ function async.HTTPClient:_handle_headers(data)
         self:_finalize_request()
         return
     end
-    self.iostream:read_bytes(tonumber(content_length), function(data)
-        self:_handle_body(data)
-    end)
+    self.iostream:read_bytes(tonumber(content_length),
+        self._handle_body,
+        self)
 end
 
 function async.HTTPClient:_handle_body(data)
     self.payload = data
     self:_finalize_request()
+end
+
+function async.HTTPClient:_throw_error(code, msg)
+    -- Add as callback to make sure that errors are always returned after the
+    -- CoroutineContext has ended up in the IOLoop.
+    self.s_error = true
+    self.error_code = code
+    self.error_str = msg
+    self.io_loop:add_callback(self._finalize_request, self)
+end
+
+function async.HTTPClient:_finalize_request()
+    if not self.s_error then 
+        self.finish_time = util.gettimeofday()
+        local status_code = self.response_headers:get_status_code()
+        if (status_code == 200) then
+            log.success(string.format("[async.lua] %s %s%s => %d %s %dms",
+              self.kwargs.method,
+              self.hostname,
+              self.path,
+              status_code,
+              http_response_codes[status_code],
+              self.finish_time - self.start_time))
+        else
+            log.warning(string.format("[async.lua] %s %s%s => %d %s %dms",
+              self.kwargs.method,
+              self.hostname,
+              self.path,
+              status_code,
+              http_response_codes[status_code],
+              self.finish_time - self.start_time))
+        end
+    end
+    if (self.request_timeout_ref) then
+        self.io_loop:remove_timeout(self.request_timeout_ref)
+    end
+    if (self.connect_timeout_ref) then
+        self.io_loop:remove_timeout(self.connect_timeout_ref)
+    end
+    if self.iostream then 
+        self.iostream:close()
+        self.iostream = nil
+    end
+    local res = async.HTTPResponse:new()
+    if self.s_error == true then
+        log.error(string.format("[async.lua] Error code %d. %s", 
+            self.error_code, 
+            self.error_str))
+        res.error = {
+            code = self.error_code,
+            message = self.error_str
+        }
+    else
+        res.error = nil
+        res.code = self.response_headers:get_status_code()
+        res.reason = http_response_codes[res.code]
+        res.body = self.payload
+        res.request_time = self.finish_time - self.start_time
+        res.headers = self.response_headers
+    end
+    self.coctx:set_state(coctx.states.DEAD)
+    self.coctx:set_arguments({res})
+    self.coctx:finalize_context()
 end
 
 async.HTTPResponse = class("HTTPResponse")
