@@ -68,7 +68,7 @@ end
 -- @param data The data to append in char * form.
 -- @param len The length of the data in bytes.
 function Buffer:append_right(data, len)
-    if self.tbuffer.mem - self.tbuffer.sz > len then
+    if self.tbuffer.mem - self.tbuffer.sz >= len then
 		ffi.copy(self.tbuffer.data + self.tbuffer.sz, data, len)
 		self.tbuffer.sz = self.tbuffer.sz + len
     else
@@ -98,7 +98,7 @@ end
 -- @param data The data to prepend in char * form.
 -- @param len The length of the data in bytes.
 function Buffer:append_left(data, len)
-    if self.tbuffer.mem - self.tbuffer.sz > len then
+    if self.tbuffer.mem - self.tbuffer.sz >= len then
 		-- Do not use ffi.copy, but memmove as the memory are overlapping.
 		if self.tbuffer.sz ~= 0 then
 		    ffi.C.memmove(
