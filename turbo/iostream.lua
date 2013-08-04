@@ -1026,8 +1026,15 @@ function iostream.SSLIOStream:_handle_connect()
                 local fd = self.socket
                 self:close()
                 local strerror = socket.strerror(sockerr)
-                if (self._connect_fail_callback) then
-                    self._connect_fail_callback(sockerr, strerror)
+                if self._connect_fail_callback then
+                    if self._connect_callback_arg then
+                        self._connect_fail_callback(
+                            self._connect_callback_arg, 
+                            sockerr, 
+                            strerror)
+                    else
+                        self._connect_fail_callback(sockerr, strerror)
+                    end
                 end
                 error(string.format(
                     "[iostream.lua] Connect failed: %s, for fd %d", 
