@@ -52,7 +52,7 @@ end
 --- Encodes a string into its escaped hexadecimal representation.
 -- @param s (String) String to escape.
 function escape.escape(s)
-    return string.gsub(s, "([^A-Za-z0-9_])", hex)
+    return string.gsub(s, "([^A-Za-z0-9_])", _hex)
 end
 
 local function make_set(t)
