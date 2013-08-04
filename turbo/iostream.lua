@@ -264,6 +264,9 @@ function iostream.IOStream:write(data, callback, arg)
 end 
 
 --- Write the given buffer class instance to the stream.
+-- @param buf (Buffer class instance).
+-- @param callback (Function) Optional callback to call when chunk is flushed.
+-- @param arg Optional argument for callback.
 function iostream.IOStream:write_buffer(buf, callback, arg)
     if self._const_write_buffer then 
         error(string.format("\
@@ -290,6 +293,8 @@ end
 -- the buffer into its the buffer in the IOStream, at the cost of not allowing
 -- more data being added to the internal buffer before this write is finished.
 -- @param buf (Buffer class instance) Will not be modified.
+-- @param callback (Function) Optional callback to call when chunk is flushed.
+-- @param arg Optional argument for callback.
 function iostream.IOStream:write_zero_copy(buf, callback, arg)
     if self._write_buffer_size ~= 0 then
         error(string.format("\
@@ -1044,7 +1049,7 @@ function iostream.SSLIOStream:_read_from_socket()
     local errno
     local err
     local sz = crypto.SSL_read(self._ssl, buf, 4096)
-    if (sz == -1) then
+    if sz == -1 then
         err = crypto.SSL_get_error(self._ssl, sz)
         if err == crypto.SSL_ERROR_SYSCALL then
             errno = ffi.errno()
@@ -1070,63 +1075,122 @@ function iostream.SSLIOStream:_read_from_socket()
                 ssl_str_err))
         end
     end
-    local chunk = ffi.string(buf, sz)
-    if chunk == "" then
+    if sz == 0 then
         self:close()
         return
     end
-    return chunk
+    return buf, sz
 end
 
-function iostream.SSLIOStream:_handle_write()
+function iostream.SSLIOStream:_handle_write_nonconst()
     if self._ssl_accepting == true then
         -- If the handshake has not been completed do not allow any writes to
         -- be done.
         return nil
     end
-    while self._write_buffer:not_empty() do
-        local errno
-        local err
-        local buf = self._write_buffer:peekfirst()
-        local sz = crypto.SSL_write(self._ssl, buf, buf:len())
-        if (sz == -1) then
-            err = crypto.SSL_get_error(self._ssl, sz)
-            if err == crypto.SSL_ERROR_SYSCALL then
-                errno = ffi.errno()
-                if errno == EWOULDBLOCK or errno == EAGAIN then
-                    return
-                else
-                    local fd = self.socket
-                    self:close()
-                    error(string.format(
-                        "Error when writing to socket %d. Errno: %d. %s",
-                        fd,
-                        errno,
-                        socket.strerror(errno)))
-                end
-            elseif err == crypto.SSL_ERROR_WANT_WRITE then
+
+    local ptr = self._write_buffer:get()
+    ptr = ptr + self._write_buffer_offset
+    local n = crypto.SSL_write(self._ssl, ptr, self._write_buffer_size)
+    if n == -1 then
+        local err = crypto.SSL_get_error(self._ssl, n)
+        if err == crypto.SSL_ERROR_SYSCALL then
+            local errno = ffi.errno()
+            if errno == EWOULDBLOCK or errno == EAGAIN then
                 return
             else
                 local fd = self.socket
-                local ssl_err = crypto.ERR_get_error()
-                local ssl_str_err = crypto.ERR_error_string(ssl_err)
                 self:close()
-                error(string.format("SSL error. %s",
-                    ssl_str_err))
+                error(string.format(
+                    "Error when writing to socket %d. Errno: %d. %s",
+                    fd,
+                    errno,
+                    socket.strerror(errno)))
             end
+        elseif err == crypto.SSL_ERROR_WANT_WRITE then
+            return
+        else
+            local fd = self.socket
+            local ssl_err = crypto.ERR_get_error()
+            local ssl_str_err = crypto.ERR_error_string(ssl_err)
+            self:close()
+            error(string.format("SSL error. %s",
+                ssl_str_err))
         end
-        if (sz == 0) then
-            break
-        end
-        _merge_prefix(self._write_buffer, sz)
-        self._write_buffer:popleft()
     end
-    if self._write_buffer:not_empty() == false and self._write_callback then
-        local callback = self._write_callback
-        local arg = self._write_callback_arg
-        self._write_callback = nil
-        self._write_callback_arg = nil
-        self:_run_callback(callback, arg)
+    if n == 0 then
+        return
+    end
+    self._write_buffer_offset = self._write_buffer_offset + n
+    self._write_buffer_size = self._write_buffer_size - n
+    if self._write_buffer_size == 0 then
+        -- Buffer reached end. Reset offset and size.
+        self._write_buffer:clear()
+        self._write_buffer_offset = 0
+        if self._write_callback then
+            -- Current buffer completely flushed.
+            local callback = self._write_callback
+            local arg = self._write_callback_arg
+            self._write_callback = nil
+            self._write_callback_arg = nil
+            self:_run_callback(callback, arg)
+        end
+    end
+end
+
+function iostream.SSLIOStream:_handle_write_const()
+    if self._ssl_accepting == true then
+        -- If the handshake has not been completed do not allow any writes to
+        -- be done.
+        return nil
+    end
+
+    local buf, sz = self._const_write_buffer:get()
+    buf = buf + self._write_buffer_offset
+    sz = sz - self._write_buffer_offset
+    local n = crypto.SSL_write(self._ssl, buf, sz)
+    if n == -1 then
+        local err = crypto.SSL_get_error(self._ssl, n)
+        if err == crypto.SSL_ERROR_SYSCALL then
+            local errno = ffi.errno()
+            if errno == EWOULDBLOCK or errno == EAGAIN then
+                return
+            else
+                local fd = self.socket
+                self:close()
+                error(string.format(
+                    "Error when writing to socket %d. Errno: %d. %s",
+                    fd,
+                    errno,
+                    socket.strerror(errno)))
+            end
+        elseif err == crypto.SSL_ERROR_WANT_WRITE then
+            return
+        else
+            local fd = self.socket
+            local ssl_err = crypto.ERR_get_error()
+            local ssl_str_err = crypto.ERR_error_string(ssl_err)
+            self:close()
+            error(string.format("SSL error. %s",
+                ssl_str_err))
+        end
+    end
+    if n == 0 then
+        return
+    end
+    self._write_buffer_offset = self._write_buffer_offset + n
+    if sz == self._write_buffer_offset then
+        -- Buffer reached end. Remove reference to const write buffer.
+        self._write_buffer_offset = 0
+        self._const_write_buffer = nil
+        if self._write_callback then
+            -- Current buffer completely flushed.
+            local callback = self._write_callback
+            local arg = self._write_callback_arg
+            self._write_callback = nil
+            self._write_callback_arg = nil
+            self:_run_callback(callback, arg)
+        end
     end
 end
 end
