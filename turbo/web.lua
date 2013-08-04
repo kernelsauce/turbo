@@ -259,7 +259,6 @@ end
 -- chunk is ignored and only headers are written to the socket.
 -- @param callback (Function) Callback function.
 function web.RequestHandler:flush(callback, arg)
-    -- FIXME: Headers must be properly set before this method is called.
     local headers
     local chunk = self._write_buffer:concat()
     self._write_buffer = deque:new()
@@ -295,6 +294,7 @@ end
 function web.RequestHandler:_gen_headers()
     if not self:get_header("Content-Type") then
         -- No content type is set, assume that it is text/html.
+        -- This might not be preferable in all cases.
         self:add_header("Content-Type", "text/html; charset=UTF-8")
     end
     if not self:get_header("Content-Length") then
@@ -532,7 +532,7 @@ end
 web.ErrorHandler = class("ErrorHandler", web.RequestHandler)
 
 function web.ErrorHandler:initialize(app, request, code, message)
-    web.RequestHandler:initialize(app, request)
+    web.RequestHandler.initialize(self, app, request)
     if (message) then 
         self:write(message)
     else
