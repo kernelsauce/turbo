@@ -186,7 +186,7 @@ end
 -- E.g util.gettimeofday + 3000 will timeout in 3 seconds.
 -- @param func (Function)
 -- @return (Number) Reference to timeout.
-function ioloop.IOLoop:add_timeout(timestamp, func)
+function ioloop.IOLoop:add_timeout(timestamp, func, arg)
     local i = 1
 
     while (true) do
@@ -196,7 +196,7 @@ function ioloop.IOLoop:add_timeout(timestamp, func)
             i = i + 1
         end
     end
-    self._timeouts[i] = _Timeout:new(timestamp, func)
+    self._timeouts[i] = _Timeout:new(timestamp, func, arg)
     return i
 end
 
@@ -465,11 +465,12 @@ end
 
 
 _Timeout = class('_Timeout')
-function _Timeout:initialize(timestamp, callback)
+function _Timeout:initialize(timestamp, callback, arg)
     self._timestamp = timestamp or 
         error('No timestamp given to _Timeout class')
     self._callback = callback or 
         error('No callback given to _Timeout class')
+    self._arg = arg
 end
 
 function _Timeout:timed_out()
@@ -482,7 +483,7 @@ function _Timeout:timed_out()
 end
 
 function _Timeout:callback()
-    return self._callback
+    return self._callback, self._arg
 end
 
 
