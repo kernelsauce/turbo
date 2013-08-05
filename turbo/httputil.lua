@@ -33,7 +33,17 @@ local deque = 		require "turbo.structs.deque"
 local escape = 		require "turbo.escape"
 local util = 		require "turbo.util"
 local ffi = 		require "ffi"
-local libturbo_parser = ffi.load "libturbo_parser"
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "libturbo_parser")
+if not ltp_loaded then
+    -- Check /usr/local/lib explicitly also.
+    ltp_loaded, libturbo_parser = 
+        pcall(ffi.load, "/usr/local/lib/libturbo_parser.so")
+    if not ltp_loaded then 
+        error("Could not load libturbo_parser.so. \
+            Please run makefile and ensure that installation is done correct.")
+    end
+end
+
 require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
