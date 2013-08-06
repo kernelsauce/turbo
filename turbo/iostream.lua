@@ -119,11 +119,11 @@ function iostream.IOStream:connect(address, port, family,
     sockaddr.sin_port = socket.htons(port)
     rc = socket.inet_pton(family, address, ffi.cast("void *", 
         sockaddr.sin_addr))
-    if (rc == 1 and family ~= nil) then
+    if rc == 1 and family ~= nil then
         sockaddr.sin_family = family
     else
         local hostinfo = socket.resolv_hostname(address)
-        if (hostinfo == -1) then
+        if hostinfo == -1 then
             return -1, string.format("Could not resolve hostname: %s", address)
         end
         ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], 
@@ -132,9 +132,9 @@ function iostream.IOStream:connect(address, port, family,
     end
     rc = socket.connect(self.socket, ffi.cast("struct sockaddr *", sockaddr), 
         sizeof_sockaddr)
-    if (rc ~= 0) then
+    if rc ~= 0 then
         errno = ffi.errno()
-        if (errno ~= EINPROGRESS) then
+        if errno ~= EINPROGRESS then
             return -1, string.format("Could not connect. %s", 
                 socket.strerror(errno))
         end
@@ -339,6 +339,7 @@ end
 -- Call close callback if set.
 function iostream.IOStream:close()
     if self.socket then
+        --log.devel("[iostream.lua] Closing socket " .. self.socket)
         if self._read_until_close then
             local callback = self._read_callback
             local arg = self._read_callback_arg
@@ -447,7 +448,7 @@ end
 --- Error handler for IOStream callbacks.
 local function _run_callback_error_handler(err)
     log.error(string.format(
-        "[iostream.lua] Unhandled error. %s. Closing socket.", err))
+        "[iostream.lua] Error in callback %s. Closing socket.", err))
     log.stacktrace(debug.traceback())
 end
 
@@ -633,7 +634,7 @@ function iostream.IOStream:_read_from_buffer()
     -- Handle read_until_pattern.
     elseif self._read_pattern ~= nil then
         if self._read_buffer_size ~= 0 then            
-            -- Slow buffer to Lua string conversion.
+            -- Slow buffer to Lua string conversion to support Lua patterns.
             -- Made even worse by a new allocation in self:_consume of a
             -- different size.
             local ptr, sz = self:_get_buffer_ptr()
