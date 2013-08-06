@@ -79,10 +79,16 @@ function coctx.CoroutineContext:set_arguments(args)
     else
         self.co_args[#self.co_args + 1] = args
     end
+    return self
 end
 
-function coctx.CoroutineContext:set_state(state) self.co_state = state end
-function coctx.CoroutineContext:get_state(state) return self.co_state end
+function coctx.CoroutineContext:set_state(state) 
+    self.co_state = state 
+    return self
+end
+function coctx.CoroutineContext:get_state(state) 
+    return self.co_state 
+end
 
 function coctx.CoroutineContext:finalize_context() 
     self.io_loop:finalize_coroutine_context(self) 
