@@ -25,6 +25,7 @@ local log =                 require "turbo.log"
 local http_response_codes = require "turbo.http_response_codes"
 local coctx =               require "turbo.coctx"
 local deque =               require "turbo.structs.deque"
+local buffer =              require "turbo.structs.buffer"
 local escape =              require "turbo.escape"
 local crypto =              _G.TURBO_SSL and require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
@@ -112,6 +113,7 @@ local errors = {
     ,SOCKET_ERROR           = -11 -- Socket error, check message.
     ,SSL_ERROR              = -12 -- SSL error, check message.
     ,BUSY                   = -13 -- Operation in progress.
+    ,REDIRECT_MAX           = -14 -- Redirect maximum reached.
 }
 async.errors = errors
 
@@ -140,44 +142,13 @@ function async.HTTPClient:fetch(url, kwargs)
     if self.in_progress then
         self._throw_error(errors.BUSY, "HTTPClient is busy.")
         -- This client is busy with another request.
-        -- Do not overwrite the already existing co ctx.
-        return coctx.CoroutineContext:new(self.io_loop)
+        -- Do not overwrite the already existing co ctx, return a temp one.
+        return coctx.CoroutineContext:new(self.io_loop):set_state(coctx.DEAD)
     end
     self.coctx = coctx.CoroutineContext:new(self.io_loop)
+    self.coctx:set_state(coctx.states.WORKING)
     self.in_progress = true
-    if type(url) ~= "string" then
-        self._throw_error(errors.INVALID_URL, "URL must be string.")
-        return self.coctx
-    end
     self.start_time = util.gettimeofday()
-    self.headers = httputil.HTTPHeaders:new()
-    if self.headers:parse_url(url) ~= 0 then
-        self:_throw_error(errors.INVALID_URL, "Invalid URL provided.")
-        return self.coctx
-    end
-    self.hostname = self.headers:get_url_field(httputil.UF.HOST)
-    self.port = tonumber(self.headers:get_url_field(httputil.UF.PORT))
-    self.path = self.headers:get_url_field(httputil.UF.PATH)
-    self.query = self.headers:get_url_field(httputil.UF.QUERY)
-    self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
-    local sock, msg = socket.new_nonblock_socket(self.family, 
-        socket.SOCK_STREAM, 
-        0)
-    if sock == -1 then 
-        -- Could not create a new socket. Highly unlikely case.
-        self:_throw_error(errors.SOCKET_ERROR, msg)
-        return self.coctx
-    end
-    -- Reset states from previous fetch.
-    self.redirects = 0
-    self.response_headers = nil
-    self.s_connecting = false 
-    self.s_error = false 
-    self.payload = nil
-    self.error_str = ""
-    self.error_code = 0
-    self.start_time = util.gettimeofday()
-    self.url = url
     self.kwargs = kwargs or {}
     -- Set sane defaults for kwargs if not present.
     self.redirect_max = self.kwargs.max_redirects or 4
@@ -192,7 +163,58 @@ function async.HTTPClient:fetch(url, kwargs)
         self:_throw_error(errors.REQUIRES_BODY, 
             "Standard does not support this request method without a body.")
         return self.coctx
-    end    
+    end
+    if self:_set_url(url) == -1 then
+        return self.coctx
+    end
+    local sock, msg = socket.new_nonblock_socket(self.family, 
+        socket.SOCK_STREAM, 
+        0)
+    if sock == -1 then 
+        -- Could not create a new socket. Highly unlikely case.
+        self:_throw_error(errors.SOCKET_ERROR, msg)
+        return self.coctx
+    end
+    self.sock = sock
+    -- Reset states from previous fetch.
+    self.redirect = 0
+    self.response_headers = nil
+    self.s_connecting = false 
+    self.s_error = false 
+    self.payload = nil
+    self.error_str = ""
+    self.error_code = 0
+    self:_connect() -- No point to check return, as this is the last thing to happen.
+    -- Assuming the method is yielded the returned context is placed in the 
+    -- IOLoop, awaiting further work, or returning error being set.
+    self.coctx:set_state(coctx.states.WAIT_COND)
+    return self.coctx
+end
+
+function async.HTTPClient:_set_url(url)
+    if type(url) ~= "string" then
+        self._throw_error(errors.INVALID_URL, "URL must be string.")
+        return -1
+    end
+    self.headers = httputil.HTTPHeaders:new()
+    if self.headers:parse_url(url) ~= 0 then
+        self:_throw_error(errors.INVALID_URL, "Invalid URL provided.")
+        return -1
+    end
+    self.hostname = self.headers:get_url_field(httputil.UF.HOST)
+    self.port = tonumber(self.headers:get_url_field(httputil.UF.PORT))
+    self.path = self.headers:get_url_field(httputil.UF.PATH)
+    self.query = self.headers:get_url_field(httputil.UF.QUERY)
+    self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
+    self.req = self:_prepare_http_request()
+    if self.req == -1 then
+        return -1
+    end
+    self.url = url
+    return 0
+end
+
+function async.HTTPClient:_connect()
     if self.schema == "http" then
         -- Standard HTTP connect.
         if self.port == -1 then
@@ -200,7 +222,7 @@ function async.HTTPClient:fetch(url, kwargs)
             self.port = 80
         end
         self.iostream = iostream.IOStream:new(
-            sock, 
+            self.sock, 
             self.io_loop, 
             self.max_buffer_size)
         local rc, msg = self.iostream:connect(self.hostname, 
@@ -213,7 +235,7 @@ function async.HTTPClient:fetch(url, kwargs)
             -- If connect fails without blocking the hostname is most probably 
             -- not resolvable.
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
-            return self.coctx            
+            return -1 
         end
     elseif (self.schema == "https") then
         -- HTTPS connect.
@@ -233,7 +255,7 @@ function async.HTTPClient:fetch(url, kwargs)
                 self:_throw_error(errors.SSL_ERROR, 
                     string.format("Could not create SSL context. %s", 
                         ctx_or_err))
-                return self.coctx            
+                return -1            
             end
             -- Set SSL context to this class. This means that we only support 
             -- one SSL context per instance! The user must create more class 
@@ -246,7 +268,7 @@ function async.HTTPClient:fetch(url, kwargs)
             self.port = 443
         end
         self.iostream = iostream.SSLIOStream:new(
-            sock, 
+            self.sock, 
             self.ssl_options, 
             self.io_loop, 
             self.max_buffer_size)
@@ -259,24 +281,20 @@ function async.HTTPClient:fetch(url, kwargs)
             self)
         if rc ~= 0 then
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
-            return self.coctx            
+            return -1
         end
     else
         -- Some other strange schema that not is HTTP or supported at all.
         self:_throw_error(errors.INVALID_SCHEMA, 
             "Invalid schema used in URL parameter.")
-        return self.coctx
+        return -1
     end
     -- Add connect timeout.
     self.connect_timeout_ref = self.io_loop:add_timeout(
         self.kwargs.connect_timeout * 1000 + util.gettimeofday(), 
         self._handle_connect_timeout,
         self)
-
-    -- Assuming the method is yielded the returned context is placed in the 
-    -- IOLoop, awaiting further work.
-    self.coctx:set_state(coctx.states.WAIT_COND)
-    return self.coctx
+    return 0
 end
 
 function async.HTTPClient:_handle_connect_timeout()
@@ -293,22 +311,13 @@ function async.HTTPClient:_handle_connect_timeout()
 end
 
 function async.HTTPClient:_handle_connect_fail(err, strerr)
-    self:_throw_error(errors.COULD_NOT_CONNECT, strerr)
+    self:_throw_error(errors.COULD_NOT_CONNECT, 
+        "Could not connect: " .. strerr or "")
 end
 
-function async.HTTPClient:_handle_connect()
-    self.s_connecting = false
-    self.io_loop:remove_timeout(self.connect_timeout_ref)
-    self.connect_timeout_ref = nil
-    self.request_timeout_ref = self.io_loop:add_timeout(
-        self.kwargs.request_timeout * 1000 + util.gettimeofday(), 
-        self._handle_request_timeout,
-        self)
-
+function async.HTTPClient:_prepare_http_request()
     self.headers:add("Host", self.hostname)
     self.headers:add("User-Agent", self.kwargs.user_agent)
-    -- No keep-alive support at this point.
-    self.headers:add("Connection", "Close")
     self.headers:set_method(self.kwargs.method:upper())
     self.headers:set_version("HTTP/1.1")
     if type(self.kwargs.on_headers) == "function" then
@@ -325,17 +334,17 @@ function async.HTTPClient:_handle_connect()
         self.headers:set_uri(self.path)
     end
     local write_buf = ""
-    if (self.kwargs.body) then
-        if (type(self.kwargs.body) == "string") then
+    if self.kwargs.body then
+        if type(self.kwargs.body) == "string" then
             local len = self.kwargs.body:len()
             self.headers:add("Content-Length", len)
             write_buf = write_buf .. self.kwargs.body .. "\r\n\r\n"
         else
             self:_throw_error(errors.INVALID_BODY, 
                 "Request body is not a string.")
-            return
+            return -1
         end
-    elseif (type(self.kwargs.params) == "table") then
+    elseif type(self.kwargs.params) == "table" then
         if self.kwargs.method == "POST" then
             self.headers:add("Content-Type", 
                 "application/x-www-form-urlencoded")
@@ -352,7 +361,7 @@ function async.HTTPClient:_handle_connect()
                         escape.escape(v)))
             end
             write_buf = write_buf .. post_data
-        elseif (self.kwargs.method == "GET" and self.query == -1) then
+        elseif self.kwargs.method == "GET" and self.query == -1 then
             local get_url_params = deque:new()
             local n = 0
             get_url_params:append("?")
@@ -371,7 +380,29 @@ function async.HTTPClient:_handle_connect()
     end
     local stringifed_headers = self.headers:stringify_as_request()
     write_buf = stringifed_headers .. write_buf
-    self.iostream:write(write_buf, self._headers_written_cb, self)
+    return write_buf
+end
+
+function async.HTTPClient:_send_http_request()
+    local req = self.req
+    if not req then
+        req = self:_prepare_http_request()
+        if req == -1 then 
+            return -1
+        end
+    end
+    self.iostream:write(req, self._headers_written_cb, self)
+end
+
+function async.HTTPClient:_handle_connect()
+    self.s_connecting = false
+    self.io_loop:remove_timeout(self.connect_timeout_ref)
+    self.connect_timeout_ref = nil
+    self.request_timeout_ref = self.io_loop:add_timeout(
+        self.kwargs.request_timeout * 1000 + util.gettimeofday(), 
+        self._handle_request_timeout,
+        self)
+    self:_send_http_request()
 end
 
 function async.HTTPClient:_headers_written_cb()
@@ -397,32 +428,36 @@ end
 
 function async.HTTPClient:_handle_headers(data)
     if not data then
-        return self:_throw_error(errors.NO_HEADERS, 
+        self:_throw_error(errors.NO_HEADERS, 
             "No data recieved after connect. Expected HTTP headers.")
+        return
     end 
     self.response_headers = httputil.HTTPHeaders:new()
     local rc, httperrno, errnoname, errnodesc = 
         self.response_headers:parse_response_header(data)
     if rc == -1 then
-        return self:_throw_error(errors.PARSE_ERROR_HEADERS, 
+        self:_throw_error(errors.PARSE_ERROR_HEADERS, 
             "Could not parse HTTP headers: " .. errnodesc)
+        return
     end
     local code = self.response_headers:get_status_code()
-    if (100 <= code and code < 200) then
+    if 100 <= code and code < 200 then
         self:_handle_1xx_code(code)
         return
     end
-    if code == 301 and self.redirect < self.redirect_max then
-        local redirect_loc = self.response_headers:get("Location", true)
-        if redirect_loc then
-            -- FIXME: handle redirect here.
-            self.redirect = self.redirect + 1
-        end
-    end
     local content_length = self.response_headers:get("Content-Length", true)
     if not content_length or content_length == 0  then
-        -- No content length. This is probably a HEAD request or a error?
-        self:_finalize_request()
+        if self.response_headers:get("Transfer-Encoding", true) == 
+            "chunked" then
+            -- Chunked encoding.
+            self._chunked = true
+            self._read_buffer = buffer()
+            self.iostream:read_until("\r\n", self._handle_chunked_encoding, 
+                self)
+        else
+        -- No content length or chunked, no body present.
+            self:_finalize_request()
+        end
         return
     end
     self.iostream:read_bytes(tonumber(content_length),
@@ -430,9 +465,55 @@ function async.HTTPClient:_handle_headers(data)
         self)
 end
 
+function async.HTTPClient:_handle_chunked_encoding(data)
+    local next_len = tonumber(data, 16)
+    if next_len and next_len > 0 then
+        self.iostream:read_bytes(next_len + 2, self._chunked_data, self)
+    else
+        -- Close.
+        self.payload = tostring(self._read_buffer)
+        self._read_buffer = nil
+        self:_finalize_request()
+    end
+end
+
+function async.HTTPClient:_chunked_data(data)
+    if data and data:len() > 0 then
+        -- Skip appending of ending CRLF.
+        self._read_buffer:append_right(data, data:len() - 2)
+    end
+    self.iostream:read_until("\r\n", self._handle_chunked_encoding, self)
+end
+
 function async.HTTPClient:_handle_body(data)
     self.payload = data
     self:_finalize_request()
+end
+
+function async.HTTPClient:_handle_redirect(location)
+    self.redirect = self.redirect + 1
+    log.warning("[async.lua] Redirect to => " .. location)
+    if self.redirect_max < self.redirect then
+        self:_throw_error(REDIRECT_MAX, "Redirect maximum reached")
+        return
+    end
+    local old_host = self.hostname
+    self:_set_url(location)
+    if self.response_headers:get("Connection") == "close" or 
+        self.iostream:closed() or old_host ~= self.hostname then
+        -- Call close to be sure that it really is closed...
+        self.iostream:close() 
+        local sock, msg = socket.new_nonblock_socket(self.family, 
+            socket.SOCK_STREAM, 
+            0)
+        if sock == -1 then
+            self:_throw_error(errors.SOCKET_ERROR, msg)
+            return
+        end
+        self.sock = sock
+        self:_connect()
+    end
+    self:_send_http_request()        
 end
 
 function async.HTTPClient:_throw_error(code, msg)
@@ -445,6 +526,12 @@ function async.HTTPClient:_throw_error(code, msg)
 end
 
 function async.HTTPClient:_finalize_request()
+    if self.request_timeout_ref then
+        self.io_loop:remove_timeout(self.request_timeout_ref)
+    end
+    if self.connect_timeout_ref then
+        self.io_loop:remove_timeout(self.connect_timeout_ref)
+    end
     if not self.s_error then 
         self.finish_time = util.gettimeofday()
         local status_code = self.response_headers:get_status_code()
@@ -465,12 +552,14 @@ function async.HTTPClient:_finalize_request()
               http_response_codes[status_code],
               self.finish_time - self.start_time))
         end
-    end
-    if (self.request_timeout_ref) then
-        self.io_loop:remove_timeout(self.request_timeout_ref)
-    end
-    if (self.connect_timeout_ref) then
-        self.io_loop:remove_timeout(self.connect_timeout_ref)
+        -- Handle redirect.
+        if self.response_headers:get_status_code() == 301 and self.redirect < self.redirect_max then
+            local redirect_loc = self.response_headers:get("Location", true)
+            if redirect_loc then
+                self:_handle_redirect(redirect_loc)
+                return
+            end
+        end
     end
     if self.iostream then 
         self.iostream:close()
