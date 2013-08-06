@@ -1,7 +1,8 @@
 CC?=gcc
 AR?=ar
 
-PREFIX?=/usr/local/lib
+PREFIX?=/usr/local
+LDCONFIG= ldconfig -n
 
 CPPFLAGS += -I.
 CPPFLAGS_DEBUG = $(CPPFLAGS) -DHTTP_PARSER_STRICT=1
@@ -58,9 +59,6 @@ library: libhttp_parser.o
 
 library_turbo: libturbo_parser.o
 	$(CC) -shared -o libturbo_parser.so libturbo_parser.o http_parser.o
-	
-install: library_turbo
-	install libturbo_parser.so $(PREFIX)/lib/libturbo_parser.so
 
 package: http_parser.o
 	$(AR) rcs libhttp_parser.a http_parser.o
