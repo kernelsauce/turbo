@@ -32,7 +32,6 @@ function string:split(sep, max, pattern)
     if self:len() > 0 then
         local bPlain = not pattern
         max = max or -1
-
         local nField=1 nStart=1
         local nFirst, nLast = self:find(sep, nStart, bPlain)
         while nFirst and max ~= 0 do
@@ -128,26 +127,6 @@ function util.gettimeofday()
         math.floor(tonumber(timeval.tv_usec) / 1000)
 end
 
-local zlib = ffi.load "z"
---- zlib compress.
-function util.z_compress(txt)
-    local n = zlib.compressBound(#txt)
-    local buf = ffi.new("uint8_t[?]", n)
-    local buflen = ffi.new("unsigned long[1]", n)
-    local res = zlib.compress2(buf, buflen, txt, #txt, 9)
-    assert(res == 0)
-    return ffi.string(buf, buflen[0])
-end
-
---- zlib decompress.
-function util.z_decompress(comp, n)
-    local buf = ffi.new("uint8_t[?]", n)
-    local buflen = ffi.new("unsigned long[1]", n)
-    local res = zlib.uncompress(buf, buflen, comp, #comp)
-    assert(res == 0)
-    return ffi.string(buf, buflen[0])
-end
-
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
 	if not needle or not haystack then 
@@ -183,7 +162,7 @@ function util.funpack(t, i)
     end
 end
 
-local ASIZE = 128
+local ASIZE = 256
 local function suffixes(x, m, suff)
     local f, g, i
   
@@ -195,7 +174,7 @@ local function suffixes(x, m, suff)
             suff[i] = suff[i + m - 1 - f]
         else 
             if i < g then
-                g = i;
+                g = i
             end
             f = i
             while g >= 0 and x[g] == x[g + m - 1 - f] do
@@ -238,49 +217,33 @@ local function preBmGs(x, m, bmGs)
 end
 
 local function preBmBc(x, m, bmBc)
-    local i = 0
-    for i = 0, ASIZE do
+    local i
+    for i = 0, ASIZE, 1 do
         bmBc[i] = m
     end
+    i = 0
     while i < m - 1 do
         bmBc[x[i]] = m - i - 1;
         i = i + 1
     end
 end
 
-local suffix_cache = {}
 
+local bmGs = ffi.new("int[1024]")
+local bmBc = ffi.new("int[1024]")
 --- Turbo Booyer-Moore memory search algorithm. 
 -- Search through arbitrary memory and find first occurence of given byte sequence.
 -- @param x char* Needle memory pointer
 -- @param m int Needle size
 -- @param y char* Haystack memory pointer
 -- @param n int Haystack size.
--- @param cache Use suffix cache. Only makes sense if you are doing multiple 
--- passes with same needle.
-function util.TBM(x, m, y, n, cache)
-    local bcShift, i, j, shift, u, v, turboShift 
-    local bmGs, bmBc
-    m = tonumber(m)
-    n = tonumber(n)
-  
-    if cache then
-        local p = ffi.string(x, m)
-        if not suffix_cache[p] then
-            -- Preprocessing
-            bmGs, bmBc = {}, {}
-            preBmGs(x, m, bmGs);
-            preBmBc(x, m, bmBc);
-            suffix_cache[p] = {bmGs, bmBc}
-        else
-            bmGs, bmBc = suffix_cache[p][1], suffix_cache[p][2]
-        end
-    else
-        -- Preprocessing
-        bmGs, bmBc = {}, {}
-        preBmGs(x, m, bmGs);
-        preBmBc(x, m, bmBc);
+function util.TBM(x, m, y, n)
+    if m == 0 or n == 0 then
+        return
     end
+    local bcShift, i, j, shift, u, v, turboShift  
+    preBmGs(x, m, bmGs);
+    preBmBc(x, m, bmBc);
     -- Searching
     j = 0
     u = 0
@@ -294,9 +257,6 @@ function util.TBM(x, m, y, n, cache)
             end
         end
         if i < 0 then
-            -- Match
-            --shift = bmGs[0]
-            --u = m - shift
             return j
         else
             v = m - 1 - i;
