@@ -31,6 +31,9 @@ Its main features and design principles are:
 
 Installation
 ------------
+Linux distro's is the only OS supported at this point (although adding support for other Unix's is trivial).
+Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
+
 Installing Turbo.lua is easy. Simply download and run make install (requires root priv). It is installed in the Lua 5.1 and LuaHIT 2.0 module directory. You can specify your own prefix by using make install PREFIX=<prefix>, and you can specify LuaJIT version with LUAJIT_VERSION=2.0.0 parameters. To verify installation you can try running the applications in the examples folder.
 
 Object oriented Lua
@@ -50,6 +53,7 @@ Dependencies
 ------------
 Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
 which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
+At
 
 All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
 
