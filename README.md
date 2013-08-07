@@ -29,6 +29,9 @@ Its main features and design principles are:
 
 - SSL Support
 
+Installation
+------------
+Installing Turbo.lua is easy. Simply download and run make install (requires root priv). It is installed in the Lua 5.1 and LuaHIT 2.0 module directory. You can specify your own prefix by using make install PREFIX=<prefix>, and you can specify LuaJIT version with LUAJIT_VERSION=2.0.0 parameters. To verify installation you can try running the applications in the examples folder.
 
 Object oriented Lua
 -------------------
@@ -49,6 +52,8 @@ Turbo Web has dropped support for vanilla Lua because of the decision to drop C 
 which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
 
 All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+
+The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
 License
 -------
