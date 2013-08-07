@@ -43,7 +43,7 @@ local log = {
         ["warning"] = true,
         ["error"] = true,
         ["debug"] = true,
-        ["development"] = false
+        ["development"] = true
     }
 } -- log namespace.
 
@@ -165,7 +165,7 @@ end
 -- @note Messages are printed with cyan color.
 -- @param str (String) Message to output.
 function log.devel(str)
-    if log.categories.devel == false then
+    if log.categories.development == false then
         return
     end    
     ffi.C.time(time_t)

@@ -126,8 +126,6 @@ end
 -- add them to the sockets table.
 function tcpserver.TCPServer:add_sockets(sockets)
     if not self.io_loop then
-        -- FIXME: Is this really needed? Initialize should already have done
-        -- this check.
 	    self.io_loop = ioloop.instance()
     end
     for _, sock in ipairs(sockets) do

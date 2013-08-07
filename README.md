@@ -1,175 +1,63 @@
 Turbo.lua Web 
-========
+=============
+Turbo.lua is a Lua module / toolkit (whatever) for developing web applications in Lua. It is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify.
+It is written in pure Lua, there are no Lua C modules instead it uses the LuaJIT FFI to do socket and event handling. Users of the Tornado web server will recognize the API offered pretty quick.
+If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
 
-<b>Asynchronous event based Lua Web server with inspiration from the Tornado web server.</b>
+Turbo.lua is non-blocking and a features a extremely fast light weight web server. The framework is good for REST APIs, traditional HTTP requests and open connections like Websockets requires because of its combination of the raw
+power of LuaJIT and its event driven nature.
 
-<b>Making a Hello World server:</b>
-
-        local turbo = require('turbo')
-
-
-        -- Create class with RequestHandler heritage.
-        local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
-        function ExampleHandler:get()
-                -- Echo hello world on HTTP GET!
-                self:write("Hello world!")
-        end
-        
-        function ExampleHandler:post()
-                -- Echo post value example on HTTP POST. Or give a bad request if the argument is not set.
-                local posted_value = self:get_argument('somevalue')
-                self:write('You posted: ' .. posted_value)
-        end
-        
-        
-        local MyJSONHandler = class("MyJSONHandler", turbo.web.RequestHandler)
-        function MyJSONHandler:get()
-                -- Pass table to JSON stringify it.  
-                local my_list = { "one", "two", "three" }
-                self:write(my_list)
-        end
-        
-         
-        local application = turbo.web.Application:new({
-                -- Turbo serves static files as well!
-                {"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
-                -- Register handlers
-                {"/$", ExampleHandler},
-                {"/json", MyJSONHandler},
-        })
-        
-        application:listen(8888)
-        turbo.ioloop.instance():start()
-
-Contributions (important read!)
------------------------------------------------
-Making a event-driven server is hard work! I would really like to get some people working together with me on this project. All contributions are greatly appreciated. Not only in developing the server, but also in documentation, howto's, a official web site and any other field you think YOU can help. The plan is to take on node.js, Tornado and others! If you have any questions then please send them to jhnabrhmsn @ gmail.com .
-
-Introduction
-------------
-Turbo Web is a Lua module / toolkit (whatever) for developing web apps in Lua. It is different from all the other
-Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify, and probably the fastest scriptable Web server
-available.
+What sets Turbo.lua apart from the other evented driven servers out there, is that it is the fastest, most scalable and has the smallest footprint of them all. This is thanks to the excellent work done on LuaJIT.
 
 Its main features and design principles are:
 
-- Simple and intuitive API
+- Simple and intuitive API (much like Tornado)
 
 - Good documentation
 
-- Few dependencies
+- No dependencies, except for the Lua interpreter.
 
 - Event driven, asynchronous and threadless design
 
 - Extremely fast with LuaJIT
 
-- Written completely in pure Lua with some LuaJIT FFI modules.
+- Written completely in pure Lua
 
 - Linux Epoll support
 
 - Small footprint
 
-Turbo Web is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details. Some modules 
-are dual licensed with both MIT and Apache 2.0 licenses.
+- SSL Support
+
+Installation
+------------
+Linux distro's is the only OS supported at this point (although adding support for other Unix's is trivial).
+Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
+
+Installing Turbo.lua is easy. Simply download and run make install (requires root priv). It is installed in the Lua 5.1 and LuaHIT 2.0 module directory. You can specify your own prefix by using make install PREFIX=<prefix>, and you can specify LuaJIT version with LUAJIT_VERSION=2.0.0 parameters. To verify installation you can try running the applications in the examples folder.
+
+Object oriented Lua
+-------------------
+Turbo.lua are programmed in a object oriented fashion. There are many ways to do 
+object orientation in Lua, this library uses the Middleclass module. Which is documented
+at https://github.com/kikito/middleclass/wiki. Middleclass is being used internally in 
+Turbo Web, but is also exposed to the user when inheriting from classes such as the
+``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
+easy to learn if you are used to Python, Java or C++. 
+
+Contributions (important read!)
+-----------------------------------------------
+Making a event-driven server is hard work! I would really like to get some people working together with me on this project. All contributions are greatly appreciated. Not only in developing the server, but also in documentation, howto's, a official web site and any other field you think YOU can help. The plan is to take on node.js, Tornado and others! If you have any questions then please send them to jhnabrhmsn @ gmail.com .
 
 Dependencies
 ------------
 Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
 which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
+At
 
 All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
 
-Performance
------------
-So all this bragging, but nothing to back it up?!
-Running:
-
-	ab -n 100000 -c 500 -k 127.0.0.1:8888/
-
-on my Lenovo Thinkpad W510 running ExampleUsage.lua yields these numbers:
-
-        Server Software:        Turbo
-        Server Hostname:        127.0.0.1
-        Server Port:            8888
-        
-        Document Path:          /
-        Document Length:        12 bytes
-        
-        Concurrency Level:      500
-        Time taken for tests:   7.620 seconds
-        Complete requests:      100000
-        Failed requests:        0
-        Write errors:           0
-        Keep-Alive requests:    100000
-        Total transferred:      17500000 bytes
-        HTML transferred:       1200000 bytes
-        Requests per second:    13124.10 [#/sec] (mean)
-        Time per request:       38.098 [ms] (mean)
-        Time per request:       0.076 [ms] (mean, across all concurrent requests)
-        Transfer rate:          2242.89 [Kbytes/sec] received
-
-        Connection Times (ms)
-                      min  mean[+/-sd] median   max
-        Connect:        0    6 124.6      0    3012
-        Processing:     1   32  10.1     37     245
-        Waiting:        1   32  10.1     37     244
-        Total:          1   38 126.6     37    3256
-        
-        Percentage of the requests served within a certain time (ms)
-          50%     37
-          66%     38
-          75%     39
-          80%     39
-          90%     40
-          95%     40
-          98%     40
-          99%     40
-         100%   3256 (longest request)
-
-
-Tornado (with demo hello world app):
-
-        Server Software:        TornadoServer/3.1.dev2
-        Server Hostname:        127.0.0.1
-        Server Port:            8888
-        
-        Document Path:          /
-        Document Length:        12 bytes
-        
-        Concurrency Level:      500
-        Time taken for tests:   33.960 seconds
-        Complete requests:      100000
-        Failed requests:        0
-        Write errors:           0
-        Keep-Alive requests:    100000
-        Total transferred:      23400000 bytes
-        HTML transferred:       1200000 bytes
-        Requests per second:    2944.64 [#/sec] (mean)
-        Time per request:       169.800 [ms] (mean)
-        Time per request:       0.340 [ms] (mean, across all concurrent requests)
-        Transfer rate:          672.90 [Kbytes/sec] received
-        
-        Connection Times (ms)
-                      min  mean[+/-sd] median   max
-        Connect:        0    7 128.3      0    3008
-        Processing:    14  163  36.0    168     382
-        Waiting:       14  163  36.0    168     382
-        Total:         14  169 136.3    168    3375
-        
-        Percentage of the requests served within a certain time (ms)
-          50%    168
-          66%    170
-          75%    174
-          80%    178
-          90%    185
-          95%    197
-          98%    259
-          99%    282
-         100%   3375 (longest request)
-
-
-Don't believe me? Try it yourself and see :).
-
+The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
 License
 -------
