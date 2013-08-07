@@ -22,7 +22,7 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:type io_loop: IOLoop object
 	:param max_buffer_size: The maximum number of bytes that can be held in internal buffer before flushing must occur. If none is set, 104857600 are used as default.
 	:type max_buffer_size: Number
-    :rtype: IOStream object
+	:rtype: IOStream object
 	
 .. function:: IOStream:connect(address, port, family, callback, errhandler, arg)
 
@@ -113,6 +113,35 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:type callback: Function
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback.
 	
+.. function:: IOStream:write_buffer(buf, callback, arg)
+
+	Write the given ``turbo.structs.buffer`` to the stream.
+
+	:param buf: The buffer to write to the stream.
+	:type buf: ``turbo.structs.buffer`` class instance
+	:param callback: Function to be called when data has been written to stream.
+	:type callback: Function
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback.
+
+.. function:: IOStream:write_zero_copy(buf, callback, arg)
+	
+	Write the given buffer class instance to the stream without
+	copying. This means that this write MUST complete before any other
+	writes can be performed, and that the internal buffer has to be completely flushed
+	before it is invoked. This can be achieved by either using ``IOStream:writing`` or adding a callback to 
+	other write methods callled before this. There is a barrier in place to stop this from 
+	happening. A error is raised in the case of invalid use. This method is recommended
+	when you are serving static data, it refrains from copying the contents of 
+	the buffer into its internal buffer, at the cost of not allowing
+	more data being added to the internal buffer before this write is finished. The reward is lower
+	memory usage and higher throughput.
+
+	:param buf: The buffer to send. Will not be modified, and must not be modified until write is done.
+	:type buf: ``turbo.structs.buffer``
+	:param callback: Function to be called when data has been written to stream.
+	:type callback: Function
+	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback.
+
 .. function:: IOStream:set_close_callback(callback, arg)
 
 	Set a callback to be called when the stream is closed.
@@ -169,7 +198,7 @@ must be set.
 	:param ssl_options: SSL arguments.
 	:type ssl_options: Table
 	:param io_loop: IOLoop class instance to use for event processing. If none is set then the global instance is used, see the ``ioloop.instance()`` function.
-	:type io_loop: IOLoop object
+	:type io_loop: IOLoop class instance
 	:param max_buffer_size: The maximum number of bytes that can be held in internal buffer before flushing must occur. If none is set, 104857600 are used as default.
 	:type max_buffer_size: Number
 	:rtype: IOStream object

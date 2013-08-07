@@ -290,7 +290,7 @@ end
 -- writes can be performed. There is a barrier in place to stop this from 
 -- happening. A error is raised if this happens. This method is recommended
 -- when you are serving static data, it refrains from copying the contents of 
--- the buffer into its the buffer in the IOStream, at the cost of not allowing
+-- the buffer into its internal buffer, at the cost of not allowing
 -- more data being added to the internal buffer before this write is finished.
 -- @param buf (Buffer class instance) Will not be modified.
 -- @param callback (Function) Optional callback to call when chunk is flushed.
