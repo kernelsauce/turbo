@@ -129,7 +129,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
 	    self.io_loop = ioloop.instance()
     end
     for _, sock in ipairs(sockets) do
-        self._sockets[sock] = sock
+        self._sockets[#self._sockets + 1] = sock
         sockutil.add_accept_handler(sock, 
             self._handle_connection, 
             self.io_loop, 
@@ -173,10 +173,11 @@ end
 
 --- Stop the TCPServer.
 function tcpserver.TCPServer:stop()
-    for fd, sock in pairs(self._sockets) do
+    for _, fd in ipairs(self._sockets) do
 	   self.io_loop:remove_handler(fd)
-	   assert(socket.close(sock) == 0, "Failed to close socket.")
+	   assert(socket.close(fd) == 0, "Failed to close socket.")
     end
+    self._sockets = {}
 end
 
 --- Internal function for wrapping new raw sockets in a IOStream class instance.
