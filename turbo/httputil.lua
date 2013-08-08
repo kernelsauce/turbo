@@ -175,7 +175,7 @@ function httputil.HTTPHeaders:set_uri(uri)
     self.uri = uri
 end
 
---- Get URI. Get current URI.
+--- Get current URI.
 -- @return Currently set URI or nil if not set.
 function httputil.HTTPHeaders:get_uri() return self.uri end
 
@@ -304,7 +304,7 @@ end
 -- @param key (String) The key to get.
 -- @param caseinsensitive (Boolean) If true then the key will be matched without
 -- regard for case sensitivity.
--- @return The value of the key, or nil not existing. May return a table if 
+-- @return The value of the key, or nil if not existing. May return a table if 
 -- multiple keys are set.
 function httputil.HTTPHeaders:get(key, caseinsensitive)
     local value

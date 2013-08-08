@@ -19,27 +19,20 @@ Note that this class has sanity checking for input parameters. If they are of wr
     :param header_string: (optional) Raw header, up until double CLRF, if you want the class to parse headers on construction
     :type header_string: String
     :rtype: HTTPHeaders object
-    
-.. function :: HTTPHeaders:get_url_field(UF_prop)
-    
-    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: ``turbo.httputil.UF.SCHEMA``,
-    ``turbo.httputil.UF.HOST``, ``turbo.httputil.UF.PORT``, ``turbo.httputil.UF.PATH``, ``turbo.httputil.UF.PATH``,
-    ``turbo.httputil.QUERY``, ``turbo.httputil.UF.FRAGMENT`` or ``turbo.httputil.UF.USERINFO``
-    
-    :param UF_prop: Segment to return, values defined in ``turbo.httputil.UF``.
-    :type UF_prop: Number
-    :rtype: String or Number on error (-1)
+
+Manipulation
+------------
     
 .. function :: HTTPHeaders:set_uri(uri)
 
-    Set URI.
+    Set URI. Mostly usefull when building up request headers, NOT when parsing response headers. Parsing should be done with HTTPHeaders:parse_url.
     
     :param uri: URI string to set.
     :type uri: String
     
 .. function :: HTTPHeaders:get_uri()
 
-    Get URI.
+    Get current URI.
     
     :rtype: String or nil
     
@@ -111,48 +104,108 @@ Note that this class has sanity checking for input parameters. If they are of wr
     
     :rtype: Table
     
-.. function :: HTTPHeaders:get(key)
+.. function :: HTTPHeaders:get(key, caseinsensitive)
 
-    Get given key's current value from headers.
+    Get given key from header key value section.
     
     :param key: Value to get, e.g "Content-Encoding".
     :type key: String
-    :rtype: String    
+    :param caseinsensitive: If true then the key will be matched without regard for case sensitivity.
+    :type caseinsensitive: Boolean
+    :rtype: The value of the key in String form, or nil if not existing. May return a table if multiple keys are set.
     
 .. function :: HTTPHeaders:add(key, value)
     
-    Add a key value pair to headers. Will not overwrite existing keys, use ``HTTPHeaders:set()`` for that.
+    Add a key with value to the headers. Supports adding multiple values to  one key. E.g mutiple "Set-Cookie" header fields.
     
-    :param key: The key to set.
+    :param key: Key to add to headers. Must be string or error is raised.
     :type key: String
-    :param value: The value to set.
+    :param value: Value to associate with the key. 
     :type value: String
     
-.. function :: HTTPHeaders:set(key, value)
+.. function :: HTTPHeaders:set(key, value, caseinsensitive)
 
-    Set a key value to headers. Will overwrite existing key.
+    Set a key with value to the headers. Overwiting existing key.
     
     :param key: The key to set.
     :type key: String
-    :param value: The value to set.
+    :param value: Value to associate with the key. 
     :type value: String
+    :param caseinsensitive: If true then the existing keys will be matched without regard for case sensitivity and overwritten.
+    :type caseinsensitive: Boolean
     
-.. function :: HTTPHeaders:remove(key)
+.. function :: HTTPHeaders:remove(key, caseinsensitive)
     
     Remove a key value combination from the headers.
     
     :param key: Key to remove.
     :type key: String
+    :param caseinsensitive: If true then the existing keys will be matched without regard for case sensitivity and overwritten.
+    :type caseinsensitive: Boolean
     
-.. function :: HTTPHeaders:update(raw_headers)
+Parsing
+-------
 
-    Parse raw HTTP headers and fill the current headers with the data.
-    
-    :param raw_headers: Raw HTTP header string, up to and including double CRLF.
+.. function :: HTTPHeaders:parse_response_header(raw_headers)
+
+    Parse HTTP response headers. Populates the class with all data in headers.
+
+    :param raw_headers: Raw HTTP response header in string form.
     :type raw_headers: String
+    :rtype: Number. -1 on error, else amount of bytes parsed.
+
+.. function :: HTTPHeaders:parse_request_header(raw_headers)
+
+    Parse HTTP request headers. Populates the class with all data in headers.
+
+    :param raw_headers: Raw HTTP request header in string form.
+    :type raw_headers: String
+    :rtype: Number. -1 on error, else amount of bytes parsed.
+
+.. function:: HTTPHeaders:parse_url(url)
+
+    Parse standalone URL and populate class instance with values.  HTTPHeaders:get_url_field must be used to read out value.
+
+    :param url: URL string.
+    :type url: String.
+    :rtype: Number -1 on error, else 0.
+
+.. function :: HTTPHeaders:get_url_field(UF_prop)
     
+    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: ``turbo.httputil.UF.SCHEMA``,
+    ``turbo.httputil.UF.HOST``, ``turbo.httputil.UF.PORT``, ``turbo.httputil.UF.PATH``, ``turbo.httputil.UF.PATH``,
+    ``turbo.httputil.QUERY``, ``turbo.httputil.UF.FRAGMENT`` or ``turbo.httputil.UF.USERINFO``
+    
+    :param UF_prop: Segment to return, values defined in ``turbo.httputil.UF``.
+    :type UF_prop: Number
+    :rtype: String or Number on error (-1)
+
+Stringifiers
+------------
+
+.. function:: HTTPHeaders:stringify_as_request()
+
+    Stringify data set in class as a HTTP request header.
+    
+    :rtype: String. HTTP header string excluding final delimiter.
+    
+.. function :: HTTPHeaders:stringify_as_response()
+
+    Stringify data set in class as a HTTP response header.
+    If not "Date" field is set, it will be generated automatically.
+    
+    :rtype: String. HTTP header string excluding final delimiter.
+
 .. function :: HTTPHeaders:__tostring()
 
-    Convert the current HTTP headers object to string format.
+    Convinience method to return HTTPHeaders:stringify_as_response on string conversion.
     
-    :rtype: String
+    :rtype: String. HTTP header string excluding final delimiter.
+
+.. function:: parse_multipart_data(data)  
+
+    Parse multipart form data.
+
+    :param data: Multi-part form data in string form.
+    :type data: String
+    :rtype: Table of keys with corresponding values. Each key may hold multiple values if there were found multiple values for one key.
