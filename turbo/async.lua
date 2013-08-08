@@ -553,7 +553,8 @@ function async.HTTPClient:_finalize_request()
               self.finish_time - self.start_time))
         end
         -- Handle redirect.
-        if self.response_headers:get_status_code() == 301 and self.redirect < self.redirect_max then
+        local res_code = self.response_headers:get_status_code()
+        if (res_code == 301 or res_code == 302) and self.redirect < self.redirect_max then
             local redirect_loc = self.response_headers:get("Location", true)
             if redirect_loc then
                 self:_handle_redirect(redirect_loc)
