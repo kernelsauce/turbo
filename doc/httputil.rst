@@ -172,9 +172,16 @@ Parsing
 
 .. function :: HTTPHeaders:get_url_field(UF_prop)
     
-    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: ``turbo.httputil.UF.SCHEMA``,
-    ``turbo.httputil.UF.HOST``, ``turbo.httputil.UF.PORT``, ``turbo.httputil.UF.PATH``, ``turbo.httputil.UF.PATH``,
-    ``turbo.httputil.QUERY``, ``turbo.httputil.UF.FRAGMENT`` or ``turbo.httputil.UF.USERINFO``
+    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: 
+
+    * ``turbo.httputil.UF.SCHEMA``,
+    * ``turbo.httputil.UF.HOST``, 
+    * ``turbo.httputil.UF.PORT``, 
+    * ``turbo.httputil.UF.PATH``, 
+    * ``turbo.httputil.UF.PATH``,
+    * ``turbo.httputil.QUERY``, 
+    * ``turbo.httputil.UF.FRAGMENT``,
+    * ``turbo.httputil.UF.USERINFO``
     
     :param UF_prop: Segment to return, values defined in ``turbo.httputil.UF``.
     :type UF_prop: Number
