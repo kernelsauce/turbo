@@ -83,7 +83,7 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         
         :rtype: Table
         
-.. function:: IOLoop:add_timeout(timestamp, func)
+.. function:: IOLoop:add_timeout(timestamp, func, arg)
 
         Add a timeout with function to be called in future. There is given no gurantees that the function will be called
         on time. See the note at beginning of this section.
@@ -92,6 +92,7 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         :type timestamp: Number
         :param func: A function to be called after timestamp is reached.
         :type func: Function
+        :param arg: Optional argument for func.
         :rtype: Unique reference as a reference for this timeout. The reference can be used as parameter for ``IOLoop:remove_timeout()``
         
 .. function:: IOLoop:remove_timeout(ref)
@@ -102,7 +103,7 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         :type identifer: Number
         :rtype: Boolean
         
-.. function:: IOLoop:set_interval(msec, func)
+.. function:: IOLoop:set_interval(msec, func, arg)
 
         Add a function to be called every milliseconds. There is given no guarantees that the function will be called on time. See the note at beginning of this section.
         
@@ -110,6 +111,7 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         :type msec: Number
         :param func: A function to be called every msecs.
         :type func: Function
+        :param arg: Optional argument for func.
         :rtype: Unique numeric identifier as a reference to this interval. The refence can be used as parameter for ``IOLoop:clear_interval()``
         
 .. function:: IOLoop:clear_interval(ref)
