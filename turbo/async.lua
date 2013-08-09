@@ -237,7 +237,7 @@ function async.HTTPClient:_connect()
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
             return -1 
         end
-    elseif (self.schema == "https") then
+    elseif self.schema == "https" then
         -- HTTPS connect.
         -- Create context if not already done.
         if not self.ssl_options or not self.ssl_options._ssl_ctx then
@@ -497,10 +497,12 @@ function async.HTTPClient:_handle_redirect(location)
         self:_throw_error(REDIRECT_MAX, "Redirect maximum reached")
         return
     end
+    local old_schema = self.schema
     local old_host = self.hostname
     self:_set_url(location)
     if self.response_headers:get("Connection") == "close" or 
-        self.iostream:closed() or old_host ~= self.hostname then
+        self.iostream:closed() or old_host ~= self.hostname or
+        old_scehma ~= self.schema then
         -- Call close to be sure that it really is closed...
         self.iostream:close() 
         local sock, msg = socket.new_nonblock_socket(self.family, 

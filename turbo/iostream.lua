@@ -905,13 +905,27 @@ function iostream.SSLIOStream:connect(address, port, family, callback,
     -- We steal the on_connect callback from the caller. And make sure that we 
     -- do handshaking before anything else.
     self._ssl_connect_callback = callback
+    self._ssl_connect_errhandler = errhandler
+    self._ssl_connect_callback_arg = arg
     self._ssl_hostname = address
     return iostream.IOStream.connect(self, 
         address, 
         port, 
         family, 
         self._handle_connect, 
-        errhandler)
+        self._connect_errhandler,
+        self)
+end
+
+function iostream.SSLIOStream:_connect_errhandler()
+    if self._ssl_connect_errhandler then
+        local errhandler = self._ssl_connect_errhandler
+        local arg = self._ssl_connect_callback_arg
+        self._ssl_connect_errhandler = nil
+        self._ssl_connect_callback_arg = nil
+        self._ssl_connect_callback = nil
+        errhandler(arg)
+    end
 end
 
 function iostream.SSLIOStream:_do_ssl_handshake()
@@ -1027,15 +1041,13 @@ function iostream.SSLIOStream:_handle_connect()
                 local fd = self.socket
                 self:close()
                 local strerror = socket.strerror(sockerr)
-                if self._connect_fail_callback then
-                    if self._connect_callback_arg then
-                        self._connect_fail_callback(
-                            self._connect_callback_arg, 
-                            sockerr, 
-                            strerror)
-                    else
-                        self._connect_fail_callback(sockerr, strerror)
-                    end
+                if self._ssl_connect_errhandler then
+                    local errhandler = self._ssl_connect_errhandler
+                    local arg = self._ssl_connect_callback_arg
+                    self._ssl_connect_errhandler = nil
+                    self._ssl_connect_callback_arg = nil
+                    self._ssl_connect_callback = nil
+                    errhandler(arg, sockerr, strerror)
                 end
                 error(string.format(
                     "[iostream.lua] Connect failed: %s, for fd %d", 
