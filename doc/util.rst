@@ -6,6 +6,9 @@ turbo.util Common utilities
 
 The util namespace contains various convinience functions that fits no where else. As Lua is fairly naked as standard. Just the way we like it.
 
+Table tools
+-----------
+
 .. function:: string:split(sep, max, pattern)
 
 	Split a string into a table on given seperator. This function extends the standard string library with new functionality.
@@ -36,14 +39,19 @@ The util namespace contains various convinience functions that fits no where els
 	:type needle: Any that supports == operator.
 	:param haystack: The haystack to search.
 	:type haystack: Table
-	
-.. function:: hex(num)
 
-	Convert number value to hexadecimal string format.
-	
-	:param num: The number to convert.
-	:type num: Number
-	:rtype: String
+.. function:: tablemerge(t1, t2)
+
+	Merge two tables together.
+
+	:param t1: First table.
+	:type t1: Table
+	:param t2: Second table.
+	:type t2: Table
+	:rtype: Table
+
+Low level
+---------
 	
 .. function:: mem_dump(ptr, sz)
 
@@ -52,11 +60,47 @@ The util namespace contains various convinience functions that fits no where els
 	
 	:param ptr: A cdata pointer (from FFI)
 	:type ptr: cdata
-	:param sz: Length to print hex chars for.
+	:param sz: Length to dump contents for.
 	:type sz: Number
+
+.. function:: TBM(x, m, y, n)
+
+	Turbo Booyer-Moore memory search algorithm. 
+	Search through arbitrary memory and find first occurence of given byte sequence. Effective when looking
+	for large needles in a large haystack.
+
+	:param x: Needle memory pointer.
+	:type x: char*
+	:param m: Needle size.
+	:type m: int
+	:param y: Haystack memory pointer.
+	:type y: char*
+	:param n: Haystack size.	
+	:type n: int
+	:rtype: First occurence of byte sequence in y defined in x or nil if not found.
+
+Misc
+----
+
+.. function:: file_exists(name)
+
+	Check if file exists on local filesystem.
+
+	:param path: Full path to file.
+	:type path: String
+	:rtype: Boolean
+
+.. function:: hex(num)
+
+	Convert number value to hexadecimal string format.
 	
+	:param num: The number to convert.
+	:type num: Number
+	:rtype: String
+
 .. function:: gettimeofday()
 
-	Returns the current time in milliseconds precision.
+	Returns the current time in milliseconds precision. Unlike Lua builtin which only offers granularity in seconds.
 	
 	:rtype: Number
+
