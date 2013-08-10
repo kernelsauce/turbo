@@ -62,6 +62,7 @@ API documentation
    httputil
    httpserver
    tcpserver
+   structs
    util
    sockutil
    escape
