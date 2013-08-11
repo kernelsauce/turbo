@@ -1,5 +1,3 @@
-Turbo.lua Web Framework
-=======================
 
 .. image:: _static/turbo.png
 

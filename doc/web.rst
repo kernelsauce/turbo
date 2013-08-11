@@ -244,7 +244,7 @@ Output
 Misc
 ----
 
-.. function:: web.RequestHandler:set_async(bool)
+.. function:: RequestHandler:set_async(bool)
 
 	Set handler to not call finish() when request method has been called and
 	returned. Default is false. When set to true, the user must explicitly call
@@ -325,7 +325,7 @@ handler pattern's only the first handler matched is delegated the request. There
 
 A good read on Lua patterns matching can be found here: http://www.wowwiki.com/Pattern_matching.
 
-.. function:: web.Application(handlers, default_host)
+.. function:: Application(handlers, default_host)
 
 	Initialize a new Application class instance.
 	:param handlers: As described above. Table of tables with pattern to handler binding.
@@ -333,7 +333,7 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	:param default_host: Redirect to URL if no matching handler is found.
 	:type default_host: String
 
-.. function:: web.Application:add_handler(pattern, handler, arg)
+.. function:: Application:add_handler(pattern, handler, arg)
 
 	Add handler to Application.
 

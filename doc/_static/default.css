@@ -44,7 +44,7 @@
 body {
     font-family: "aller-light";
     font-size: 100%;
-    background-color: purple;
+    background-color: #353535;
 	line-height: 18px;
     color: #000;
     margin: 0;
@@ -84,7 +84,7 @@ div.footer a {
 }
 
 div.related {
-    background-color: purple;
+    background-color: #353535;
     line-height: 30px;
     color: #ffffff;
 }
@@ -172,7 +172,7 @@ div.body h5,
 div.body h6 {
     font-family: 'Trebuchet MS', sans-serif;
     font-weight: normal;
-    color: purple;
+    color: #353535;
     margin: 20px -20px 10px -20px;
     padding: 3px 0 3px 10px;
 }
