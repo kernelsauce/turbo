@@ -42,7 +42,7 @@ Object oriented Lua
 Turbo.lua are programmed in a object oriented fashion. There are many ways to do 
 object orientation in Lua, this library uses the Middleclass module. Which is documented
 at https://github.com/kikito/middleclass/wiki. Middleclass is being used internally in 
-Turbo Web, but is also exposed to the user when inheriting from classes such as the
+Turbo.lua, but is also exposed to the user when inheriting from classes such as the
 ``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
 easy to learn if you are used to Python, Java or C++. 
 
@@ -53,10 +53,11 @@ Making a event-driven server is hard work! I would really like to get some peopl
 Dependencies
 ------------
 Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
-which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
-At
+which gives a much better performance. Latest version of LuaJIT can be downloaded here: 
+http://luajit.org/
 
-All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+All of the modules of Turbo.lua are made with the class implementation that Middleclass provides.
+https://github.com/kikito/middleclass. 
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
