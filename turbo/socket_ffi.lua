@@ -252,13 +252,14 @@ local function set_nonblock_flag(fd)
 end
 
 local function set_reuseaddr_opt(fd)
-    local setopt = ffi.new("int32_t[1]", 1)
+    local setopt = ffi.new("int32_t[1]")
+    setopt[0] = 1
     local rc = ffi.C.setsockopt(fd,
         SOL.SOL_SOCKET,
         SO.SO_REUSEADDR,
         setopt,
         ffi.sizeof("int32_t"))
-    if (rc ~= 0) then
+    if rc ~= 0 then
 	   return -1
     end
     return 0
