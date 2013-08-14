@@ -26,7 +26,7 @@ a GET request is very easy:
 	end
 
 	local application = turbo.web.Application({ 
-		{"/$", ExampleHandler}
+		{"^/$", ExampleHandler}
 	})
 	application:listen(8888)
 	turbo.ioloop.instance():start()
@@ -295,9 +295,14 @@ Usage:
 .. code-block:: lua
    :linenos:
 
-	local application = turbo.web.Application({ 
-		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+	local app = turbo.web.Application:new({
+		{"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
+		{"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
 	})
+
+Paths are not checked until intial hit on handler. It is then cached in memory.
+Notice that paths postfixed with / indicates that it should be treated as a directory. Paths with no / is treated
+as a single file.
 
 
 Application class
@@ -308,9 +313,9 @@ The Application class is a collection of request handler classes that make toget
    :linenos:
 	
 	local application = turbo.web.Application({ 
-		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
-		{"/$", ExampleHandler},
-		{"/item/(%d*)", ItemHandler}
+		{"^/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+		{"^/$", ExampleHandler},
+		{"^/item/(%d*)", ItemHandler}
 	})
 
 The constructor of this class takes a "map" of URL patterns and their respective handlers. The third element in the table are optional parameters the handler class might have.
