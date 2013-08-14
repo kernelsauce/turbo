@@ -9,8 +9,7 @@ Turbo.lua is a Lua module / toolkit (whatever) for developing web applications i
 It is written in pure Lua, there are no Lua C modules instead it uses the LuaJIT FFI to do socket and event handling. Users of the Tornado web server will recognize the API offered pretty quick.
 If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
 
-Turbo.lua is non-blocking and a features a extremely fast light weight web server. The framework is good for REST APIs, traditional HTTP requests and open connections like Websockets requires beacause of its combination of the raw
-power of LuaJIT and its event driven nature.
+Turbo.lua is non-blocking and a features a extremely fast light weight web server. The framework is good for REST APIs, traditional HTTP requests and open connections like Websockets because of its event driven nature.
 
 What sets Turbo.lua apart from the other evented driven servers out there, is that it is the fastest, most scalable and has the smallest footprint of them all. This is thanks to the excellent work done on LuaJIT.
 
