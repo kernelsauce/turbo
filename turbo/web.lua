@@ -412,7 +412,7 @@ function web._StaticWebCache:get_file(path)
             "[web.lua] Added %s (%d bytes) to static file cache. ", 
             path, 
             tonumber(buf:len())))
-        return 0, buf
+        return 0, buf, mime
     else
         return -1, nil
     end
