@@ -41,6 +41,14 @@ crypto.SSL_VERIFY_NONE =		0x00
 crypto.SSL_VERIFY_PEER =		0x01
 crypto.SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 0x02
 crypto.SSL_VERIFY_CLIENT_ONCE =		0x04
+crypto.validate = 
+{
+    ["MatchFound"] = 0,
+    ["MatchNotFound"] = 1,
+    ["NoSANPresent"] = 2,
+    ["MalformedCertificate"] = 3,
+    ["Error"] = 4
+}
 
 crypto.ERR_get_error = lssl.ERR_get_error
 crypto.SSL_get_error = lssl.SSL_get_error
@@ -66,12 +74,14 @@ function crypto.ssl_init()
 	lssl.OPENSSL_add_all_algorithms_noconf()
     end
 end
-
+if _G.TURBO_SSL then
+    crypto.ssl_init()
+end
 --- Create a client type SSL context.
 -- @param cert_file (optional) Certificate file 
 -- @param prv_file (optional) Key file 
--- @param ca_cert_path (optional) Path to CA certificates. Turbo is shipped 
--- with a builtin from Ubuntu 12.10.
+-- @param ca_cert_path (optional) Path to CA certificates, or the system wide
+-- in /etc/ssl/certs/ca-certificates.crt will be used.
 -- @param verify (optional) Verify the hosts certificate with CA. 
 -- @param sslv (optional) SSL version to use.
 -- @return Return code. 0 if successfull, else a OpenSSL error code and a SSL
@@ -82,9 +92,9 @@ function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, ver
     local ctx
     local err = 0
 
-    -- Turbo comes with a builtin CA certificates list, scraped out of a 
-    -- standard Ubuntu install. The user is free to specify his own list.
-    ca_cert_path = ca_cert_path or "ca-certificates.crt"
+    -- Use standardish path to ca-certificates if not specified by user.
+    -- May not be present on all Unix systems.
+    ca_cert_path = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt"
     meth = sslv or lssl.SSLv23_client_method()
     if meth == nil then
 		err = lssl.ERR_peek_error()
@@ -125,7 +135,6 @@ function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, ver
 		    return err, crypto.ERR_error_string(err)
 		end
 		lssl.SSL_CTX_set_verify(ctx, crypto.SSL_VERIFY_PEER, nil); 
-		lssl.SSL_CTX_set_verify_depth(ctx, 1);
     end
     return err, ctx
 end

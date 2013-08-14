@@ -90,7 +90,8 @@ async.HTTPClient = class("HTTPClient")
 -- ssl_options kwargs:
 -- "priv_file" SSL / HTTPS private key file.              
 -- "cert_file" SSL / HTTPS certificate key file.          
--- "verify_ca" SSL / HTTPS verify servers certificate.    
+-- "verify_ca" SSL / HTTPS chain verifification and hostname matching. 
+--      Verification and matching is on as default.    
 -- "ca_path" SSL / HTTPS CA certificate verify location 
 function async.HTTPClient:initialize(ssl_options, io_loop, max_buffer_size)
     self.family = AF_INET
@@ -123,7 +124,7 @@ async.errors = errors
 -- ** Available options **
 -- "method" = The HTTP method to use. Default is "GET"
 -- "params" = Provide parameters as table.
--- "cookie" = The cookie to use.
+-- "cookie" = (Table) The cookies to use. 
 -- "http_version" = Set HTTP version. Default is HTTP1.1
 -- "use_gzip" = Use gzip compression. Default is true.
 -- "allow_redirects" = Allow or disallow redirects. Default is true.
@@ -250,7 +251,8 @@ function async.HTTPClient:_connect()
                 self.ssl_options.priv_key,
                 self.ssl_options.cert_key,
                 self.ssl_options.ca_path,
-                self.ssl_options.verify_ca)
+                self.ssl_options.verify_ca ~= nil and 
+                    self.ssl_options.verify_ca or true)
             if rc ~= 0 then
                 self:_throw_error(errors.SSL_ERROR, 
                     string.format("Could not create SSL context. %s", 
@@ -276,6 +278,8 @@ function async.HTTPClient:_connect()
             self.hostname, 
             self.port, 
             self.family,
+            self.ssl_options.verify_ca ~= nil and 
+                    self.ssl_options.verify_ca or true,
             self._handle_connect,
             self._handle_connect_fail,
             self)
