@@ -4,6 +4,7 @@
 ## See LICENSE file for license information.
 ########
 
+CC ?= gcc
 RM= rm -f
 UNINSTALL= rm -rf
 MKDIR= mkdir -p
@@ -20,29 +21,32 @@ MINVER=  0
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
-HTTPPARSER= $(TDEPS)/http-parser
+HTTP_PARSERDIR = $(TDEPS)/http-parser
 INSTALL_LIB= $(PREFIX)/lib
-INSTALL_HTTPPARSER_SOSHORT= libturbo_parser.so
-INSTALL_HTTPPARSER_SONAME= $(INSTALL_HTTPPARSER_SOSHORT).$(TVERSION)
-INSTALL_HTTPPARSER_DYN= $(INSTALL_LIB)/$(INSTALL_HTTPPARSER_SONAME)
-INSTALL_HTTPPARSER_SHORT= $(INSTALL_LIB)/$(INSTALL_HTTPPARSER_SOSHORT)
+INSTALL_TFFI_WRAP_SOSHORT= ltffi_wrap.so
+INSTALL_TFFI_WRAP_SONAME= $(INSTALL_TFFI_WRAP_SOSHORT).$(TVERSION)
+INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
+INSTALL_TFFI_WRAP_SHORT= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SOSHORT)
 TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1	
+INC = -I$(HTTP_PARSERDIR)/
+LDFLAGS = -lcrypto -lssl -fPIC -O3 
 
 LUAJIT_VERSION?=2.0.2
 LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
-	make -C deps/http-parser
+	make -C deps/http-parser library
 
 clean:
 	make -C deps/http-parser  clean
-	
+	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
+
 uninstall:
 	@echo "==== Uninstalling Turbo.lua ===="
-	$(UNINSTALL) $(INSTALL_HTTPPARSER_SHORT) $(INSTALL_HTTPPARSER_DYN)
+	$(UNINSTALL) $(INSTALL_TFFI_WRAP_SHORT) $(INSTALL_TFFI_WRAP_DYN)
 	$(LDCONFIG) $(INSTALL_LIB)
 	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
 	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
@@ -62,12 +66,13 @@ install:
 	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
 	@echo "==== Building 3rdparty modules ===="
-	make -C $(HTTPPARSER) library_turbo PREFIX=$(PREFIX)
+	make -C $(HTTP_PARSERDIR) library
+	$(CC) $(INC) -shared $(LDFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT)
 	@echo "==== Installing libturbo_parser ===="
-	cd $(HTTPPARSER) && test -f $(INSTALL_HTTPPARSER_SOSHORT) && \
-	$(INSTALL_X) $(INSTALL_HTTPPARSER_SOSHORT) $(INSTALL_HTTPPARSER_DYN) && \
+	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
+	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
 	$(LDCONFIG) $(INSTALL_LIB) && \
-	$(SYMLINK) $(INSTALL_HTTPPARSER_SONAME) $(INSTALL_HTTPPARSER_SHORT)
+	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
 	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
 	
 test:
