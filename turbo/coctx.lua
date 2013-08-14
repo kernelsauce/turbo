@@ -22,10 +22,9 @@ local coctx = {} -- coctx namespace.
 
 --- Couroutine context helper class.
 -- This class is used to help tie yields in Turbo RequestHandlers together 
--- with waiting for events to become available. They are typically stored in a
--- IOLoop instance and the user. The class act as a reference for both the user
--- and the IOLoop to tie suspended coroutines together with actual async 
--- operations. Typical usage would be:
+-- with waiting for events to become available. The class act as a reference 
+-- for both the user and the IOLoop to tie suspended coroutines together with
+-- actual async operations. Typical usage would be:
 --
 -- function MyHandler:get()
 --     local response, error = coroutine.yield(
