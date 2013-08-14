@@ -42,7 +42,6 @@ local epoll_ffi, _poll_implementation
   
 if pcall(require, "turbo.epoll_ffi") then
     -- Epoll FFI module found and loaded.
-    log.success("[ioloop.lua] Picked epoll_ffi module as poll module.")
     _poll_implementation = 'epoll_ffi'
     epoll_ffi = require 'turbo.epoll_ffi'
     -- Populate global with Epoll module constants
@@ -103,7 +102,7 @@ end
 -- @return (Boolean) true if successfull else false.
 function ioloop.IOLoop:add_handler(fd, events, handler, arg)
     local rc, errno = self._poll:register(fd, bit.bor(events, ioloop.ERROR))
-    if (rc ~= 0) then
+    if rc ~= 0 then
         log.notice(
             string.format(
                 "[ioloop.lua] register() in add_handler() failed: %s", 
@@ -190,7 +189,7 @@ end
 function ioloop.IOLoop:add_timeout(timestamp, func, arg)
     local i = 1
 
-    while (true) do
+    while true do
         if (self._timeouts[i] == nil) then
             break
         else
