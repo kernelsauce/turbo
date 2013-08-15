@@ -379,6 +379,9 @@ function web._StaticWebCache:read_file(path)
         return -1, nil
     end
     local file = fd:read("*all")
+    if not file then 
+        return -1, nil
+    end
     local sz = file:len()
     local buf = buffer(sz)
     buf:append_right(file, sz)
@@ -391,22 +394,49 @@ end
 -- @return 0 + buffer (String) on success, else -1.
 function web._StaticWebCache:get_file(path)
     local cached_file = self.files[path]
-    if (cached_file) then
-        return 0, cached_file
+    if cached_file then
+        -- index 1 = buf
+        -- index 2 = mime string
+        return 0, cached_file[1], cached_file[2]
     end
     -- Fallthrough, read from disk.
     local rc, buf = self:read_file(path)
     if rc == 0 then
-        self.files[path] = buf
+        local rc, mime = self:get_mime(path)
+        if rc == 0 then
+            self.files[path] = {buf, mime}
+        else
+            self.files[path] = {buf}
+        end
         log.notice(string.format(
             "[web.lua] Added %s (%d bytes) to static file cache. ", 
             path, 
             tonumber(buf:len())))
-        return 0, buf
+        return 0, buf, mime
     else
         return -1, nil
     end
 
+end
+
+--- Determine MIME type according to file exstension.
+-- @error If no filename is set, a error is raised.
+-- @return 0 + MIME (String) on success, else -1.
+function web._StaticWebCache:get_mime(path)
+    if not path then
+        error("No filename suplied to get_mime()")
+    end
+    local parts = path:split(".")
+    if #parts == 0 then
+        return -1
+    end
+    local file_ending = parts[#parts]
+    local mime_type = mime_types[file_ending]
+    if mime_type then
+        return 0, mime_type
+    else
+        return -1
+    end
 end
 
 STATIC_CACHE = web._StaticWebCache:new() -- Global cache.
@@ -419,9 +449,14 @@ STATIC_CACHE = web._StaticWebCache:new() -- Global cache.
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:initialize(app, request, args, options)
     web.RequestHandler.initialize(self, app, request, args)	
+    if not options or type(options) ~= "string" then
+        error("StaticFileHandler not initialized with correct parameters.")
+    end
     self.path = options
+    -- Check if this is a single file or directory.
+    local last_char = self.path:sub(self.path:len())
     if self.path:sub(self.path:len()) ~= "/" then
-        self.path = self.path .. "/"
+        self.file = true
     end
 end
 
@@ -456,21 +491,26 @@ end
 --- GET method for static file handling.
 -- @param path The path captured from request.
 function web.StaticFileHandler:get(path)
-    if #self._url_args == 0 or self._url_args[1]:len() == 0 then
-        error(web.HTTPError(404))
+    local full_path
+    if not self.file then
+        if #self._url_args == 0 or self._url_args[1]:len() == 0 then
+            error(web.HTTPError(404))
+        end
+        local filename = escape.unescape(self._url_args[1])
+        if filename:match("%.%.", 0, true) then -- Prevent dir traversing.
+            error(web.HTTPError(401))
+        end
+        full_path = string.format("%s%s", self.path, filename)
+    else
+        full_path = self.path
     end
-    local filename = escape.unescape(self._url_args[1])
-    if filename:match("%.%.", 0, true) then -- Prevent dir traversing.
-        error(web.HTTPError(401))
-    end
-    local full_path = string.format("%s%s", self.path, filename)
-    local rc, buf = STATIC_CACHE:get_file(full_path)
+
+    local rc, buf, mime = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
         self:set_async(true)
         self._static_buffer = buf
-        local rc, mime_type = self:get_mime()
-        if rc == 0 then
-            self:add_header("Content-Type", mime_type)
+        if mime then
+            self:add_header("Content-Type", mime)
         end
         self.headers:set_status_code(200)
         self.headers:set_version("HTTP/1.1")
@@ -572,7 +612,7 @@ web.Application = class("Application")
 function web.Application:initialize(handlers, default_host)
     self.handlers = handlers or {}
     self.default_host = default_host
-    self.application_name = "Turbo v1.0"
+    self.application_name = "Turbo.lua 1.0"
 end
 
 --- Sets the server name.

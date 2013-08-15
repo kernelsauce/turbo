@@ -129,6 +129,10 @@ ffi.cdef [[
 typedef void SSL_METHOD;
 typedef void SSL_CTX;
 typedef void SSL;
+typedef void X509;
+typedef void X509_NAME;
+typedef void X509_NAME_ENTRY;
+typedef void ASN1_STRING;
 
 const SSL_METHOD *SSLv3_server_method(void);  /* SSLv3 */
 const SSL_METHOD *SSLv3_client_method(void);  /* SSLv3 */
@@ -176,6 +180,9 @@ int SSL_set_cipher_list(SSL *s, const char *str);
 int SSL_get_error(const SSL *s, int ret_code);
 void SSL_CTX_set_verify_depth(SSL_CTX *ctx, int depth);
 void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, void *);
+X509 *SSL_get_peer_certificate(const SSL *s);
+long SSL_get_verify_result(const SSL *ssl);
+const char *X509_verify_cert_error_string(long n);
 
 /* From openssl/err.h  */
 unsigned long ERR_get_error(void);
@@ -363,6 +370,7 @@ extern char *url_field(const char *url_str, const struct http_parser_url *url, e
 const char *http_errno_name(int32_t err);
 /* Return a string description of the given error */
 const char *http_errno_description(int32_t err);
+int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
 
 ffi.cdef([[
@@ -374,5 +382,9 @@ int printf(const char *format, ...);
 void *memmove(void * destination, const void * source, size_t num);
 int memcmp(const void * ptr1, const void * ptr2, size_t num);
 int snprintf(char *s, size_t n, const char *format, ...);
-    
+
+typedef int32_t pid_t;
+pid_t fork();
+pid_t wait(int32_t *status);
+pid_t getpid();
 ]])

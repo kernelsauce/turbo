@@ -127,11 +127,10 @@ function Buffer:append_left(data, len)
     return self
 end
 
---- Append Lua string to left side of buffer.
+--- Prepend Lua string to the buffer
 -- @param str Lua string
 function Buffer:append_luastr_left(str) 
-	self:append_left(str, str:len()) 
-	return self
+	return self:append_left(str, str:len())
 end
 
 --- Pop bytes from left side of buffer. If sz exceeds size of buffer then a

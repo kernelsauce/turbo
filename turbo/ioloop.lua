@@ -42,7 +42,6 @@ local epoll_ffi, _poll_implementation
   
 if pcall(require, "turbo.epoll_ffi") then
     -- Epoll FFI module found and loaded.
-    log.success("[ioloop.lua] Picked epoll_ffi module as poll module.")
     _poll_implementation = 'epoll_ffi'
     epoll_ffi = require 'turbo.epoll_ffi'
     -- Populate global with Epoll module constants
@@ -103,7 +102,7 @@ end
 -- @return (Boolean) true if successfull else false.
 function ioloop.IOLoop:add_handler(fd, events, handler, arg)
     local rc, errno = self._poll:register(fd, bit.bor(events, ioloop.ERROR))
-    if (rc ~= 0) then
+    if rc ~= 0 then
         log.notice(
             string.format(
                 "[ioloop.lua] register() in add_handler() failed: %s", 
@@ -185,11 +184,12 @@ end
 -- Unix epoch time in milliseconds precision. 
 -- E.g util.gettimeofday + 3000 will timeout in 3 seconds.
 -- @param func (Function)
+-- @param Optional argument for func.
 -- @return (Number) Reference to timeout.
 function ioloop.IOLoop:add_timeout(timestamp, func, arg)
     local i = 1
 
-    while (true) do
+    while true do
         if (self._timeouts[i] == nil) then
             break
         else
@@ -215,14 +215,15 @@ end
 --- Set function to be called on given interval.
 -- @param msec (Number) Call func every msec.
 -- @param func (Function)
+-- @param Optional argument for func.
 -- @return (Number) Reference to interval.
-function ioloop.IOLoop:set_interval(msec, func)
+function ioloop.IOLoop:set_interval(msec, func, arg)
     local i = 1
 
     while (self._intervals[i] ~= nil) do
         i = i + 1
     end
-    self._intervals[i] = _Interval:new(msec, func)
+    self._intervals[i] = _Interval:new(msec, func, arg)
     return i   
 end
 
@@ -264,7 +265,7 @@ function ioloop.IOLoop:start()
         local callbacks = self._callbacks
         self._callbacks = {}
         for i = 1, #callbacks, 1 do 
-            if (self:_run_callback(callbacks[i]) ~= 0) then
+            if self:_run_callback(callbacks[i]) ~= 0 then
                 -- Function yielded and has been scheduled for next iteration. 
                 -- Drop timeout.
                 poll_timeout = 0
@@ -293,7 +294,10 @@ function ioloop.IOLoop:start()
                 if (self._intervals[i] ~= nil) then
                     local timed_out = self._intervals[i]:timed_out(time_now)
                     if (timed_out == 0) then
-                        self:_run_callback({self._intervals[i].callback})
+                        self:_run_callback({
+                            self._intervals[i].callback, 
+                            self._intervals[i].arg
+                            })
                         -- Get current time to protect against building 
                         -- diminishing interval time on heavy functions.
                         -- It is debatable wether this feature is wanted or not.
@@ -443,9 +447,10 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
 end
 
 _Interval = class("_Interval")
-function _Interval:initialize(msec, callback)
+function _Interval:initialize(msec, callback, arg)
     self.interval_msec = msec
     self.callback = callback
+    self.arg = arg
     self.next_call = util.gettimeofday() + self.interval_msec
 end
 

@@ -25,7 +25,7 @@ Usage inside a ``turbo.web.RequestHandler`` method:
    :linenos:
 
 	local res = coroutine.yield(
-	   	turbo.async.HTTPClient()fetch("http://domain.com/latest"))
+	   	turbo.async.HTTPClient():fetch("http://domain.com/latest"))
 	if res.error then
 		self.write("Could not get latest from domain.come")
 	else

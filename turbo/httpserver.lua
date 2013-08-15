@@ -35,24 +35,24 @@ local httpserver = {} -- httpserver namespace
 -- by data provided in that instance decide on how it want to respond to 
 -- the client. The callback must produce a valid HTTP response header and
 -- optionally a response body and use the HTTPRequest:write method.
---
+
 -- The server supports SSL, HTTP/1.1 Keep-Alive and optionally HTTP/1.0
 -- Keep-Alive if the header field is specified.
---
+
 -- Example usage of HTTPServer:
---
+
 -- local httpserver = require('turbo.httpserver')
 -- local ioloop = require('turbo.ioloop')
 -- local ioloop_instance = ioloop.instance()
---
+
 -- function handle_request(request)
---     local message = "You requested: " .. request._request.path
+--     local message = "You requested: " .. request.path
 --     request:write("HTTP/1.1 200 OK\r\nContent-Length:" .. message:len() ..
 --          "\r\n\r\n")
 --     request:write(message)
 --     request:finish()
 -- end
---
+
 -- http_server = httpserver.HTTPServer:new(handle_request)
 -- http_server:listen(8888)
 -- ioloop_instance:start()
@@ -118,9 +118,10 @@ function httpserver.HTTPConnection:_clear_write_callback()
     self._write_callback_arg = nil
 end
 
---- Writes a chunk of output to the stream.
+--- Writes a chunk of output to the underlying stream.
 -- @param chunk (String) Data chunk to write to underlying IOStream.
--- @param callback (Function) Optional callback called when socket is flushed.
+-- @param callback (Function) Optional function called when buffer is fully
+-- flushed.
 -- @param arg Optional first argument for callback.
 function httpserver.HTTPConnection:write(chunk, callback, arg)
     if not self._request then
@@ -132,9 +133,10 @@ function httpserver.HTTPConnection:write(chunk, callback, arg)
     end
 end
 
---- Write a Buffer class instance to the stream.
+--- Write the given ``turbo.structs.buffer`` to the underlying stream.
 -- @param buf (Buffer class instance)
--- @param callback Optional callback when socket is flushed.
+-- @param callback (Function) Optional function called when buffer is fully 
+-- flushed.
 -- @param arg Optional first argument for callback.
 function httpserver.HTTPConnection:write_buffer(buf, callback, arg)
     if not self._request then
@@ -154,7 +156,8 @@ end
 -- while the write is being completed. Failure to follow these advice will lead
 -- to undefined behaviour.
 -- @param buf (Buffer class instance)
--- @param callback Optional callback when socket is flushed.
+-- @param callback (Function) Optional function called when buffer is fully
+-- flushed.
 -- @param arg Optional first argument for callback.
 function httpserver.HTTPConnection:write_zero_copy(buf, callback, arg)
     if not self._request then

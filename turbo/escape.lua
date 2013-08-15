@@ -55,24 +55,25 @@ function escape.escape(s)
     return string.gsub(s, "([^A-Za-z0-9_])", _hex)
 end
 
-local function make_set(t)
-	local s = {}
-	for i, v in ipairs(t) do
-		s[t[i]] = 1
-	end
-	return s
+-- Remove trailing and leading whitespace from string.
+-- @param s String
+function escape.trim(s)
+  	-- from PiL2 20.4
+  	return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
---- These are allowed withing a path segment, along with alphanum
--- other characters must be escaped.
-function escape.protect_segment(s)
-	local segment_set = make_set {
-		"-", "_", ".", "!", "~", "*", "'", "(",
-		")", ":", "@", "&", "=", "+", "$", ",",
-	}
-	return gsub(s, "([^A-Za-z0-9_])", function (c)
-		if segment_set[c] then return c
-		else return string.format("%%%02x", string.byte(c)) end
-	end)
+
+-- Remove leading whitespace from string.
+-- @param s String
+function escape.ltrim(s)
+  	return (s:gsub("^%s*", ""))
+end
+
+-- Remove trailing whitespace from string.
+-- @param s String
+function escape.rtrim(s)
+  	local n = #s
+  	while n > 0 and s:find("^%s", n) do n = n - 1 end
+  	return s:sub(1, n)
 end
 
 return escape

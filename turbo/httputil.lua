@@ -33,13 +33,13 @@ local deque = 		require "turbo.structs.deque"
 local escape = 		require "turbo.escape"
 local util = 		require "turbo.util"
 local ffi = 		require "ffi"
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "libturbo_parser")
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "ltffi_wrap")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
     ltp_loaded, libturbo_parser = 
-        pcall(ffi.load, "/usr/local/lib/libturbo_parser.so")
+        pcall(ffi.load, "/usr/local/lib/ltffi_wrap.so")
     if not ltp_loaded then 
-        error("Could not load libturbo_parser.so. \
+        error("Could not load ltffi_wrap.so. \
             Please run makefile and ensure that installation is done correct.")
     end
 end
@@ -175,7 +175,7 @@ function httputil.HTTPHeaders:set_uri(uri)
     self.uri = uri
 end
 
---- Get URI. Get current URI.
+--- Get current URI.
 -- @return Currently set URI or nil if not set.
 function httputil.HTTPHeaders:get_uri() return self.uri end
 
@@ -304,7 +304,7 @@ end
 -- @param key (String) The key to get.
 -- @param caseinsensitive (Boolean) If true then the key will be matched without
 -- regard for case sensitivity.
--- @return The value of the key, or nil not existing. May return a table if 
+-- @return The value of the key, or nil if not existing. May return a table if 
 -- multiple keys are set.
 function httputil.HTTPHeaders:get(key, caseinsensitive)
     local value

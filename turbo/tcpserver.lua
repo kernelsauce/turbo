@@ -25,6 +25,7 @@ local sockutil =    require "turbo.sockutil"
 local crypto =      _G.TURBO_SSL and require "turbo.crypto"
 local ffi =         require "ffi"
 local bit =         require "bit"
+require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
 local SOL_SOCKET =  socket.SOL_SOCKET
@@ -53,7 +54,7 @@ tcpserver.TCPServer = class('TCPServer')
 -- the limit is hit, the connection is closed.
 -- @note If the SSL certificates can not be loaded, a error is raised.
 function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)	
-    self.io_loop = io_loop or ioloop.instance()
+    self.io_loop = io_loop
     self.ssl_options = ssl_options
     self.max_buffer_size = max_buffer_size
     self._sockets = {}
@@ -82,7 +83,6 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
         end
         -- The ssl_create_context function will raise error and exit by its 
         -- own, so there is no need to catch errors.
-        crypto.ssl_init()
         local rc, ctx_or_err = crypto.ssl_create_server_context(
             self.ssl_options.cert_file, self.ssl_options.key_file)
         if rc ~= 0 then
@@ -116,7 +116,6 @@ end
 function tcpserver.TCPServer:listen(port, address, backlog, family)
     assert(port, [[Please specify port for listen() method]])
     local sock = sockutil.bind_sockets(port, address, backlog, family)
-    log.devel("[tcpserver.lua] TCPServer listening on port: " .. port)
     self:add_sockets({sock})
 end
 
@@ -129,7 +128,7 @@ function tcpserver.TCPServer:add_sockets(sockets)
 	    self.io_loop = ioloop.instance()
     end
     for _, sock in ipairs(sockets) do
-        self._sockets[sock] = sock
+        self._sockets[#self._sockets + 1] = sock
         sockutil.add_accept_handler(sock, 
             self._handle_connection, 
             self.io_loop, 
@@ -163,9 +162,20 @@ function tcpserver.TCPServer:bind(port, address, backlog, family)
 end
 
 --- Start the TCPServer.
-function tcpserver.TCPServer:start()	
+function tcpserver.TCPServer:start(procs)	
 	assert((not self._started), "Already started TCPServer.")
 	self._started = true
+    if procs and procs > 1 then
+        for _ = 1, procs - 1 do 
+            local pid = ffi.C.fork()
+            if pid ~= 0 then 
+                log.devel(string.format(
+                    "[tcpserver.lua] Created extra worker process: %d", 
+                    tonumber(pid)))
+                break
+            end
+        end
+    end
 	local sockets = self._pending_sockets
 	self._pending_sockets = {}
 	self:add_sockets(sockets)
@@ -173,10 +183,11 @@ end
 
 --- Stop the TCPServer.
 function tcpserver.TCPServer:stop()
-    for fd, sock in pairs(self._sockets) do
+    for _, fd in ipairs(self._sockets) do
 	   self.io_loop:remove_handler(fd)
-	   assert(socket.close(sock) == 0, "Failed to close socket.")
+	   assert(socket.close(fd) == 0, "Failed to close socket.")
     end
+    self._sockets = {}
 end
 
 --- Internal function for wrapping new raw sockets in a IOStream class instance.

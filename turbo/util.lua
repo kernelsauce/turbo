@@ -50,7 +50,7 @@ local util = {}
 
 --- Join a list into a string with  given delimiter. 
 function util.join(delimiter, list)
-	local len = getn(list)
+	local len = #list
 	if len == 0 then 
         return "" 
     end
@@ -61,6 +61,10 @@ function util.join(delimiter, list)
     return string
 end
 
+
+--- Convert number value to hexadecimal string format.
+-- @param num The number to convert.
+-- @return String
 function util.hex(num)
     local hexstr = '0123456789abcdef'
     local s = ''
@@ -76,6 +80,11 @@ function util.hex(num)
 end
 local hex = util.hex
 
+--- Dump memory region to stdout, from ptr to given size. Usefull for 
+-- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if 
+-- not being used on valid pointers.
+-- @param ptr A cdata pointer (from FFI)
+-- @param sz (Number) Length to dump contents for.
 function util.mem_dump(ptr, sz)
     local voidptr = ffi.cast("unsigned char *", ptr)
     if not voidptr then
@@ -120,6 +129,7 @@ function util.tablemerge(t1, t2)
 end
 
 --- Current msecs since epoch. Better granularity than Lua builtin.
+-- @return Number
 function util.gettimeofday()
     local timeval = ffi.new("struct timeval")
     ffi.C.gettimeofday(timeval, nil)
@@ -143,10 +153,10 @@ end
 
 
 --- Check if file exists on local filesystem.
--- @param name Full path to file
+-- @param path Full path to file
 -- @return True or false.
-function util.file_exists(name)
-    local f = io.open(name, "r")
+function util.file_exists(path)
+    local f = io.open(path, "r")
     if f ~= nil then
         io.close(f)
         return true

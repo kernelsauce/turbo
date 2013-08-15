@@ -26,7 +26,7 @@ a GET request is very easy:
 	end
 
 	local application = turbo.web.Application({ 
-		{"/$", ExampleHandler}
+		{"^/$", ExampleHandler}
 	})
 	application:listen(8888)
 	turbo.ioloop.instance():start()
@@ -244,7 +244,7 @@ Output
 Misc
 ----
 
-.. function:: web.RequestHandler:set_async(bool)
+.. function:: RequestHandler:set_async(bool)
 
 	Set handler to not call finish() when request method has been called and
 	returned. Default is false. When set to true, the user must explicitly call
@@ -295,9 +295,14 @@ Usage:
 .. code-block:: lua
    :linenos:
 
-	local application = turbo.web.Application({ 
-		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+	local app = turbo.web.Application:new({
+		{"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
+		{"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
 	})
+
+Paths are not checked until intial hit on handler. It is then cached in memory.
+Notice that paths postfixed with / indicates that it should be treated as a directory. Paths with no / is treated
+as a single file.
 
 
 Application class
@@ -308,9 +313,9 @@ The Application class is a collection of request handler classes that make toget
    :linenos:
 	
 	local application = turbo.web.Application({ 
-		{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
-		{"/$", ExampleHandler},
-		{"/item/(%d*)", ItemHandler}
+		{"^/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+		{"^/$", ExampleHandler},
+		{"^/item/(%d*)", ItemHandler}
 	})
 
 The constructor of this class takes a "map" of URL patterns and their respective handlers. The third element in the table are optional parameters the handler class might have.
@@ -325,7 +330,7 @@ handler pattern's only the first handler matched is delegated the request. There
 
 A good read on Lua patterns matching can be found here: http://www.wowwiki.com/Pattern_matching.
 
-.. function:: web.Application(handlers, default_host)
+.. function:: Application(handlers, default_host)
 
 	Initialize a new Application class instance.
 	:param handlers: As described above. Table of tables with pattern to handler binding.
@@ -333,7 +338,7 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	:param default_host: Redirect to URL if no matching handler is found.
 	:type default_host: String
 
-.. function:: web.Application:add_handler(pattern, handler, arg)
+.. function:: Application:add_handler(pattern, handler, arg)
 
 	Add handler to Application.
 

@@ -1,5 +1,6 @@
-Turbo.lua Web 
-=============
+
+.. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
+
 Turbo.lua is a Lua module / toolkit (whatever) for developing web applications in Lua. It is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify.
 It is written in pure Lua, there are no Lua C modules instead it uses the LuaJIT FFI to do socket and event handling. Users of the Tornado web server will recognize the API offered pretty quick.
 If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
@@ -31,7 +32,7 @@ Its main features and design principles are:
 
 Installation
 ------------
-Linux distro's is the only OS supported at this point (although adding support for other Unix's is trivial).
+Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
 Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
 
 Installing Turbo.lua is easy. Simply download and run make install (requires root priv). It is installed in the Lua 5.1 and LuaHIT 2.0 module directory. You can specify your own prefix by using make install PREFIX=<prefix>, and you can specify LuaJIT version with LUAJIT_VERSION=2.0.0 parameters. To verify installation you can try running the applications in the examples folder.
@@ -41,7 +42,7 @@ Object oriented Lua
 Turbo.lua are programmed in a object oriented fashion. There are many ways to do 
 object orientation in Lua, this library uses the Middleclass module. Which is documented
 at https://github.com/kikito/middleclass/wiki. Middleclass is being used internally in 
-Turbo Web, but is also exposed to the user when inheriting from classes such as the
+Turbo.lua, but is also exposed to the user when inheriting from classes such as the
 ``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
 easy to learn if you are used to Python, Java or C++. 
 
@@ -52,10 +53,11 @@ Making a event-driven server is hard work! I would really like to get some peopl
 Dependencies
 ------------
 Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
-which gives a much better performance. Latest version of LuaJIT can be downloaded here: http://luajit.org/
-At
+which gives a much better performance. Latest version of LuaJIT can be downloaded here: 
+http://luajit.org/
 
-All of the modules of Turbo Web are made with the class implementation that Middleclass provides <https://github.com/kikito/middleclass>. 
+All of the modules of Turbo.lua are made with the class implementation that Middleclass provides.
+https://github.com/kikito/middleclass. 
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
