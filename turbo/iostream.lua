@@ -615,12 +615,13 @@ function iostream.IOStream:_read_from_buffer()
             local delimiter_sz = self._read_delimiter:len()
             ptr = ptr + self._read_scan_offset
             sz = sz - self._read_scan_offset
-            local loc = util.TBM(
-                ffi.cast("const char *", self._read_delimiter), 
-                delimiter_sz,
+            local loc = util.str_find(
                 ptr,
-                sz)
+                ffi.cast("char *", self._read_delimiter),
+                sz,
+                delimiter_sz)
             if loc then
+                loc = loc - ptr
                 local delimiter_end = loc + delimiter_sz
                 local callback = self._read_callback
                 local arg = self._read_callback_arg
