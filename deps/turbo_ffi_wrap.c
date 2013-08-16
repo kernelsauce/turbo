@@ -26,6 +26,7 @@ SOFTWARE."			*/
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <limits.h>
 #ifndef TURBO_NO_SSL
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
@@ -35,7 +36,6 @@ SOFTWARE."			*/
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
-#define HOSTNAME_MAX_SIZE 255
 
 static int matches_common_name(const char *hostname, const X509 *server_cert)
 {
@@ -45,15 +45,15 @@ static int matches_common_name(const char *hostname, const X509 *server_cert)
     char *common_name_str = 0;
 
     common_name_loc = X509_NAME_get_index_by_NID(X509_get_subject_name(
-                                                    (X509 *) server_cert),
-                                                    NID_commonName, -1);
+                                                     (X509 *) server_cert),
+                                                 NID_commonName, -1);
     if (common_name_loc < 0) {
         return Error;
     }
     common_name_entry = X509_NAME_get_entry(
                 X509_get_subject_name(
                     (X509 *) server_cert),
-                    common_name_loc);
+                common_name_loc);
     if (!common_name_entry) {
         return Error;
     }
@@ -107,7 +107,7 @@ static int matches_subject_alternative_name(
                     result = MatchFound;
                     break;
                 }
-                if (dns_name_sz < 2)
+                if (dns_name_sz <= 2)
                     continue;
                 if (dns_name[0] == '*' && dns_name[1] == '.'){
                     // Wildcard subdomain.
@@ -116,17 +116,19 @@ static int matches_subject_alternative_name(
                         continue;
                     hostname_is_domain = strchr(subdomain_offset, '.') ? 0 : 1;
                     if (hostname_is_domain){
-                        if (strncasecmp(hostname, dns_name + 2,
-                                        MIN(hostname_sz, dns_name_sz - 2)) == 0){
+                        if (strcasecmp(hostname, dns_name + 2) == 0){
                             result = MatchFound;
                             break;
                         }
-                    } else if (strncasecmp(
-                                   subdomain_offset + 1,
-                                   dns_name + 2,
-                                   MIN(hostname_sz - 1 - (subdomain_offset - hostname), dns_name_sz - 2)) == 0){
-                        result = MatchFound;
-                        break;
+                    } else {
+                        if (hostname_sz - (subdomain_offset - hostname) > 0){
+                            if (strcasecmp(
+                                        subdomain_offset + 1,
+                                        dns_name + 2) == 0){
+                                result = MatchFound;
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -167,8 +169,8 @@ bool url_field_is_set(
 }
 
 char *url_field(const char *url_str,
-          const struct http_parser_url *url,
-          enum http_parser_url_fields prop)
+                const struct http_parser_url *url,
+                enum http_parser_url_fields prop)
 {
     return strndup(url_str + url->field_data[prop].off,
                    url->field_data[prop].len);
@@ -200,7 +202,7 @@ static int header_field_cb(http_parser *p, const char *buf, size_t len)
         ptr = realloc(
                     nw->header_key_values,
                     sizeof(struct turbo_key_value_field *) *
-                        (nw->header_key_values_sz + 1));
+                    (nw->header_key_values_sz + 1));
         if (ptr){
             nw->header_key_values = ptr;
         }
@@ -261,14 +263,14 @@ int message_complete_cb (http_parser *p)
 
 
 static http_parser_settings settings =
-  {.on_message_begin = 0
-  ,.on_header_field = header_field_cb
-  ,.on_header_value = header_value_cb
-  ,.on_url = request_url_cb
-  ,.on_body = 0
-  ,.on_headers_complete = headers_complete_cb
-  ,.on_message_complete = message_complete_cb
-  };
+{.on_message_begin = 0
+ ,.on_header_field = header_field_cb
+ ,.on_header_value = header_value_cb
+ ,.on_url = request_url_cb
+ ,.on_body = 0
+ ,.on_headers_complete = headers_complete_cb
+ ,.on_message_complete = message_complete_cb
+};
 
 
 size_t turbo_parser_wrapper_init(
@@ -308,3 +310,4 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
 #endif
 
 }
+
