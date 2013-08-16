@@ -381,6 +381,7 @@ int sprintf(char * str, const char * format, ...);
 int printf(const char *format, ...);
 void *memmove(void * destination, const void * source, size_t num);
 int memcmp(const void * ptr1, const void * ptr2, size_t num);
+void *memchr(void * ptr, int value, size_t num);
 int snprintf(char *s, size_t n, const char *format, ...);
 
 typedef int32_t pid_t;
