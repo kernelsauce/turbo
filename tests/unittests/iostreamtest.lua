@@ -17,23 +17,3 @@ limitations under the License.     ]]
 local turbo = require 'turbo'
 
 
-describe("turbo iostream module", function()     
-    it("_double_prefix should work", function()
-       local d = turbo.structs.deque:new()
-       assert.truthy(instanceOf(turbo.structs.deque, d))
-       
-       d:append("a")
-       d:append("b")
-       d:append("c")
-       d:append("word")
-       d:append("long long word")
-       turbo.iostream._merge_prefix(d, 4)
-       assert.equal(d:popleft(), "abcw")
-       turbo.iostream._merge_prefix(d, 3)
-       assert.equal(d:popleft(), "ord")
-       turbo.iostream._merge_prefix(d, 14)
-       assert.equal(d:popleft(), "long long word")
-       assert.equal(d:not_empty(), false)
-    end)
-    
-end)
