@@ -1,3 +1,5 @@
-require "unittests.httputiltest"
+require "unittests.buffer"
 require "unittests.dequetest"
+require "unittests.httputiltest"
 require "unittests.iostreamtest"
+require "unittests.strfind"
