@@ -41,7 +41,7 @@ all:
 	make -C deps/http-parser library
 
 clean:
-	make -C deps/http-parser  clean
+	make -C deps/http-parser clean
 	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
 
 uninstall:
