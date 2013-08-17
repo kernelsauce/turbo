@@ -214,7 +214,7 @@ must be set.
 	:param port: The port to connect to. E.g 80.
 	:type port: Number
 	:param family: Socket family. Optional. Pass nil to guess.
-	:param verify: Verify SSL certificate chain and match hostname in certificate on connect. Setting this false is only recommended if the certificates are self-signed or something like that.
+	:param verify: Verify SSL certificate chain and match hostname in certificate on connect. Setting this to false is only recommended if the server certificates are self-signed or something like that.
 	:type verify: Boolean
 	:param callback: Optional callback for "on successfull connect"
 	:type callback: Function
@@ -222,6 +222,3 @@ must be set.
 	:type errhandler: Function
 	:param arg: Optional argument for callback. callback and errhandler are called with this as first argument.
 	:rtype: Number. -1 + error message on error, 0 on success.
-
-(address, port, family, verify, callback, 
-    errhandler, arg)
