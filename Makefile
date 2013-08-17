@@ -31,7 +31,7 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1	
 INC = -I$(HTTP_PARSERDIR)/
-LDFLAGS = -lcrypto -lssl -fPIC -O3 
+LDFLAGS = -lcrypto -lssl
 
 LUAJIT_VERSION?=2.0.2
 LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
@@ -67,7 +67,7 @@ install:
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
 	@echo "==== Building 3rdparty modules ===="
 	make -C $(HTTP_PARSERDIR) library
-	$(CC) $(INC) -shared $(LDFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT)
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
