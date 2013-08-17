@@ -62,7 +62,7 @@ https://github.com/kikito/middleclass.
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
-OpenSSL is required for SSL support. It is possible to run without this features, and thus not need OpenSSL.
+OpenSSL is required for SSL support. It is possible to run without this feature, and thus not need OpenSSL.
 
 License
 -------
