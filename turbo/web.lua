@@ -58,8 +58,8 @@ web.RequestHandler = class("RequestHandler")
 -- @param url_args (Table) Table of arguments to call matching method with.
 -- These arguments are normally captured by the pattern given on initializing
 -- of a Application class.
--- @param kwargs (Table) Additional key word arguments.
-function web.RequestHandler:initialize(application, request, url_args, kwargs)
+-- @param options (Table) 3rd argument given in Application class route table.
+function web.RequestHandler:initialize(application, request, url_args, options)
     self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
     self.application = application
     self.request = request
@@ -74,7 +74,8 @@ function web.RequestHandler:initialize(application, request, url_args, kwargs)
     if self.request.headers:get("Connection") then
         self.request.connection.stream:set_close_callback(self.on_connection_close, self)
     end
-    self:on_create(kwargs)
+    self.options = options
+    self:on_create(self.options)
 end
 
 --- Get the applications settings.
@@ -585,9 +586,24 @@ function web.ErrorHandler:initialize(app, request, code, message)
     self:finish()
 end
 
+--- Static redirect handler that simple redirect the client to the given
+-- URL in 3rd argument of a entry in the Application class's routing table.
+-- Example:
+-- local application = turbo.web.Application({
+--      {"^/redirector$", turbo.web.RedirectHandler, "http://turbolua.org"}
+-- })
+web.RedirectHandler = class("RedirectHandler", web.RequestHandler)
+function web.RedirectHandler:prepare()
+    if not self.options or type(self.options) ~= "string" then
+        error(web.HTTPError(500, 
+            "RedirectHandler executed without URL argument."))
+    end
+    self:redirect(self.options, true)
+end
+
 --- The Application class is a collection of request handler classes that make 
 -- together up a web application. Example:
--- local application = turbo.web.Application:new({
+-- local application = turbo.web.Application({
 --      {"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
 --      {"/$", ExampleHandler},
 --      {"/item/(%d*)", ItemHandler}
