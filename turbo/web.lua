@@ -593,12 +593,12 @@ end
 --      {"^/redirector$", turbo.web.RedirectHandler, "http://turbolua.org"}
 -- })
 web.RedirectHandler = class("RedirectHandler", web.RequestHandler)
-function web.RedirectHandler:prepare()
-    if not self.options or type(self.options) ~= "string" then
+function web.RedirectHandler:on_create(url)
+    if not url or type(url) ~= "string" then
         error(web.HTTPError(500, 
             "RedirectHandler executed without URL argument."))
     end
-    self:redirect(self.options, true)
+    self:redirect(url, true)
 end
 
 --- The Application class is a collection of request handler classes that make 
