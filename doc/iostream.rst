@@ -203,5 +203,22 @@ must be set.
 	:type max_buffer_size: Number
 	:rtype: IOStream object
 
+.. function:: IOStream:connect(address, port, family, verify, callback, errhandler, arg)
 
-
+	Connect to a address without blocking. To successfully use this method it is neccessary to check
+	the return value, and also assign a error handler function. Notice that the verify arugment has 
+	been added as opposed to the ``IOStream:connect`` method.
+	
+	:param host: The host to connect to. Either hostname or IP.
+	:type host: String
+	:param port: The port to connect to. E.g 80.
+	:type port: Number
+	:param family: Socket family. Optional. Pass nil to guess.
+	:param verify: Verify SSL certificate chain and match hostname in certificate on connect. Setting this to false is only recommended if the server certificates are self-signed or something like that.
+	:type verify: Boolean
+	:param callback: Optional callback for "on successfull connect"
+	:type callback: Function
+	:param errhandler: Optional callback for "on error". Called with errno and its string representation as arguments.
+	:type errhandler: Function
+	:param arg: Optional argument for callback. callback and errhandler are called with this as first argument.
+	:rtype: Number. -1 + error message on error, 0 on success.

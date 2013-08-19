@@ -26,11 +26,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			*/
 
-// http-parser wrapper functions.
-
 #include <stdint.h>
 #include <malloc.h>
+#ifndef TURBO_NO_SSL
+#include <openssl/ssl.h>
+#endif
+#include <stdbool.h>
 #include "http-parser/http_parser.h"
+
+// http-parser wrapper functions.
 
 struct turbo_key_value_field{
     char *key;      ///< Header key.
@@ -81,7 +85,6 @@ char *url_field(
 
 
 // OpenSSL wrapper functions.
-
 #ifndef TURBO_NO_SSL
 #define MatchFound 0
 #define MatchNotFound 1

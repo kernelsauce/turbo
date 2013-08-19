@@ -22,6 +22,7 @@
 
 local ffi = require "ffi"
 require "turbo.cdef"
+local  UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
 
 --- Extends the standard string library with a split method.
 function string:split(sep, max, pattern)	
@@ -172,7 +173,6 @@ function util.funpack(t, i)
     end
 end
 
-local ASIZE = 256
 local function suffixes(x, m, suff)
     local f, g, i
   
@@ -228,7 +228,7 @@ end
 
 local function preBmBc(x, m, bmBc)
     local i
-    for i = 0, ASIZE, 1 do
+    for i = 0, UCHAR_MAX - 1 do
         bmBc[i] = m
     end
     i = 0
@@ -238,9 +238,9 @@ local function preBmBc(x, m, bmBc)
     end
 end
 
-
-local bmGs = ffi.new("int[1024]")
-local bmBc = ffi.new("int[1024]")
+local NEEDLE_MAX = 1024
+local bmGs = ffi.new("int[?]", NEEDLE_MAX)
+local bmBc = ffi.new("int[?]", NEEDLE_MAX)
 --- Turbo Booyer-Moore memory search algorithm. 
 -- Search through arbitrary memory and find first occurence of given byte sequence.
 -- @param x char* Needle memory pointer
@@ -250,11 +250,13 @@ local bmBc = ffi.new("int[1024]")
 function util.TBM(x, m, y, n)
     if m == 0 or n == 0 then
         return
+    elseif m > NEEDLE_MAX then
+        error("Needle exceeds NEEDLE_MAX defined in util.lua. \
+            Can not do memory search.")
     end
     local bcShift, i, j, shift, u, v, turboShift  
     preBmGs(x, m, bmGs);
     preBmBc(x, m, bmBc);
-    -- Searching
     j = 0
     u = 0
     shift = m
@@ -284,6 +286,34 @@ function util.TBM(x, m, y, n)
             end
         end
         j = j + shift
+    end
+end
+
+--- Find substring in memory string.
+-- Based on lj_str_find in lj_str.c in LuaJIT by Mike Pall.
+function util.str_find(s, p, slen, plen)
+    if plen <= slen then
+        if plen == 0 then
+            return s
+        else
+            local c = ffi.cast("int", p[0])
+            p = p + 1
+            plen = plen - 1
+            slen = slen - plen
+            local q
+            while slen do
+                q = ffi.cast("char*", ffi.C.memchr(s, c, slen))
+                if not q then 
+                    break
+                end
+                if ffi.C.memcmp(q + 1, p, plen) == 0 then
+                    return q
+                end
+                q = q + 1
+                slen = slen - (q - s)
+                s = q
+            end
+        end
     end
 end
 

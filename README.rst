@@ -1,41 +1,42 @@
 
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
 
-Turbo.lua is a Lua module / toolkit (whatever) for developing web applications in Lua. It is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify.
-It is written in pure Lua, there are no Lua C modules instead it uses the LuaJIT FFI to do socket and event handling. Users of the Tornado web server will recognize the API offered pretty quick.
+Turbo.lua is a toolkit for developing web and networking applications in Lua. It's web functionality is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify. Users of the Tornado web server will recognize the API offered pretty quick.
 If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
 
-Turbo.lua is non-blocking and a features a extremely fast light weight web server. The framework is good for REST APIs, traditional HTTP requests and open connections like Websockets requires because of its combination of the raw
-power of LuaJIT and its event driven nature.
+Turbo.lua is non-blocking and features a fast web server and a HTTP client. The toolkit is good for REST APIs, traditional HTTP requests and open connections like Websockets and offers a high degree of freedom to do whatever you want, your way.
 
-What sets Turbo.lua apart from the other evented driven servers out there, is that it is the fastest, most scalable and has the smallest footprint of them all. This is thanks to the excellent work done on LuaJIT.
+It's main features and design principles are:
 
-Its main features and design principles are:
+- Simple and intuitive API (much like Tornado).
 
-- Simple and intuitive API (much like Tornado)
+- Low-level operations is possible if the users wishes that.
+
+- Implemented in pure Lua, so the user can study and modify inner workings without too much effort.
+
+- Being the fastest event driven server.
 
 - Good documentation
 
-- No dependencies, except for the Lua interpreter.
+- No dependencies, except for the LuaJIT interpreter.
 
 - Event driven, asynchronous and threadless design
 
-- Extremely fast with LuaJIT
-
-- Written completely in pure Lua
-
-- Linux Epoll support
-
 - Small footprint
 
-- SSL Support
+- SSL support
 
 Installation
 ------------
 Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
 Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
 
-Installing Turbo.lua is easy. Simply download and run make install (requires root priv). It is installed in the Lua 5.1 and LuaHIT 2.0 module directory. You can specify your own prefix by using make install PREFIX=<prefix>, and you can specify LuaJIT version with LUAJIT_VERSION=2.0.0 parameters. To verify installation you can try running the applications in the examples folder.
+Installing Turbo.lua is easy. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
+
+You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
+
+In essence the toolkit can run from anywere, but is must be able to load the ltffi_wrap.so at run time.
+To verify a installation you can try running the applications in the examples folder.
 
 Object oriented Lua
 -------------------
@@ -61,6 +62,8 @@ https://github.com/kikito/middleclass.
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
+OpenSSL is required for SSL support. It is possible to run without this feature, and thus not need OpenSSL.
+
 License
 -------
 Copyright 2011, 2012 and 2013 John Abrahamsen
@@ -81,9 +84,5 @@ Many of the modules in the software package are derivatives of the
 Tornado web server. Tornado is also licensed under Apache 2.0 license.
 For more details on Tornado please see:
 
-<http://www.tornadoweb.org/>
-
-Some of the modules in this software package are licensed under
-both the MIT and Apache 2.0 License. Modules that are dual licensed 
-clearly states this in the file header.
+http://www.tornadoweb.org/
 
