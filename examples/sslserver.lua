@@ -23,7 +23,7 @@ function SSL_Handler:get()
 end
  
 local application = turbo.web.Application:new({
-	{"/$", SSL_Handler}
+	{"^/$", SSL_Handler}
 })
 
 application:listen(8888, nil, {

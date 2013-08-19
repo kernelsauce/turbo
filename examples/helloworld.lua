@@ -17,13 +17,10 @@
 local turbo = require "turbo"
 
 local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+
 function ExampleHandler:get()
 	self:write("Hello world!")
 end
  
-local application = turbo.web.Application:new({
-	{"/$", ExampleHandler}
-})
-
-application:listen(8888)
+turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888)
 turbo.ioloop.instance():start()
