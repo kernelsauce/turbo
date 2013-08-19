@@ -22,7 +22,7 @@ function MyJSONHandler:get()
 end
  
 turbo.web.Application:new({
-	{"/json", MyJSONHandler}
+	{"^/json$", MyJSONHandler}
 }):listen(8888)
 
 turbo.ioloop.instance():start()

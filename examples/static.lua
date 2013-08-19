@@ -16,8 +16,15 @@
 
 local turbo = require "turbo"
 
-turbo.web.Application:new({
-	{"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
-}):listen(8888)
+local app = turbo.web.Application:new({
+	-- Serve single index.html file on root requests.
+	{"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
+	-- Serve contents of directory.
+	{"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
+})
+
+local srv = turbo.httpserver.HTTPServer(app)
+srv:bind(8888)
+srv:start(2) -- Adjust amount of processes to fork.
 
 turbo.ioloop.instance():start()
