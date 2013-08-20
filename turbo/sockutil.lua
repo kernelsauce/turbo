@@ -36,7 +36,8 @@ local sockutils = {} -- sockutils namespace
 -- If not address is defined then * will be used.
 -- If no backlog size is given then 128 connections will be used.
 -- @param port (Number) The port number to bind to.
--- @param address (Number) The address to bind to in unsigned integer hostlong
+-- @param address (Number or String) The address to bind to in unsigned integer hostlong or \
+--  a string like "127.0.0.1".
 -- format. If not address is given, INADDR_ANY will be used, binding to all
 -- addresses.
 -- @param backlog (Number) Maximum backlogged client connects to allow. If not
@@ -49,10 +50,16 @@ function sockutils.bind_sockets(port, address, backlog, family)
     local rc, msg
 
     address = address or INADDRY_ANY
+
+    if type(address) == "string" then
+        ffi.C.inet_pton(AF_INET, address, serv_addr.sin_addr)
+    else
+        serv_addr.sin_addr.s_addr = socket.htonl(address);
+    end
+
     backlog = backlog or 128
     family = family or AF_INET
     serv_addr.sin_family = family;
-    serv_addr.sin_addr.s_addr = socket.htonl(address);
     serv_addr.sin_port = socket.htons(port);
     
     local fd = socket.socket(family, SOCK_STREAM, 0)
