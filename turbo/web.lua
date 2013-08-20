@@ -441,6 +441,7 @@ function web._StaticWebCache:get_mime(path)
 end
 
 STATIC_CACHE = web._StaticWebCache:new() -- Global cache.
+web.STATIC_CACHE = STATIC_CACHE
 
 --- Simple static file handler class.  
 -- File system path is provided in the Application class.
@@ -604,9 +605,9 @@ end
 --- The Application class is a collection of request handler classes that make 
 -- together up a web application. Example:
 -- local application = turbo.web.Application({
---      {"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
---      {"/$", ExampleHandler},
---      {"/item/(%d*)", ItemHandler}
+--      {"^/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+--      {"^/$", ExampleHandler},
+--      {"^/item/(%d*)", ItemHandler}
 -- })
 -- The constructor of this class takes a “map” of URL patterns and their 
 -- respective handlers. The third element in the table are optional parameters 
