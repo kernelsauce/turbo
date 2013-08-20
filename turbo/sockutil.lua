@@ -30,6 +30,9 @@ local AF_INET =     socket.AF_INET
 local AF_INET6 =    socket.AF_INET6
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EAGAIN =      socket.EAGAIN
+local INET_ADDRSTRLEN = 16
+local INET6_ADDRSTRLEN = 46
+ 
 
 local sockutils = {} -- sockutils namespace
 
@@ -157,14 +160,18 @@ function sockutils.bind_sockets(port, address, backlog, family)
     return fd
 end
 
-local client_addr = ffi.new("struct sockaddr")
+local client_addr = ffi.new("struct sockaddr_storage")
 local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
+
 local function _add_accept_hander_cb(arg, fd, events)
-    while true do 
+   while true do 
         local errno
+        local address
         --log.devel(string.format(
             --"[tcpserver.lua] Accepting connection on socket fd %d", fd))
-        local client_fd = socket.accept(fd, client_addr, client_addr_sz)        
+
+        local client_fd = socket.accept(fd, ffi.cast("struct sockaddr *", client_addr), client_addr_sz)        
+        local family = client_addr.ss_family
         if client_fd == -1 then
             errno = ffi.errno()
             if (errno == EWOULDBLOCK or errno == EAGAIN) then
@@ -177,13 +184,22 @@ local function _add_accept_hander_cb(arg, fd, events)
                 break
             end
         end
-        local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
-        local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
-        local address = string.format("%d.%d.%d.%d",
-              s_addr_ptr[0],
-              s_addr_ptr[1],
-              s_addr_ptr[2],
-              s_addr_ptr[3])
+
+        if family == AF_INET then
+            local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
+            local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
+            address = string.format("%d.%d.%d.%d",
+                  s_addr_ptr[0],
+                  s_addr_ptr[1],
+                  s_addr_ptr[2],
+                  s_addr_ptr[3])
+        else
+            local client_sa = ffi.cast("struct sockaddr_in6 *", client_addr)
+            local addrbuf = ffi.new("char[?]", INET6_ADDRSTRLEN)
+            socket.inet_ntop(AF_INET6, client_sa.sin6_addr, addrbuf, INET6_ADDRSTRLEN)
+            address = ffi.string(addrbuf, INET6_ADDRSTRLEN)
+        end
+
         if arg[2] then
             arg[1](arg[2], client_fd, address)
         else

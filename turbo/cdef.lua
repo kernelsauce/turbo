@@ -23,6 +23,12 @@ struct sockaddr {
     char              sa_data[14];  // 14 bytes of protocol address
 };
 
+struct sockaddr_storage {
+    unsigned short int ss_family;
+    unsigned long int __ss_align;
+    char __ss_padding[128 - (2 * sizeof(unsigned long int))];
+};
+
 struct in_addr {
     unsigned long s_addr;          // load with inet_pton()
 };
@@ -389,3 +395,4 @@ pid_t fork();
 pid_t wait(int32_t *status);
 pid_t getpid();
 ]])
+
