@@ -712,7 +712,7 @@ function web.Application:__call(request)
             end
         end
     elseif not handlers and self.default_host then 
-        handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+        handler = web.RedirectHandler:new(self.default_host)
     else
         handler = web.ErrorHandler:new(self, request, 404)
     end
