@@ -27,38 +27,46 @@ local F_GETFL =     socket.F_GETFL
 local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
 local AF_INET =     socket.AF_INET
+local AF_INET6 =    socket.AF_INET6
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EAGAIN =      socket.EAGAIN
 
 local sockutils = {} -- sockutils namespace
 
---- Binds sockets to port and address.
--- If not address is defined then * will be used.
--- If no backlog size is given then 128 connections will be used.
+--- Creates the sockaddr_in or sockaddr_in6 struct
+-- If not address is defined '0.0.0.0'/'::' will be used.
+-- If not family is defined then AF_INET(ipv4) will be used
+-- @param address (Number or String) The address to bind to in unsigned 
+-- integer hostlong or a string like "127.0.0.1".
+-- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
+-- binding to all addresses.
 -- @param port (Number) The port number to bind to.
--- @param address (Number or String) The address to bind to in unsigned integer hostlong or \
---  a string like "127.0.0.1".
--- format. If not address is given, INADDR_ANY will be used, binding to all
--- addresses.
--- @param backlog (Number) Maximum backlogged client connects to allow. If not
--- defined then 128 is used as default.
 -- @param family (Number) Optional socket family. Defined in Socket module. If 
 -- not defined AF_INET is used as default.
-function sockutils.bind_sockets(port, address, backlog, family)
-    local serv_addr = ffi.new("struct sockaddr_in") 
+function sockutils.create_server_address(port, address, family)
+    local serv_addr
+    local rc
     local errno
-    local rc, msg
 
-    family = family or AF_INET
-    address = address or INADDRY_ANY
+    if family ~= AF_INET and family ~= AF_INET6 then
+        error("[sockutil.lua] Only AF_INET and AF_INET6 is supported")
+    end
 
-    if family ~= AF_INET then
-        error("[sockutil.lua] Anything other than ipv4 (AF_INET) is currently \
-            not supported")
+    if family == AF_INET then
+        address = address or INADDR_ANY
+        serv_addr = ffi.new("struct sockaddr_in")
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_port = socket.htons(port)
+    else
+        address = address or "::"
+        serv_addr = ffi.new("struct sockaddr_in6")
+        serv_addr.sin6_family = family
+        serv_addr.sin6_port = socket.htons(port)
     end
 
     if type(address) == "string" then
-        rc = ffi.C.inet_pton(AF_INET, address, serv_addr.sin_addr)
+        rc = ffi.C.inet_pton(family, address, 
+            family == AF_INET and serv_addr.sin_addr or serv_addr.sin6_addr)
         if rc == 0 then
             error(string.format("[sockutil.lua] Invalid address %s",
                 address))
@@ -69,13 +77,50 @@ function sockutils.bind_sockets(port, address, backlog, family)
                 errno,
                 socket.strerror(errno)))
         end
+    elseif type(address) == "number" and family == AF_INET then
+        if family == AF_INET then
+            serv_addr.sin_addr.s_addr = socket.htonl(address);
+        end
     else
-        serv_addr.sin_addr.s_addr = socket.htonl(address);
+        error("[sockutil.lua] Invalid input address must be a valid \
+                ipv4(string/int) or ipv6(string) address.")
     end
 
+    return serv_addr
+end
+
+--- Binds sockets to port and address.
+-- If not address is defined then * will be used.
+-- If no backlog size is given then 128 connections will be used.
+-- @param address (Number or String) The address to bind to in unsigned 
+-- integer hostlong or a string like "127.0.0.1".
+-- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
+-- binding to all addresses.
+-- @param port (Number) The port number to bind to.
+-- @param backlog (Number) Maximum backlogged client connects to allow. If not
+-- defined then 128 is used as default.
+-- @param family (Number) Optional socket family. Defined in Socket module. If 
+-- not defined AF_INET is used as default.
+function sockutils.bind_sockets(port, address, backlog, family)
+    local serv_addr
+    local errno
+    local rc, msg
+
     backlog = backlog or 128
-    serv_addr.sin_family = family;
-    serv_addr.sin_port = socket.htons(port);
+
+    if not family then
+        if type(address) == "string" then
+            if address:find(":") then
+                family = AF_INET6
+            else
+                family = AF_INET
+            end
+        else
+            family = AF_INET
+        end
+    end
+
+    serv_addr = sockutils.create_server_address(port, address, family)
     
     local fd = socket.socket(family, SOCK_STREAM, 0)
     if fd == -1 then
