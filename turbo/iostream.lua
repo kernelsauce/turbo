@@ -47,12 +47,12 @@ local EINPROGRESS = socket.EINPROGRESS
 local ECONNRESET = socket.ECONNRESET
 local EPIPE =       socket.EPIPE
 local EAGAIN =      socket.EAGAIN
-local libtffi_loaded, libtffi = pcall(ffi.load, "ltffi_wrap")
+local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")
 if not libtffi_loaded then
     libtffi_loaded, libtffi = 
-        pcall(ffi.load, "/usr/local/lib/ltffi_wrap.so")
+        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
     if not libtffi_loaded then 
-        error("Could not load ltffi_wrap.so. \
+        error("Could not load libtffi_wrap.so. \
             Please run makefile and ensure that installation is done correct.")
     end
 end
