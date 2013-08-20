@@ -293,7 +293,6 @@ in memory it is ok.
 Usage:
 
 .. code-block:: lua
-   :linenos:
 
 	local app = turbo.web.Application:new({
 		{"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
@@ -304,6 +303,16 @@ Paths are not checked until intial hit on handler. It is then cached in memory.
 Notice that paths postfixed with / indicates that it should be treated as a directory. Paths with no / is treated
 as a single file.
 
+RedirectHandler class
+~~~~~~~~~~~~~~~~~~~~~
+Static redirect handler that simple redirect the client to the given
+URL in 3rd argument of a entry in the Application class's routing table.
+
+.. code-block:: lua
+
+	local application = turbo.web.Application({
+	    {"^/redirector$", turbo.web.RedirectHandler, "http://turbolua.org"}
+	})
 
 Application class
 ~~~~~~~~~~~~~~~~~
