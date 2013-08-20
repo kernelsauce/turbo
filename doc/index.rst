@@ -66,4 +66,11 @@ API documentation
    log
 
 
+Tutorials
+---------
+
+.. toctree::
+    :maxdepth: 3
+
+    get_started
 

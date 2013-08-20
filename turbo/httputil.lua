@@ -33,13 +33,13 @@ local deque = 		require "turbo.structs.deque"
 local escape = 		require "turbo.escape"
 local util = 		require "turbo.util"
 local ffi = 		require "ffi"
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "ltffi_wrap")
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
     ltp_loaded, libturbo_parser = 
-        pcall(ffi.load, "/usr/local/lib/ltffi_wrap.so")
+        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
     if not ltp_loaded then 
-        error("Could not load ltffi_wrap.so. \
+        error("Could not load libtffi_wrap.so. \
             Please run makefile and ensure that installation is done correct.")
     end
 end
