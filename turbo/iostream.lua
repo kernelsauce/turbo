@@ -47,7 +47,7 @@ local EINPROGRESS = socket.EINPROGRESS
 local ECONNRESET = socket.ECONNRESET
 local EPIPE =       socket.EPIPE
 local EAGAIN =      socket.EAGAIN
-local libtffi_loaded, libtffi = pcall(ffi.load, "libtffi_wrap")
+local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")
 if not libtffi_loaded then
     libtffi_loaded, libtffi = 
         pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
