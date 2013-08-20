@@ -538,13 +538,12 @@ function web.StaticFileHandler:head(path)
     end
     local full_path = string.format("%s%s", self.path, 
         escape.unescape(filename))
-    local rc, buf = STATIC_CACHE:get_file(full_path)
+    local rc, buf, mime = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
-        local rc, mime_type = self:get_mime()
-        if rc == 0 then
+        if mime then
             self:add_header("Content-Type", mime_type)
         end
-        self:add_header("Content-Length", buf:len())
+        self:add_header("Content-Length", tonumber(buf:len()))
     else
         error(web.HTTPError(404)) -- Not found
     end
