@@ -342,6 +342,7 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 .. function:: Application(handlers, default_host)
 
 	Initialize a new Application class instance.
+	
 	:param handlers: As described above. Table of tables with pattern to handler binding.
 	:type handlers: Table
 	:param default_host: Redirect to URL if no matching handler is found.
