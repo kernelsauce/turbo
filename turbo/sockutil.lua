@@ -28,6 +28,7 @@ local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
 local AF_INET =     socket.AF_INET
 local AF_INET6 =    socket.AF_INET6
+local EINPROGRESS = socket.EINPROGRESS
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EAGAIN =      socket.EAGAIN
 local INET_ADDRSTRLEN = 16
@@ -51,14 +52,16 @@ function sockutils.create_server_address(port, address, family)
     local rc
     local errno
 
+    family = family or AF_INET
+
     if family ~= AF_INET and family ~= AF_INET6 then
         error("[sockutil.lua] Only AF_INET and AF_INET6 is supported")
     end
 
     if family == AF_INET then
-        address = address or INADDR_ANY
+        address = address or "0.0.0.0"
         serv_addr = ffi.new("struct sockaddr_in")
-        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_family = AF_INET
         serv_addr.sin_port = socket.htons(port)
     else
         address = address or "::"
@@ -91,6 +94,36 @@ function sockutils.create_server_address(port, address, family)
 
     return serv_addr
 end
+
+--- Connect to a remote host using an addrinfo struct
+-- Returns the addrinfo struct that was used on success, or nil and
+-- an error message on failure.
+-- @param sock A socket descriptor
+-- @param ai a struct addrinfo
+function sockutils.connect_addrinfo(sock, ai)
+    local p = ffi.new("struct addrinfo *[1]")
+    local r = 0
+    local errno = 0
+    p = ai
+    while 1 do
+        if p == nil then
+            return nil, "Could not connect"
+        end
+        r = socket.connect(sock, p[0].ai_addr, p[0].ai_addrlen)
+        if r ~= 0 then
+            errno = ffi.errno()
+            if errno == EINPROGRESS then
+                break
+            end
+        else
+            break
+        end
+        p = p[0].ai_next
+    end
+    return p
+end
+
+
 
 --- Binds sockets to port and address.
 -- If not address is defined then * will be used.
