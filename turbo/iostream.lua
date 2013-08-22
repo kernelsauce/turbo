@@ -589,9 +589,13 @@ function iostream.IOStream:_read_from_buffer()
     -- Handle streaming callbacks first.
     if self._streaming_callback ~= nil and self._read_buffer_size ~= 0 then
         local bytes_to_consume = self._read_buffer_size
-        if self.read_bytes ~= nil then
+        if self._read_bytes ~= nil then
             bytes_to_consume = min(self._read_bytes, bytes_to_consume)
             self._read_bytes = self._read_bytes - bytes_to_consume
+            self:_run_callback(self._streaming_callback, 
+                self._streaming_callback_arg, 
+                self:_consume(bytes_to_consume))
+        else
             self:_run_callback(self._streaming_callback, 
                 self._streaming_callback_arg, 
                 self:_consume(bytes_to_consume))

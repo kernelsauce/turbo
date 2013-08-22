@@ -441,6 +441,7 @@ function web._StaticWebCache:get_mime(path)
 end
 
 STATIC_CACHE = web._StaticWebCache:new() -- Global cache.
+web.STATIC_CACHE = STATIC_CACHE
 
 --- Simple static file handler class.  
 -- File system path is provided in the Application class.
@@ -537,13 +538,12 @@ function web.StaticFileHandler:head(path)
     end
     local full_path = string.format("%s%s", self.path, 
         escape.unescape(filename))
-    local rc, buf = STATIC_CACHE:get_file(full_path)
+    local rc, buf, mime = STATIC_CACHE:get_file(full_path)
     if rc == 0 then
-        local rc, mime_type = self:get_mime()
-        if rc == 0 then
+        if mime then
             self:add_header("Content-Type", mime_type)
         end
-        self:add_header("Content-Length", buf:len())
+        self:add_header("Content-Length", tonumber(buf:len()))
     else
         error(web.HTTPError(404)) -- Not found
     end
@@ -604,9 +604,9 @@ end
 --- The Application class is a collection of request handler classes that make 
 -- together up a web application. Example:
 -- local application = turbo.web.Application({
---      {"/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
---      {"/$", ExampleHandler},
---      {"/item/(%d*)", ItemHandler}
+--      {"^/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
+--      {"^/$", ExampleHandler},
+--      {"^/item/(%d*)", ItemHandler}
 -- })
 -- The constructor of this class takes a “map” of URL patterns and their 
 -- respective handlers. The third element in the table are optional parameters 
@@ -712,7 +712,7 @@ function web.Application:__call(request)
             end
         end
     elseif not handlers and self.default_host then 
-        handler = web.RedirectHandler:new("http://" + self.default_host + "/")
+        handler = web.RedirectHandler:new(self.default_host)
     else
         handler = web.ErrorHandler:new(self, request, 404)
     end
