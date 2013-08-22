@@ -27,6 +27,7 @@ local ioloop =      require "turbo.ioloop"
 local deque =       require "turbo.structs.deque"
 local buffer =      require "turbo.structs.buffer"
 local socket =      require "turbo.socket_ffi"
+local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
 -- __Global value__ _G.TURBO_SSL allows the user to enable the SSL module.
 local crypto =      _G.TURBO_SSL and require "turbo.crypto"
@@ -42,6 +43,8 @@ local F_GETFL =     socket.F_GETFL
 local SOCK_STREAM = socket.SOCK_STREAM
 local INADDRY_ANY = socket.INADDR_ANY
 local AF_INET =     socket.AF_INET
+local AF_INET6 =    socket.AF_INET6
+local AF_UNSPEC =   socket.AF_UNSPEC
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EINPROGRESS = socket.EINPROGRESS
 local ECONNRESET = socket.ECONNRESET
@@ -113,42 +116,41 @@ end
 -- @param errhandler (Function) Optional callback for "on error".
 -- @param arg Optional argument for callback.
 -- @return (Number) -1 and error string on fail, 0 on success.
-local sockaddr = ffi.new("struct sockaddr_in")
-local sizeof_sockaddr = ffi.sizeof(sockaddr)
 function iostream.IOStream:connect(address, port, family, 
     callback, errhandler, arg)
     assert(type(address) == "string", "argument #1, address, is not a string.")
     assert(type(port) == "number", "argument #2, ports, is not a number.")
     assert((not family or type(family) == "number"), 
         "argument #3, family, is not a number or nil")
+
+    local hints = ffi.new("struct addrinfo[1]")
+    local servinfo = ffi.new("struct addrinfo *[1]")
     local rc
     local errno
+    local ai
+    local err
 
     self._connect_fail_callback = errhandler
     self._connecting = true
-    sockaddr.sin_port = socket.htons(port)
-    rc = socket.inet_pton(family, address, ffi.cast("void *", 
-        sockaddr.sin_addr))
-    if rc == 1 and family ~= nil then
-        sockaddr.sin_family = family
-    else
-        local hostinfo = socket.resolv_hostname(address)
-        if hostinfo == -1 then
-            return -1, string.format("Could not resolve hostname: %s", address)
-        end
-        ffi.copy(sockaddr.sin_addr, hostinfo.in_addr[1], 
-            ffi.sizeof("struct in_addr"))
-        sockaddr.sin_family = hostinfo.addrtype
-    end
-    rc = socket.connect(self.socket, ffi.cast("struct sockaddr *", sockaddr), 
-        sizeof_sockaddr)
+
+    ffi.fill(hints[0], ffi.sizeof(hints[0]))
+    hints[0].ai_socktype = SOCK_STREAM
+    hints[0].ai_family = family or AF_UNSPEC
+    hints[0].ai_protocol = 0
+
+    rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
     if rc ~= 0 then
-        errno = ffi.errno()
-        if errno ~= EINPROGRESS then
-            return -1, string.format("Could not connect. %s", 
-                socket.strerror(errno))
-        end
+        return -1, string.format("Could not resolve hostname '%s': %s",
+            address, ffi.C.gai_strerror(rc))
     end
+
+    ffi.gc(servinfo, function (ai) ffi.C.freeaddrinfo(ai[0]) end)
+
+    local ai, err = sockutils.connect_addrinfo(self.socket, servinfo)
+    if not ai then
+        return -1, err
+    end
+
     self._connect_callback = callback
     self._connect_callback_arg = arg
     self:_add_io_state(ioloop.WRITE)
