@@ -66,7 +66,7 @@ install_libtffi_wrap:
 	ln -sf $(INSTALL_LIB)/$(LIBTFFI_SONAME) $(INSTALL_LIB)/$(LIBTFFI_SOSHORT)
 
 install_luamodules:
-	mkdir -p $(LUA_MODULEDIR) $(LUAJIT_MODULEDIR)/turbo
+	mkdir -p $(LUA_MODULEDIR)/turbo $(LUAJIT_MODULEDIR)/turbo
 	cp -R turbo/* $(LUA_MODULEDIR)/turbo
 	cp turbo.lua $(LUA_MODULEDIR)
 	cp -R turbo/* $(LUAJIT_MODULEDIR)/turbo
