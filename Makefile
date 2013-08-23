@@ -56,23 +56,27 @@ uninstall:
 	$(RM) $(LUAJIT_MODULEDIR)/turbo.lua
 	@echo "==== Turbo.lua uinstalled. Welcome back. ===="
 
+install-libtffi_wrap:
+	@echo "==== Installing libtffi_wrap ===="
+	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
+	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
+	$(LDCONFIG) $(INSTALL_LIB) && \
+	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
 
-install:
-	@echo "==== Installing Turbo.lua v$(TVERSION) to: ===="
-	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
-	@echo "==== $(LUAJIT_MODULEDIR) ===="
-	
+install-luamodules:
 	$(MKDIR) $(LUA_MODULEDIR)/turbo
 	$(MKDIR) $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo/* $(LUA_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUA_MODULEDIR)
 	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
-	@echo "==== Installing libtffi_wrap ===="
-	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
-	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
-	$(LDCONFIG) $(INSTALL_LIB) && \
-	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
+
+installmsg:
+	@echo "==== Installing Turbo.lua v$(TVERSION) to: ===="
+	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
+	@echo "==== $(LUAJIT_MODULEDIR) ===="
+
+install: all installmsg install-libtffi_wrap install-luamodules
 	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
 	
 test:
