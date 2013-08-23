@@ -38,7 +38,9 @@ LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
-	make -C deps/http-parser library
+	@echo "==== Building 3rdparty modules ===="
+	make -C $(HTTP_PARSERDIR) library
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
 	make -C deps/http-parser clean
@@ -54,6 +56,7 @@ uninstall:
 	$(RM) $(LUAJIT_MODULEDIR)/turbo.lua
 	@echo "==== Turbo.lua uinstalled. Welcome back. ===="
 
+
 install:
 	@echo "==== Installing Turbo.lua v$(TVERSION) to: ===="
 	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
@@ -65,10 +68,7 @@ install:
 	$(CP_R) turbo.lua $(LUA_MODULEDIR)
 	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
-	@echo "==== Building 3rdparty modules ===="
-	make -C $(HTTP_PARSERDIR) library
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
-	@echo "==== Installing libturbo_parser ===="
+	@echo "==== Installing libtffi_wrap ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
 	$(LDCONFIG) $(INSTALL_LIB) && \
