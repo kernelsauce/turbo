@@ -23,6 +23,12 @@ struct sockaddr {
     char              sa_data[14];  // 14 bytes of protocol address
 };
 
+struct sockaddr_storage {
+    unsigned short int ss_family;
+    unsigned long int __ss_align;
+    char __ss_padding[128 - (2 * sizeof(unsigned long int))];
+};
+
 struct in_addr {
     unsigned long s_addr;          // load with inet_pton()
 };
@@ -51,6 +57,8 @@ struct sockaddr_in6 {
 };
 
 typedef int32_t socklen_t;
+
+
              
 extern char *strerror(int errnum);
 extern int32_t socket (int32_t domain, int32_t type, int32_t protocol);
@@ -276,6 +284,28 @@ extern struct hostent *gethostbyname (const char *name);
 
 ]]
 
+
+ffi.cdef[[
+
+struct addrinfo {
+  int     ai_flags;          // AI_PASSIVE, AI_CANONNAME, ...
+  int     ai_family;         // AF_xxx
+  int     ai_socktype;       // SOCK_xxx
+  int     ai_protocol;       // 0 (auto) or IPPROTO_TCP, IPPROTO_UDP 
+
+  socklen_t  ai_addrlen;     // length of ai_addr
+  struct sockaddr  *ai_addr; // binary address
+  char   *ai_canonname;      // canonical name for nodename
+  struct addrinfo  *ai_next; // next structure in linked list
+};
+
+int getaddrinfo(const char *nodename, const char *servname,
+                const struct addrinfo *hints, struct addrinfo **res);
+void freeaddrinfo(struct addrinfo *ai);
+const char *gai_strerror(int ecode);
+
+]]
+
 ffi.cdef[[
 
 enum http_parser_url_fields
@@ -389,3 +419,4 @@ pid_t fork();
 pid_t wait(int32_t *status);
 pid_t getpid();
 ]])
+
