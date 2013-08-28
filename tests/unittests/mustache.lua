@@ -17,34 +17,63 @@
 local turbo = require "turbo"
 
 describe("mustache template engine", function() 
-	it("should work support simple key replace", function()
+	it("should support basic usage", function()
 
 local simple_template = [[
 <body>
 	<h1>
-		{{   heading }}
+		{{heading }}
 	</h1>
-	<p>
-		{{{desc}}}
-	</p>
-	I am {{age}} years old. What would {{you}} like? 
-	{{#items}} 
-		Item: {{{item}}} 
-	{{/items}}
-	{{^items}}
-		Sorry we are all out!
-	{{/items}}
+	{{! 	
 
+			Some comment section that 
+			even spans across multiple lines,
+			that I just have to have to explain my flawless code.		
+
+	}}
+	<h2>
+		{{{desc}}} {{! No escape with triple mustaches allow HTML tags! }}
+		{{&desc}} {{! No escape can also be accomplished by & char }}
+	</h2>
+	<p>I am {{age}} years old. What would {{you}} like to buy in my shop?</p>
+	{{  #items }}  {{! I like spaces alot! 		}}
+		Item: {{item}}
+		{{#types}}
+			{{! Only print items if available.}}
+			Type available: {{type}}
+		{{/types}}
+		{{^types}}	Only one type available.
+		{{! Apparently only one type is available because types is not set, 
+		determined by the hat char ^}}
+		{{/types}}
+	{{/items}}
+	
+	{{^items}}
+		No items available!
+	{{/items}}
+	{{{ >disclaimer   }}} 		{{!! I like partials alot too. }}
 
 </body>]]
 
 		local tmpl = turbo.web.Mustache.compile(simple_template)
+		print(turbo.web.Mustache._template_dump(tmpl))
 		local compiled_tmpl = turbo.web.Mustache.render(tmpl, {
 			heading="My website!", 
 			desc="<b>Big important website</b>",
-			age=27
-			})
-		turbo.web.Mustache._template_dump(tmpl)
+			age=27,
+			items={
+				{item="Bread", 
+					types={
+						{type="light"}, 
+						{type="fatty"}
+					}
+				},
+				{item="Milk"},
+				{item="Sugar"}
+			}
+			}, false)
+		
+		print("Compiled template:\n")
 		print(compiled_tmpl)
 	end)
 end)
