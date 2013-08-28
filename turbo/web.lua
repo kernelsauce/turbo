@@ -38,6 +38,7 @@ local unpack = util.funpack
 local is_in = util.is_in
 
 local web = {} -- web namespace
+web.Mustache = require "turbo.mustache"
 
 --- Base RequestHandler class. The heart of Turbo.lua.
 -- The usual flow of using Turbo.lua is sub-classing the RequestHandler
@@ -141,7 +142,7 @@ function web.RequestHandler:get_argument(name, default, strip)
         return args
     elseif type(args) == "table" and #args > 0 then 
         return args[1]
-    elseif default then
+    elseif default ~= nil then
         return default
     else
         error(web.HTTPError:new(400))

@@ -301,7 +301,7 @@ function util.str_find(s, p, slen, plen)
             plen = plen - 1
             slen = slen - plen
             local q
-            while slen ~= 0 do
+            while slen > 0 do
                 q = ffi.cast("char*", ffi.C.memchr(s, c, slen))
                 if q == nil then 
                     break
