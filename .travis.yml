@@ -13,6 +13,7 @@ install:
   - sudo apt-get install luarocks
   - sudo luarocks install luafilesystem
   - sudo luarocks install busted
+  - sudo make install
 
 script: "make test"
 
