@@ -16,6 +16,7 @@ install:
   - sudo make install
   - sudo rm -f /usr/bin/lua
   - sudo ln -s /usr/bin/luajit /usr/bin/lua
+  - ls -l /usr/bin/luajit
 
 script: "make test"
 
