@@ -77,4 +77,4 @@ install:
 	
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	cd $(TEST_DIR) && busted --lua=luajit run_all_test.lua
+	cd $(TEST_DIR) && busted -l /usr/bin/luajit run_all_test.lua
