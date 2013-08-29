@@ -1,5 +1,8 @@
 
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
+.. image:: https://api.travis-ci.org/kernelsauce/turbo.png
+   :target: http://travis-ci.org/kernelsauce/turbo
+
 
 Turbo.lua is a toolkit for developing web and networking applications in Lua. It's web functionality is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify. Users of the Tornado web server will recognize the API offered pretty quick.
 If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
