@@ -14,8 +14,8 @@ install:
   - sudo luarocks install luafilesystem
   - sudo luarocks install busted
   - sudo make install
-  - rm -f /usr/bin/lua
-  - ln -s /usr/bin/luajit /usr/bin/lua
+  - sudo rm -f /usr/bin/lua
+  - sudo ln -s /usr/bin/luajit /usr/bin/lua
 
 script: "make test"
 
