@@ -560,4 +560,49 @@ function Mustache._template_dump(tbl, mark)
 	return dmp
 end
 
+Mustache.TemplateHelper = class("TemplateHelper")
+
+function Mustache.TemplateHelper:initialize(path)
+	self.templates = {}
+	self:set_base_directory(path)
+end
+
+function Mustache.TemplateHelper:set_base_directory(file)
+	if type(file) ~= "string" then
+		error("argument #1 is not a string.")
+	elseif #file == 0 then
+		error("argument #1 empty string.")
+	elseif file:sub(#file) ~= "/" then
+		file = file .. "/"
+	end
+	self.base_dir = file
+end
+
+function Mustache.TemplateHelper:load(template)
+	if not template then 
+		error("No template name specified.")
+	elseif not self.base_dir then
+		error("Please call set_base_directory first.")
+	end
+	if self.templates[template] then
+		return self.templates[template]
+	else
+		local data = util.read_all(self.base_dir .. template)
+		local tbl = Mustache.compile(data)		
+		self.templates[template] = tbl
+		return tbl
+	end
+end
+
+function Mustache.TemplateHelper:render(template, table, partials, allow_blank)
+	if type(template) == "string" then
+		local compiled_tmpl = self:load(template)
+		if not compiled_tmpl then
+			error("Could not load template " .. template)
+		end
+		return Mustache.render(compiled_tmpl, table or {}, partials, allow_blank)
+	end
+	return Mustache.render(template, table or {}, partials, allow_blank)
+end
+
 return Mustache

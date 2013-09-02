@@ -289,6 +289,13 @@ function util.TBM(x, m, y, n)
     end
 end
 
+function util.read_all(file)
+    local f = io.open(file, "rb")
+    local content = f:read("*all")
+    f:close()
+    return content
+end
+
 --- Find substring in memory string.
 -- Based on lj_str_find in lj_str.c in LuaJIT by Mike Pall.
 function util.str_find(s, p, slen, plen)
