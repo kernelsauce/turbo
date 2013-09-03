@@ -512,7 +512,7 @@ function httputil.HTTPHeaders:stringify_as_response()
                 self._fields[i][1], self._fields[i][2]));    
         end
     end
-    return string.format("%s %d %s\r\n%s\r\n",
+    return string.format("%s %d %s\r\n%s",
         self.version,
         self.status_code,
         status_codes[self.status_code],
