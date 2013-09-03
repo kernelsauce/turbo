@@ -38,7 +38,7 @@ local unpack = util.funpack
 local is_in = util.is_in
 
 local web = {} -- web namespace
-web.Mustache = require "turbo.mustache"
+web.Mustache = require "turbo.mustache" -- include the Mustache templater.
 
 --- Base RequestHandler class. The heart of Turbo.lua.
 -- The usual flow of using Turbo.lua is sub-classing the RequestHandler
@@ -236,6 +236,20 @@ function web.RequestHandler:redirect(url, permanent)
     self:finish()
 end
 
+--- Use chunked encoding on writes. Must be written before :flush() is called.
+-- Once set, the mode is irreversible. Modifying the flag manually will cause
+-- undefined behaviour. Call :write() as usual, and when ready to send one 
+-- chunk call :flush(). finish() must be called to signal the end of the stream.
+function web.RequestHandler:set_chunked_write()
+    if self._headers_written == true then
+        error("Headers already written, can not switch to chunked write.")
+    elseif self.request.headers.method == "HEAD" then
+        error("Chunked write gives no meaning for HEAD requests.")
+    end
+    self.chunked = true
+    self:add_header("Transfer-Encoding", "chunked")
+end
+
 --- Writes the given chunk to the output buffer.			
 -- To write the output to the network, use the flush() method.
 -- If the given chunk is a Lua table, it will be automatically
@@ -271,18 +285,49 @@ function web.RequestHandler:flush(callback, arg)
         self._headers_written = true
         headers = self:_gen_headers()
     end
-    if headers then
-        if self.request.headers.method == "HEAD" then
-            self.request:write(headers, callback, arg)
+    -- Lines below uses multiple calls to write to avoid creating new
+    -- temporary strings. The write will essentially just be appended
+    -- to the IOStream class, which will actually not perform any writes
+    -- until the calling function returns to IOLoop. 
+    if self.chunked then
+        -- Transfer-Encoding: chunked support.
+        if headers then
+            if chunk:len() ~= 0 then
+                self.request:write(headers)
+                self.request:write("\r\n")
+                self.request:write(util.hex(chunk:len()))
+                self.request:write("\r\n")
+                self.request:write(chunk)
+                self.request:write("\r\n", callback, arg)
+            else
+                self.request:write(headers)
+                self.request:write("\r\n", callback, arg)
+            end
         elseif chunk:len() ~= 0 then
-            self.request:write(string.format("%s%s", headers, chunk), callback, arg)
-        else
-            self.request:write(headers, callback, arg)
+            self.request:write(util.hex(chunk:len()))
+            self.request:write("\r\n")
+            self.request:write(chunk)
+            self.request:write("\r\n")
         end
-    elseif chunk:len() ~= 0 then
-        self.request:write(chunk, callback, arg)
+        self._write_buffer_size = 0       
+    else
+        -- Not chunked with Content-Length set.
+        if headers then
+            if self.request.headers.method == "HEAD" then
+                self.request:write(headers, callback, arg)
+            elseif chunk:len() ~= 0 then
+                self.request:write(headers)
+                self.request:write("\r\n")
+                self.request:write(chunk, callback, arg)
+            else
+                self.request:write(headers)
+                self.request:write("\r\n", callback, arg)
+            end
+        elseif chunk:len() ~= 0 then
+            self.request:write(chunk, callback, arg)
+        end
+        self._write_buffer_size = 0
     end
-    self._write_buffer_size = 0
 end
 
 --- Set handler to not call finish() when request method has been called and
@@ -302,7 +347,7 @@ function web.RequestHandler:_gen_headers()
         -- This might not be preferable in all cases.
         self:add_header("Content-Type", "text/html; charset=UTF-8")
     end
-    if not self:get_header("Content-Length") then
+    if not self:get_header("Content-Length") and not self.chunked then
         -- No length is set, add current write buffer size.
         self:add_header("Content-Length", 
             self._write_buffer_size)
@@ -319,9 +364,19 @@ function web.RequestHandler:finish(chunk)
     if self._finished then
         error("finish() called twice. Something terrible has happened")
     end
+    self._finished = true
     if chunk then
         self:write(chunk)
     end
+    self:flush() -- Make sure everything in buffers are flushed to IOStream.
+    if self.chunked then
+        self.request:write("0\r\n\r\n", self._finish, self)
+        return
+    end
+    self:_finish()
+end
+
+function web.RequestHandler:_finish()
     if self._status_code == 200 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
@@ -339,9 +394,7 @@ function web.RequestHandler:finish(chunk)
             self.request.remote_ip,
             self.request:request_time()))
     end
-    self:flush()
     self.request:finish()
-    self._finished = true
     self:on_finish()
 end
 
