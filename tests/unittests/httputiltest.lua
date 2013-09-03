@@ -80,9 +80,9 @@ describe("turbo httputil module", function()
     	headers:add("Accept-Ranges", "bytes")
     	headers:add("Connection", "keep-alive")
     	headers:add("Age", "0")
-        local expected = "HTTP/1.1 304 Not Modified\r\nDate: Wed, 08 May 2013 15:00:22 GMT\r\nServer: Turbo/1.0\r\nAccept-Ranges: bytes\r\nConnection: keep-alive\r\nAge: 0\r\n\r\n"
+        local expected = "HTTP/1.1 304 Not Modified\r\nDate: Wed, 08 May 2013 15:00:22 GMT\r\nServer: Turbo/1.0\r\nAccept-Ranges: bytes\r\nConnection: keep-alive\r\nAge: 0\r\n"
         assert.equal(headers:__tostring(), expected)
-    	assert(headers:__tostring():len() == 139, headers:__tostring():len())
+    	assert.equal(headers:__tostring():len(), 137)
     end)
     
     it("should allow settings and getting of notable values", function()
