@@ -245,25 +245,29 @@ function web.RequestHandler:get_current_user()
     error("Method not implemented in this class.")
 end
 
-function web.RequestHandler:_parse_cookies()
-    local cookies = {}
-    local cookie_str, cnt = self.request.headers:get("Cookie")
-    if cnt ~= 0 then
-        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
-            cookies[escape.unescape(key)] = escape.unescape(value)        
-        end
-    end
-    self._cookies = cookies
-    self._cookies_parsed = true
-end
-
+--- Get cookie value from incoming request.
+-- @param name The name of the cookie to get.
+-- @param default A default value if no cookie is found.
+-- @return Cookie or the default value.
 function web.RequestHandler:get_cookie(name, default)
     if not self._cookies_parsed then
         self:_parse_cookies()
     end
-    return self._cookies[name] or default
+    if not self._cookies[name] then
+        return default
+    else
+        return self._cookies[name]
+    end
 end
 
+--- Set a cookie with value to response.
+-- @param name The name of the cookie to set.
+-- @param value The value of the cookie.
+-- @param domain The domain to apply cookie for.
+-- @param expire_hours Set cookie to expire in given amount of hours.
+-- @note Expiring relies on the requesting browser and may or may not be
+-- respected. Also keep in mind that the servers time is used to calculate
+-- expiry date, so the server should ideally be set up with NTP server.
 function web.RequestHandler:set_cookie(name, value, domain, expire_hours)     
     self._set_cookie[#self._set_cookie+1] = {
         name = name,
@@ -273,6 +277,10 @@ function web.RequestHandler:set_cookie(name, value, domain, expire_hours)
     }
 end
 
+--- Clear a cookie.
+-- @param name The name of the cookie to clear.
+-- @note Expiring relies on the requesting browser and may or may not be
+-- respected.
 function web.RequestHandler:clear_cookie(name)
     -- Clear cookie by setting expiry date to 0 and
     -- empty values...
@@ -435,6 +443,18 @@ function web.RequestHandler:finish(chunk)
         return
     end
     self:_finish()
+end
+
+function web.RequestHandler:_parse_cookies()
+    local cookies = {}
+    local cookie_str, cnt = self.request.headers:get("Cookie")
+    if cnt ~= 0 then
+        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
+            cookies[escape.unescape(key)] = escape.unescape(value)        
+        end
+    end
+    self._cookies = cookies
+    self._cookies_parsed = true
 end
 
 function web.RequestHandler:_finish()
