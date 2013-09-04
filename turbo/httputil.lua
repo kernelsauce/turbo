@@ -489,22 +489,13 @@ function httputil.HTTPHeaders:stringify_as_request()
         buffer:concat())
 end
 
-local _time_str_buf = ffi.new("char[2048]")
-local _time_t_headers = ffi.new("time_t[1]")
 --- Stringify data set in class as a HTTP response header.
 -- If not "Date" field is set, it will be generated automatically.
 -- @return (String) HTTP header string excluding final delimiter.
 function httputil.HTTPHeaders:stringify_as_response()
     local buffer = deque:new()
     if not self:get("Date") then
-        ffi.C.time(_time_t_headers)
-        local tm = ffi.C.gmtime(_time_t_headers)
-        local sz = ffi.C.strftime(
-            _time_str_buf, 
-            2048, 
-            "%a, %d %b %Y %H:%M:%S GMT", 
-            tm)
-        self:add("Date", ffi.string(_time_str_buf, sz))
+        self:add("Date", util.time_format_http_header(ffi.C.time(nil)))
     end
     for i = 1 , #self._fields do
         if self._fields[i] then
