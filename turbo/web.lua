@@ -69,6 +69,7 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     self._auto_finish = true
     self._transforms = nil
     self._url_args = url_args
+    self._set_cookie = {}
     self.arguments = {}
     -- Set standard headers by calling the clear method.
     self:clear() 
@@ -204,7 +205,9 @@ end
 -- @param name (String) Key string for header field.
 -- @return Value of header field or nil if not set, may return a table
 -- if multiple values with same key exists.
-function web.RequestHandler:get_header(key) return self.headers:get(key) end
+function web.RequestHandler:get_header(key) 
+    return self.headers:get(key) 
+end
 
 --- Sets the HTTP status code for our response. 
 -- @param status_code The status code to set. Must be number or a error is 
@@ -234,6 +237,57 @@ function web.RequestHandler:redirect(url, permanent)
     self:set_status(status)
     self:add_header("Location", url)
     self:finish()
+end
+
+--- Reimplement in inheriting classes to get the current user from
+-- for example a cookie, parameter etc.
+function web.RequestHandler:get_current_user() 
+    error("Method not implemented in this class.")
+end
+
+function web.RequestHandler:_parse_cookies()
+    local cookies = {}
+    local cookie_str, cnt = self.request.headers:get("Cookie")
+    if cnt ~= 0 then
+        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
+            cookies[escape.unescape(key)] = escape.unescape(value)        
+        end
+    end
+    self._cookies = cookies
+    self._cookies_parsed = true
+end
+
+function web.RequestHandler:get_cookie(name, default)
+    if not self._cookies_parsed then
+        self:_parse_cookies()
+    end
+    return self._cookies[name] or default
+end
+
+function web.RequestHandler:set_cookie(name, value, domain, expire_hours)     
+    self._set_cookie[#self._set_cookie+1] = {
+        name = name,
+        value = value,
+        domain = domain,
+        expire_hours = expire_hours or 1
+    }
+end
+
+function web.RequestHandler:clear_cookie(name)
+    -- Clear cookie by setting expiry date to 0 and
+    -- empty values...
+    self:set_cookie(name, "", nil, 0)
+end
+
+--- Set handler to not call finish() when request method has been called and
+-- returned. Default is false. When set to true, the user must explicitly call
+-- finish.
+-- @param bool (Boolean)
+function web.RequestHandler:set_async(bool)
+    if type(bool) ~= "boolean" then
+        error("bool must be boolean!")
+    end
+    self._auto_finish = bool == false
 end
 
 --- Use chunked encoding on writes. Must be written before :flush() is called.
@@ -330,17 +384,6 @@ function web.RequestHandler:flush(callback, arg)
     end
 end
 
---- Set handler to not call finish() when request method has been called and
--- returned. Default is false. When set to true, the user must explicitly call
--- finish.
--- @param bool (Boolean)
-function web.RequestHandler:set_async(bool)
-    if type(bool) ~= "boolean" then
-        error("bool must be boolean!")
-    end
-    self._auto_finish = bool == false
-end
-
 function web.RequestHandler:_gen_headers()
     if not self:get_header("Content-Type") then
         -- No content type is set, assume that it is text/html.
@@ -354,6 +397,24 @@ function web.RequestHandler:_gen_headers()
     end
     self.headers:set_status_code(self._status_code)
     self.headers:set_version("HTTP/1.1")
+    if #self._set_cookie ~= 0 then
+        local c = self._set_cookie
+        for i = 1, #c do
+            local expire_time 
+            if c[i].expire_hours == 0 then
+                expire_time = 0
+            else
+                expire_time = os.time() + (c[i].expire_hours*60*60)
+            end
+            local expire_str = util.time_format_cookie(expire_time)
+            local cookie = string.format("%s=%s; path=%s; expires=%s",
+                escape.escape(c[i].name),
+                escape.escape(c[i].value or ""),
+                c[i].domain or "/",
+                expire_str)
+            self:add_header("Set-Cookie", cookie)
+        end
+    end
     return self.headers:stringify_as_response()
 end
 
