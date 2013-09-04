@@ -75,7 +75,7 @@ function log.success(str)
     local tm = ffi.C.localtime(time_t)
     local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
     local offset
-    if sz + str:len() > 4094 then
+    if sz + str:len() < 4094 then
         -- Use static buffer.
         ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
