@@ -50,6 +50,19 @@ local log = {
 local buf = ffi.new("char[4096]") -- Buffer for log lines.
 local time_t = ffi.new("time_t[1]")
 
+
+--- Disable all login features.
+function log.disable_all()
+    log.categories = {
+        ["success"] = false,
+        ["notice"] = false,
+        ["warning"] = false,
+        ["error"] = false,
+        ["debug"] = false,
+        ["development"] = false
+    }
+end
+
 --- Log to stdout. Success category.
 -- Use for successfull events etc.
 -- @note Messages are printed with green color.
@@ -62,7 +75,7 @@ function log.success(str)
     local tm = ffi.C.localtime(time_t)
     local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
     local offset
-    if sz + str:len() > 4094 then
+    if sz + str:len() < 4094 then
         -- Use static buffer.
         ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)

@@ -1,0 +1,24 @@
+language: erlang
+
+env:
+  - LUA="luajit"
+
+branches:
+  only:
+    - master
+
+install:
+  - git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && sudo make install && sudo ln -sf luajit-2.0.2 /usr/local/bin/luajit && cd ..
+  - sudo apt-get install luarocks
+  - sudo luarocks install luafilesystem
+  - sudo luarocks install busted
+  - sudo make install
+
+script: "make test"
+
+notifications:
+  recipients:
+    - jhnabrhmsn@gmail.com
+  email:
+    on_success: change
+    on_failure: always

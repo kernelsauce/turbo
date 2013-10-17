@@ -38,6 +38,7 @@ local unpack = util.funpack
 local is_in = util.is_in
 
 local web = {} -- web namespace
+web.Mustache = require "turbo.mustache" -- include the Mustache templater.
 
 --- Base RequestHandler class. The heart of Turbo.lua.
 -- The usual flow of using Turbo.lua is sub-classing the RequestHandler
@@ -68,6 +69,7 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     self._auto_finish = true
     self._transforms = nil
     self._url_args = url_args
+    self._set_cookie = {}
     self.arguments = {}
     -- Set standard headers by calling the clear method.
     self:clear() 
@@ -141,7 +143,7 @@ function web.RequestHandler:get_argument(name, default, strip)
         return args
     elseif type(args) == "table" and #args > 0 then 
         return args[1]
-    elseif default then
+    elseif default ~= nil then
         return default
     else
         error(web.HTTPError:new(400))
@@ -203,7 +205,9 @@ end
 -- @param name (String) Key string for header field.
 -- @return Value of header field or nil if not set, may return a table
 -- if multiple values with same key exists.
-function web.RequestHandler:get_header(key) return self.headers:get(key) end
+function web.RequestHandler:get_header(key) 
+    return self.headers:get(key) 
+end
 
 --- Sets the HTTP status code for our response. 
 -- @param status_code The status code to set. Must be number or a error is 
@@ -233,6 +237,79 @@ function web.RequestHandler:redirect(url, permanent)
     self:set_status(status)
     self:add_header("Location", url)
     self:finish()
+end
+
+--- Reimplement in inheriting classes to get the current user from
+-- for example a cookie, parameter etc.
+function web.RequestHandler:get_current_user() 
+    error("Method not implemented in this class.")
+end
+
+--- Get cookie value from incoming request.
+-- @param name The name of the cookie to get.
+-- @param default A default value if no cookie is found.
+-- @return Cookie or the default value.
+function web.RequestHandler:get_cookie(name, default)
+    if not self._cookies_parsed then
+        self:_parse_cookies()
+    end
+    if not self._cookies[name] then
+        return default
+    else
+        return self._cookies[name]
+    end
+end
+
+--- Set a cookie with value to response.
+-- @param name The name of the cookie to set.
+-- @param value The value of the cookie.
+-- @param domain The domain to apply cookie for.
+-- @param expire_hours Set cookie to expire in given amount of hours.
+-- @note Expiring relies on the requesting browser and may or may not be
+-- respected. Also keep in mind that the servers time is used to calculate
+-- expiry date, so the server should ideally be set up with NTP server.
+function web.RequestHandler:set_cookie(name, value, domain, expire_hours)     
+    self._set_cookie[#self._set_cookie+1] = {
+        name = name,
+        value = value,
+        domain = domain,
+        expire_hours = expire_hours or 1
+    }
+end
+
+--- Clear a cookie.
+-- @param name The name of the cookie to clear.
+-- @note Expiring relies on the requesting browser and may or may not be
+-- respected.
+function web.RequestHandler:clear_cookie(name)
+    -- Clear cookie by setting expiry date to 0 and
+    -- empty values...
+    self:set_cookie(name, "", nil, 0)
+end
+
+--- Set handler to not call finish() when request method has been called and
+-- returned. Default is false. When set to true, the user must explicitly call
+-- finish.
+-- @param bool (Boolean)
+function web.RequestHandler:set_async(bool)
+    if type(bool) ~= "boolean" then
+        error("bool must be boolean!")
+    end
+    self._auto_finish = bool == false
+end
+
+--- Use chunked encoding on writes. Must be written before :flush() is called.
+-- Once set, the mode is irreversible. Modifying the flag manually will cause
+-- undefined behaviour. Call :write() as usual, and when ready to send one 
+-- chunk call :flush(). finish() must be called to signal the end of the stream.
+function web.RequestHandler:set_chunked_write()
+    if self._headers_written == true then
+        error("Headers already written, can not switch to chunked write.")
+    elseif self.request.headers.method == "HEAD" then
+        error("Chunked write gives no meaning for HEAD requests.")
+    end
+    self.chunked = true
+    self:add_header("Transfer-Encoding", "chunked")
 end
 
 --- Writes the given chunk to the output buffer.			
@@ -270,29 +347,49 @@ function web.RequestHandler:flush(callback, arg)
         self._headers_written = true
         headers = self:_gen_headers()
     end
-    if headers then
-        if self.request.headers.method == "HEAD" then
-            self.request:write(headers, callback, arg)
+    -- Lines below uses multiple calls to write to avoid creating new
+    -- temporary strings. The write will essentially just be appended
+    -- to the IOStream class, which will actually not perform any writes
+    -- until the calling function returns to IOLoop. 
+    if self.chunked then
+        -- Transfer-Encoding: chunked support.
+        if headers then
+            if chunk:len() ~= 0 then
+                self.request:write(headers)
+                self.request:write("\r\n")
+                self.request:write(util.hex(chunk:len()))
+                self.request:write("\r\n")
+                self.request:write(chunk)
+                self.request:write("\r\n", callback, arg)
+            else
+                self.request:write(headers)
+                self.request:write("\r\n", callback, arg)
+            end
         elseif chunk:len() ~= 0 then
-            self.request:write(string.format("%s%s", headers, chunk), callback, arg)
-        else
-            self.request:write(headers, callback, arg)
+            self.request:write(util.hex(chunk:len()))
+            self.request:write("\r\n")
+            self.request:write(chunk)
+            self.request:write("\r\n")
         end
-    elseif chunk:len() ~= 0 then
-        self.request:write(chunk, callback, arg)
+        self._write_buffer_size = 0       
+    else
+        -- Not chunked with Content-Length set.
+        if headers then
+            if self.request.headers.method == "HEAD" then
+                self.request:write(headers, callback, arg)
+            elseif chunk:len() ~= 0 then
+                self.request:write(headers)
+                self.request:write("\r\n")
+                self.request:write(chunk, callback, arg)
+            else
+                self.request:write(headers)
+                self.request:write("\r\n", callback, arg)
+            end
+        elseif chunk:len() ~= 0 then
+            self.request:write(chunk, callback, arg)
+        end
+        self._write_buffer_size = 0
     end
-    self._write_buffer_size = 0
-end
-
---- Set handler to not call finish() when request method has been called and
--- returned. Default is false. When set to true, the user must explicitly call
--- finish.
--- @param bool (Boolean)
-function web.RequestHandler:set_async(bool)
-    if type(bool) ~= "boolean" then
-        error("bool must be boolean!")
-    end
-    self._auto_finish = bool == false
 end
 
 function web.RequestHandler:_gen_headers()
@@ -301,13 +398,31 @@ function web.RequestHandler:_gen_headers()
         -- This might not be preferable in all cases.
         self:add_header("Content-Type", "text/html; charset=UTF-8")
     end
-    if not self:get_header("Content-Length") then
+    if not self:get_header("Content-Length") and not self.chunked then
         -- No length is set, add current write buffer size.
         self:add_header("Content-Length", 
             self._write_buffer_size)
     end
     self.headers:set_status_code(self._status_code)
     self.headers:set_version("HTTP/1.1")
+    if #self._set_cookie ~= 0 then
+        local c = self._set_cookie
+        for i = 1, #c do
+            local expire_time 
+            if c[i].expire_hours == 0 then
+                expire_time = 0
+            else
+                expire_time = os.time() + (c[i].expire_hours*60*60)
+            end
+            local expire_str = util.time_format_cookie(expire_time)
+            local cookie = string.format("%s=%s; path=%s; expires=%s",
+                escape.escape(c[i].name),
+                escape.escape(c[i].value or ""),
+                c[i].domain or "/",
+                expire_str)
+            self:add_header("Set-Cookie", cookie)
+        end
+    end
     return self.headers:stringify_as_response()
 end
 
@@ -318,9 +433,31 @@ function web.RequestHandler:finish(chunk)
     if self._finished then
         error("finish() called twice. Something terrible has happened")
     end
+    self._finished = true
     if chunk then
         self:write(chunk)
     end
+    self:flush() -- Make sure everything in buffers are flushed to IOStream.
+    if self.chunked then
+        self.request:write("0\r\n\r\n", self._finish, self)
+        return
+    end
+    self:_finish()
+end
+
+function web.RequestHandler:_parse_cookies()
+    local cookies = {}
+    local cookie_str, cnt = self.request.headers:get("Cookie")
+    if cnt ~= 0 then
+        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
+            cookies[escape.unescape(key)] = escape.unescape(value)        
+        end
+    end
+    self._cookies = cookies
+    self._cookies_parsed = true
+end
+
+function web.RequestHandler:_finish()
     if self._status_code == 200 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
@@ -338,9 +475,7 @@ function web.RequestHandler:finish(chunk)
             self.request.remote_ip,
             self.request:request_time()))
     end
-    self:flush()
     self.request:finish()
-    self._finished = true
     self:on_finish()
 end
 

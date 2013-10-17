@@ -120,7 +120,7 @@ end
 -- @return (Boolean) true if successfull else false.
 function ioloop.IOLoop:update_handler(fd, events)
     local rc, errno = self._poll:modify(fd, bit.bor(events, ioloop.ERROR))
-    if (rc ~= 0) then
+    if rc ~= 0 then
         log.notice(
             string.format(
                 "[ioloop.lua] modify() in update_handler() failed: %s",
@@ -138,7 +138,7 @@ function ioloop.IOLoop:remove_handler(fd)
         return
     end
     local rc, errno = self._poll:unregister(fd)
-    if (rc ~= 0) then
+    if rc ~= 0 then
         log.notice(
             string.format(
                 "[ioloop.lua] unregister() in remove_handler() failed: %s", 
@@ -190,7 +190,7 @@ function ioloop.IOLoop:add_timeout(timestamp, func, arg)
     local i = 1
 
     while true do
-        if (self._timeouts[i] == nil) then
+        if self._timeouts[i] == nil then
             break
         else
             i = i + 1
@@ -220,7 +220,7 @@ end
 function ioloop.IOLoop:set_interval(msec, func, arg)
     local i = 1
 
-    while (self._intervals[i] ~= nil) do
+    while self._intervals[i] ~= nil do
         i = i + 1
     end
     self._intervals[i] = _Interval:new(msec, func, arg)
@@ -231,7 +231,7 @@ end
 -- @param ref (Number) The reference returned by IOLoop:set_interval.
 -- @return (Boolean) True on success, else false.
 function ioloop.IOLoop:clear_interval(ref)
-    if (self._intervals[ref]) then
+    if self._intervals[ref] then
         self._intervals[ref] = nil
         return true
     else
@@ -247,15 +247,16 @@ function ioloop.IOLoop:start()
     while true do
         local poll_timeout = 3600        
         local co_cbs_sz = #self._co_cbs
-        if (co_cbs_sz > 0) then
+        if co_cbs_sz > 0 then
             local co_cbs = self._co_cbs
             self._co_cbs = {}
             for i = 1, co_cbs_sz do
-                if (co_cbs[i] ~= nil) then
+                if co_cbs[i] ~= nil then
                     -- co_cbs[i][1] = coroutine (Lua thread).
                     -- co_cbs[i][2] = yielded function.
-                    if (self:_resume_coroutine(co_cbs[i][1], 
-                        co_cbs[i][2]) ~= 0) then
+                    if self:_resume_coroutine(
+                        co_cbs[i][1], 
+                        co_cbs[i][2]) ~= 0 then
                         -- Resumed courotine yielded. Adjust timeout.
                         poll_timeout = 0
                     end
@@ -274,13 +275,13 @@ function ioloop.IOLoop:start()
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
             for i = 1, timeout_sz do
-                if (self._timeouts[i] ~= nil) then
+                if self._timeouts[i] ~= nil then
                     local time_until_timeout = self._timeouts[i]:timed_out()
-                    if (time_until_timeout == 0) then
+                    if time_until_timeout == 0 then
                         self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
                     else
-                        if (poll_timeout > time_until_timeout) then
+                        if poll_timeout > time_until_timeout then
                            poll_timeout = time_until_timeout 
                         end
                     end
@@ -288,12 +289,12 @@ function ioloop.IOLoop:start()
             end
         end
         local intervals_sz = #self._intervals
-        if (intervals_sz ~= 0) then
+        if intervals_sz ~= 0 then
             local time_now = util.gettimeofday()
             for i = 1, intervals_sz do
-                if (self._intervals[i] ~= nil) then
+                if self._intervals[i] ~= nil then
                     local timed_out = self._intervals[i]:timed_out(time_now)
-                    if (timed_out == 0) then
+                    if timed_out == 0 then
                         self:_run_callback({
                             self._intervals[i].callback, 
                             self._intervals[i].arg
@@ -304,11 +305,11 @@ function ioloop.IOLoop:start()
                         time_now = util.gettimeofday() 
                         local next_call = self._intervals[i]:set_last_call(
                             time_now)
-                        if (next_call < poll_timeout) then
+                        if next_call < poll_timeout then
                             poll_timeout = next_call
                         end
                     else
-                        if (timed_out < poll_timeout) then
+                        if timed_out < poll_timeout then
                             -- Adjust timeout to not miss time out.
                             poll_timeout = timed_out
                         end
@@ -332,7 +333,7 @@ function ioloop.IOLoop:start()
             for i = 0, num do
                 self:_run_handler(events[i].data.fd, events[i].events)
             end
-        elseif (rc == -1) then
+        elseif rc == -1 then
             log.notice(string.format("[ioloop.lua] poll() returned errno %d", 
                 ffi.errno()))
         end
@@ -417,19 +418,19 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
         err, yielded = coroutine.resume(co, arg)
     end
     st = coroutine.status(co)
-    if (st == "suspended") then
+    if st == "suspended" then
     	local yield_t = type(yielded)
     	if instanceOf(coctx.CoroutineContext, yielded) then
             -- Advanced yield scenario.
             -- Use CouroutineContext as key in Coroutine map.
             self._co_ctxs[yielded] = co
             return 1
-    	elseif (yield_t == "function") then
+    	elseif yield_t == "function" then
             -- Schedule coroutine to be run on next iteration with function
             -- as result of yield.
     	    self._co_cbs[#self._co_cbs + 1] = {co, yielded}
             return 2
-        elseif (yield_t == "nil") then
+        elseif yield_t == "nil" then
             -- Empty yield. Schedule resume on next iteration.
             self._co_cbs[#self._co_cbs + 1] = {co, 0}
             return 3
@@ -455,7 +456,7 @@ function _Interval:initialize(msec, callback, arg)
 end
 
 function _Interval:timed_out(time_now)
-    if (time_now >= self.next_call) then
+    if time_now >= self.next_call then
         return 0
     else
         return self.next_call - time_now
@@ -480,7 +481,7 @@ end
 
 function _Timeout:timed_out()
     local current_time = util.gettimeofday()
-    if (self._timestamp - current_time <= 0) then
+    if self._timestamp - current_time <= 0 then
         return 0
     else 
         return self._timestamp - current_time

@@ -4,71 +4,85 @@
 ## See LICENSE file for license information.
 ########
 
+CC ?= gcc
+RM= rm -f
+UNINSTALL= rm -rf
+MKDIR= mkdir -p
+RMDIR= rmdir 2>/dev/null
+SYMLINK= ln -sf
+INSTALL_X= install -m 0755
+INSTALL_F= install -m 0644
+CP_R= cp -r
+LDCONFIG= ldconfig -n
+PREFIX ?= /usr/local
+
 MAJVER=  1
 MINVER=  0
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
-
-CC ?= gcc
-
-HTTP_PARSERDIR = ./deps/http-parser
-PREFIX ?= /usr/local
-INSTALL_LIB ?= $(PREFIX)/lib
-LUAJIT_VERSION ?= 2.0.2
-LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
-LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
+TDEPS= deps
+HTTP_PARSERDIR = $(TDEPS)/http-parser
+INSTALL_LIB= $(PREFIX)/lib
+INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.so
+INSTALL_TFFI_WRAP_SONAME= $(INSTALL_TFFI_WRAP_SOSHORT).$(TVERSION)
+INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
+INSTALL_TFFI_WRAP_SHORT= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SOSHORT)
+TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1	
-
-CFLAGS = -O3 -Wall -I$(HTTP_PARSERDIR)/
+INC = -I$(HTTP_PARSERDIR)/
 LDFLAGS = -lcrypto -lssl
 
-LIBTFFI_SOSHORT = libtffi_wrap.so
-LIBTFFI_SONAME = $(LIBTFFI_SOSHORT).$(TVERSION)
+LUAJIT_VERSION?=2.0.2
+LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
+LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
-all: 
-	make -C $(HTTP_PARSERDIR) library
-	$(CC) $(CFLAGS) -shared -fPIC $(HTTP_PARSERDIR)/libhttp_parser.o \
-		./deps/turbo_ffi_wrap.c -o $(LIBTFFI_SOSHORT) $(LDFLAGS)
+all:
+	make -C deps/http-parser library
 
 clean:
-	make -C $(HTTP_PARSERDIR) clean
-	rm -f $(LIBTFFI_SOSHORT)
+	make -C deps/http-parser clean
+	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
 
-test:
-	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	cd ./test && busted run_all_test.lua
-
-install: all installmsg install_libtffi_wrap install_luamodules
-	@echo "==== Successfully installed Turbo.lua v$(TVERSION) to $(PREFIX) ===="
-	
 uninstall:
 	@echo "==== Uninstalling Turbo.lua ===="
-	rm -rf $(INSTALL_LIB)/$(LIBTFFI_SOSHORT) \
-		$(INSTALL_LIB)/$(LIBTFFI_SONAME) \
-		$(LUAJIT_MODULEDIR)/turbo \
-		$(LUA_MODULEDIR)/turbo \
-		$(LUA_MODULEDIR)/turbo.lua \
-		$(LUAJIT_MODULEDIR)/turbo.lua
-	ldconfig -n $(INSTALL_LIB)
-	@echo "==== Turbo.lua uninstalled. Welcome back. ===="
+	$(UNINSTALL) $(INSTALL_TFFI_WRAP_SHORT) $(INSTALL_TFFI_WRAP_DYN)
+	$(LDCONFIG) $(INSTALL_LIB)
+	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
+	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
+	$(RM) $(LUA_MODULEDIR)/turbo.lua
+	$(RM) $(LUAJIT_MODULEDIR)/turbo.lua
+	@echo "==== Turbo.lua uinstalled. Welcome back. ===="
 
-installmsg:
-	@echo "==== Installing Turbo.lua v$(TVERSION) to: $(PREFIX) ===="
+install:
+	@echo "==== Installing Turbo.lua v$(TVERSION) to: ===="
 	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
 	@echo "==== $(LUAJIT_MODULEDIR) ===="
-
-install_libtffi_wrap:
-	mkdir -p $(INSTALL_LIB)
-	test -f $(LIBTFFI_SOSHORT) && \
-	install -m 0755 $(LIBTFFI_SOSHORT) $(INSTALL_LIB)/$(LIBTFFI_SONAME) && \
-	ldconfig -n $(INSTALL_LIB) && \
-	ln -sf $(INSTALL_LIB)/$(LIBTFFI_SONAME) $(INSTALL_LIB)/$(LIBTFFI_SOSHORT)
-
-install_luamodules:
-	mkdir -p $(LUA_MODULEDIR)/turbo $(LUAJIT_MODULEDIR)/turbo
-	cp -R turbo/* $(LUA_MODULEDIR)/turbo
-	cp turbo.lua $(LUA_MODULEDIR)
-	cp -R turbo/* $(LUAJIT_MODULEDIR)/turbo
-	cp turbo.lua $(LUAJIT_MODULEDIR)
-
+	
+	$(MKDIR) $(LUA_MODULEDIR)/turbo
+	$(MKDIR) $(LUAJIT_MODULEDIR)/turbo
+	$(CP_R) turbo/* $(LUA_MODULEDIR)/turbo
+	$(CP_R) turbo.lua $(LUA_MODULEDIR)
+	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
+	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
+	@echo "==== Building 3rdparty modules ===="
+	make -C $(HTTP_PARSERDIR) library
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	@echo "==== Installing libturbo_parser ===="
+	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
+	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
+	$(LDCONFIG) $(INSTALL_LIB) && \
+	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
+	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
+	
+test:
+	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
+	cd $(TEST_DIR) && busted -l /usr/local/bin/luajit run_all_test.lua
+	luajit examples/helloworld.lua & 
+	sleep 1
+	wget http://127.0.0.1:8888/
+	test -f index.html
+	rm -f index.html
+	pkill luajit
+	@echo "==== Successfully ran all tests for Turbo.lua $(TVERSION) ===="
+	

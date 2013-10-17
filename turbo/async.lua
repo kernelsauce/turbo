@@ -365,6 +365,7 @@ function async.HTTPClient:_prepare_http_request()
                         escape.escape(v)))
             end
             write_buf = write_buf .. post_data
+            self.headers:add("Content-Length", write_buf:len())
         elseif self.kwargs.method == "GET" and self.query == -1 then
             local get_url_params = deque:new()
             local n = 0
