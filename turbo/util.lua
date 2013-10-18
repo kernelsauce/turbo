@@ -49,6 +49,10 @@ function string:split(sep, max, pattern)
     return aRecord
 end
 
+function string:strip()
+    return self:match("^%s*(.-)%s*$")
+end
+
 local util = {}
 
 --- Join a list into a string with  given delimiter. 
