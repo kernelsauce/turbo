@@ -736,8 +736,8 @@ function web.RedirectHandler:on_create(url)
     self:redirect(url, true)
 end
 
---- The Application class is a collection of request handler classes that make 
--- together up a web application. Example:
+--- The Application class is a collection of request handler classes that
+-- together make up a web application. Example:
 -- local application = turbo.web.Application({
 --      {"^/static/(.*)$", turbo.web.StaticFileHandler, "/var/www/"},
 --      {"^/$", ExampleHandler},

@@ -365,7 +365,7 @@ function ioloop.IOLoop:_run_handler(fd, events)
     -- handler[1] = function.
     -- handler[2] = optional first argument for function.
     -- If there is no optional argument, do not add it as parameter to the
-    -- function as that create a big nuisance for consumers of the API.
+    -- function as that creates a big nuisance for consumers of the API.
     if handler[2] then
         ok = xpcall(
             handler[1],
@@ -435,7 +435,7 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
             self._co_cbs[#self._co_cbs + 1] = {co, 0}
             return 3
     	else
-            -- Invalid yielded value. Schedule resume of courotine on next 
+            -- Invalid yielded value. Schedule resume of coroutine on next
             -- iteration with -1 as result of yield (to represent error).
     	    self._co_cbs[#self._co_cbs + 1] = {co, function() return -1 end}
     	    log.warning(string.format(

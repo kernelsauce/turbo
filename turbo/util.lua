@@ -329,6 +329,28 @@ function util.read_all(file)
     return content
 end
 
+-- Fast string case agnostic comparison
+function util.strcasecmp(str1, str2)
+    local r = 0;
+    local b1,b2
+    local i
+    local len = ((#str1 > #str2) and #str1) or #str2 -- get the longer length
+
+    for i = 1,len do
+
+        b1,b2 = string.byte(str1,i), string.byte(str2,i)
+        if b1 == nil then return -1 end
+        if b2 == nil then return 1 end
+
+        -- convert b1 and b2 to lower case
+        b1 = ((b1 > 0x40) and (b1 < 0x5b) and bit.bor(b1,0x60)) or b1
+        b2 = ((b2 > 0x40) and (b2 < 0x5b) and bit.bor(b2,0x60)) or b2
+        r = b1 - b2
+    end
+
+    return r
+end
+
 --- Find substring in memory string.
 -- Based on lj_str_find in lj_str.c in LuaJIT by Mike Pall.
 function util.str_find(s, p, slen, plen)

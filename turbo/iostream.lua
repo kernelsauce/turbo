@@ -29,8 +29,7 @@ local buffer =      require "turbo.structs.buffer"
 local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
--- __Global value__ _G.TURBO_SSL allows the user to enable the SSL module.
-local crypto =      _G.TURBO_SSL and require "turbo.crypto"
+local crypto =      require "turbo.crypto"
 local bit =         require "bit"
 local ffi =         require "ffi"
 require "turbo.cdef"
@@ -50,15 +49,6 @@ local EINPROGRESS = socket.EINPROGRESS
 local ECONNRESET = socket.ECONNRESET
 local EPIPE =       socket.EPIPE
 local EAGAIN =      socket.EAGAIN
-local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")
-if not libtffi_loaded then
-    libtffi_loaded, libtffi = 
-        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not libtffi_loaded then 
-        error("Could not load libtffi_wrap.so. \
-            Please run makefile and ensure that installation is done correct.")
-    end
-end
 
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
 
@@ -126,9 +116,6 @@ function iostream.IOStream:connect(address, port, family,
     local hints = ffi.new("struct addrinfo[1]")
     local servinfo = ffi.new("struct addrinfo *[1]")
     local rc
-    local errno
-    local ai
-    local err
 
     self._connect_fail_callback = errhandler
     self._connecting = true
@@ -947,104 +934,16 @@ function iostream.SSLIOStream:_connect_errhandler()
 end
 
 function iostream.SSLIOStream:_do_ssl_handshake()
-    local err = 0
-    local errno
-    local rc = 0
     local ssl = self._ssl
     local client = self._ssl_options._type == 1
 
-    -- This method might be called multiple times if we recieved EINPROGRESS 
-    -- or equaivalent on prior calls. The OpenSSL documentation states that 
-    -- SSL_do_handshake should be called again when its needs are satisfied.
+    -- create new SSL connection only once
     if not ssl then
-        ssl = crypto.lib.SSL_new(self._ssl_options._ssl_ctx)
-        if ssl == nil then
-            err = crypto.lib.ERR_peek_error()
-            crypto.lib.ERR_clear_error()
-            error(string.format(
-                "Could not do SSL handshake. Failed to create SSL*. %s", 
-                crypto.ERR_error_string(err)))
-        else
-            ffi.gc(ssl, crypto.lib.SSL_free)
-        end
-        if crypto.lib.SSL_set_fd(ssl, self.socket) <= 0 then
-            err = crypto.lib.ERR_peek_error()
-            crypto.lib.ERR_clear_error()
-            error(string.format(
-                "Could not do SSL handshake. \
-                    Failed to set socket fd to SSL*. %s", 
-                crypto.ERR_error_string(err)))
-        end
-        if client then
-            crypto.lib.SSL_set_connect_state(ssl)
-        else
-            crypto.lib.SSL_set_accept_state(ssl)
-        end
+        ssl = crypto.ssl_new(self._ssl_options._ssl_ctx, self.socket, client)
         self._ssl = ssl
     end
-    rc = crypto.lib.SSL_do_handshake(ssl)
-    if rc <= 0 then
-        if client and self._ssl_verify then
-            local verify_err = crypto.lib.SSL_get_verify_result(ssl)
-            if verify_err ~= 0 then
-                error(
-                    string.format(
-                        "SSL certificate chain validation failed: %s",
-                        ffi.string(
-                            crypto.lib.X509_verify_cert_error_string(
-                                verify_err))))
-            end
-        end
-        err = crypto.lib.SSL_get_error(ssl, rc)
-        -- In case the socket is O_NONBLOCK break out when we get  
-        -- SSL_ERROR_WANT_* or equal syscall return code.
-        if err == crypto.SSL_ERROR_WANT_READ or 
-            err == crypto.SSL_ERROR_WANT_READ then
-            return
-        elseif err == crypto.SSL_ERROR_SYSCALL then
-            -- Error on socket.
-            errno = ffi.errno()
-            if errno == EWOULDBLOCK or errno == EINPROGRESS then
-                return
-            elseif errno ~= 0 then
-                local fd = self.socket
-                self:close()
-                error(
-                    string.format("Error when reading from fd %d. \
-                        Errno: %d. %s",
-                    fd,
-                    errno,
-                    socket.strerror(errno)))
-            else
-                -- Popular belief ties this branch to disconnects before  
-                -- handshake is completed.
-                local fd = self.socket
-                self:close()
-                error(string.format(
-                    "Could not do SSL handshake. Client connection closed.",
-                    fd,
-                    errno,
-                    socket.strerror(errno)))
-            end
-        elseif err == crypto.SSL_ERROR_SSL then
-            err = crypto.lib.ERR_peek_error()
-            crypto.lib.ERR_clear_error()
-            error(string.format("Could not do SSL handshake. SSL error. %s", 
-                crypto.ERR_error_string(err)))
-        else
-            error(
-                string.format(
-                    "Could not do SSL handshake. SSL_do_hanshake returned %d", 
-                    err))
-        end
-    else
-        if client and self._ssl_verify then
-            rc = libtffi.validate_hostname(self._ssl_hostname, ssl)
-            if rc ~= crypto.validate.MatchFound then
-                error("SSL certficate hostname validation failed, rc " .. 
-                    tonumber(rc))
-            end
-        end
+    -- do the SSL handshaking, returns true when connected, otherwise false
+    if crypto.ssl_do_handshake(ssl) then
         -- Connection established. Set accepting flag to false and thereby  
         -- allow writes and reads over the socket.
         self._ssl_accepting = false
@@ -1123,7 +1022,7 @@ function iostream.SSLIOStream:_read_from_socket()
         elseif err == crypto.SSL_ERROR_WANT_READ then
             return
         else
-            local fd = self.socket
+            -- local fd = self.socket
             local ssl_err = crypto.ERR_get_error()
             local ssl_str_err = crypto.ERR_error_string(ssl_err)
             self:close()
@@ -1166,7 +1065,7 @@ function iostream.SSLIOStream:_handle_write_nonconst()
         elseif err == crypto.SSL_ERROR_WANT_WRITE then
             return
         else
-            local fd = self.socket
+            -- local fd = self.socket
             local ssl_err = crypto.ERR_get_error()
             local ssl_str_err = crypto.ERR_error_string(ssl_err)
             self:close()
@@ -1223,7 +1122,7 @@ function iostream.SSLIOStream:_handle_write_const()
         elseif err == crypto.SSL_ERROR_WANT_WRITE then
             return
         else
-            local fd = self.socket
+            -- local fd = self.socket
             local ssl_err = crypto.ERR_get_error()
             local ssl_str_err = crypto.ERR_error_string(ssl_err)
             self:close()

@@ -27,7 +27,7 @@ local coctx =               require "turbo.coctx"
 local deque =               require "turbo.structs.deque"
 local buffer =              require "turbo.structs.buffer"
 local escape =              require "turbo.escape"
-local crypto =              _G.TURBO_SSL and require "turbo.crypto"
+local crypto =              require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
 local fassert = util.fast_assert
