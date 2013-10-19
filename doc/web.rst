@@ -391,3 +391,144 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	Gets the current name of the server.
 	:rtype: String
 	
+        
+Mustache Templating
+~~~~~~~~~~~~~~~~~~~
+
+Turbo.lua has a small and very fast Mustache parser built-in. Mustache templates
+are logic-less templates, which are supposed to help you keep your business logic
+outside of templates and inside "controllers". It is widely known by Javascript
+developers and very simple to understand.
+
+For more information on the Mustache markup, please see this:
+http://mustache.github.io/mustache.5.html
+
+.. function:: Mustache.compile(template)
+    
+    Compile a Mustache highlighted string into its intermediate state before rendering. This function does some validation on the template. If it finds
+    syntax errors a error with a message is raised. It is always a good idea to cache pre-compiled frequently used templates before rendering them. Although
+    compiling each time is usally not a big overhead. This function can throw errors if the template contains invalid logic.
+    
+    :param template: (String) Template in string form.
+    :rtype: Parse table that can be used for Mustache.render function
+    
+.. function:: Mustache.render(template, obj, partials, allow_blank)
+
+    Render a template. Accepts a parse table compiled by Mustache.compile or a uncompiled string. Obj is the table with keys. This function can throw errors in
+    case of un-compiled string being compiled with Mustache.compile internally.
+    
+    :param template: Accepts a pre-compiled template or a un-compiled string.
+    :param obj: Parameters for template rendering.
+    :type obj: Table
+    :param partials: Partial snippets. Will be treated as static and not compiled...
+    :type partials: Table
+    :param allow_blank: Halt with error if key does not exist in object table.
+
+Example templating:
+
+.. code-block:: html
+   :linenos:
+   
+    <body>
+        <h1>
+                {{heading }}
+        </h1>
+        {{! 	
+            Some comment section that 
+            even spans across multiple lines,
+            that I just have to have to explain my flawless code.		
+        }}
+        <h2>
+            {{{desc}}} {{! No escape with triple mustaches allow HTML tags! }}
+            {{&desc}} {{! No escape can also be accomplished by & char }}
+        </h2>
+        <p>I am {{age}} years old. What would you like to buy in my shop?</p>
+        {{  #items }}  {{! I like spaces alot! 		}}
+            Item: {{item}}
+            {{#types}}
+                    {{! Only print items if available.}}
+                    Type available: {{type}}
+            {{/types}}
+            {{^types}}	Only one type available.
+            {{! Apparently only one type is available because types is not set, 
+            determined by the hat char ^}}
+            {{/types}}
+        {{/items}}
+        {{^items}}
+                No items available!
+        {{/items}}
+    </body>
+    
+With a render table likes this:
+    
+.. code-block:: lua
+    
+    {
+        heading="My website!", 
+        desc="<b>Big important website</b>",
+        age=27,
+        items={
+                  {item="Bread", 
+                      types={
+                          {type="light"}, 
+                          {type="fatty"}
+                      }
+              },
+              {item="Milk"},
+              {item="Sugar"}
+       }
+    }
+    
+Will produce this output after rendering:
+
+.. code-block:: html
+
+    <body>
+        <h1>
+            My%20website%21
+        </h1>
+        <h2>
+            <b>Big important website</b> 
+            <b>Big important website</b> 
+        </h2>
+        <p>I am 27 years old. What would you like to buy in my shop?</p>
+            Item: Bread
+                Type available: light
+                Type available: fatty
+            Item: Milk		
+                Only one type available.
+            Item: Sugar
+                Only one type available.
+    </body>
+    
+Mustache.TemplateHelper class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A simple class that simplifies the loading of Mustache templates, pre-compile and cache them for future use.
+
+.. function:: Mustache.TemplateHelper(base_path)
+
+    Create a new TemplateHelper class instance.
+
+    :param base_path: Template base directory. This will be used as base path when loading templates using the load method.
+    :type base_path: String
+    :rtype: ``Mustache.TemplateHelper class``
+    
+.. function:: Mustache.TemplateHelper:load(template)
+
+    Pre-load a template.
+    
+    :param template: Template name, e.g file name in base directory.
+    :type template: String
+    
+.. function:: Mustache.TemplateHelper:render(template, table, partials, allow_blank)
+
+    Render a template by name. If called twice the template will be cached from first time.
+
+    :param template: Template name, e.g file name in base directory.
+    :type template: String    
+    :param obj: Parameters for template rendering.
+    :type obj: Table
+    :param partials: Partial snippets. Will be treated as static and not compiled...
+    :type partials: Table
+    :param allow_blank: Halt with error if key does not exist in object table.

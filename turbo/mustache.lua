@@ -1,5 +1,11 @@
 --- Turbo.lua Mustache.js fast compiler.
 -- Logic-less templates with {{ }}, http://mustache.github.io/
+-- Turbo.lua has a small and very fast Mustache parser built-in. Mustache
+-- templates are logic-less templates, which are supposed to help you keep
+-- your business logic outside of templates and inside "controllers".
+--
+-- For more information on Mustache, please see this:
+-- http://mustache.github.io/mustache.5.html
 --
 -- Copyright 2011, 2012, 2013 John Abrahamsen
 --

@@ -72,5 +72,6 @@ describe("mustache template engine", function()
 				{item="Sugar"}
 			}
 			}, false)
+		print(compiled_tmpl)
 	end)
 end)
