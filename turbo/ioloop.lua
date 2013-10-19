@@ -274,9 +274,10 @@ function ioloop.IOLoop:start()
         end
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
+            local current_time = util.gettimeofday()
             for i = 1, timeout_sz do
                 if self._timeouts[i] ~= nil then
-                    local time_until_timeout = self._timeouts[i]:timed_out()
+                    local time_until_timeout = self._timeouts[i]:timed_out(current_time)
                     if time_until_timeout == 0 then
                         self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
@@ -479,12 +480,11 @@ function _Timeout:initialize(timestamp, callback, arg)
     self._arg = arg
 end
 
-function _Timeout:timed_out()
-    local current_time = util.gettimeofday()
-    if self._timestamp - current_time <= 0 then
+function _Timeout:timed_out(time)
+    if self._timestamp - time <= 0 then
         return 0
     else 
-        return self._timestamp - current_time
+        return self._timestamp - time
     end
 end
 

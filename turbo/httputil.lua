@@ -30,6 +30,7 @@
 local log = 		require "turbo.log"
 local status_codes = require "turbo.http_response_codes"
 local deque = 		require "turbo.structs.deque"
+local buffer = 		require "turbo.structs.buffer"
 local escape = 		require "turbo.escape"
 local util = 		require "turbo.util"
 local ffi = 		require "ffi"
@@ -493,13 +494,13 @@ end
 -- If not "Date" field is set, it will be generated automatically.
 -- @return (String) HTTP header string excluding final delimiter.
 function httputil.HTTPHeaders:stringify_as_response()
-    local buffer = deque:new()
+    local buf = buffer:new()
     if not self:get("Date") then
         self:add("Date", util.time_format_http_header(ffi.C.time(nil)))
     end
     for i = 1 , #self._fields do
         if self._fields[i] then
-            buffer:append(string.format("%s: %s\r\n", 
+            buf:append_luastr_right(string.format("%s: %s\r\n", 
                 self._fields[i][1], self._fields[i][2]));    
         end
     end
@@ -507,7 +508,7 @@ function httputil.HTTPHeaders:stringify_as_response()
         self.version,
         self.status_code,
         status_codes[self.status_code],
-        buffer:concat())    
+        tostring(buf))    
 end
 
 --- Convinience method to return HTTPHeaders:stringify_as_response on string
