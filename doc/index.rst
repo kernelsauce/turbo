@@ -45,6 +45,15 @@ Turbo.lua is licensed under the Apache License, version 2.0. See LICENSE in the 
 are dual licensed with both MIT and Apache 2.0 licenses.
 
 
+Tutorials
+---------
+
+.. toctree::
+    :maxdepth: 3
+
+    get_started
+
+
 API documentation
 -----------------
 
@@ -64,13 +73,3 @@ API documentation
    sockutil
    escape
    log
-
-
-Tutorials
----------
-
-.. toctree::
-    :maxdepth: 3
-
-    get_started
-
