@@ -499,7 +499,7 @@ function async.HTTPClient:_handle_redirect(location)
     self.redirect = self.redirect + 1
     log.warning("[async.lua] Redirect to => " .. location)
     if self.redirect_max < self.redirect then
-        self:_throw_error(REDIRECT_MAX, "Redirect maximum reached")
+        self:_throw_error(errors.REDIRECT_MAX, "Redirect maximum reached")
         return
     end
     local old_schema = self.schema
