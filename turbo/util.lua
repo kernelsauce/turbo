@@ -57,19 +57,6 @@ function string:strip()
     return self:match("^%s*(.-)%s*$")
 end
 
---- Join a list into a string with  given delimiter. 
-function util.join(delimiter, list)
-	local len = #list
-	if len == 0 then 
-        return "" 
-    end
-    local string = list[1]
-    for i = 2, len do 
-        string = string .. delimiter .. list[i] 
-    end
-    return string
-end
-
 --*************** Table utilites *************** 
 
 --- Merge two tables to one.
@@ -82,6 +69,19 @@ function util.tablemerge(t1, t2)
         end
     end
     return t1
+end
+
+--- Join a list into a string with  given delimiter. 
+function util.join(delimiter, list)
+    local len = #list
+    if len == 0 then 
+        return "" 
+    end
+    local string = list[1]
+    for i = 2, len do 
+        string = string .. delimiter .. list[i] 
+    end
+    return string
 end
 
 --- Returns true if value exists in table.
