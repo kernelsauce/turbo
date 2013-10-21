@@ -26,34 +26,36 @@ local  UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
 local g_time_str_buf = ffi.new("char[1024]")
 local g_time_t = ffi.new("time_t[1]")
 
+local util = {}
+
+--*************** String library extensions *************** 
+
 --- Extends the standard string library with a split method.
 function string:split(sep, max, pattern)	
-    assert(sep ~= '')
-    assert(max == nil or max >= 1)
+    assert(sep ~= '', "Separator is not a string or a empty string.")
+    assert(max == nil or max >= 1, "Max is 0 or a negative number.")
 
-    local aRecord = {}
+    local record = {}
     if self:len() > 0 then
-        local bPlain = not pattern
+        local plain = not pattern
         max = max or -1
-        local nField=1 nStart=1
-        local nFirst, nLast = self:find(sep, nStart, bPlain)
-        while nFirst and max ~= 0 do
-            aRecord[nField] = self:sub(nStart, nFirst-1)
-            nField = nField+1
-            nStart = nLast+1
-            nFirst, nLast = self:find(sep, nStart, bPlain)
+        local field=1 start=1
+        local first, last = self:find(sep, start, plain)
+        while first and max ~= 0 do
+            record[field] = self:sub(start, first-1)
+            field = field+1
+            start = last+1
+            first, last = self:find(sep, start, plain)
             max = max-1
         end
-        aRecord[nField] = self:sub(nStart)
+        record[field] = self:sub(start)
     end
-    return aRecord
+    return record
 end
 
 function string:strip()
     return self:match("^%s*(.-)%s*$")
 end
-
-local util = {}
 
 --- Join a list into a string with  given delimiter. 
 function util.join(delimiter, list)
@@ -68,60 +70,7 @@ function util.join(delimiter, list)
     return string
 end
 
-
---- Convert number value to hexadecimal string format.
--- @param num The number to convert.
--- @return String
-function util.hex(num)
-    local hexstr = '0123456789abcdef'
-    local s = ''
-    while num > 0 do
-        local mod = math.fmod(num, 16)
-        s = string.sub(hexstr, mod+1, mod+1) .. s
-        num = math.floor(num / 16)
-    end
-    if s == '' then 
-        s = '0' 
-    end
-    return s
-end
-local hex = util.hex
-
---- Dump memory region to stdout, from ptr to given size. Usefull for 
--- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if 
--- not being used on valid pointers.
--- @param ptr A cdata pointer (from FFI)
--- @param sz (Number) Length to dump contents for.
-function util.mem_dump(ptr, sz)
-    local voidptr = ffi.cast("unsigned char *", ptr)
-    if not voidptr then
-        error("Trying to dump null ptr")
-    end
-
-    io.write(string.format("Pointer type: %s\
-        From memory location: 0x%s dumping %d bytes\n",
-        ffi.typeof(ptr),
-        hex(tonumber(ffi.cast("intptr_t", voidptr))),
-        sz))
-    local p = 0;
-    local sz_base_1 = sz - 1
-    for i = 0, sz_base_1 do
-        if (p == 10) then
-            p = 0
-            io.write("\n")
-        end
-        local hex_string
-        if (voidptr[i] < 0xf) then
-            hex_string = string.format("0x0%s ", hex(voidptr[i]))
-        else
-            hex_string = string.format("0x%s ", hex(voidptr[i]))
-        end
-        io.write(hex_string)
-        p = p + 1
-    end
-    io.write("\n")
-end
-
+--*************** Table utilites *************** 
 
 --- Merge two tables to one.
 function util.tablemerge(t1, t2)
@@ -147,6 +96,15 @@ function util.is_in(needle, haystack)
 		end
 	end
 	return
+end
+
+--- unpack that does not cause trace abort.
+-- May not be very fast if large tables are unpacked.
+function util.funpack(t, i)
+    i = i or 1
+    if t[i] ~= nil then
+        return t[i], util.funpack(t, i + 1)
+    end
 end
 
 --*************** Time and date *************** 
@@ -198,13 +156,6 @@ function util.file_exists(path)
         return true
     else
         return false
-    end
-end
-
-function util.funpack(t, i)
-    i = i or 1
-    if t[i] ~= nil then
-        return t[i], util.funpack(t, i + 1)
     end
 end
 
@@ -359,6 +310,59 @@ function util.str_find(s, p, slen, plen)
             end
         end
     end
+end
+
+--- Convert number value to hexadecimal string format.
+-- @param num The number to convert.
+-- @return String
+function util.hex(num)
+    local hexstr = '0123456789abcdef'
+    local s = ''
+    while num > 0 do
+        local mod = math.fmod(num, 16)
+        s = string.sub(hexstr, mod+1, mod+1) .. s
+        num = math.floor(num / 16)
+    end
+    if s == '' then 
+        s = '0' 
+    end
+    return s
+end
+local hex = util.hex
+
+--- Dump memory region to stdout, from ptr to given size. Usefull for 
+-- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if 
+-- not being used on valid pointers.
+-- @param ptr A cdata pointer (from FFI)
+-- @param sz (Number) Length to dump contents for.
+function util.mem_dump(ptr, sz)
+    local voidptr = ffi.cast("unsigned char *", ptr)
+    if not voidptr then
+        error("Trying to dump null ptr")
+    end
+
+    io.write(string.format("Pointer type: %s\
+        From memory location: 0x%s dumping %d bytes\n",
+        ffi.typeof(ptr),
+        hex(tonumber(ffi.cast("intptr_t", voidptr))),
+        sz))
+    local p = 0;
+    local sz_base_1 = sz - 1
+    for i = 0, sz_base_1 do
+        if (p == 10) then
+            p = 0
+            io.write("\n")
+        end
+        local hex_string
+        if (voidptr[i] < 0xf) then
+            hex_string = string.format("0x0%s ", hex(voidptr[i]))
+        else
+            hex_string = string.format("0x%s ", hex(voidptr[i]))
+        end
+        io.write(hex_string)
+        p = p + 1
+    end
+    io.write("\n")
 end
 
 return util
