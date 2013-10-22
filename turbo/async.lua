@@ -30,10 +30,39 @@ local escape =              require "turbo.escape"
 local crypto =              _G.TURBO_SSL and require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
-local fassert = util.fast_assert
+local unpack = util.funpack
 local AF_INET = socket.AF_INET
 
 local async = {} -- async namespace
+
+--- Task wrapper for functions that always takes callback and callback 
+-- argument as last arguments. 
+--
+-- Usage:
+-- Consider one of the functions of the IOStream class which uses a 
+-- callback based API: IOStream:read_until(delimiter, callback, arg)
+--
+-- local res = coroutine.yield(turbo.async.task(
+--      stream.read_until, self, "\r\n"))
+--
+-- No callbacks required, the arguments that would normally be used to
+-- call the callback is put in the left-side result.
+function async.task(func, ...)
+    local io = ioloop.instance()
+    local coctx = coctx.CoroutineContext:new(io)
+    coctx:set_state(coctx.WORKING)
+    local args = {...}
+    args[#args+1] = async._wrap_task
+    args[#args+1] = coctx
+    func(unpack(args))
+    return coctx
+end
+
+function async._wrap_task(coctx, ...)
+    coctx:set_state(coctx.DEAD)
+    coctx:set_arguments({...})
+    coctx:finalize_context()
+end
 
 --- HTTPClient class
 -- Based on the IOStream/SSLIOStream and IOLoop classes.

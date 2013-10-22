@@ -57,6 +57,22 @@ function string:strip()
     return self:match("^%s*(.-)%s*$")
 end
 
+--- Create substring from.
+-- Beware that index starts at 0.
+-- @param from From index, can be nil to indicate start.
+-- @param to To index, can be nil to indicate end.
+-- @return string
+function string:substr(from, to)
+    local len = self:len()
+    from = from or 0
+    to = to or len
+    assert(from < len, "From out of range.")
+    assert(to <= len, "To out of range.")
+    assert(from < to, "From greater than to.")
+    local ptr = ffi.cast("char *", self)
+    return ffi.string(ptr + from, to - from)
+end
+
 --*************** Table utilites *************** 
 
 --- Merge two tables to one.
@@ -227,8 +243,6 @@ local function preBmBc(x, m, bmBc)
 end
 
 local NEEDLE_MAX = 1024
-local bmGs = ffi.new("int[?]", NEEDLE_MAX)
-local bmBc = ffi.new("int[?]", NEEDLE_MAX)
 --- Turbo Booyer-Moore memory search algorithm. 
 -- Search through arbitrary memory and find first occurence of given byte sequence.
 -- @param x char* Needle memory pointer
@@ -236,6 +250,8 @@ local bmBc = ffi.new("int[?]", NEEDLE_MAX)
 -- @param y char* Haystack memory pointer
 -- @param n int Haystack size.
 function util.TBM(x, m, y, n)
+    local bmGs = ffi.new("int[?]", NEEDLE_MAX)
+    local bmBc = ffi.new("int[?]", NEEDLE_MAX)
     if m == 0 or n == 0 then
         return
     elseif m > NEEDLE_MAX then
