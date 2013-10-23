@@ -461,7 +461,10 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
         self:set_uri(ffi.string(nw.url_str))
         self:set_method(method_map[tonumber(nw.parser.method)])
         self.http_parser_url = nw.url
-        self.url = self:get_url_field(httputil.UF.PATH) 
+        local url = self:get_url_field(httputil.UF.PATH)
+        if url ~= -1 then
+            self.url = url
+        end
         local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
         for i = 0, keyvalue_sz, 1 do
             local key = ffi.string(nw.header_key_values[i].key)
