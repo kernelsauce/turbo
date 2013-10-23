@@ -318,13 +318,15 @@ end
 -- stringifed to JSON.
 -- @param chunk (String) Data chunk to write to underlying connection.
 function web.RequestHandler:write(chunk)
-    if not chunk or chunk:len() == 0 then
-        return
-    end
     if self._finished then
         error("write() method was called after finish().")
     end
-    if type(chunk) == "table" then
+    local t = type(chunk)
+    if t == "nil" then
+        return
+    elseif t == "string" and chunk:len() == 0 then
+        return
+    elseif t == "table" then
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     end
