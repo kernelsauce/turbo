@@ -590,7 +590,8 @@ function async.HTTPClient:_finalize_request()
         end
         -- Handle redirect.
         local res_code = self.response_headers:get_status_code()
-        if (res_code == 301 or res_code == 302) and self.redirect < self.redirect_max then
+        if (res_code == 301 or res_code == 302) and self.kwargs.allow_redirects and
+                self.redirect < self.redirect_max then
             local redirect_loc = self.response_headers:get("Location", true)
             if redirect_loc then
                 self:_handle_redirect(redirect_loc)
