@@ -103,7 +103,6 @@ function httpserver.HTTPConnection:initialize(stream, address,
     self.no_keep_alive = no_keep_alive or false
     self.xheaders = xheaders or false
     self._request_finished = false
-    self.arguments = {}
     self._header_callback = self._on_headers
     self.stream:read_until("\r\n\r\n", self._header_callback, self)
 end
@@ -223,14 +222,13 @@ end
 function httpserver.HTTPConnection:_on_request_body(data)
     self._request.body = data
     local content_type = self._request.headers:get("Content-Type")
-
     if content_type then
         if content_type:find("x-www-form-urlencoded", 1, true) then
-            local arguments = httputil.parse_post_arguments(self._request.body)
-            self._request.arguments = arguments
+            self.arguments = 
+                httputil.parse_post_arguments(self._request.body) or {}
         elseif content_type:find("multipart/form-data", 1, true) then
-            self.arguments = httputil.parse_multipart_data(self._request.body) 
-                or {}
+            self.arguments = 
+                httputil.parse_multipart_data(self._request.body) or {}
         end
     end
     self.request_callback(self._request)

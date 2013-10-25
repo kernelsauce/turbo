@@ -137,7 +137,6 @@ function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 -- @param strip (Boolean) Remove whitespace from head and tail of string.
 -- @return Value of argument if set.
 function web.RequestHandler:get_argument(name, default, strip)  
-    -- FIXME: Implement strip and slow-path case insensitive option.
     local args = self:get_arguments(name, strip)
     if type(args) == "string" then
         return args
@@ -156,12 +155,43 @@ end
 -- @param strip (Boolean) Remove whitespace from head and tail of string.
 -- @return (Table) Argument values.
 function web.RequestHandler:get_arguments(name, strip)
-    -- FIXME: Implement strip and slow-path case insensitive option.
-    local values = {}
-    if self.request.arguments[name] then
-        values = self.request.arguments[name]
-    elseif self.request.arguments[name] then
-        values = self.request.arguments[name]
+    local values
+    local n = 0
+    local url_args = self.request.arguments
+    local form_args = self.request.connection.arguments
+
+    -- Combine argument lists from HTTPConnection and HTTPRequest.
+    if not url_args and not form_args then
+        return
+    end
+    if url_args and url_args[name] then
+        values = url_args[name]
+        if type(values) == "table" then
+            n = #values
+        else
+            n = 1
+        end
+    end
+    if form_args and form_args[name] then
+        if n == 0 then
+            values = form_args[name]
+        elseif n > 0 then
+            if n == 1 then
+                values = {values}    
+            end
+            for i = 1, #form_args[name] do
+                values[#values+1] = form_args[name][i]
+            end
+        end
+    end
+    if strip then
+        if type(values) == "string" then
+            values = escape.trim(values)
+        elseif type(values) == "table" then
+            for i = 1, #values do 
+                values[i] = escape.trim(values[i])
+            end
+        end
     end
     return values
 end
