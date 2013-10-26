@@ -319,7 +319,7 @@ function ioloop.IOLoop:start()
             end
         end
         if self._stopped then 
-            self.running = false
+            self._running = false
             self.stopped = false
             break
         end
@@ -350,6 +350,24 @@ function ioloop.IOLoop:close()
     self._stopped = true
     self._callbacks = {}
     self._handlers = {}
+end
+
+--- Run IOLoop for specified amount of time. Used in Turbo.lua tests.
+-- @param timeout In seconds.
+function ioloop.IOLoop:wait(timeout)
+    assert(self:running() == false, "Can not wait, already started")
+    local timedout
+    if timeout then
+        local io = self
+        self:add_timeout(util.gettimeofday() + (timeout*1000), function() 
+            timedout = true
+            io:close()
+        end)
+    end
+    self:start()
+    assert(self:running() == false, "IO Loop stopped unexpectedly")
+    assert(not timedout, "Sync wait operation timed out.")
+    return true
 end
 
 --- Error handler for IOLoop:_run_handler.
@@ -413,7 +431,7 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
         err, yielded = coroutine.resume(co, arg())
     elseif arg_t == "table" then
         -- Callback table.
-        err, yielded = coroutine.resume(co, arg[1], arg[2])
+        err, yielded = coroutine.resume(co, unpack(arg))
     else
         -- Plain resume.
         err, yielded = coroutine.resume(co, arg)
