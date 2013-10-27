@@ -154,7 +154,7 @@ describe("turbo.iostream Namespace", function()
 			local connected, failed = false, false
 			local data = false
 			local bytes = turbo.structs.buffer()
-			for i = 1, 1024*1024*10 do
+			for i = 1, 1024*1024*50 do
 				bytes:append_luastr_right(string.char(math.random(1, 128)))
 			end
 			bytes:append_luastr_right(delim)
@@ -181,7 +181,7 @@ describe("turbo.iostream Namespace", function()
 					turbo.socket.SOCK_STREAM, 
 					0)
 				local stream = turbo.iostream.IOStream(fd, io)
-				stream:connect("127.0.0.1", 
+				assert.equal(stream:connect("127.0.0.1", 
 					port, 
 					turbo.socket.AF_INET, 
 					function()
@@ -197,10 +197,10 @@ describe("turbo.iostream Namespace", function()
 						failed = true
 						io:close()
 						error("Could not connect.")
-					end)
+					end), 0)
 			end)
 			
-			io:wait(1)
+			io:wait(30)
 			srv:stop()
 			assert.falsy(failed)
 			assert.truthy(connected)
