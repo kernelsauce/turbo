@@ -531,5 +531,73 @@ describe("turbo.iostream Namespace", function()
 			assert.truthy(data)
 		end)
 
+		it("IOStream streaming callbacks", function()
+			local io = turbo.ioloop.instance()
+			local port = math.random(10000,40000)
+			local connected, failed = false, false
+			local data = false
+			local bytes = turbo.structs.buffer()
+			local comp = turbo.structs.buffer()
+			local streamed = 0
+
+			-- Server
+			local Server = class("TestServer", turbo.tcpserver.TCPServer)
+			function Server:handle_stream(stream)
+				io:add_callback(function()
+					for i = 1, 10 do
+						local rand = turbo.structs.buffer()
+						for i = 1, 1024*1024 do
+							rand:append_luastr_right(string.char(math.random(1, 128)))
+						end
+						bytes:append_right(rand:get())
+						coroutine.yield (turbo.async.task(stream.write, stream, tostring(rand)))
+					end
+					stream:close()
+				end)
+			end
+			local srv = Server(io)
+			srv:listen(port)
+
+			io:add_callback(function() 
+				-- Client
+				local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+					turbo.socket.SOCK_STREAM,
+					0)
+				local stream = turbo.iostream.IOStream(fd, io)
+				assert.equal(stream:connect("127.0.0.1", 
+					port, 
+					turbo.socket.AF_INET, 
+					function()
+						connected = true
+						stream:read_until_close(
+							function(res) 
+								-- Will be called finally.
+								data = true
+								comp:append_luastr_right(res)
+								-- On close callback
+								io:close()
+							end, nil, 
+							function(res) 
+								-- Streaming callback
+								comp:append_luastr_right(res)
+								streamed = streamed + 1
+							end)
+					end,
+					function(err)
+						failed = true
+						io:close()
+						error("Could not connect.")
+					end), 0)
+			end)
+
+			io:wait(30)
+			srv:stop()
+			assert.falsy(failed)
+			assert.truthy(connected)
+			assert.truthy(data)
+			assert.truthy(tostring(comp) == tostring(bytes))
+			assert.truthy(streamed > 1)
+		end)
+
 	end)
 end)
