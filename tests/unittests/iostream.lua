@@ -154,7 +154,7 @@ describe("turbo.iostream Namespace", function()
 			local connected, failed = false, false
 			local data = false
 			local bytes = turbo.structs.buffer()
-			for i = 1, 1024*1024 do
+			for i = 1, 1024*1024*10 do
 				bytes:append_luastr_right(string.char(math.random(1, 128)))
 			end
 			bytes:append_luastr_right(delim)
@@ -189,7 +189,7 @@ describe("turbo.iostream Namespace", function()
 						local res = coroutine.yield (turbo.async.task(
 													 stream.read_until,stream,delim))					
 						data = true
-						assert.equal(res, bytes2)
+						assert.truthy(res == bytes2)
 						stream:close()
 						io:close()
 					end,
