@@ -655,9 +655,9 @@ function iostream.IOStream:_read_from_buffer()
             -- Made even worse by a new allocation in self:_consume of a
             -- different size.
             local ptr, sz = self:_get_buffer_ptr()
-            local chunk = ffi.string(
-                ptr + self._read_scan_offset, 
-                sz - self._read_scan_offset)
+            ptr = ptr + self._read_scan_offset
+            sz = sz - self._read_scan_offset 
+            local chunk = ffi.string(ptr, sz)
             local s_start, s_end = chunk:find(self._read_pattern, 1, false)
             if s_start then
                 local callback = self._read_callback
@@ -667,8 +667,9 @@ function iostream.IOStream:_read_from_buffer()
                 self._streaming_callback = nil
                 self._streaming_callback_arg = nil
                 self._read_pattern = nil
+                self:_run_callback(callback, arg, self:_consume(
+                    s_end + self._read_scan_offset))
                 self._read_scan_offset = s_end
-                self:_run_callback(callback, arg, self:_consume(s_end))
                 return true
             end
             self._read_scan_offset = sz
