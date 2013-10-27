@@ -318,7 +318,7 @@ function ioloop.IOLoop:start()
                 end
             end
         end
-        if self._stopped then 
+        if self._stopped == true then 
             self._running = false
             self._stopped = false
             break
@@ -350,6 +350,10 @@ function ioloop.IOLoop:close()
     self._stopped = true
     self._callbacks = {}
     self._handlers = {}
+    self._co_cbs = {}
+    self._co_ctxs = {}
+    self._timeouts = {}
+    self._intervals = {}
 end
 
 --- Run IOLoop for specified amount of time. Used in Turbo.lua tests.
