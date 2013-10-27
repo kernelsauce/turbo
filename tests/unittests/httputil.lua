@@ -16,31 +16,31 @@ limitations under the License.     ]]
   
 local turbo = require "turbo"
 require "turbo.3rdparty.middleclass"
-local raw_headers = 
-"GET /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
-"Host: somehost.no\r\n"..
-"Connection: keep-alive\r\n"..
-"Cache-Control: max-age=0\r\n"..
-"User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
-"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
-"Accept-Encoding: gzip,deflate,sdch\r\n"..
-"Accept-Language: en-US,en;q=0.8\r\n"..
-"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
-
-local badheaders = 
-"BAD! /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
-"Host: somehost.no\r\n"..
-"Connection: keep-alive\r\n"..
-"Cache-Control: max-age=0\r\n"..
-"User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
-"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
-"Accept-Encoding: gzip,deflate,sdch\r\n"..
-"Accept-Language: en-US,en;q=0.8\r\n"..
-"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
  
-describe("turbo httputil module", function()
-  describe("parse request header", function()
-           
+describe("turbo.httputil Namespace", function()
+  describe("HTTPUtil Class", function()
+    local raw_headers = 
+        "GET /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
+        "Host: somehost.no\r\n"..
+        "Connection: keep-alive\r\n"..
+        "Cache-Control: max-age=0\r\n"..
+        "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
+        "Accept-Encoding: gzip,deflate,sdch\r\n"..
+        "Accept-Language: en-US,en;q=0.8\r\n"..
+        "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
+
+    local badheaders = 
+        "BAD! /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
+        "Host: somehost.no\r\n"..
+        "Connection: keep-alive\r\n"..
+        "Cache-Control: max-age=0\r\n"..
+        "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11\r\n"..
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"..
+        "Accept-Encoding: gzip,deflate,sdch\r\n"..
+        "Accept-Language: en-US,en;q=0.8\r\n"..
+        "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n"
+
     it("should parse valid headers correctly", function()
         local headers = turbo.httputil.HTTPHeaders:new(raw_headers)
         assert.truthy(instanceOf(turbo.httputil.HTTPHeaders, headers))

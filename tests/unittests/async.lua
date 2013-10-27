@@ -17,22 +17,19 @@
 
 local turbo = require "turbo"
 local io = turbo.ioloop.instance()
-local called = false
 
 local function typical_cb_func(num, cb, cb_arg)
 	io:add_callback(function()
-		called = true
 		assert.equal(num, 1234)
 		cb(cb_arg,1,100,200,300,800)
 	end)
 end
 
-describe("Async Task", function()
-	describe("turbo.async.task", function()
-		
+describe("turbo.async Namespace", function()
+	it("async.task", function()
 		-- Only global instance is supported for this convinience function.
 		io:add_callback(function()
-			local r1,r2,r3,r4,r5 = coroutine.yield(turbo.async.task(typical_cb_func, 1234))
+			local r1,r2,r3,r4,r5 = coroutine.yield (turbo.async.task(typical_cb_func, 1234))
 			assert.equal(r1, 1)
 			assert.equal(r2, 100)
 			assert.equal(r3, 200)
@@ -41,6 +38,5 @@ describe("Async Task", function()
 			io:close()
 		end)
 		io:wait(2)
-		assert.equal(called, true)
 	end)
 end)
