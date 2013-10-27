@@ -20,9 +20,14 @@ math.randomseed(turbo.util.gettimeofday())
 describe("turbo.iostream Namespace", function()
 	-- Many of the tests rely on the fact that the TCPServer class
 	-- functions as expected...
+
 	describe("IOStream/SSLIOStream classes", function()
 
-		teardown(function() _G.io_loop_instance = nil end)
+		before_each(function() 
+			-- Make sure we start with a fresh global IOLoop to
+			-- avoid random results.
+			_G.io_loop_instance = nil 
+		end)
 
 		it("IOStream:connect, localhost", function()
 			local io = turbo.ioloop.IOLoop()
@@ -269,6 +274,262 @@ describe("turbo.iostream Namespace", function()
 			assert.truthy(data)
 		end)
 
+		it("IOStream:read_until_close", function()
+			local io = turbo.ioloop.instance()
+			local port = math.random(10000,40000)
+			local connected, failed = false, false
+			local data = false
+			local bytes = turbo.structs.buffer()
+
+			for i = 1, 1024*1024*80 do
+				bytes:append_luastr_right(string.char(math.random(1, 128)))
+			end
+			bytes = tostring(bytes)
+
+			-- Server
+			local Server = class("TestServer", turbo.tcpserver.TCPServer)
+			function Server:handle_stream(stream)
+				io:add_callback(function()
+					coroutine.yield (turbo.async.task(stream.write, stream, bytes))
+					stream:close()
+				end)
+			end
+			local srv = Server(io)
+			srv:listen(port)
+
+			io:add_callback(function() 
+				-- Client
+				local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+					turbo.socket.SOCK_STREAM, 
+					0)
+				local stream = turbo.iostream.IOStream(fd, io)
+				assert.equal(stream:connect("127.0.0.1", 
+					port, 
+					turbo.socket.AF_INET, 
+					function()
+						connected = true
+						local res = coroutine.yield (turbo.async.task(
+													 stream.read_until_close,stream))
+						data = true
+						assert.truthy(stream:closed())
+						assert.truthy(res == bytes)
+						io:close()
+					end,
+					function(err)
+						failed = true
+						io:close()
+						error("Could not connect.")
+					end), 0)
+			end)
+			
+			io:wait(30)
+			srv:stop()
+			assert.falsy(failed)
+			assert.truthy(connected)
+			assert.truthy(data)
+		end)
+
+		it("IOStream:set_close_callback", function()
+			local io = turbo.ioloop.IOLoop()
+			local port = math.random(10000,40000)
+			local connected = false
+			local failed = false
+			local closed = false
+			
+			-- Server
+			local Server = class("TestServer", turbo.tcpserver.TCPServer)
+			function Server:handle_stream(stream)
+				stream:close()
+				closed = true
+			end
+			local srv = Server(io)
+			srv:listen(port)
+
+			io:add_callback(function() 
+				-- Client
+				local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+					turbo.socket.SOCK_STREAM, 
+					0)
+				local stream = turbo.iostream.IOStream(fd, io)
+				stream:connect("127.0.0.1", 
+					port, 
+					turbo.socket.AF_INET, 
+					function()
+						connected = true
+						stream:set_close_callback(function() 
+							assert.truthy(closed)
+							io:close()
+						end)
+					end,
+					function(err)
+						failed = true
+						error("Could not connect.")
+					end)
+			end)
+			io:wait(10)
+			srv:stop()
+			assert.truthy(connected)
+			assert.falsy(failed)
+			assert.truthy(closed)
+		end)
+
+		it("IOStream:closed", function()
+			local io = turbo.ioloop.IOLoop()
+			local port = math.random(10000,40000)
+			local connected = false
+			local failed = false
+			local closed = false
+			
+			-- Server
+			local Server = class("TestServer", turbo.tcpserver.TCPServer)
+			function Server:handle_stream(stream)
+				assert.falsy(stream:closed())
+				stream:close()
+				closed = true
+			end
+			local srv = Server(io)
+			srv:listen(port)
+
+			io:add_callback(function() 
+				-- Client
+				local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+					turbo.socket.SOCK_STREAM, 
+					0)
+				local stream = turbo.iostream.IOStream(fd, io)
+				stream:connect("127.0.0.1", 
+					port, 
+					turbo.socket.AF_INET, 
+					function()
+						connected = true
+						assert.falsy(stream:closed())
+						stream:set_close_callback(function() 
+							assert.truthy(stream:closed())
+							assert.truthy(closed)
+							io:close()
+						end)
+					end,
+					function(err)
+						failed = true
+						error("Could not connect.")
+					end)
+			end)
+			io:wait(10)
+			srv:stop()
+			assert.truthy(connected)
+			assert.falsy(failed)
+			assert.truthy(closed)
+		end)
+
+		it("IOStream:writing", function()
+			local io = turbo.ioloop.instance()
+			local port = math.random(10000,40000)
+			local connected, failed = false, false
+			local data = false
+			local bytes = turbo.structs.buffer()
+
+			for i = 1, 1024*1024 do
+				bytes:append_luastr_right(string.char(math.random(1, 128)))
+			end
+			bytes = tostring(bytes)
+
+			-- Server
+			local Server = class("TestServer", turbo.tcpserver.TCPServer)
+			function Server:handle_stream(stream)
+				io:add_callback(function()
+					assert.falsy(stream:writing())
+					stream:write(bytes, function() 
+						assert.falsy(stream:writing())
+						stream:close()
+					end)
+					assert.truthy(stream:writing())
+				end)
+			end
+			local srv = Server(io)
+			srv:listen(port)
+
+			io:add_callback(function() 
+				-- Client
+				local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+					turbo.socket.SOCK_STREAM, 
+					0)
+				local stream = turbo.iostream.IOStream(fd, io)
+				assert.equal(stream:connect("127.0.0.1", 
+					port, 
+					turbo.socket.AF_INET, 
+					function()
+						connected = true
+						local res = coroutine.yield (turbo.async.task(
+													 stream.read_until_close,stream))
+						data = true
+						assert.truthy(stream:closed())
+						assert.truthy(res == bytes)
+						io:close()
+					end,
+					function(err)
+						failed = true
+						io:close()
+						error("Could not connect.")
+					end), 0)
+			end)
+		end)
+
+		it("IOStream:reading", function()
+			local io = turbo.ioloop.instance()
+			local port = math.random(10000,40000)
+			local connected, failed = false, false
+			local data = false
+			local bytes = turbo.structs.buffer()
+
+			for i = 1, 1024*1024 do
+				bytes:append_luastr_right(string.char(math.random(1, 128)))
+			end
+			bytes = tostring(bytes)
+
+			-- Server
+			local Server = class("TestServer", turbo.tcpserver.TCPServer)
+			function Server:handle_stream(stream)
+				io:add_callback(function()
+					coroutine.yield (turbo.async.task(stream.write, stream, bytes))
+					stream:close()
+				end)
+			end
+			local srv = Server(io)
+			srv:listen(port)
+
+			io:add_callback(function() 
+				-- Client
+				local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+					turbo.socket.SOCK_STREAM,
+					0)
+				local stream = turbo.iostream.IOStream(fd, io)
+				assert.equal(stream:connect("127.0.0.1", 
+					port, 
+					turbo.socket.AF_INET, 
+					function()
+						connected = true
+						assert.falsy(stream:reading())
+						stream:read_until_close(function(res) 
+							assert.falsy(stream:reading())
+							data = true
+							assert.truthy(stream:closed())
+							assert.truthy(res == bytes)
+							io:close()							
+						end)
+						assert.truthy(stream:reading())
+					end,
+					function(err)
+						failed = true
+						io:close()
+						error("Could not connect.")
+					end), 0)
+			end)
+
+			io:wait(30)
+			srv:stop()
+			assert.falsy(failed)
+			assert.truthy(connected)
+			assert.truthy(data)
+		end)
 
 	end)
 end)
