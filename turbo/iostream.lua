@@ -619,10 +619,10 @@ function iostream.IOStream:_read_from_buffer()
         if self._read_buffer_size ~= 0 then
             local ptr, sz = self:_get_buffer_ptr()
             local delimiter_sz = self._read_delimiter:len()
-            ptr = ptr + self._read_scan_offset
+            local scan_ptr = ptr + self._read_scan_offset
             sz = sz - self._read_scan_offset
             local loc = util.str_find(
-                ptr,
+                scan_ptr,
                 ffi.cast("char *", self._read_delimiter),
                 sz,
                 delimiter_sz)
@@ -729,9 +729,6 @@ function iostream.IOStream:_handle_write_const()
     local errno, fd
     -- The reference is removed once the write is complete.
     local buf, sz = self._const_write_buffer:get()
-    -- Pointer will not change while inside this loop, so we do not
-    -- have to reget the pointer for every iteration, just recalculate
-    -- address and size with new offset.
     local ptr = buf + self._write_buffer_offset
     local _sz = sz - self._write_buffer_offset
     local num_bytes = socket.send(
