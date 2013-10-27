@@ -88,8 +88,8 @@ its own write buffer and there is no need to buffer data at any other level. The
 
 	Reads all data from the socket until it is closed.
 	If a streaming_callback argument is given, it will be called with
-	chunks of data as they become available, and the argument to the
-	final call to callback will be empty.
+	chunks of data as they become available, and the argument to the final call to 
+	callback will contain the final chunk.
 	This method respects the max_buffer_size set in the IOStream object.
 	
 	:param callback: Function to call when connection has been closed.
