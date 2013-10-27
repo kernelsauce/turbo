@@ -320,7 +320,7 @@ function ioloop.IOLoop:start()
         end
         if self._stopped then 
             self._running = false
-            self.stopped = false
+            self._stopped = false
             break
         end
         if #self._callbacks > 0 then
