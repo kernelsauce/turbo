@@ -21,10 +21,12 @@
 -- SOFTWARE."		
 
 local ffi = require "ffi"
+local C = ffi.C
 require "turbo.cdef"
 local  UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
 local g_time_str_buf = ffi.new("char[1024]")
 local g_time_t = ffi.new("time_t[1]")
+local g_timeval = ffi.new("struct timeval")
 
 local util = {}
 
@@ -128,18 +130,17 @@ end
 --- Current msecs since epoch. Better granularity than Lua builtin.
 -- @return Number
 function util.gettimeofday()
-    local timeval = ffi.new("struct timeval")
-    ffi.C.gettimeofday(timeval, nil)
-    return (tonumber(timeval.tv_sec) * 1000) + 
-        math.floor(tonumber(timeval.tv_usec) / 1000)
+    C.gettimeofday(g_timeval, nil)
+    return ((tonumber(g_timeval.tv_sec) * 1000) + 
+        math.floor(tonumber(g_timeval.tv_usec) / 1000))
 end
 
 --- Create a time string used in HTTP cookies.
 -- "Sun, 04-Sep-2033 16:49:21 GMT"
 function util.time_format_cookie(epoch)
     g_time_t[0] = epoch
-    local tm = ffi.C.gmtime(g_time_t)
-    local sz = ffi.C.strftime(
+    local tm = C.gmtime(g_time_t)
+    local sz = C.strftime(
         g_time_str_buf, 
         1024, 
         "%a, %d-%b-%Y %H:%M:%S GMT", 
@@ -151,8 +152,8 @@ end
 -- "Sun, 04 Sep 2033 16:49:21 GMT"
 function util.time_format_http_header(time_t)
     g_time_t[0] = time_t
-    local tm = ffi.C.gmtime(g_time_t)
-    local sz = ffi.C.strftime(
+    local tm = C.gmtime(g_time_t)
+    local sz = C.strftime(
         g_time_str_buf, 
         1024, 
         "%a, %d %b %Y %H:%M:%S GMT", 
@@ -313,11 +314,11 @@ function util.str_find(s, p, slen, plen)
             slen = slen - plen
             local q
             while slen > 0 do
-                q = ffi.cast("char*", ffi.C.memchr(s, c, slen))
+                q = ffi.cast("char*", C.memchr(s, c, slen))
                 if q == nil then 
                     break
                 end
-                if ffi.C.memcmp(q + 1, p, plen) == 0 then
+                if C.memcmp(q + 1, p, plen) == 0 then
                     return q
                 end
                 q = q + 1
