@@ -131,8 +131,8 @@ end
 -- @return Number
 function util.gettimeofday()
     C.gettimeofday(g_timeval, nil)
-    return ((tonumber(timeval.tv_sec) * 1000) + 
-        math.floor(tonumber(timeval.tv_usec) / 1000))
+    return ((tonumber(g_timeval.tv_sec) * 1000) + 
+        math.floor(tonumber(g_timeval.tv_usec) / 1000))
 end
 
 --- Create a time string used in HTTP cookies.
