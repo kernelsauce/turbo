@@ -110,8 +110,10 @@ describe("turbo.httputil Namespace", function()
         assert.has_error(function() h:set_uri() end)
         assert.has_error(function() h:set_content_length("nisse") end)
         assert.has_error(function() h:set_version({"HI"}) end)
+        assert.has_error(function() h:add("Hacks", "Another\r\nField: Here") end)
+        assert.has_error(function() h:set("Hacks", "Another\r\nField: Here") end)
     end)
-    
+
     it("should parse formdata", function()
         local data = "username=user782400&mmm=ddd&arr=1&arr=2"
         local tbl = turbo.httputil.parse_post_arguments(data)
