@@ -24,7 +24,6 @@
 local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
 local httpserver =      require "turbo.httpserver"
-local deque =           require "turbo.structs.deque"
 local buffer =          require "turbo.structs.buffer"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
@@ -67,10 +66,8 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     self._headers_written = false
     self._finished = false
     self._auto_finish = true
-    self._transforms = nil
     self._url_args = url_args
     self._set_cookie = {}
-    self.arguments = {}
     -- Set standard headers by calling the clear method.
     self:clear() 
     if self.request.headers:get("Connection") then
@@ -209,8 +206,7 @@ function web.RequestHandler:clear()
             self:add_header("Connection", "Keep-Alive")
         end
     end
-    self._write_buffer = deque:new()
-    self._write_buffer_size = 0
+    self._write_buffer = buffer:new()
     self._status_code = 200
 end
 
@@ -360,8 +356,7 @@ function web.RequestHandler:write(chunk)
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     end
-    self._write_buffer_size = self._write_buffer_size + chunk:len()
-    self._write_buffer:append(chunk)
+    self._write_buffer:append_luastr_right(chunk)
 end
 
 --- Flushes the current output buffer to the IO stream.
@@ -373,12 +368,12 @@ end
 -- @param callback (Function) Callback function.
 function web.RequestHandler:flush(callback, arg)
     local headers
-    local chunk = self._write_buffer:concat()
-    self._write_buffer = deque:new()
     if not self._headers_written then
         self._headers_written = true
         headers = self:_gen_headers()
     end
+    local chunk = tostring(self._write_buffer)
+    self._write_buffer:clear()
     -- Lines below uses multiple calls to write to avoid creating new
     -- temporary strings. The write will essentially just be appended
     -- to the IOStream class, which will actually not perform any writes
@@ -403,7 +398,6 @@ function web.RequestHandler:flush(callback, arg)
             self.request:write(chunk)
             self.request:write("\r\n")
         end
-        self._write_buffer_size = 0       
     else
         -- Not chunked with Content-Length set.
         if headers then
@@ -420,7 +414,6 @@ function web.RequestHandler:flush(callback, arg)
         elseif chunk:len() ~= 0 then
             self.request:write(chunk, callback, arg)
         end
-        self._write_buffer_size = 0
     end
 end
 
@@ -433,7 +426,7 @@ function web.RequestHandler:_gen_headers()
     if not self:get_header("Content-Length") and not self.chunked then
         -- No length is set, add current write buffer size.
         self:add_header("Content-Length", 
-            self._write_buffer_size)
+            tonumber(self._write_buffer:len()))
     end
     self.headers:set_status_code(self._status_code)
     self.headers:set_version("HTTP/1.1")

@@ -491,10 +491,10 @@ end
 --- Stringify data set in class as a HTTP request header.
 -- @return (String) HTTP header string excluding final delimiter.
 function httputil.HTTPHeaders:stringify_as_request()
-    local buffer = deque:new()
+    local buffer = buffer:new()
     for i = 1, #self._fields do
         if self._fields[i] then
-            buffer:append(string.format("%s: %s\r\n", 
+            buffer:append_luastr_right(string.format("%s: %s\r\n", 
                 self._fields[i][1], self._fields[i][2]));    
         end
     end
@@ -502,7 +502,7 @@ function httputil.HTTPHeaders:stringify_as_request()
         self.method,
         self.uri,
         self.version,
-        buffer:concat())
+        tostring(buffer))
 end
 
 --- Stringify data set in class as a HTTP response header.
