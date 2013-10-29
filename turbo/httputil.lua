@@ -411,15 +411,18 @@ end
 --- Internal method to get errno returned by http-parser.c.
 function httputil.HTTPHeaders:get_errno() return self.errno end
 
+local turbo_parser_wrapper_t = ffi.typeof("struct turbo_parser_wrapper")
+local turbo_parser_wrapper_ptr = ffi.typeof("struct turbo_parser_wrapper *")
 
-local nw = ffi.new("struct turbo_parser_wrapper") 
 --- Parse HTTP response headers.
 -- Populates the class with all data in headers.
 -- @param raw_headers (String) HTTP header string.
 -- @return -1 on error or parsed bytes on success.
 function httputil.HTTPHeaders:parse_response_header(raw_headers)
+    local ptr = ffi.C.malloc(ffi.sizeof(turbo_parser_wrapper_t))
+    local nw = ffi.cast(turbo_parser_wrapper_ptr, ptr)
+    ffi.gc(nw, ffi.C.free)
     local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 1)
-    
     self.errno = tonumber(nw.parser.http_errno)
     if (self.errno ~= 0) then
        local errno_name = ffi.string(libturbo_parser.http_errno_name(self.errno))
@@ -437,7 +440,6 @@ function httputil.HTTPHeaders:parse_response_header(raw_headers)
         local value = ffi.string(nw.header_key_values[i].value)
         self:add(key, value)
     end
-    libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz
 end
 
@@ -446,6 +448,9 @@ end
 -- @param raw_headers (String) HTTP header string.
 -- @return -1 on error or parsed bytes on success.
 function httputil.HTTPHeaders:parse_request_header(raw_headers)
+    local ptr = ffi.C.malloc(ffi.sizeof(turbo_parser_wrapper_t))
+    local nw = ffi.cast(turbo_parser_wrapper_ptr, ptr)
+    ffi.gc(nw, ffi.C.free)
     local sz = libturbo_parser.turbo_parser_wrapper_init(
         nw, 
         raw_headers, 
@@ -484,7 +489,6 @@ function httputil.HTTPHeaders:parse_request_header(raw_headers)
             self:add(key, value)
         end        
     end
-    libturbo_parser.turbo_parser_wrapper_exit(nw)
     return sz;
 end
 
