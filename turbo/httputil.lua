@@ -351,10 +351,16 @@ end
 -- @param value (String or Number) Value to associate with the key. 
 function httputil.HTTPHeaders:add(key, value)
     if type(key) ~= "string" then
-	   error([[method add key parameter must be a string.]])
-    elseif not (type(value) == "string" or type(value) == "number") then
-	   error([[method add value parameters must be a string or number.]])
+	   error("Key parameter must be a string.")
     end
+    local t = type(value)
+    if t == "string" then
+        if value:find("\r\n", 1, true) then
+            error("String value contain <CR><LF>, not allowed.")
+        end
+    elseif t ~= "number" then
+        error("Value parameter must be a string or number.")
+    end 
     self._fields[#self._fields + 1] = {key, value}
 end
 
@@ -364,10 +370,16 @@ end
 -- @param value (String) Value to associate with the key.
 function httputil.HTTPHeaders:set(key, value, caseinsensitive)	
     if type(key) ~= "string" then
-	   error([[method add key parameter must be a string.]])
-    elseif not (type(value) == "string" or type(value) == "number") then
-	   error([[method add value parameters must be a string or number.]])
+       error("Key parameter must be a string.")
     end
+    local t = type(value)
+    if t == "string" then
+        if value:find("\r\n", 1, true) then
+            error("String value contain <CR><LF>, not allowed.")
+        end
+    elseif t ~= "number" then
+        error("Value parameter must be a string or number.")
+    end 
     self:remove(key, caseinsensitive)
     self:add(key, value)
 end
@@ -378,7 +390,7 @@ end
 -- regard for case sensitivity.
 function httputil.HTTPHeaders:remove(key, caseinsensitive)
     if type(key) ~= "string" then
-	   error("method remove key parameter must be a string.")
+	   error("Key parameter must be a string.")
     end
     if caseinsensitive == false then
         for i = 1, #self._fields do
@@ -503,8 +515,12 @@ function httputil.HTTPHeaders:stringify_as_response()
     end
     for i = 1 , #self._fields do
         if self._fields[i] then
-            buf:append_luastr_right(string.format("%s: %s\r\n", 
-                self._fields[i][1], self._fields[i][2]));    
+            -- string.format causes trace abort here.
+            -- Just build keyword values by abuse.
+            buf:append_luastr_right(self._fields[i][1])
+            buf:append_luastr_right(": ")
+            buf:append_luastr_right(tostring(self._fields[i][2]))
+            buf:append_luastr_right("\r\n")
         end
     end
     return string.format("%s %d %s\r\n%s",
