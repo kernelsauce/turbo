@@ -37,6 +37,7 @@ SOFTWARE."			*/
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#ifndef TURBO_NO_SSL
 static int matches_common_name(const char *hostname, const X509 *server_cert)
 {
     int common_name_loc = -1;
@@ -157,6 +158,7 @@ int validate_hostname(const char *hostname, const SSL *server){
     X509_free(server_cert);
     return result;
 }
+#endif
 
 bool url_field_is_set(
         const struct http_parser_url *url,
@@ -182,11 +184,10 @@ static int request_url_cb(http_parser *p, const char *buf, size_t len)
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     int rc;
 
-    nw->url_str = strndup(buf, len);
-    if (!nw->url_str)
-        return -1;
+    nw->url_str = buf;
+    nw->url_sz = len;
     rc = http_parser_parse_url(buf, len, 0, &nw->url);
-    nw->http_parsed_with_rc = rc;
+    nw->url_rc = rc;
     return 0;
 }
 
@@ -196,30 +197,31 @@ static int header_field_cb(http_parser *p, const char *buf, size_t len)
     struct turbo_key_value_field *kv_field;
     void *ptr;
 
-    switch(nw->header_state){
+    switch(nw->_state){
     case NOTHING:
     case VALUE:
-        ptr = realloc(
-                    nw->header_key_values,
-                    sizeof(struct turbo_key_value_field *) *
-                    (nw->header_key_values_sz + 1));
-        if (ptr){
-            nw->header_key_values = ptr;
+        if (nw->hkv_sz == nw->hkv_mem){
+            ptr = realloc(
+                        nw->hkv,
+                        sizeof(struct turbo_key_value_field *) *
+                        (nw->hkv_sz + 10));
+            nw->hkv_mem += 10;
+            if (ptr)
+                nw->hkv = ptr;
+            else
+                return -1;
         }
-        else
-            return -1;
-
         kv_field = malloc(sizeof(struct turbo_key_value_field));
         if (!kv_field)
             return -1;
-        kv_field->key = strndup(buf, len);
-        nw->header_key_values[nw->header_key_values_sz] = kv_field;
+        kv_field->key = buf;
+        kv_field->key_sz = len;
+        nw->hkv[nw->hkv_sz] = kv_field;
         break;
     case FIELD:
         break;
     }
-
-    nw->header_state = FIELD;
+    nw->_state = FIELD;
     return 0;
 }
 
@@ -227,22 +229,19 @@ static int header_value_cb(http_parser *p, const char *buf, size_t len)
 {
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     struct turbo_key_value_field *kv_field;
-    char *ptr;
 
-    switch(nw->header_state){
+    switch(nw->_state){
     case FIELD:
-        kv_field = nw->header_key_values[nw->header_key_values_sz];
-        ptr = strndup(buf, len);
-        if (!ptr)
-            return -1;
-        kv_field->value = ptr;
-        nw->header_key_values_sz++;
+        kv_field = nw->hkv[nw->hkv_sz];
+        kv_field->value = buf;
+        kv_field->value_sz = len;
+        nw->hkv_sz++;
         break;
     case VALUE:
     case NOTHING:
         break;
     }
-    nw->header_state = VALUE;
+    nw->_state = VALUE;
     return 0;
 }
 
@@ -250,13 +249,6 @@ int headers_complete_cb (http_parser *p)
 {
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     nw->headers_complete = true;
-    return 0;
-}
-
-int message_complete_cb (http_parser *p)
-{
-    struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
-    nw->finished = true;
     return 0;
 }
 
@@ -269,45 +261,33 @@ static http_parser_settings settings =
  ,.on_url = request_url_cb
  ,.on_body = 0
  ,.on_headers_complete = headers_complete_cb
- ,.on_message_complete = message_complete_cb
+ ,.on_message_complete = 0
 };
 
 
-size_t turbo_parser_wrapper_init(
-        struct turbo_parser_wrapper *dest,
-        const char* data, size_t len, int type)
+struct turbo_parser_wrapper *
+turbo_parser_wrapper_init(const char* data, size_t len, int type)
 {
-    size_t parsed_sz;
-
+    struct turbo_parser_wrapper *dest = malloc(
+                sizeof(struct turbo_parser_wrapper));
+    if (!dest)
+        return 0;
     dest->parser.data = dest;
     dest->url_str = 0;
-    dest->header_key_values = 0;
-    dest->header_key_values_sz = 0;
-    dest->header_state = NOTHING;
+    dest->hkv = 0;
+    dest->hkv_sz = 0;
+    dest->hkv_mem = 0;
+    dest->_state = NOTHING;
     if (type == 0)
         http_parser_init(&dest->parser, HTTP_REQUEST);
     else
         http_parser_init(&dest->parser, HTTP_RESPONSE);
-    parsed_sz = http_parser_execute(&dest->parser, &settings, data, len);
-    return parsed_sz;
+    dest->parsed_sz = http_parser_execute(&dest->parser, &settings, data, len);
+    return dest;
 }
 
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
 {
-    int i = 0;
-    free(src->url_str);
-    for (; i < src->header_key_values_sz; i++){
-        free(src->header_key_values[i]->value);
-        free(src->header_key_values[i]->key);
-        free(src->header_key_values[i]);
-    }
-    free(src->header_key_values);
-
-#ifdef PARANOID
-    if (src){
-        memset(src, 0, sizeof(struct turbo_parser_wrapper));
-    }
-#endif
-
+    free(src->hkv);
 }
 
