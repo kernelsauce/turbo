@@ -53,31 +53,33 @@ enum header_state{
 };
 
 struct turbo_parser_wrapper{
-    int url_rc;
+    int32_t url_rc;
     size_t parsed_sz;
     bool headers_complete;
     enum header_state _state; ///< Used internally
 
     const char *url_str; ///< Offset for passed in char ptr
     size_t url_sz;
-    int hkv_sz;
-    int hkv_mem ;  ///< We allocate in chunks of 10 structs at a time.
+    size_t hkv_sz;
+    size_t hkv_mem ;  ///< We allocate in chunks of 10 structs at a time.
     struct turbo_key_value_field **hkv;
     struct http_parser parser;
     struct http_parser_url url;
 };
 
-struct turbo_parser_wrapper *
-turbo_parser_wrapper_init(
+struct turbo_parser_wrapper *turbo_parser_wrapper_init(
         const char* data,
         size_t len,
-        int type);
+        int32_t type);
+
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
-int http_parser_parse_url(
+
+int32_t http_parser_parse_url(
         const char *buf,
         size_t buflen,
-        int is_connect,
+        int32_t is_connect,
         struct http_parser_url *u);
+
 /** Check if a given field is set in http_parser_url  */
 bool url_field_is_set(
         const struct http_parser_url *url,
@@ -97,5 +99,5 @@ char *url_field(
 #define Error 4
 
 /** Validate a X509 cert against provided hostname. */
-int validate_hostname(const char *hostname, const SSL *server);
+int32_t validate_hostname(const char *hostname, const SSL *server);
 #endif

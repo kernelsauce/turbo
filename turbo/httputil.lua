@@ -53,6 +53,7 @@ local b = string.byte
 
 local httputil = {} -- httputil namespace
 
+--- Must match the enum in http-parser.h!
 local method_map = {
     [0] = "DELETE",
     "GET",
@@ -100,26 +101,8 @@ httputil.HTTPHeaders = class("HTTPHeaders")
 -- the returned object. 
 function httputil.HTTPHeaders:initialize(raw_request_headers)	
     self._raw_headers = nil
-    self.uri = nil
-    self.url = nil
-    self.method = nil
-    self.version = nil
-    self.status_code = nil
-    self.content_length = nil
-    self.http_parser_url = nil -- for http_wrapper.c
-    self._arguments = {}
-    self._fields = {}
+    self.tpw = 
     self._arguments_parsed = false
-    if type(raw_request_headers) == "string" then
-    	local rc, httperrno, errnoname, errnodesc = 
-            self:parse_request_header(raw_request_headers)
-    	if rc == -1 then
-    	    error(string.format(
-                "Malformed HTTP headers. %s, %s", 
-                errnoname, 
-                errnodesc))
-    	end
-    end
 end
 
 local _http_parser_url = ffi.new("struct http_parser_url")
@@ -309,40 +292,37 @@ end
 -- multiple keys are set.
 function httputil.HTTPHeaders:get(key, caseinsensitive)
     local value
-    local cnt = 0
-    if caseinsensitive == true then
-        key = key:lower()
-        for i = 1, #self._fields do
-            if self._fields[i] and self._fields[i][1]:lower() == key then
-                if cnt == 0 then
-                    value = self._fields[i][2]
-                    cnt = 1
-                elseif cnt == 1 then
-                    value = {value, self._fields[i][2]}
-                    cnt = 2
-                else
-                    value[#value + 1] = self._fields[i][2]
-                    cnt = cnt + 1
-                end
-            end
-        end      
+    local c = 0
+
+    if caseinsensitive then
+        -- Case insensitive key.
+        error("NYI")
     else
-        for i = 1, #self._fields do
-            if self._fields[i] and self._fields[i][1] == key then
-                if cnt == 0 then
-                    value = self._fields[i][2]
-                    cnt = 1
-                elseif cnt == 1 then
-                    value = {value, self._fields[i][2]}
-                    cnt = 2
-                else
-                    value[#value + 1] = self._fields[i][2]
-                    cnt = cnt + 1
+        -- Case sensitive key.
+        for i = 0, self.tpw.hkv_sz-1 do
+            local field = self.tpw.hkv[i]
+            local key_sz = key:len()
+            if field.key_sz == key_sz then 
+                if ffi.C.memcmp(
+                    field.key, 
+                    key, 
+                    math.max(field.key_sz, key_sz)) == 0 then
+                    local str = ffi.string(field.value, field.value_sz)
+                    if c == 0 then
+                        value = str
+                        c = 1
+                    elseif c == 1 then
+                        value = {value, str}
+                        c = 2
+                    else
+                        value[#value+1] = str
+                        c = c + 1
+                    end
                 end
             end
         end
     end
-    return value, cnt
+    return value, c
 end
 
 --- Add a key with value to the headers. Supports adding multiple values to 
@@ -408,15 +388,6 @@ function httputil.HTTPHeaders:remove(key, caseinsensitive)
     end
 end
 
---- Internal method to get errno returned by http-parser.c.
-function httputil.HTTPHeaders:get_errno() return self.errno end
-
-local turbo_parser_wrapper_t = ffi.typeof("struct turbo_parser_wrapper")
-local turbo_parser_wrapper_ptr = ffi.typeof("struct turbo_parser_wrapper *")
-local function _free_turbo_parser_struct(ptr)
-    libturbo_parser.turbo_parser_wrapper_exit(ptr)
-    ffi.C.free(ptr)
-end
 
 --- Parse HTTP response headers.
 -- Populates the class with all data in headers.
@@ -452,48 +423,27 @@ end
 -- @param raw_headers (String) HTTP header string.
 -- @return -1 on error or parsed bytes on success.
 function httputil.HTTPHeaders:parse_request_header(raw_headers)
-    local ptr = ffi.C.malloc(ffi.sizeof(turbo_parser_wrapper_t))
-    local nw = ffi.cast(turbo_parser_wrapper_ptr, ptr)
-    ffi.gc(nw, _free_turbo_parser_struct)
-    local sz = libturbo_parser.turbo_parser_wrapper_init(
-        nw, 
-        raw_headers, 
-        raw_headers:len(), 
+    self.tpw = libturbo_parser.turbo_parser_wrapper_init(
+        raw_headers,
+        raw_headers:len(),
         0)
-    
-    self.errno = tonumber(nw.parser.http_errno)
-    if (self.errno ~= 0) then
-       local errno_name = ffi.string(
-            libturbo_parser.http_errno_name(self.errno))
-       local errno_desc = ffi.string(
-            libturbo_parser.http_errno_description(self.errno))
-	   libturbo_parser.turbo_parser_wrapper_exit(nw)
-       return -1, self.errno, errno_name, errno_desc
+    if self.tpw then
+        ffi.gc(self.tpw, libturbo_parser.turbo_parser_wrapper_exit)
+    else
+        error("libturbo_parser could not allocate memory for struct.")
     end
-    if sz > 0 then      
-        local major_version = nw.parser.http_major
-        local minor_version = nw.parser.http_minor
-        local version_str = string.format(
-            "HTTP/%d.%d", 
-            major_version, 
-            minor_version)
-        self._raw_headers = raw_headers
-        self:set_version(version_str)
-        self:set_uri(ffi.string(nw.url_str))
-        self:set_method(method_map[tonumber(nw.parser.method)])
-        self.http_parser_url = nw.url
-        local url = self:get_url_field(httputil.UF.PATH)
-        if url ~= -1 then
-            self.url = url
-        end
-        local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
-        for i = 0, keyvalue_sz, 1 do
-            local key = ffi.string(nw.header_key_values[i].key)
-            local value = ffi.string(nw.header_key_values[i].value)
-            self:add(key, value)
-        end        
+    if self.tpw.parser.http_errno ~= 0 or self.tpw.parsed_sz == 0 then
+        error(
+            string.format(
+                "libturbo_parser could not parse HTTP header. %s %s", 
+                ffi.string(libturbo_parser.http_errno_name(
+                    self.tpw.parser.http_errno)),
+                ffi.string(libturbo_parser.http_errno_description(
+                    self.tpw.parser.http_errno))))
     end
-    return sz;
+    if self.tpw.headers_complete == false then
+        error("libturbo_parser could parse header. Unknown error.")
+    end
 end
 
 --- Stringify data set in class as a HTTP request header.

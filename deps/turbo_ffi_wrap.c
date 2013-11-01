@@ -74,14 +74,14 @@ static int matches_common_name(const char *hostname, const X509 *server_cert)
     }
 }
 
-static int matches_subject_alternative_name(
+static int32_t matches_subject_alternative_name(
         const char *hostname,
         const X509 *server_cert)
 {
-    int result = MatchNotFound;
-    int i;
-    int san_names_nb = -1;
-    int hostname_is_domain;
+    int32_t result = MatchNotFound;
+    int32_t i;
+    int32_t san_names_nb = -1;
+    int32_t hostname_is_domain;
     const char *subdomain_offset;
     size_t dns_name_sz;
     size_t hostname_sz = strlen(hostname);
@@ -140,8 +140,8 @@ static int matches_subject_alternative_name(
     return result;
 }
 
-int validate_hostname(const char *hostname, const SSL *server){
-    int result;
+int32_t validate_hostname(const char *hostname, const SSL *server){
+    int32_t result;
     X509 *server_cert = 0;
 
     if (!hostname || !server){
@@ -179,19 +179,17 @@ char *url_field(const char *url_str,
 }
 
 
-static int request_url_cb(http_parser *p, const char *buf, size_t len)
+static int32_t request_url_cb(http_parser *p, const char *buf, size_t len)
 {
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
-    int rc;
 
     nw->url_str = buf;
     nw->url_sz = len;
-    rc = http_parser_parse_url(buf, len, 0, &nw->url);
-    nw->url_rc = rc;
+    nw->url_rc = http_parser_parse_url(buf, len, 0, &nw->url);
     return 0;
 }
 
-static int header_field_cb(http_parser *p, const char *buf, size_t len)
+static int32_t header_field_cb(http_parser *p, const char *buf, size_t len)
 {
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     struct turbo_key_value_field *kv_field;
@@ -205,11 +203,10 @@ static int header_field_cb(http_parser *p, const char *buf, size_t len)
                         nw->hkv,
                         sizeof(struct turbo_key_value_field *) *
                         (nw->hkv_sz + 10));
-            nw->hkv_mem += 10;
-            if (ptr)
-                nw->hkv = ptr;
-            else
+            if (!ptr)
                 return -1;
+            nw->hkv = ptr;
+            nw->hkv_mem += 10;
         }
         kv_field = malloc(sizeof(struct turbo_key_value_field));
         if (!kv_field)
@@ -225,7 +222,7 @@ static int header_field_cb(http_parser *p, const char *buf, size_t len)
     return 0;
 }
 
-static int header_value_cb(http_parser *p, const char *buf, size_t len)
+static int32_t header_value_cb(http_parser *p, const char *buf, size_t len)
 {
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     struct turbo_key_value_field *kv_field;
@@ -245,14 +242,12 @@ static int header_value_cb(http_parser *p, const char *buf, size_t len)
     return 0;
 }
 
-int headers_complete_cb (http_parser *p)
+int32_t headers_complete_cb (http_parser *p)
 {
     struct turbo_parser_wrapper *nw = (struct turbo_parser_wrapper*)p->data;
     nw->headers_complete = true;
     return 0;
 }
-
-
 
 static http_parser_settings settings =
 {.on_message_begin = 0
@@ -264,9 +259,10 @@ static http_parser_settings settings =
  ,.on_message_complete = 0
 };
 
-
-struct turbo_parser_wrapper *
-turbo_parser_wrapper_init(const char* data, size_t len, int type)
+struct turbo_parser_wrapper *turbo_parser_wrapper_init(
+        const char* data,
+        size_t len,
+        int32_t type)
 {
     struct turbo_parser_wrapper *dest = malloc(
                 sizeof(struct turbo_parser_wrapper));
@@ -277,6 +273,7 @@ turbo_parser_wrapper_init(const char* data, size_t len, int type)
     dest->hkv = 0;
     dest->hkv_sz = 0;
     dest->hkv_mem = 0;
+    dest->headers_complete = false;
     dest->_state = NOTHING;
     if (type == 0)
         http_parser_init(&dest->parser, HTTP_REQUEST);
@@ -289,5 +286,6 @@ turbo_parser_wrapper_init(const char* data, size_t len, int type)
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
 {
     free(src->hkv);
+    free(src);
 }
 
