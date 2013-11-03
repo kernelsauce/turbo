@@ -123,6 +123,7 @@ function httputil.HTTPParser:initialize(hdr_str, hdr_t)
     end
     -- Arguments are only parsed on-demand.
     self._arguments_parsed = false
+    self.hdr_t = hdr_t
 end
 
 --- Parse standalone URL and populate class instance with values. 
@@ -142,15 +143,16 @@ function httputil.HTTPParser:parse_url(url)
     if rc ~= 0 then
 	   error("Could not parse URL.")
     end
+    if not self.url then
+        self.url = url
+    end
 end
 
 --- Get a URL field.
 -- @param UF_prop (Number) Available fields described in the httputil.UF table.
 -- @return -1 if not found, else the string value is returned.
 function httputil.HTTPParser:get_url_field(UF_prop)
-    if not self.tpw then
-	   error("No header has been parsed. Can not return field.")
-    elseif not self.url then
+    if not self.url then
         self:get_url()
     end
     if not self.http_parser_url then
@@ -160,8 +162,8 @@ function httputil.HTTPParser:get_url_field(UF_prop)
         self.http_parser_url, UF_prop) == true then
         local url = ffi.cast("const char *", self.url)
         local field = ffi.string(
-            url+self.http_parser_url[UF_prop].off,
-            self.http_parser_url[UF_prop].len)
+            url+self.http_parser_url.field_data[UF_prop].off,
+            self.http_parser_url.field_data[UF_prop].len)
         return field
     end
     -- Field is not set.
@@ -171,12 +173,14 @@ end
 --- Get URL.
 -- @return Currently set URI or nil if not set.
 function httputil.HTTPParser:get_url() 
-    if not self.tpw then
-        error("No header has been parsed. Can not return URL.")
-    end
     if self.url then 
         return self.url
     else
+        if not self.tpw then
+            print(debug.traceback())
+            error("No URL or header has been parsed. Can not return URL.")
+            
+        end
         self.url = ffi.string(self.tpw.url_str, self.tpw.url_sz)
     end
     return self.url
@@ -285,7 +289,28 @@ function httputil.HTTPParser:get(key, caseinsensitive)
 
     if caseinsensitive then
         -- Case insensitive key.
-        error("NYI")
+        for i = 0, tonumber(self.tpw.hkv_sz-1) do
+            local field = self.tpw.hkv[i]
+            local key_sz = key:len()
+            if field.key_sz == key_sz then
+                if ffi.C.strncasecmp(
+                    field.key, 
+                    key, 
+                    field.key_sz) == 0 then
+                    local str = ffi.string(field.value, field.value_sz)
+                    if c == 0 then
+                        value = str
+                        c = 1
+                    elseif c == 1 then
+                        value = {value, str}
+                        c = 2
+                    else
+                        value[#value+1] = str
+                        c = c + 1
+                    end
+                end
+            end
+        end
     else
         -- Case sensitive key.
         for i = 0, tonumber(self.tpw.hkv_sz-1) do
@@ -325,9 +350,7 @@ function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
         error("libturbo_parser could not allocate memory for struct.")
     end
     self.tpw = tpw
-    local http_errno = tonumber(self.tpw.parser.http_errno )
-    local parsed_sz = tonumber(self.tpw.parsed_sz)
-    if http_errno ~= 0 or parsed_sz == 0 then
+    if self.tpw.parser.http_errno ~= 0 or self.tpw.parsed_sz == 0 then
         error(
             string.format(
                 "libturbo_parser could not parse HTTP header. %s %s", 
