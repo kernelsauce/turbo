@@ -487,16 +487,16 @@ function web.RequestHandler:_finish()
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request.headers.method,
-            self.request.headers.url,
+            self.request.headers:get_method(),
+            self.request.headers:get_url(),
             self.request.remote_ip,
             self.request:request_time()))
     else
         log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request.headers.method,
-            self.request.headers.url,
+            self.request.headers:get_method(),
+            self.request.headers:get_url(),
             self.request.remote_ip,
             self.request:request_time()))
     end

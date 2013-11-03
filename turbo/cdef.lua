@@ -65,7 +65,7 @@ extern int32_t socket (int32_t domain, int32_t type, int32_t protocol);
 extern int32_t bind (int32_t fd, const struct sockaddr * addr, socklen_t len);
 extern int32_t listen (int32_t fd, int32_t backlog);
 extern int32_t dup(int32_t oldfd);
-extern int32_t close (int fd);
+extern int32_t close (int32_t fd);
 extern int32_t connect (int32_t fd, const struct sockaddr * addr, socklen_t len);
 extern int32_t setsockopt (int32_t fd, int32_t level, int32_t optname, const void *optval, socklen_t optlen);
 extern int32_t getsockopt (int32_t fd, int32_t level, int32_t optname, void * optval, socklen_t * optlen);
@@ -359,8 +359,12 @@ struct http_parser_url {
 };
 
 struct turbo_key_value_field{
-    char *key; ///< Header key.
-    char *value; ///< Value corresponding to key.
+    /* Size of strings.  */
+    size_t key_sz;
+    size_t value_sz;
+    /* These are offsets for passed in char ptr. */
+    const char *key;       ///< Header key.
+    const char *value;     ///< Value corresponding to key.
 };
 
 /** Used internally  */
@@ -372,34 +376,40 @@ enum header_state{
 
 /** Wrapper struct for http_parser.c to avoid using callback approach.   */
 struct turbo_parser_wrapper{
-    struct http_parser parser;
-    int32_t http_parsed_with_rc;
-    struct http_parser_url url;
-
-    bool finished; ///< Set on headers completely parsed, should always be true.
-    char *url_str;
-    char *body;
-    const char *data; ///< Used internally.
-
+    int32_t url_rc;
+    size_t parsed_sz;
     bool headers_complete;
-    enum header_state header_state; ///< Used internally.
-    int32_t header_key_values_sz; ///< Size of key values in header that is in header_key_values member.
-    struct turbo_key_value_field **header_key_values;
+    enum header_state _state; ///< Used internally
 
+    const char *url_str; ///< Offset for passed in char ptr
+    size_t url_sz;
+    size_t hkv_sz;
+    size_t hkv_mem ;  ///< We allocate in chunks of 10 structs at a time.
+    struct turbo_key_value_field **hkv;
+    struct http_parser parser;
+    struct http_parser_url url;
 };
 
-extern size_t turbo_parser_wrapper_init(struct turbo_parser_wrapper *dest, const char* data, size_t len, int32_t type);
-/** Free memory and memset 0 if PARANOID is defined.   */
-extern void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
+struct turbo_parser_wrapper *turbo_parser_wrapper_init(
+        const char* data,
+        size_t len,
+        int32_t type);
+
+void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
 
 int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
+
 /** Check if a given field is set in http_parser_url  */
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
+
 extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
+
 /* Return a string name of the given error */
 const char *http_errno_name(int32_t err);
+
 /* Return a string description of the given error */
 const char *http_errno_description(int32_t err);
+
 int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
 
@@ -412,6 +422,7 @@ int printf(const char *format, ...);
 void *memmove(void * destination, const void * source, size_t num);
 int memcmp(const void * ptr1, const void * ptr2, size_t num);
 void *memchr(void * ptr, int value, size_t num);
+int strncasecmp(const char *s1, const char *s2, size_t n);
 int snprintf(char *s, size_t n, const char *format, ...);
 
 typedef int32_t pid_t;

@@ -188,8 +188,8 @@ end
 -- request headers.
 function httpserver.HTTPConnection:_on_headers(data)
     local headers
-    local status, headers = xpcall(httputil.HTTPHeaders, 
-        _on_headers_error_handler, data)
+    local status, headers = xpcall(httputil.HTTPParser, 
+        _on_headers_error_handler, data, httputil.hdr_t["HTTP_REQUEST"])
 
     if (status == false) then
         -- Invalid headers. Close stream.
@@ -197,11 +197,13 @@ function httpserver.HTTPConnection:_on_headers(data)
         self.stream:close()
         return
     end
-    self._request = httpserver.HTTPRequest:new(headers.method, headers.uri, {
-        version = headers.version,
-        connection = self,
-        headers = headers,
-        remote_ip = self.address})
+    self._request = httpserver.HTTPRequest:new(headers:get_method(), 
+        headers:get_url(), {
+            version = headers.version,
+            connection = self,
+            headers = headers,
+            remote_ip = self.address
+            })
     local content_length = headers:get("Content-Length")
     if content_length then
         content_length = tonumber(content_length)
