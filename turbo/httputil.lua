@@ -177,7 +177,6 @@ function httputil.HTTPParser:get_url()
         return self.url
     else
         if not self.tpw then
-            print(debug.traceback())
             error("No URL or header has been parsed. Can not return URL.")
             
         end
