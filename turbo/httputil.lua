@@ -325,7 +325,9 @@ function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
         error("libturbo_parser could not allocate memory for struct.")
     end
     self.tpw = tpw
-    if self.tpw.parser.http_errno ~= 0 or self.tpw.parsed_sz == 0 then
+    local http_errno = tonumber(self.tpw.parser.http_errno )
+    local parsed_sz = tonumber(self.tpw.parsed_sz)
+    if http_errno ~= 0 or parsed_sz == 0 then
         error(
             string.format(
                 "libturbo_parser could not parse HTTP header. %s %s", 

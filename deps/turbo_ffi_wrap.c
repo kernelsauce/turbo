@@ -285,6 +285,10 @@ struct turbo_parser_wrapper *turbo_parser_wrapper_init(
 
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
 {
+    size_t i = 0;
+    for (; i < src->hkv_sz; i++){
+        free(src->hkv[i]);
+    }
     free(src->hkv);
     free(src);
 }
