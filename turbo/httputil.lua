@@ -112,8 +112,7 @@ httputil.HTTPParser = class("HTTPParser")
 --- Pass request headers as parameters to parse them into
 -- the returned object. 
 function httputil.HTTPParser:initialize(hdr_str, hdr_t)
-    if hdr_str and hdr_t then 
-        self.hdr_str = hdr_str
+    if hdr_str and hdr_t then
         if hdr_t == httputil.hdr_t["HTTP_REQUEST"] then
             self:parse_request_header(hdr_str)
         elseif hdr_t == httputil.hdr_t["HTTP_RESPONSE"] then
@@ -122,7 +121,6 @@ function httputil.HTTPParser:initialize(hdr_str, hdr_t)
     end
     -- Arguments are only parsed on-demand.
     self._arguments_parsed = false
-    self.hdr_t = hdr_t
 end
 
 --- Parse standalone URL and populate class instance with values. 
@@ -341,6 +339,11 @@ end
 -- type.
 -- @note Will throw error on parsing failure.
 function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
+    -- Ensure the string is not GCed while we are still using it by keeping a 
+    -- reference to it. There is no way for LuaJIT to know we are still 
+    -- using pointers to it.
+    self.hdr_str = hdr_str
+    self.hdr_t = hdr_t
     local tpw = libturbo_parser.turbo_parser_wrapper_init(
         hdr_str,
         hdr_str:len(),
