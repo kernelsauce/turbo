@@ -131,7 +131,12 @@ function httputil.HTTPParser:parse_url(url)
     if type(url) ~= "string" then
         error("URL parameter is not a string.")
     end
-    self.http_parser_url = ffi.new("struct http_parser_url")
+    local htpurl = ffi.C.malloc(ffi.sizeof("struct http_parser_url"))
+    if htpurl == nil then
+        error("Could not allocate memory")
+    end
+    ffi.gc(htpurl, ffi.C.free)
+    self.http_parser_url = ffi.cast("struct http_parser_url *", htpurl)
     local rc = libturbo_parser.http_parser_parse_url(
         url,
         url:len(), 
