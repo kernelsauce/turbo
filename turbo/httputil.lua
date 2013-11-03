@@ -1,13 +1,11 @@
 --- Turbo.lua HTTP Utilities module
--- Contains the HTTPHeaders class, which parses request and response headers,
--- via the node.js HTTP parser, which is based on http-parser.c. The class
--- also allows the user to build up HTTP headers programtically with the same
--- API. 
+-- Contains the HTTPHeaders and HTTPParser classes, which parses request and 
+-- response headers and also offers utilities to build request headers. 
 --
 -- Also offers a few functions for parsing GET URL parameters, and different 
 -- POST data types.
 --
--- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
+-- Copyright John Abrahamsen 2011, 2012, 2013
 --
 -- "Permission is hereby granted, free of charge, to any person obtaining a copy of
 -- this software and associated documentation files (the "Software"), to deal in
@@ -83,6 +81,7 @@ local method_map = {
     "PURGE"
 }
 
+local function MAX(a,b) return a > b and a or b end
 
 --*************** HTTP Header parsing *************** 
 
@@ -127,9 +126,9 @@ function httputil.HTTPParser:initialize(hdr_str, hdr_t)
 end
 
 --- Parse standalone URL and populate class instance with values. 
+-- HTTPParser.get_url_field must be used to read out values.
 -- @param url (String) URL string.
--- @return -1 on error, else 0 and HTTPParser:get_url_field must be used
--- to read out values.
+-- @note Will throw error if URL does not parse correctly.
 function httputil.HTTPParser:parse_url(url)
     if type(url) ~= "string" then
         error("URL parameter is not a string.")
@@ -150,7 +149,7 @@ end
 
 --- Get a URL field.
 -- @param UF_prop (Number) Available fields described in the httputil.UF table.
--- @return -1 if not found, else the string value is returned.
+-- @return nil if not found, else the string value is returned.
 function httputil.HTTPParser:get_url_field(UF_prop)
     if not self.url then
         self:get_url()
@@ -177,8 +176,7 @@ function httputil.HTTPParser:get_url()
         return self.url
     else
         if not self.tpw then
-            error("No URL or header has been parsed. Can not return URL.")
-            
+            error("No URL or header has been parsed. Can not return URL.")   
         end
         self.url = ffi.string(self.tpw.url_str, self.tpw.url_sz)
     end
@@ -274,8 +272,6 @@ function httputil.HTTPParser:get_arguments()
     return self._arguments
 end
 
-local function MAX(a,b) return a > b and a or b end
-
 --- Get given key from header key value section.
 -- @param key (String) The key to get.
 -- @param caseinsensitive (Boolean) If true then the key will be matched without
@@ -338,6 +334,12 @@ function httputil.HTTPParser:get(key, caseinsensitive)
     return value, c
 end
 
+--- Parse HTTP request or response headers.
+-- Populates the class with all data in headers.
+-- @param hdr_str (String) HTTP header string.
+-- @param hdr_t (Number) A number defined in httputil.hdr_t representing header 
+-- type.
+-- @note Will throw error on parsing failure.
 function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
     local tpw = libturbo_parser.turbo_parser_wrapper_init(
         hdr_str,
@@ -366,15 +368,15 @@ end
 --- Parse HTTP response headers.
 -- Populates the class with all data in headers.
 -- @param raw_headers (String) HTTP header string.
--- @return -1 on error or parsed bytes on success.
+-- @note Will throw error on parsing failure.
 function httputil.HTTPParser:parse_response_header(raw_headers)
     self:parse_header(raw_headers, httputil.hdr_t["HTTP_RESPONSE"])
 end
 
---- Parse HTTP headers.
+--- Parse HTTP request headers.
 -- Populates the class with all data in headers.
 -- @param raw_headers (String) HTTP header string.
--- @return -1 on error or parsed bytes on success.
+-- @note Will throw error on parsing failure.
 function httputil.HTTPParser:parse_request_header(raw_headers)
     self:parse_header(raw_headers, httputil.hdr_t["HTTP_REQUEST"])
 end
