@@ -360,7 +360,7 @@ function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
                     self.tpw.parser.http_errno))))
     end
     if self.tpw.headers_complete == false then
-        error("libturbo_parser could parse header. Unknown error.")
+        error("libturbo_parser could not parse header. Unknown error.")
     end
 end
 
@@ -378,6 +378,32 @@ end
 -- @return -1 on error or parsed bytes on success.
 function httputil.HTTPParser:parse_request_header(raw_headers)
     self:parse_header(raw_headers, httputil.hdr_t["HTTP_REQUEST"])
+end
+
+--- Parse HTTP post arguments.
+function httputil.parse_post_arguments(data)
+    if type(data) ~= "string" then
+        error("data argument not a string.")
+    end
+    return _parse_arguments(data)
+end
+
+--- Parse multipart form data.
+function httputil.parse_multipart_data(data)  
+    local arguments = {}
+    local data = escape.unescape(data)
+    
+    for key, ctype, name, value in 
+       data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([%w]+)\"%c+([^%c]+)") do
+        if ctype == "form-data" then
+            if arguments[name] then
+               arguments[name][#arguments[name] +1] = value
+            else
+               arguments[name] = { value }
+            end
+        end
+    end
+    return arguments
 end
 
 
