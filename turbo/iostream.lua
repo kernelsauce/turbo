@@ -141,7 +141,7 @@ function iostream.IOStream:connect(address, port, family,
     rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
     if rc ~= 0 then
         return -1, string.format("Could not resolve hostname '%s': %s",
-            address, ffi.C.gai_strerror(rc))
+            address, ffi.string(ffi.C.gai_strerror(rc)))
     end
 
     ffi.gc(servinfo, function (ai) ffi.C.freeaddrinfo(ai[0]) end)
