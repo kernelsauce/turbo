@@ -194,9 +194,7 @@ function async.HTTPClient:fetch(url, kwargs)
             "Standard does not support this request method without a body.")
         return self.coctx
     end
-    if self:_set_url(url) == -1 then
-        return self.coctx
-    end
+    self:_set_url(url)
     local sock, msg = socket.new_nonblock_socket(self.family, 
         socket.SOCK_STREAM, 
         0)
@@ -366,10 +364,10 @@ function async.HTTPClient:_prepare_http_request()
         -- headers class instance on their own.
         self.kwargs.on_headers(self.headers)
     end
-    if self.path == -1 then
-        self.path = ""
+    if not self.path then
+        self.path = "/"
     end
-    if self.query ~= -1 then
+    if self.query then
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
         self.headers:set_uri(self.path)
@@ -403,7 +401,7 @@ function async.HTTPClient:_prepare_http_request()
             end
             write_buf = write_buf .. post_data
             self.headers:add("Content-Length", write_buf:len())
-        elseif self.kwargs.method == "GET" and self.query == -1 then
+        elseif self.kwargs.method == "GET" and not self.query then
             local get_url_params = deque:new()
             local n = 0
             get_url_params:append("?")
@@ -588,7 +586,7 @@ function async.HTTPClient:_finalize_request()
             log.success(string.format("[async.lua] %s %s%s => %d %s %dms",
               self.kwargs.method,
               self.hostname,
-              self.path,
+              self.path or "",
               status_code,
               http_response_codes[status_code],
               self.finish_time - self.start_time))
@@ -596,7 +594,7 @@ function async.HTTPClient:_finalize_request()
             log.warning(string.format("[async.lua] %s %s%s => %d %s %dms",
               self.kwargs.method,
               self.hostname,
-              self.path,
+              self.path or "",
               status_code,
               http_response_codes[status_code],
               self.finish_time - self.start_time))
