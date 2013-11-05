@@ -262,6 +262,7 @@ function httpserver.HTTPConnection:_finish_request()
         self.stream:close()
         return
     end
+    self.arguments = nil  -- Reset table in case of keep-alive.
     if not self.stream:closed() then
         self.stream:read_until("\r\n\r\n", self._header_callback, self)
     else
@@ -348,7 +349,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     self.connection = connection 
     self._start_time = util.gettimeofday()
     self._finish_time = nil
-    self.path = self.headers.url
+    self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.arguments = self.headers:get_arguments()
 end
 
