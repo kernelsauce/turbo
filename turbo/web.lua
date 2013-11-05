@@ -714,7 +714,7 @@ end
 -- convinent and safe way to handle errors in handlers. E.g it is allowed to
 -- do this:
 -- function MyHandler:get()
---      local item = self.get_argument("item")
+--      local item = self:get_argument("item")
 --      if not find_in_store(item) then
 --          error(turbo.web.HTTPError(400, "Could not find item in store"))
 --      end
