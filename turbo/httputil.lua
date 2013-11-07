@@ -129,7 +129,7 @@ end
 -- @note Will throw error if URL does not parse correctly.
 function httputil.HTTPParser:parse_url(url)
     if type(url) ~= "string" then
-        error("URL parameter is not a string.")
+        error("URL parameter is not a string")
     end
     local htpurl = ffi.C.malloc(ffi.sizeof("struct http_parser_url"))
     if htpurl == nil then
@@ -143,7 +143,7 @@ function httputil.HTTPParser:parse_url(url)
         0, 
         self.http_parser_url)
     if rc ~= 0 then
-	   error("Could not parse URL.")
+	   error("Could not parse URL")
     end
     if not self.url then
         self.url = url
@@ -284,10 +284,14 @@ end
 function httputil.HTTPParser:get(key, caseinsensitive)
     local value
     local c = 0
-
+    local hdr_sz = tonumber(self.tpw.hkv_sz)
+    
+    if hdr_sz <= 0 then
+        return nil
+    end
     if caseinsensitive then
         -- Case insensitive key.
-        for i = 0, tonumber(self.tpw.hkv_sz-1) do
+        for i = 0, hdr_sz-1 do
             local field = self.tpw.hkv[i]
             local key_sz = key:len()
             if field.key_sz == key_sz then
@@ -311,7 +315,7 @@ function httputil.HTTPParser:get(key, caseinsensitive)
         end
     else
         -- Case sensitive key.
-        for i = 0, tonumber(self.tpw.hkv_sz-1) do
+        for i = 0, hdr_sz-1 do
             local field = self.tpw.hkv[i]
             local key_sz = key:len()
             if field.key_sz == key_sz then 
