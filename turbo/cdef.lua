@@ -16,6 +16,20 @@
 
 local ffi = require "ffi"
 
+ffi.cdef[[
+typedef int32_t pid_t;
+]]
+
+if ffi.abi("64bit") then
+ffi.cdef[[
+typedef long ssize_t;
+]]
+elseif ffi.abi("32bit") then
+ffi.cdef[[
+typedef int ssize_t;
+]]
+end
+
 ffi.cdef([[
 
 struct sockaddr {
@@ -216,6 +230,54 @@ typedef void (*sighandler_t) (int32_t);
 extern sighandler_t signal (int32_t signum, sighandler_t handler);
 ]])
 
+local SIGSET_NWORDS = (1024 / (8 * ffi.sizeof("unsigned long")))
+
+ffi.cdef(string.format([[
+
+typedef struct {
+    unsigned long int __val[%d];
+} __sigset_t;
+
+typedef __sigset_t sigset_t;
+
+int sigemptyset(sigset_t *set);
+
+int sigfillset(sigset_t *set);
+
+int sigaddset(sigset_t *set, int signum);
+
+int sigdelset(sigset_t *set, int signum);
+
+int sigismember(const sigset_t *set, int signum);
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+
+struct signalfd_siginfo
+{
+  uint32_t ssi_signo;
+  int32_t ssi_errno;
+  int32_t ssi_code;
+  uint32_t ssi_pid;
+  uint32_t ssi_uid;
+  int32_t ssi_fd;
+  uint32_t ssi_tid;
+  uint32_t ssi_band;
+  uint32_t ssi_overrun;
+  uint32_t ssi_trapno;
+  int32_t ssi_status;
+  int32_t ssi_int;
+  uint64_t ssi_ptr;
+  uint64_t ssi_utime;
+  uint64_t ssi_stime;
+  uint64_t ssi_addr;
+  uint8_t __pad[48];
+};
+
+int signalfd(int fd, const sigset_t *mask, int flags);
+
+]], SIGSET_NWORDS))
+
+
 ffi.cdef([[
          
 typedef long time_t ;
@@ -304,7 +366,53 @@ int getaddrinfo(const char *nodename, const char *servname,
 void freeaddrinfo(struct addrinfo *ai);
 const char *gai_strerror(int ecode);
 
+
+struct gaicb {
+    const char            *ar_name;    //Like getaddrinfo 'nodename'
+    const char            *ar_service; //Like getaddrinfo 'servname'
+    const struct addrinfo *ar_request; //Like getaddrinfo 'hints'
+    struct addrinfo       *ar_result;  //Like getaddrinfo 'res'
+};
+
+union sigval {          /* Data passed with notification */
+   int     sival_int;         /* Integer value */
+   void   *sival_ptr;         /* Pointer value */
+};
+
+typedef int pid_t; // Correct?
+
+struct sigevent {
+   union sigval sigev_value;  /* Data passed with
+                                 notification */
+   int          sigev_signo;  /* Notification signal */
+   int          sigev_notify; /* Notification method */
+
+   void       (*sigev_notify_function) (union sigval);
+                    /* Function used for thread
+                       notification (SIGEV_THREAD) */
+   void        *sigev_notify_attributes;
+                    /* Attributes for notification thread
+                       (SIGEV_THREAD) */
+   pid_t        sigev_notify_thread_id;
+                    /* ID of thread to signal (SIGEV_THREAD_ID) */
+};
+
+
+int getaddrinfo_a(int mode, struct gaicb *list[],
+                  int nitems, struct sigevent *sevp);
+
+int gai_suspend(struct gaicb *list[], int nitems,
+                struct timespec *timeout);
+
+int gai_error(struct gaicb *req);
+int gai_cancel(struct gaicb *req);
+
 ]]
+
+ffi.cdef[[
+ssize_t read(int fd, void *buf, size_t count);
+]]
+
 
 ffi.cdef[[
 
@@ -414,7 +522,6 @@ int memcmp(const void * ptr1, const void * ptr2, size_t num);
 void *memchr(void * ptr, int value, size_t num);
 int snprintf(char *s, size_t n, const char *format, ...);
 
-typedef int32_t pid_t;
 pid_t fork();
 pid_t wait(int32_t *status);
 pid_t getpid();
