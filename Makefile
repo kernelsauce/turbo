@@ -31,7 +31,10 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1	
 INC = -I$(HTTP_PARSERDIR)/
-LDFLAGS = -lcrypto -lssl
+# Don't link with crypto or ssl if using axTLS
+# TODO: need to make a formal way to specify to build with axTLS instead of
+#       commenting out like this
+#LDFLAGS = -lcrypto -lssl
 
 LUAJIT_VERSION?=2.0.2
 LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
@@ -39,6 +42,7 @@ LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
 	make -C deps/http-parser library
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
 	make -C deps/http-parser clean

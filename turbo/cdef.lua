@@ -140,7 +140,7 @@ typedef void SSL;
 SSL_CTX *ssl_ctx_new(uint32_t options, int num_sessions);
 void ssl_ctx_free(SSL_CTX *ssl_ctx);
 SSL *ssl_server_new(SSL_CTX *ssl_ctx, int client_fd);
-SSL *ssl_client_new(SSL_CTX *ssl_ctx, int client_fd, const uint8_t *session_id, uint8_t sess_id_size)
+SSL *ssl_client_new(SSL_CTX *ssl_ctx, int client_fd, const uint8_t *session_id, uint8_t sess_id_size);
 void ssl_free(SSL *ssl);
 int ssl_read(SSL *ssl, uint8_t **in_data);
 int ssl_write(SSL *ssl, const uint8_t *out_data, int out_len);
@@ -148,7 +148,7 @@ int ssl_handshake_status(const SSL *ssl);
 void ssl_display_error(int error_code);
 const char *ssl_get_cert_dn(const SSL *ssl, int component);
 const char *ssl_get_cert_subject_alt_dnsname(const SSL *ssl, int dnsindex);
-
+int ssl_obj_load(SSL_CTX *ssl_ctx, int obj_type, const char *filename, const char *password);
 ]]
 elseif _G.TURBO_SSL then
 -- Note: Typedef SSL structs to void as we never access their members and they are

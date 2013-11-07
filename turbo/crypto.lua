@@ -29,17 +29,33 @@ require "turbo.cdef"
 
 local lssl	-- will load openssl or axtls library as lssl
 
+
+
 if _G.TURBO_AXTLS then
+    _G.TURBO_SSL = true -- make both flags true when using AXTLS
+                        -- to prevent needing to check both flags
+			-- in other places
+    local util = require"turbo.util"
+
+    -- to be compatible with the way openssl works in non-blocking mode
+    -- must return this error when no bytes can be read
+    -- since it is checked in iostream to determine that the read would block
+    crypto.SSL_ERROR_WANT_READ =		2
+
     -- AXTLS crypto library
     lssl = ffi.load "axtls"
-    SSL_SERVER_VERIFY_LATER = 0x00020000 -- use for client mode, certificate verified later with ssl_verify_cert
-    SSL_CONNECT_IN_PARTS = 0x00800000	 -- for non-blocking operation
+    local SSL_SERVER_VERIFY_LATER = 0x00020000 -- use for client mode, certificate verified later with ssl_verify_cert
+    local SSL_CONNECT_IN_PARTS = 0x00800000	 -- for non-blocking operation
+    local SSL_DISPLAY_BYTES = 0x00100000
+    local SSL_DISPLAY_CERTS = 0x00200000
 
     local SSL_OBJ_X509_CERT = 1
     local SSL_OBJ_X509_CACERT = 2
+    local SSL_OBJ_RSA_KEY = 3
     local SSL_OK = 0
-    local SSL_NOT_OK = 1
-    local SSL_ERROR_DEAD = 2
+    local SSL_NOT_OK = -1
+    local SSL_ERROR_DEAD = -2
+    local SSL_CLOSE_NOTIFY = -3
 
     local SSL_X509_CERT_COMMON_NAME             = 0
     local SSL_X509_CERT_ORGANIZATION            = 1
@@ -48,17 +64,13 @@ if _G.TURBO_AXTLS then
     local SSL_X509_CA_CERT_ORGANIZATION         = 4
     local SSL_X509_CA_CERT_ORGANIZATIONAL_NAME  = 5
 
-    function crypto.ssl_create_context(cert_file, prv_file, verify, sslv)
+    function crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
 	local ctx
 	local err = 0
-	local ctx_options = SSL_CONNECT_IN_PARTS
-
-	if not verify then
-	    -- doesn't stop handshake if cert doesn't verify
-	    -- verification can still happen later by calling ssl_verify_cert
-	    -- without this option verification will happen automatically
-	    -- during the handshake
-	    ctx_options = ctx_options + SSL_SERVER_VERIFY_LATER
+	if not ctx_options then
+	    ctx_options = SSL_CONNECT_IN_PARTS
+	else
+	    bit.bor(ctx_options, SSL_CONNECT_IN_PARTS)
 	end
 
 	ctx = lssl.ssl_ctx_new(ctx_options, 5)
@@ -68,16 +80,16 @@ if _G.TURBO_AXTLS then
 	end
 	ffi.gc(ctx, lssl.ssl_ctx_free)
 
-	-- If client certifactes are set, load them and verify.
+	-- if certifactes are set, load them and verify.
 	if type(cert_file) == "string" and type(prv_file) == "string" then
 	    -- load certificate file
-	    err = ssl_obj_load(ctx, SSL_OBJ_X509_CERT, cert_file, 0)
+	    err = lssl.ssl_obj_load(ctx, SSL_OBJ_X509_CERT, cert_file, ffi.cast("const char*",0))
 	    if err ~= SSL_OK then
 		lssl.ssl_display_error(err)
 		return err, "can't load cert file: " .. cert_file
 	    end
 	    -- load private key file
-	    err = ssl_obj_load(ctx, crypto.SSL_OBJ_RSA_KEY, prv_file, 0)
+	    err = lssl.ssl_obj_load(ctx, SSL_OBJ_RSA_KEY, prv_file, ffi.cast("const char*",0))
 	    if err ~= SSL_OK then
 		lssl.ssl_display_error(err)
 		return err, "Can't load private key file: " .. prv_file
@@ -103,24 +115,35 @@ if _G.TURBO_AXTLS then
     -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
     function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, verify, sslv)
 	local err, ctx
+	local ctx_options = 0 -- SSL_DISPLAY_BYTES  -- display bytes for debugging
 
 	-- Use standardish path to ca-certificates if not specified by user.
 	-- May not be present on all Unix systems.
 	ca_cert_path = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt"
 
-	err, ctx = crypto.ssl_create_context(cert_file, prv_file, verify, sslv)
+	if not verify then
+	    -- doesn't stop handshake if cert doesn't verify
+	    -- verification can still happen later by calling ssl_verify_cert
+	    -- without this option verification will happen automatically
+	    -- during the handshake
+
+	    --
+	    bit.bor(ctx_options, SSL_SERVER_VERIFY_LATER)
+	end
+
+	err, ctx = crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
+
 	if err == SSL_OK then
 	    -- if verify is set
 	    if verify then
 		-- load all the CA certificates in ca_cert_path
-		err = ssl_obj_load(ctx, SSL_OBJ_X509_CACERT, ca_cert_path, 0);
+		err = lssl.ssl_obj_load(ctx, SSL_OBJ_X509_CACERT, ca_cert_path, ffi.cast("char*",0));
 		if err ~= SSL_OK then
 		    lssl.ssl_display_error(err)
 		    return err, "can't load CA cert file: " .. ca_cert_path
 		end
 	    end
 	end
-
 	return err, ctx
     end
 
@@ -176,9 +199,10 @@ if _G.TURBO_AXTLS then
 	dnsindex = 0
 	while true do
 	    dnsname = lssl.ssl_get_cert_subject_alt_dnsname(ssl_server, dnsindex)
-	    if dnsname == 0 then
+	    if dnsname == ffi.cast("const char*",0) then
 		break
 	    end
+
 	    dnsindex = dnsindex + 1
 	    dnsname = ffi.string(dnsname)
 
@@ -219,6 +243,7 @@ if _G.TURBO_AXTLS then
 	    -- check the handshake status to see that the handshake is complete
 	    err = lssl.ssl_handshake_status(ssl)
 	    if err == SSL_OK then
+		if client and SSLIOStream._ssl_verify then
 		-- verify that the hostname is valid by
 		--       checking that the host name SSLIOStream._ssl_hostname
 		--       matches the domain name or alt domain names in the
@@ -228,19 +253,21 @@ if _G.TURBO_AXTLS then
 		--         where component = SSL_X509_CERT_COMMON_NAME
 		--         const char* ssl_get_cert_subject_alt_dnsname(const SSL *ssl, int dnsindex)
 		--         where dnsindex starts at 0 and increases in a loop until the function returns null
+
 		if not crypto.validate_hostname(SSLIOStream._ssl_hostname, ssl) then
 		    error("SSL certficate hostname validation failed")
+		end
 		end
 		return true
 	    end
 	end
 
 	if err ~= SSL_NOT_OK then
-	    lssl.ssl_display_error(rc)
+	    lssl.ssl_display_error(err)
 	    if err == SSL_ERROR_DEAD then
 		error("SSL connection died during handshake")
 	    else
-		error("Could not do SSL handshake.")
+		error("Could not do SSL handshake. err = "..err)
 	    end
 	end
 
@@ -266,6 +293,7 @@ if _G.TURBO_AXTLS then
 	if ssl == nil or buf == nil then
 	    error("SSL_write passed null pointer.")
 	end
+
 	ret = lssl.ssl_write(ssl, buf, sz)
 	if ret <= 0 then
 	    crypto.last_err = ret
@@ -283,10 +311,17 @@ if _G.TURBO_AXTLS then
 	if ssl == nil or buf == nil then
 	    error("SSL_read passed null pointer.")
 	end
+
 	ppbuf = ffi.new("char*[1]")
 	len = lssl.ssl_read(ssl,ppbuf)
 	if len <= 0 then
-	    crypto.last_err = len
+	    if len == 0 then
+		    crypto.last_err = crypto.SSL_ERROR_WANT_READ
+	    elseif len == SSL_CLOSE_NOTIFY then
+		    return 0
+	    else
+	        crypto.last_err = len
+	    end
 	    return -1
 	end
 	if len > sz then
@@ -321,7 +356,13 @@ if _G.TURBO_AXTLS then
 	--       string rather than have it printed to stdout...
 	return ""
     end
-    crypto.SSL_get_error = crypto.ERR_error_string
+    function crypto.SSL_get_error(ssl,ret)
+	    local rc = crypto.ERR_get_error()
+	    if rc ~= crypto.SSL_ERROR_WANT_READ then
+	        crypto.ERR_error_string(rc)
+	    end
+	    return rc
+    end
 else
     lssl = ffi.load("ssl")
     local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")

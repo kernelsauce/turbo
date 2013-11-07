@@ -497,7 +497,11 @@ _EPoll_FFI = class('_EPoll_FFI')
 
 --- Internal class for epoll-based event loop using the epoll_ffi module.
 function _EPoll_FFI:initialize()
-    self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
+    local errno
+    self._epoll_fd, errno = epoll_ffi.epoll_create() -- New epoll, store its fd.
+    if self._epoll_fd == -1 then
+        error("epoll_create failed with errno = " .. errno)
+    end
 end
 
 function _EPoll_FFI:fileno()

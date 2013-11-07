@@ -28,9 +28,16 @@ SOFTWARE."			*/
 
 #include <stdint.h>
 #include <malloc.h>
+
+#define TURBO_AXTLS
+#ifdef TURBO_AXTLS
+ #define TURBO_NO_SSL
+#endif
+
 #ifndef TURBO_NO_SSL
 #include <openssl/ssl.h>
 #endif
+
 #include <stdbool.h>
 #include "http-parser/http_parser.h"
 

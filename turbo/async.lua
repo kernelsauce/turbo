@@ -263,7 +263,7 @@ function async.HTTPClient:_connect()
             -- one SSL context per instance! The user must create more class 
             -- instances if he wishes to do so.
             self.ssl_options._ssl_ctx = ctx_or_err
-            self.ssl_options._type = 1
+            self.ssl_options._type = 1  -- set type as client...
         end
         if self.port == -1 then
             -- Default to port 443 if not specified in URL.

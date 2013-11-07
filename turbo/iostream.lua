@@ -53,8 +53,9 @@ local EAGAIN =      socket.EAGAIN
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
 
 -- __Global value__ _G.TURBO_SOCKET_BUFFER_SZ allows the user to set 
--- his own socket buffer size to be used by the module. Defaults to 4096 bytes.
-_G.TURBO_SOCKET_BUFFER_SZ = _G.TURBO_SOCKET_BUFFER_SZ or 4096
+-- his own socket buffer size to be used by the module. Defaults to 
+-- (16384+1024) bytes, which is the default max used by axTLS.
+_G.TURBO_SOCKET_BUFFER_SZ = _G.TURBO_SOCKET_BUFFER_SZ or (16384+1024)
 local buf = ffi.new("char[?]", _G.TURBO_SOCKET_BUFFER_SZ)
 
 local iostream = {} -- iostream namespace
@@ -523,7 +524,7 @@ end
 -- @return Chunk of data.
 function iostream.IOStream:_read_from_socket()
     local errno
-    local sz = tonumber(socket.recv(self.socket, buf, 4096, 0))
+    local sz = tonumber(socket.recv(self.socket, buf, _G.TURBO_SOCKET_BUFFER_SZ, 0))
     if sz == -1 then
         errno = ffi.errno()
         if errno == EWOULDBLOCK or errno == EAGAIN then
@@ -943,7 +944,7 @@ function iostream.SSLIOStream:_do_ssl_handshake()
         self._ssl = ssl
     end
     -- do the SSL handshaking, returns true when connected, otherwise false
-    if crypto.ssl_do_handshake(ssl) then
+    if crypto.ssl_do_handshake(self) then
         -- Connection established. Set accepting flag to false and thereby  
         -- allow writes and reads over the socket.
         self._ssl_accepting = false
@@ -1003,7 +1004,8 @@ function iostream.SSLIOStream:_read_from_socket()
     end
     local errno
     local err
-    local sz = crypto.SSL_read(self._ssl, buf, 4096)
+
+    local sz = crypto.SSL_read(self._ssl, buf, _G.TURBO_SOCKET_BUFFER_SZ)
     if sz == -1 then
         err = crypto.SSL_get_error(self._ssl, sz)
         if err == crypto.SSL_ERROR_SYSCALL then

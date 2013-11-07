@@ -27,12 +27,16 @@ SOFTWARE."			*/
 #include <assert.h>
 #include <stdbool.h>
 #include <limits.h>
+
+#include "http_parser.h"
+#include "turbo_ffi_wrap.h"
+
+// not sure why our compiler doesn't seem to know about this prototype
+char *strndup(const char *s, size_t n);
+
 #ifndef TURBO_NO_SSL
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
-#endif
-#include "http_parser.h"
-#include "turbo_ffi_wrap.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -157,6 +161,7 @@ int validate_hostname(const char *hostname, const SSL *server){
     X509_free(server_cert);
     return result;
 }
+#endif
 
 bool url_field_is_set(
         const struct http_parser_url *url,
