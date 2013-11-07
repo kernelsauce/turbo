@@ -24,7 +24,6 @@
 local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
 local httpserver =      require "turbo.httpserver"
-local deque =           require "turbo.structs.deque"
 local buffer =          require "turbo.structs.buffer"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
@@ -67,10 +66,8 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     self._headers_written = false
     self._finished = false
     self._auto_finish = true
-    self._transforms = nil
     self._url_args = url_args
     self._set_cookie = {}
-    self.arguments = {}
     -- Set standard headers by calling the clear method.
     self:clear() 
     if self.request.headers:get("Connection") then
@@ -137,7 +134,6 @@ function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 -- @param strip (Boolean) Remove whitespace from head and tail of string.
 -- @return Value of argument if set.
 function web.RequestHandler:get_argument(name, default, strip)  
-    -- FIXME: Implement strip and slow-path case insensitive option.
     local args = self:get_arguments(name, strip)
     if type(args) == "string" then
         return args
@@ -156,12 +152,43 @@ end
 -- @param strip (Boolean) Remove whitespace from head and tail of string.
 -- @return (Table) Argument values.
 function web.RequestHandler:get_arguments(name, strip)
-    -- FIXME: Implement strip and slow-path case insensitive option.
-    local values = {}
-    if self.request.arguments[name] then
-        values = self.request.arguments[name]
-    elseif self.request.arguments[name] then
-        values = self.request.arguments[name]
+    local values
+    local n = 0
+    local url_args = self.request.arguments
+    local form_args = self.request.connection.arguments
+
+    -- Combine argument lists from HTTPConnection and HTTPRequest.
+    if not url_args and not form_args then
+        return
+    end
+    if url_args and url_args[name] then
+        values = url_args[name]
+        if type(values) == "table" then
+            n = #values
+        else
+            n = 1
+        end
+    end
+    if form_args and form_args[name] then
+        if n == 0 then
+            values = form_args[name]
+        elseif n > 0 then
+            if n == 1 then
+                values = {values}    
+            end
+            for i = 1, #form_args[name] do
+                values[#values+1] = form_args[name][i]
+            end
+        end
+    end
+    if strip then
+        if type(values) == "string" then
+            values = escape.trim(values)
+        elseif type(values) == "table" then
+            for i = 1, #values do 
+                values[i] = escape.trim(values[i])
+            end
+        end
     end
     return values
 end
@@ -179,8 +206,7 @@ function web.RequestHandler:clear()
             self:add_header("Connection", "Keep-Alive")
         end
     end
-    self._write_buffer = deque:new()
-    self._write_buffer_size = 0
+    self._write_buffer = buffer:new()
     self._status_code = 200
 end
 
@@ -318,18 +344,19 @@ end
 -- stringifed to JSON.
 -- @param chunk (String) Data chunk to write to underlying connection.
 function web.RequestHandler:write(chunk)
-    if not chunk or chunk:len() == 0 then
-        return
-    end
     if self._finished then
         error("write() method was called after finish().")
     end
-    if type(chunk) == "table" then
+    local t = type(chunk)
+    if t == "nil" then
+        return
+    elseif t == "string" and chunk:len() == 0 then
+        return
+    elseif t == "table" then
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     end
-    self._write_buffer_size = self._write_buffer_size + chunk:len()
-    self._write_buffer:append(chunk)
+    self._write_buffer:append_luastr_right(chunk)
 end
 
 --- Flushes the current output buffer to the IO stream.
@@ -341,12 +368,12 @@ end
 -- @param callback (Function) Callback function.
 function web.RequestHandler:flush(callback, arg)
     local headers
-    local chunk = self._write_buffer:concat()
-    self._write_buffer = deque:new()
     if not self._headers_written then
         self._headers_written = true
         headers = self:_gen_headers()
     end
+    local chunk = tostring(self._write_buffer)
+    self._write_buffer:clear()
     -- Lines below uses multiple calls to write to avoid creating new
     -- temporary strings. The write will essentially just be appended
     -- to the IOStream class, which will actually not perform any writes
@@ -371,7 +398,6 @@ function web.RequestHandler:flush(callback, arg)
             self.request:write(chunk)
             self.request:write("\r\n")
         end
-        self._write_buffer_size = 0       
     else
         -- Not chunked with Content-Length set.
         if headers then
@@ -388,7 +414,6 @@ function web.RequestHandler:flush(callback, arg)
         elseif chunk:len() ~= 0 then
             self.request:write(chunk, callback, arg)
         end
-        self._write_buffer_size = 0
     end
 end
 
@@ -401,7 +426,7 @@ function web.RequestHandler:_gen_headers()
     if not self:get_header("Content-Length") and not self.chunked then
         -- No length is set, add current write buffer size.
         self:add_header("Content-Length", 
-            self._write_buffer_size)
+            tonumber(self._write_buffer:len()))
     end
     self.headers:set_status_code(self._status_code)
     self.headers:set_version("HTTP/1.1")
@@ -462,16 +487,16 @@ function web.RequestHandler:_finish()
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request.headers.method,
-            self.request.headers.url,
+            self.request.headers:get_method(),
+            self.request.headers:get_url(),
             self.request.remote_ip,
             self.request:request_time()))
     else
         log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request.headers.method,
-            self.request.headers.url,
+            self.request.headers:get_method(),
+            self.request.headers:get_url(),
             self.request.remote_ip,
             self.request:request_time()))
     end
@@ -689,7 +714,7 @@ end
 -- convinent and safe way to handle errors in handlers. E.g it is allowed to
 -- do this:
 -- function MyHandler:get()
---      local item = self.get_argument("item")
+--      local item = self:get_argument("item")
 --      if not find_in_store(item) then
 --          error(turbo.web.HTTPError(400, "Could not find item in store"))
 --      end

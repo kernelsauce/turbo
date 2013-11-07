@@ -19,7 +19,7 @@ Its main features and design principles are:
 
 - Good documentation
 
-- No dependencies, except for the Lua interpreter.
+- No dependencies, except for LuaJIT the Just-In-Time compiler for Lua.
 
 - Event driven, asynchronous and threadless design
 
@@ -41,8 +41,16 @@ Turbo Web, but is also exposed to the user when inheriting from classes such as 
 ``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
 easy to learn if you are used to Python, Java or C++. 
 
-Turbo.lua is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details. Some modules 
-are dual licensed with both MIT and Apache 2.0 licenses.
+Turbo.lua is licensed under the Apache License, version 2.0. See LICENSE in the source code for more details.
+
+
+Tutorials
+---------
+
+.. toctree::
+    :maxdepth: 3
+
+    get_started
 
 
 API documentation
@@ -64,13 +72,3 @@ API documentation
    sockutil
    escape
    log
-
-
-Tutorials
----------
-
-.. toctree::
-    :maxdepth: 3
-
-    get_started
-

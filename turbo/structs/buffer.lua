@@ -49,13 +49,13 @@ end
 function Buffer:initialize(size_hint)
     size_hint = size_hint or 1024
     local ptr = ffi.C.malloc(ffi.sizeof("struct tbuffer"))
-    if ptr == 0 then
+    if ptr == nil then
 		error("No memory.")
     end
     self.tbuffer = ffi.cast("struct tbuffer *",  ptr)
     ffi.gc(self.tbuffer, _tbuffer_free)
     ptr = ffi.C.malloc(size_hint)
-    if ptr == 0 then
+    if ptr == nil then
 		error("No memory.")
     end
     self.tbuffer.mem = size_hint
@@ -76,7 +76,7 @@ function Buffer:append_right(data, len)
 		local new_sz = self.tbuffer.sz + len
 		local new_mem  = new_sz * 2
 		local ptr = ffi.C.realloc(self.tbuffer.data, new_mem)
-		if ptr == 0 then
+		if ptr == nil then
 		    error("No memory.")
 		end
 		self.tbuffer.data = ptr
@@ -113,7 +113,7 @@ function Buffer:append_left(data, len)
 		local new_sz = self.tbuffer.sz + len
 		local new_mem  = new_sz * 2
 		local ptr = ffi.C.realloc(self.tbuffer.data, new_mem)
-		if ptr == 0 then
+		if ptr == nil then
 		    error("No memory.")
 		end
 		self.tbuffer.data = ptr
@@ -173,7 +173,7 @@ function Buffer:shrink()
 		return self
 	end
 	local ptr = ffi.C.realloc(self.tbuffer.data, self.tbuffer.sz)
-	if ptr == 0 then
+	if ptr == nil then
 	    error("No memory.")
 	end
 	self.tbuffer.data = ptr

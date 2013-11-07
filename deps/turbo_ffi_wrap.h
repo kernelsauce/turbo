@@ -44,8 +44,12 @@ SOFTWARE."			*/
 // http-parser wrapper functions.
 
 struct turbo_key_value_field{
-    char *key;      ///< Header key.
-    char *value;     ///< Value corresponding to key.
+    /* Size of strings.  */
+    size_t key_sz;
+    size_t value_sz;
+    /* These are offsets for passed in char ptr. */
+    const char *key;       ///< Header key.
+    const char *value;     ///< Value corresponding to key.
 };
 
 /** Used internally  */
@@ -56,31 +60,33 @@ enum header_state{
 };
 
 struct turbo_parser_wrapper{
-    struct http_parser parser;
-    int http_parsed_with_rc;
-    struct http_parser_url url;
-    bool finished;                  ///< Set on headers completely parsed
-    char *url_str;
-    char *body;
-    const char *data;               ///< Used internally
+    int32_t url_rc;
+    size_t parsed_sz;
     bool headers_complete;
-    enum header_state header_state; ///< Used internally
-    int header_key_values_sz;
-    struct turbo_key_value_field **header_key_values;
+    enum header_state _state; ///< Used internally
+
+    const char *url_str; ///< Offset for passed in char ptr
+    size_t url_sz;
+    size_t hkv_sz;
+    size_t hkv_mem ;  ///< We allocate in chunks of 10 structs at a time.
+    struct turbo_key_value_field **hkv;
+    struct http_parser parser;
+    struct http_parser_url url;
 };
 
-size_t turbo_parser_wrapper_init(
-        struct turbo_parser_wrapper *dest,
-        const char* data, size_t len,
-        int type);
-/** Free memory and memset 0 if PARANOID is defined.   */
+struct turbo_parser_wrapper *turbo_parser_wrapper_init(
+        const char* data,
+        size_t len,
+        int32_t type);
+
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
 
-int http_parser_parse_url(
+int32_t http_parser_parse_url(
         const char *buf,
         size_t buflen,
-        int is_connect,
+        int32_t is_connect,
         struct http_parser_url *u);
+
 /** Check if a given field is set in http_parser_url  */
 bool url_field_is_set(
         const struct http_parser_url *url,
@@ -100,5 +106,5 @@ char *url_field(
 #define Error 4
 
 /** Validate a X509 cert against provided hostname. */
-int validate_hostname(const char *hostname, const SSL *server);
+int32_t validate_hostname(const char *hostname, const SSL *server);
 #endif

@@ -16,8 +16,8 @@
 
 local turbo = require "turbo"
 
-describe("mustache template engine", function() 
-	it("should support basic usage", function()
+describe("turbo.web.Mustache Namespace", function() 
+	it("Basic usage", function()
 
 	local simple_template = [[
 <body>
@@ -54,7 +54,7 @@ describe("mustache template engine", function()
 	{{{ >disclaimer   }}} 		{{!! I like partials alot too. }}
 
 </body>]]
-		-- We basically look rely on the fact that compile will throw error
+		-- We basically rely on the fact that compile will throw error
 		-- if the compiling is erroring on valid input.
 		local tmpl = turbo.web.Mustache.compile(simple_template)
 		local compiled_tmpl = turbo.web.Mustache.render(tmpl, {

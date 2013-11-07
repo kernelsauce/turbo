@@ -30,10 +30,39 @@ local escape =              require "turbo.escape"
 local crypto =              require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
-local fassert = util.fast_assert
+local unpack = util.funpack
 local AF_INET = socket.AF_INET
 
 local async = {} -- async namespace
+
+--- Task wrapper for functions that always takes callback and callback 
+-- argument as last arguments. 
+--
+-- Usage:
+-- Consider one of the functions of the IOStream class which uses a 
+-- callback based API: IOStream:read_until(delimiter, callback, arg)
+--
+-- local res = coroutine.yield(turbo.async.task(
+--      stream.read_until, self, "\r\n"))
+--
+-- No callbacks required, the arguments that would normally be used to
+-- call the callback is put in the left-side result.
+function async.task(func, ...)
+    local io = ioloop.instance()
+    local coctx = coctx.CoroutineContext:new(io)
+    coctx:set_state(coctx.WORKING)
+    local args = {...}
+    args[#args+1] = async._wrap_task
+    args[#args+1] = coctx
+    func(unpack(args))
+    return coctx
+end
+
+function async._wrap_task(coctx, ...)
+    coctx:set_state(coctx.DEAD)
+    coctx:set_arguments({...})
+    coctx:finalize_context()
+end
 
 --- HTTPClient class
 -- Based on the IOStream/SSLIOStream and IOLoop classes.
@@ -165,9 +194,7 @@ function async.HTTPClient:fetch(url, kwargs)
             "Standard does not support this request method without a body.")
         return self.coctx
     end
-    if self:_set_url(url) == -1 then
-        return self.coctx
-    end
+    self:_set_url(url)
     local sock, msg = socket.new_nonblock_socket(self.family, 
         socket.SOCK_STREAM, 
         0)
@@ -179,10 +206,8 @@ function async.HTTPClient:fetch(url, kwargs)
     self.sock = sock
     -- Reset states from previous fetch.
     self.redirect = 0
-    self.response_headers = nil
     self.s_connecting = false 
-    self.s_error = false 
-    self.payload = nil
+    self.s_error = false
     self.error_str = ""
     self.error_code = 0
     self:_connect() -- No point to check return, as this is the last thing to happen.
@@ -192,21 +217,31 @@ function async.HTTPClient:fetch(url, kwargs)
     return self.coctx
 end
 
+local function _parse_url_error_handler(err)
+    log.error(string.format("Could not parse URL. %s", err))
+end
+
 function async.HTTPClient:_set_url(url)
     if type(url) ~= "string" then
         self._throw_error(errors.INVALID_URL, "URL must be string.")
         return -1
     end
-    self.headers = httputil.HTTPHeaders:new()
-    if self.headers:parse_url(url) ~= 0 then
+    self.headers = httputil.HTTPHeaders()
+    local parser = httputil.HTTPParser()
+    local status, headers = xpcall(
+        parser.parse_url, 
+        _parse_url_error_handler, 
+        parser, 
+        url)
+    if status == false then
         self:_throw_error(errors.INVALID_URL, "Invalid URL provided.")
         return -1
     end
-    self.hostname = self.headers:get_url_field(httputil.UF.HOST)
-    self.port = tonumber(self.headers:get_url_field(httputil.UF.PORT))
-    self.path = self.headers:get_url_field(httputil.UF.PATH)
-    self.query = self.headers:get_url_field(httputil.UF.QUERY)
-    self.schema = self.headers:get_url_field(httputil.UF.SCHEMA)
+    self.hostname = parser:get_url_field(httputil.UF.HOST)
+    self.port = tonumber(parser:get_url_field(httputil.UF.PORT))
+    self.path = parser:get_url_field(httputil.UF.PATH)
+    self.query = parser:get_url_field(httputil.UF.QUERY)
+    self.schema = parser:get_url_field(httputil.UF.SCHEMA)
     self.req = self:_prepare_http_request()
     if self.req == -1 then
         return -1
@@ -218,7 +253,7 @@ end
 function async.HTTPClient:_connect()
     if self.schema == "http" then
         -- Standard HTTP connect.
-        if self.port == -1 then
+        if not self.port then
             -- Default to port 80 if not specified in URL.
             self.port = 80
         end
@@ -265,7 +300,7 @@ function async.HTTPClient:_connect()
             self.ssl_options._ssl_ctx = ctx_or_err
             self.ssl_options._type = 1  -- set type as client...
         end
-        if self.port == -1 then
+        if not self.port then
             -- Default to port 443 if not specified in URL.
             self.port = 443
         end
@@ -329,10 +364,10 @@ function async.HTTPClient:_prepare_http_request()
         -- headers class instance on their own.
         self.kwargs.on_headers(self.headers)
     end
-    if self.path == -1 then
-        self.path = ""
+    if not self.path then
+        self.path = "/"
     end
-    if self.query ~= -1 then
+    if self.query then
         self.headers:set_uri(string.format("%s?%s", self.path, self.query))
     else
         self.headers:set_uri(self.path)
@@ -366,7 +401,7 @@ function async.HTTPClient:_prepare_http_request()
             end
             write_buf = write_buf .. post_data
             self.headers:add("Content-Length", write_buf:len())
-        elseif self.kwargs.method == "GET" and self.query == -1 then
+        elseif self.kwargs.method == "GET" and not self.query then
             local get_url_params = deque:new()
             local n = 0
             get_url_params:append("?")
@@ -431,20 +466,25 @@ function async.HTTPClient:_handle_1xx_code(code)
         self)
 end
 
+local function _on_headers_error_handler(err)
+    log.error(string.format("[async.lua] Invalid response HTTP header. %s", 
+        err))
+end
+
 function async.HTTPClient:_handle_headers(data)
     if not data then
         self:_throw_error(errors.NO_HEADERS, 
             "No data recieved after connect. Expected HTTP headers.")
         return
     end 
-    self.response_headers = httputil.HTTPHeaders:new()
-    local rc, httperrno, errnoname, errnodesc = 
-        self.response_headers:parse_response_header(data)
-    if rc == -1 then
+    local status, headers = xpcall(httputil.HTTPParser, 
+        _on_headers_error_handler, data, httputil.hdr_t["HTTP_RESPONSE"])
+    if status == false then
         self:_throw_error(errors.PARSE_ERROR_HEADERS, 
-            "Could not parse HTTP headers: " .. errnodesc)
+            "Could not parse HTTP response header: " .. errnodesc)
         return
     end
+    self.response_headers = headers
     local code = self.response_headers:get_status_code()
     if 100 <= code and code < 200 then
         self:_handle_1xx_code(code)
@@ -499,7 +539,7 @@ function async.HTTPClient:_handle_redirect(location)
     self.redirect = self.redirect + 1
     log.warning("[async.lua] Redirect to => " .. location)
     if self.redirect_max < self.redirect then
-        self:_throw_error(REDIRECT_MAX, "Redirect maximum reached")
+        self:_throw_error(errors.REDIRECT_MAX, "Redirect maximum reached")
         return
     end
     local old_schema = self.schema
@@ -546,7 +586,7 @@ function async.HTTPClient:_finalize_request()
             log.success(string.format("[async.lua] %s %s%s => %d %s %dms",
               self.kwargs.method,
               self.hostname,
-              self.path,
+              self.path or "",
               status_code,
               http_response_codes[status_code],
               self.finish_time - self.start_time))
@@ -554,14 +594,15 @@ function async.HTTPClient:_finalize_request()
             log.warning(string.format("[async.lua] %s %s%s => %d %s %dms",
               self.kwargs.method,
               self.hostname,
-              self.path,
+              self.path or "",
               status_code,
               http_response_codes[status_code],
               self.finish_time - self.start_time))
         end
         -- Handle redirect.
         local res_code = self.response_headers:get_status_code()
-        if (res_code == 301 or res_code == 302) and self.redirect < self.redirect_max then
+        if (res_code == 301 or res_code == 302) and self.kwargs.allow_redirects and
+                self.redirect < self.redirect_max then
             local redirect_loc = self.response_headers:get("Location", true)
             if redirect_loc then
                 self:_handle_redirect(redirect_loc)

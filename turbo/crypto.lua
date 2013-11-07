@@ -156,6 +156,7 @@ if _G.TURBO_AXTLS then
     -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
     function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
 	local ctx
+	local ctx_options = 0 -- SSL_DISPLAY_BYTES + SSL_DISPLAY_CERTS -- display bytes and certs for debugging
 	local err = 0
 
 	if not cert_file then
@@ -163,7 +164,7 @@ if _G.TURBO_AXTLS then
 	elseif not prv_file then
 	    return -1, "No priv file given in arguments";
 	end
-	ctx = crypto.ssl_create_context(cert_file, prv_file, false, sslv)
+	err, ctx = crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
 
 	return err, ctx;
     end
@@ -175,9 +176,9 @@ if _G.TURBO_AXTLS then
 	if client then
 	    -- last two params are const uint8_t *session_id, uint8_t sess_id_size
 	    -- may want to support sessions for faster repeated client requests
-	    ssl = ssl_client_new(ctx, fdsock, 0, 0)
+	    ssl = lssl.ssl_client_new(ctx, fd_sock, ffi.cast("char *",0), 0)
 	else
-	    ssl = ssl_server_new(ctx, fdsock)
+	    ssl = lssl.ssl_server_new(ctx, fd_sock)
 	end
 	if ssl == nil then
 	    error(string.format(
@@ -213,6 +214,7 @@ if _G.TURBO_AXTLS then
 		    -- get the wildcard hostname by stripping off the leading component
 		    wildhostname = string.match(hostname,"[.](.*)$")
 		end
+
 		if ( util.strcasecmp(wildhostname,
 				    string.sub(dnsname,3)) == 0 ) then
 		    return true
@@ -225,7 +227,8 @@ if _G.TURBO_AXTLS then
 	end
 
 	-- check if the host name matches the common name
-	dnsname = lssl.sl_get_cert_dn(ssl_server, SSL_X509_CERT_COMMON_NAME)
+	dnsname = lssl.ssl_get_cert_dn(ssl_server, SSL_X509_CERT_COMMON_NAME)
+	dnsname = ffi.string(dnsname)
 	if util.strcasecmp(hostname,dnsname) == 0 then
 	    return true
 	end

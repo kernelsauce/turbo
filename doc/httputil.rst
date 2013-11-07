@@ -6,18 +6,121 @@ turbo.httputil -- Utilities for the HTTP protocol
 
 The httputil namespace contains the HTTPHeader class and POST data parsers, which is a integral part of the HTTPServer class.
 
-HTTPHeaders class
+
+HTTPParser class
 ~~~~~~~~~~~~~~~~~
-Used to compile and parse HTTP headers. Parsing is done through the Joyent Node HTTP parser via FFI. It is based on the nginx parser. It is
+Used to parse HTTP headers. Parsing is done through Ryan Dahls HTTP Parser via the FFI. It is
 very fast and contains various protection against attacks. The .so is compiled when Turbo is installed with ``make install``.
 Note that this class has sanity checking for input parameters. If they are of wrong type or contains bad data they will raise a error.
 
-.. function :: HTTPHeaders(header_string)
+.. function :: HTTPParser(hdr_str, hdr_t)
+
+    Create a new HTTPParser class instance.
+    
+    hdr_t available:
+
+    * ``turbo.httputil.hdr_t.HTTP_RESPONSE``,
+    * ``turbo.httputil.hdr_t.HTTP_REQUEST``, 
+    * ``turbo.httputil.hdr_t.HTTP_BOTH``
+
+    :param hdr_str: (optional) Raw header, including ending double CLRF, if you want the class to parse headers on construction.
+    :type hdr_str: String
+    :param hdr_t: (optional) If hdr_str is defined this should also be defined. It is used to specify what kind of header you want to parse.
+    :type hdr_t: Number
+    :rtype: HTTPParser object
+
+.. function :: HTTPParser:get_url()
+
+    Get URL.
+    
+    :rtype: String or nil
+
+.. function :: HTTPParser:get_url_field(UF_prop)
+    
+    Get specified URL segment. If segment does not exist, nil is returned. Will throw error if no URL has been parsed. 
+    UF_prop available: 
+
+    * ``turbo.httputil.UF.SCHEMA``,
+    * ``turbo.httputil.UF.HOST``, 
+    * ``turbo.httputil.UF.PORT``, 
+    * ``turbo.httputil.UF.PATH``, 
+    * ``turbo.httputil.UF.PATH``,
+    * ``turbo.httputil.QUERY``, 
+    * ``turbo.httputil.UF.FRAGMENT``,
+    * ``turbo.httputil.UF.USERINFO``
+    
+    :param UF_prop: Segment to return, values defined in ``turbo.httputil.UF``.
+    :type UF_prop: Number
+    :rtype: String or nil
+
+.. function :: HTTPParser:parse_url(url)
+
+    Parse standalone URL and populate class instance with values.  ``HTTPParser.get_url_field`` must be used to read out value.
+
+    :param url: URL string.
+    :type url: String
+
+.. function :: HTTPParser:get_method()
+
+    Get current URL request method.
+    
+    :rtype: String or nil
+
+.. function :: HTTPParser:get_status_code()
+
+    Get the current HTTP status code.
+    
+    :rtype: Number or nil
+
+.. function :: HTTPHeaders:get(key, caseinsensitive)
+
+    Get given key from header key value section.
+    
+    :param key: Value to get, e.g "Content-Encoding".
+    :type key: String
+    :param caseinsensitive: If true then the key will be matched without regard for case sensitivity.
+    :type caseinsensitive: Boolean
+    :rtype: The value of the key in String form, or nil if not existing. May return a table if multiple keys are set.
+
+.. function :: HTTPParser:get_argument(name)
+
+    Get a argument from the query section of parsed URL. (e.g ?param1=myvalue)
+    Note that this method only gets one argument. If there are multiple arguments with same name
+    use ``HTTPParser.get_arguments()``
+    
+    :param name: The name of the argument.
+    :type name: String
+    :rtype: String or nil
+    
+.. function :: HTTPParser:get_arguments()
+
+    Get all URL query arguments of parsed URL. Support multiple values with same name.
+    
+    :rtype: Table
+
+.. function :: HTTPParser:parse_response_header(raw_headers)
+
+    Parse HTTP response headers. Populates the class with all data in headers. Will throw error on parsing failure.
+
+    :param raw_headers: Raw HTTP response header in string form.
+    :type raw_headers: String
+
+.. function :: HTTPParser:parse_request_header(raw_headers)
+
+    Parse HTTP request headers. Populates the class with all data in headers. Will throw error on parsing failure.
+
+    :param raw_headers: Raw HTTP request header in string form.
+    :type raw_headers: String
+
+HTTPHeaders class
+~~~~~~~~~~~~~~~~~
+Used to compile HTTP headers.
+Note that this class has sanity checking for input parameters. If they are of wrong type or contains bad data they will raise a error.
+
+.. function :: HTTPHeaders()
 
     Create a new HTTPHeaders class instance.
-    
-    :param header_string: (optional) Raw header, up until double CLRF, if you want the class to parse headers on construction
-    :type header_string: String
+
     :rtype: HTTPHeaders object
 
 Manipulation
@@ -35,19 +138,6 @@ Manipulation
     Get current URI.
     
     :rtype: String or nil
-    
-.. function :: HTTPHeaders:set_content_length(len)
-
-    Set Content-Length key.
-    
-    :param len: Length to set.
-    :type len: Number
-    
-.. function :: HTTPHeaders:get_content_length()
-
-    Get Content-Length key.
-    
-    :rtype: Number or nil
     
 .. function :: HTTPHeaders:set_method(method)
     
@@ -87,23 +177,7 @@ Manipulation
     Get the current HTTP status code.
     
     :rtype: Number or nil
-    
-.. function :: HTTPHeaders:get_argument(name)
 
-    Get a argument from the query section of parsed URL. (e.g ?param1=myvalue)
-    Note that this method only gets one argument. If there are multiple arguments with same name
-    use ``HTTPHeaders:get_arguments()``
-    
-    :param name: The name of the argument.
-    :type name: String
-    :rtype: String or nil
-    
-.. function :: HTTPHeaders:get_arguments()
-
-    Get all URL query arguments in a table. Support multiple values with same name.
-    
-    :rtype: Table
-    
 .. function :: HTTPHeaders:get(key, caseinsensitive)
 
     Get given key from header key value section.
@@ -142,50 +216,6 @@ Manipulation
     :type key: String
     :param caseinsensitive: If true then the existing keys will be matched without regard for case sensitivity and overwritten.
     :type caseinsensitive: Boolean
-    
-Parsing
--------
-
-.. function :: HTTPHeaders:parse_response_header(raw_headers)
-
-    Parse HTTP response headers. Populates the class with all data in headers.
-
-    :param raw_headers: Raw HTTP response header in string form.
-    :type raw_headers: String
-    :rtype: Number. -1 on error, else amount of bytes parsed.
-
-.. function :: HTTPHeaders:parse_request_header(raw_headers)
-
-    Parse HTTP request headers. Populates the class with all data in headers.
-
-    :param raw_headers: Raw HTTP request header in string form.
-    :type raw_headers: String
-    :rtype: Number. -1 on error, else amount of bytes parsed.
-
-.. function:: HTTPHeaders:parse_url(url)
-
-    Parse standalone URL and populate class instance with values.  HTTPHeaders:get_url_field must be used to read out value.
-
-    :param url: URL string.
-    :type url: String.
-    :rtype: Number -1 on error, else 0.
-
-.. function :: HTTPHeaders:get_url_field(UF_prop)
-    
-    Get specified URL segment. If segment does not exist, -1 is returned. Parameter is either: 
-
-    * ``turbo.httputil.UF.SCHEMA``,
-    * ``turbo.httputil.UF.HOST``, 
-    * ``turbo.httputil.UF.PORT``, 
-    * ``turbo.httputil.UF.PATH``, 
-    * ``turbo.httputil.UF.PATH``,
-    * ``turbo.httputil.QUERY``, 
-    * ``turbo.httputil.UF.FRAGMENT``,
-    * ``turbo.httputil.UF.USERINFO``
-    
-    :param UF_prop: Segment to return, values defined in ``turbo.httputil.UF``.
-    :type UF_prop: Number
-    :rtype: String or Number on error (-1)
 
 Stringifiers
 ------------
@@ -209,6 +239,9 @@ Stringifiers
     
     :rtype: String. HTTP header string excluding final delimiter.
 
+Functions
+~~~~~~~~~
+
 .. function:: parse_multipart_data(data)  
 
     Parse multipart form data.
@@ -216,3 +249,11 @@ Stringifiers
     :param data: Multi-part form data in string form.
     :type data: String
     :rtype: Table of keys with corresponding values. Each key may hold multiple values if there were found multiple values for one key.
+
+.. function:: parse_post_arguments(data)
+
+    Parse ? and & separated key value fields.
+
+    :param data: Form data in string form.
+    :type data: String
+    :rtype: Table of keys with corresponding values. Each key may hold multiple values if there were found multiple values for one key.    

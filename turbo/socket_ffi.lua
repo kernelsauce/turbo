@@ -224,7 +224,7 @@ local function resolv_hostname(str)
     end
     local inaddr = ffi.cast("struct in_addr **", hostent.h_addr_list) 
     local i = 0
-    while (inaddr[i] ~= nil) do
+    while inaddr[i] ~= nil do
 	   in_addr_arr[#in_addr_arr + 1] = inaddr[i][0]
 	   i = i + 1
     end
@@ -252,8 +252,8 @@ local function set_nonblock_flag(fd)
     return 0
 end
 
+local setopt = ffi.new("int32_t[1]")
 local function set_reuseaddr_opt(fd)
-    local setopt = ffi.new("int32_t[1]")
     setopt[0] = 1
     local rc = ffi.C.setsockopt(fd,
         SOL.SOL_SOCKET,
@@ -280,9 +280,9 @@ local function new_nonblock_socket(family, stype, protocol)
     return fd
 end
 
+local value = ffi.new("int32_t[1]")
+local socklen = ffi.new("socklen_t[1]", ffi.sizeof("int32_t"))
 local function get_socket_error(fd)
-    local value = ffi.new("int32_t[1]")
-    local socklen = ffi.new("socklen_t[1]", ffi.sizeof("int32_t"))
     local rc = ffi.C.getsockopt(fd,
         SOL.SOL_SOCKET,
         SO.SO_ERROR,

@@ -21,7 +21,7 @@ It's main features and design principles are:
 
 - Good documentation
 
-- No dependencies, except for the LuaJIT interpreter.
+- No dependencies, except for LuaJIT the Just-In-Time compiler for Lua.
 
 - Event driven, asynchronous and threadless design
 

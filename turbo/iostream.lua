@@ -129,7 +129,7 @@ function iostream.IOStream:connect(address, port, family,
     rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
     if rc ~= 0 then
         return -1, string.format("Could not resolve hostname '%s': %s",
-            address, ffi.C.gai_strerror(rc))
+            address, ffi.string(ffi.C.gai_strerror(rc)))
     end
 
     ffi.gc(servinfo, function (ai) ffi.C.freeaddrinfo(ai[0]) end)
@@ -210,8 +210,8 @@ end
 --- Reads all data from the socket until it is closed.
 -- If a streaming_callback argument is given, it will be called with chunks of
 -- data as they become available, and the argument to the final call to 
--- callback will be empty. This method respects the max_buffer_size set in the
--- IOStream instance.
+-- callback will contain the final chunk. This method respects the 
+-- max_buffer_size set in the IOStream instance.
 -- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
@@ -607,10 +607,10 @@ function iostream.IOStream:_read_from_buffer()
         if self._read_buffer_size ~= 0 then
             local ptr, sz = self:_get_buffer_ptr()
             local delimiter_sz = self._read_delimiter:len()
-            ptr = ptr + self._read_scan_offset
+            local scan_ptr = ptr + self._read_scan_offset
             sz = sz - self._read_scan_offset
             local loc = util.str_find(
-                ptr,
+                scan_ptr,
                 ffi.cast("char *", self._read_delimiter),
                 sz,
                 delimiter_sz)
@@ -643,9 +643,9 @@ function iostream.IOStream:_read_from_buffer()
             -- Made even worse by a new allocation in self:_consume of a
             -- different size.
             local ptr, sz = self:_get_buffer_ptr()
-            local chunk = ffi.string(
-                ptr + self._read_scan_offset, 
-                sz - self._read_scan_offset)
+            ptr = ptr + self._read_scan_offset
+            sz = sz - self._read_scan_offset 
+            local chunk = ffi.string(ptr, sz)
             local s_start, s_end = chunk:find(self._read_pattern, 1, false)
             if s_start then
                 local callback = self._read_callback
@@ -655,8 +655,9 @@ function iostream.IOStream:_read_from_buffer()
                 self._streaming_callback = nil
                 self._streaming_callback_arg = nil
                 self._read_pattern = nil
+                self:_run_callback(callback, arg, self:_consume(
+                    s_end + self._read_scan_offset))
                 self._read_scan_offset = s_end
-                self:_run_callback(callback, arg, self:_consume(s_end))
                 return true
             end
             self._read_scan_offset = sz
@@ -717,9 +718,6 @@ function iostream.IOStream:_handle_write_const()
     local errno, fd
     -- The reference is removed once the write is complete.
     local buf, sz = self._const_write_buffer:get()
-    -- Pointer will not change while inside this loop, so we do not
-    -- have to reget the pointer for every iteration, just recalculate
-    -- address and size with new offset.
     local ptr = buf + self._write_buffer_offset
     local _sz = sz - self._write_buffer_offset
     local num_bytes = socket.send(

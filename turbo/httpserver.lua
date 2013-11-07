@@ -103,7 +103,6 @@ function httpserver.HTTPConnection:initialize(stream, address,
     self.no_keep_alive = no_keep_alive or false
     self.xheaders = xheaders or false
     self._request_finished = false
-    self.arguments = {}
     self._header_callback = self._on_headers
     self.stream:read_until("\r\n\r\n", self._header_callback, self)
 end
@@ -189,8 +188,8 @@ end
 -- request headers.
 function httpserver.HTTPConnection:_on_headers(data)
     local headers
-    local status, headers = xpcall(httputil.HTTPHeaders, 
-        _on_headers_error_handler, data)
+    local status, headers = xpcall(httputil.HTTPParser, 
+        _on_headers_error_handler, data, httputil.hdr_t["HTTP_REQUEST"])
 
     if (status == false) then
         -- Invalid headers. Close stream.
@@ -198,11 +197,13 @@ function httpserver.HTTPConnection:_on_headers(data)
         self.stream:close()
         return
     end
-    self._request = httpserver.HTTPRequest:new(headers.method, headers.uri, {
-        version = headers.version,
-        connection = self,
-        headers = headers,
-        remote_ip = self.address})
+    self._request = httpserver.HTTPRequest:new(headers:get_method(), 
+        headers:get_url(), {
+            version = headers.version,
+            connection = self,
+            headers = headers,
+            remote_ip = self.address
+            })
     local content_length = headers:get("Content-Length")
     if content_length then
         content_length = tonumber(content_length)
@@ -223,14 +224,13 @@ end
 function httpserver.HTTPConnection:_on_request_body(data)
     self._request.body = data
     local content_type = self._request.headers:get("Content-Type")
-
     if content_type then
         if content_type:find("x-www-form-urlencoded", 1, true) then
-            local arguments = httputil.parse_post_arguments(self._request.body)
-            self._request.arguments = arguments
+            self.arguments = 
+                httputil.parse_post_arguments(self._request.body) or {}
         elseif content_type:find("multipart/form-data", 1, true) then
-            self.arguments = httputil.parse_multipart_data(self._request.body) 
-                or {}
+            self.arguments = 
+                httputil.parse_multipart_data(self._request.body) or {}
         end
     end
     self.request_callback(self._request)
@@ -262,6 +262,7 @@ function httpserver.HTTPConnection:_finish_request()
         self.stream:close()
         return
     end
+    self.arguments = nil  -- Reset table in case of keep-alive.
     if not self.stream:closed() then
         self.stream:read_until("\r\n\r\n", self._header_callback, self)
     else
@@ -348,7 +349,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     self.connection = connection 
     self._start_time = util.gettimeofday()
     self._finish_time = nil
-    self.path = self.headers.url
+    self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.arguments = self.headers:get_arguments()
 end
 

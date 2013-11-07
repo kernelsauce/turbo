@@ -274,9 +274,10 @@ function ioloop.IOLoop:start()
         end
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
+            local current_time = util.gettimeofday()
             for i = 1, timeout_sz do
                 if self._timeouts[i] ~= nil then
-                    local time_until_timeout = self._timeouts[i]:timed_out()
+                    local time_until_timeout = self._timeouts[i]:timed_out(current_time)
                     if time_until_timeout == 0 then
                         self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
@@ -317,9 +318,9 @@ function ioloop.IOLoop:start()
                 end
             end
         end
-        if self._stopped then 
-            self.running = false
-            self.stopped = false
+        if self._stopped == true then 
+            self._running = false
+            self._stopped = false
             break
         end
         if #self._callbacks > 0 then
@@ -349,6 +350,28 @@ function ioloop.IOLoop:close()
     self._stopped = true
     self._callbacks = {}
     self._handlers = {}
+    self._co_cbs = {}
+    self._co_ctxs = {}
+    self._timeouts = {}
+    self._intervals = {}
+end
+
+--- Run IOLoop for specified amount of time. Used in Turbo.lua tests.
+-- @param timeout In seconds.
+function ioloop.IOLoop:wait(timeout)
+    assert(self:running() == false, "Can not wait, already started")
+    local timedout
+    if timeout then
+        local io = self
+        self:add_timeout(util.gettimeofday() + (timeout*1000), function() 
+            timedout = true
+            io:close()
+        end)
+    end
+    self:start()
+    assert(self:running() == false, "IO Loop stopped unexpectedly")
+    assert(not timedout, "Sync wait operation timed out.")
+    return true
 end
 
 --- Error handler for IOLoop:_run_handler.
@@ -412,7 +435,7 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
         err, yielded = coroutine.resume(co, arg())
     elseif arg_t == "table" then
         -- Callback table.
-        err, yielded = coroutine.resume(co, arg[1], arg[2])
+        err, yielded = coroutine.resume(co, unpack(arg))
     else
         -- Plain resume.
         err, yielded = coroutine.resume(co, arg)
@@ -479,12 +502,11 @@ function _Timeout:initialize(timestamp, callback, arg)
     self._arg = arg
 end
 
-function _Timeout:timed_out()
-    local current_time = util.gettimeofday()
-    if self._timestamp - current_time <= 0 then
+function _Timeout:timed_out(time)
+    if self._timestamp - time <= 0 then
         return 0
     else 
-        return self._timestamp - current_time
+        return self._timestamp - time
     end
 end
 

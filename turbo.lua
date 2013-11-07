@@ -23,7 +23,7 @@
 --
 -- * Good documentation
 --
--- * No dependencies, except for the Lua interpreter.
+-- * No dependencies, except for LuaJIT the Just-In-Time compiler for Lua.
 --
 -- * Event driven, asynchronous and threadless design
 --
