@@ -349,12 +349,15 @@ function web.RequestHandler:write(chunk)
     end
     local t = type(chunk)
     if t == "nil" then
+        -- Accept writing empty blocks.
         return
     elseif t == "string" and chunk:len() == 0 then
         return
     elseif t == "table" then
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
+    elseif t ~= "string" and t ~= "table" then
+        error("Unsupported type written as response; "..t)
     end
     self._write_buffer:append_luastr_right(chunk)
 end
