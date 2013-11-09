@@ -139,6 +139,92 @@ describe("turbo.web Namespace", function()
 			io:wait(5)
 		end)
 
+		it("Accept POST multipart", function() 
+			local port = math.random(10000,40000)
+			local io = turbo.ioloop.instance()
+			local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+			function ExampleHandler:post()
+				assert.equal(self:get_argument("item1"), "Hello")
+				assert.equal(self:get_argument("item2"), "World")
+				assert.equal(self:get_argument("item3"), "!")
+				assert.equal(self:get_argument("item4"), "StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½")
+				self:write("Hello World!")
+			end
+			turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
+
+			io:add_callback(function() 
+				local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+					"http://127.0.0.1:"..tostring(port).."/",
+					{
+						method="POST",
+						params={
+							item1="Hello",
+							item2="World",
+							item3="!",
+							item4="StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½"
+						}
+					}))
+				assert.falsy(res.error)
+				assert.equal(res.body, "Hello World!")
+				io:close()
+			end)
+			
+			io:wait(5)
+		end)		
+
+		it("Test case for reported bug.", function() 
+			local port = math.random(10000,40000)
+			local io = turbo.ioloop.instance()
+			local closed = false
+			turbo.log.categories.error = false
+			turbo.log.categories.stacktrace = false
+
+			local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+			function ExampleHandler:get()
+				self:write("Hello World!")
+			end
+			turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
+
+			io:add_callback(function()
+				local hdr = "CONNECT mx2.mail2000.com.tw:25 HTTP/1.0\r\n\r\n"
+			    local sock, msg = turbo.socket.new_nonblock_socket(
+			        turbo.socket.AF_INET, 
+			        turbo.socket.SOCK_STREAM, 
+			        0)
+			    if sock == -1 then 
+			        error("Could not create socket.")
+			    end
+			    local stream = turbo.iostream.IOStream:new(sock)
+			    local rc, msg = stream:connect(
+			        "127.0.0.1", 
+			        port,
+			        turbo.socket.AF_INET,
+			        function()
+			            stream:set_close_callback(function() 
+			            	closed = true    
+			                io:close()
+			            end)
+			            coroutine.yield (turbo.async.task(stream.write, stream, hdr))
+						io:add_callback(function() 
+							local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+								"http://127.0.0.1:"..tostring(port).."/"))
+							assert.falsy(res.error)
+							assert.equal(res.body, "Hello World!")
+							io:close()
+						end)
+			        end)
+			    if rc ~= 0 then
+			        error("Could not connect")
+			    end
+			end)
+			
+			io:wait(5)
+			assert.equal(closed, true)
+			turbo.log.categories.error = true
+			turbo.log.categories.stacktrace = true
+		end)
+
+
 
 	end)
 
