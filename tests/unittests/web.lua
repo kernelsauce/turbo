@@ -139,39 +139,6 @@ describe("turbo.web Namespace", function()
 			io:wait(5)
 		end)
 
-		it("Accept POST multipart", function() 
-			local port = math.random(10000,40000)
-			local io = turbo.ioloop.instance()
-			local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
-			function ExampleHandler:post()
-				assert.equal(self:get_argument("item1"), "Hello")
-				assert.equal(self:get_argument("item2"), "World")
-				assert.equal(self:get_argument("item3"), "!")
-				assert.equal(self:get_argument("item4"), "StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½")
-				self:write("Hello World!")
-			end
-			turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
-
-			io:add_callback(function() 
-				local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-					"http://127.0.0.1:"..tostring(port).."/",
-					{
-						method="POST",
-						params={
-							item1="Hello",
-							item2="World",
-							item3="!",
-							item4="StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½"
-						}
-					}))
-				assert.falsy(res.error)
-				assert.equal(res.body, "Hello World!")
-				io:close()
-			end)
-			
-			io:wait(5)
-		end)		
-
 		it("Test case for reported bug.", function() 
 			local port = math.random(10000,40000)
 			local io = turbo.ioloop.instance()
@@ -223,7 +190,6 @@ describe("turbo.web Namespace", function()
 			turbo.log.categories.error = true
 			turbo.log.categories.stacktrace = true
 		end)
-
 
 
 	end)
