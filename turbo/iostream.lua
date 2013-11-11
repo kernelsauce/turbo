@@ -195,9 +195,12 @@ function iostream.IOStream:connect(address, port, family, callback,
     sigev[0].sigev_signo = SIGRTMIN
     
     r = libanl.getaddrinfo_a(GAI_NOWAIT, reqp, 1, sigev)
-    -- FIXME: Call error callback???
-    -- TODO: Handle errno without breaking backward compatibility
-    return r
+    if r ~= 0 then
+        return -1, string.format("Could not resolve hostname '%s': %s", 
+            address, ffi.C.gai_strerror(r))
+        -- FIXME: Call error callback???
+    end
+    return 0
 end
 
 --- Read until delimiter, then call callback with recieved data. The callback 
