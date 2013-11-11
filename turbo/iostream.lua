@@ -151,6 +151,11 @@ end
 -- @return (Number) -1 and error string on fail, 0 on success.
 function iostream.IOStream:connect(address, port, family, callback,
                                    errhandler, arg)
+    assert(type(address) == "string", "argument #1, address, is not a string.")
+    assert(type(port) == "number", "argument #2, ports, is not a number.")
+    assert((not family or type(family) == "number"), 
+            "argument #3, family, is not a number or nil")
+
     local c_address
     local c_port
     local hints
