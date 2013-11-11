@@ -349,12 +349,15 @@ function web.RequestHandler:write(chunk)
     end
     local t = type(chunk)
     if t == "nil" then
+        -- Accept writing empty blocks.
         return
     elseif t == "string" and chunk:len() == 0 then
         return
     elseif t == "table" then
         self:add_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
+    elseif t ~= "string" and t ~= "table" then
+        error("Unsupported type written as response; "..t)
     end
     self._write_buffer:append_luastr_right(chunk)
 end
@@ -487,16 +490,16 @@ function web.RequestHandler:_finish()
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request.headers.method,
-            self.request.headers.url,
+            self.request.headers:get_method(),
+            self.request.headers:get_url(),
             self.request.remote_ip,
             self.request:request_time()))
     else
         log.warning(string.format([[[web.lua] %d %s %s %s (%s) %dms]], 
             self._status_code, 
             response_codes[self._status_code],
-            self.request.headers.method,
-            self.request.headers.url,
+            self.request.headers:get_method(),
+            self.request.headers:get_url(),
             self.request.remote_ip,
             self.request:request_time()))
     end
@@ -714,7 +717,7 @@ end
 -- convinent and safe way to handle errors in handlers. E.g it is allowed to
 -- do this:
 -- function MyHandler:get()
---      local item = self.get_argument("item")
+--      local item = self:get_argument("item")
 --      if not find_in_store(item) then
 --          error(turbo.web.HTTPError(400, "Could not find item in store"))
 --      end

@@ -76,6 +76,7 @@ function httpserver.HTTPServer:initialize(request_callback, no_keep_alive,
     self.request_callback = request_callback
     self.no_keep_alive = no_keep_alive
     self.xheaders = xheaders
+    self.kwargs = kwargs
     tcpserver.TCPServer:initialize(io_loop, kwargs and kwargs.ssl_options)
 end
 
@@ -84,8 +85,13 @@ end
 -- @param stream (IOStream instance) Stream for the newly connected client.
 -- @param address (String) IP address of newly connected client.
 function httpserver.HTTPServer:handle_stream(stream, address)
-    local http_conn = httpserver.HTTPConnection(stream, address, self.request_callback,
-        self.no_keep_alive, self.xheaders)
+    local http_conn = httpserver.HTTPConnection(
+        stream, 
+        address, 
+        self.request_callback,
+        self.no_keep_alive, 
+        self.xheaders, 
+        self.kwargs)
 end
 
 
@@ -96,7 +102,7 @@ end
 httpserver.HTTPConnection = class('HTTPConnection')
 
 function httpserver.HTTPConnection:initialize(stream, address, 
-    request_callback, no_keep_alive, xheaders)
+    request_callback, no_keep_alive, xheaders, kwargs)
     self.stream = stream
     self.address = address
     self.request_callback = request_callback
@@ -104,6 +110,9 @@ function httpserver.HTTPConnection:initialize(stream, address,
     self.xheaders = xheaders or false
     self._request_finished = false
     self._header_callback = self._on_headers
+    self.kwargs = kwargs or {}
+    -- 16K max header size by default.
+    self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*16)
     self.stream:read_until("\r\n\r\n", self._header_callback, self)
 end
 
@@ -188,23 +197,27 @@ end
 -- request headers.
 function httpserver.HTTPConnection:_on_headers(data)
     local headers
-    local status, headers = xpcall(httputil.HTTPHeaders, 
-        _on_headers_error_handler, data)
+    local status, headers = xpcall(httputil.HTTPParser, 
+        _on_headers_error_handler, data, httputil.hdr_t["HTTP_REQUEST"])
 
-    if (status == false) then
+    if status == false then
         -- Invalid headers. Close stream.
         -- Log line is printed by error handler describing the reason.       
         self.stream:close()
         return
     end
-    self._request = httpserver.HTTPRequest:new(headers.method, headers.uri, {
-        version = headers.version,
-        connection = self,
-        headers = headers,
-        remote_ip = self.address})
+    self._request = httpserver.HTTPRequest:new(headers:get_method(), 
+        headers:get_url(), {
+            version = headers.version,
+            connection = self,
+            headers = headers,
+            remote_ip = self.address
+            })
     local content_length = headers:get("Content-Length")
     if content_length then
         content_length = tonumber(content_length)
+        -- Set max buffer size to 128MB.
+        self.stream:set_max_buffer_size(self.kwargs.max_body_size or 1024*1024*128)
         if content_length > self.stream.max_buffer_size then
             log.error("Content-Length too long")
             self.stream:close()
@@ -260,7 +273,9 @@ function httpserver.HTTPConnection:_finish_request()
         self.stream:close()
         return
     end
+    self.arguments = nil  -- Reset table in case of keep-alive.
     if not self.stream:closed() then
+        self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*16)
         self.stream:read_until("\r\n\r\n", self._header_callback, self)
     else
         log.debug("[httpserver.lua] Client hang up. End Keep-Alive session.")
@@ -346,7 +361,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     self.connection = connection 
     self._start_time = util.gettimeofday()
     self._finish_time = nil
-    self.path = self.headers.url
+    self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.arguments = self.headers:get_arguments()
 end
 

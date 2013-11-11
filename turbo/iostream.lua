@@ -385,6 +385,10 @@ function iostream.IOStream:set_close_callback(callback, arg)
     self._close_callback_arg = arg
 end
 
+function iostream.IOStream:set_max_buffer_size(sz)
+    self.max_buffer_size = sz
+end
+
 --- Close this stream and clean up.
 -- Call close callback if set.
 function iostream.IOStream:close()

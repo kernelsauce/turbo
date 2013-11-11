@@ -1,13 +1,11 @@
 --- Turbo.lua HTTP Utilities module
--- Contains the HTTPHeaders class, which parses request and response headers,
--- via the node.js HTTP parser, which is based on http-parser.c. The class
--- also allows the user to build up HTTP headers programtically with the same
--- API. 
+-- Contains the HTTPHeaders and HTTPParser classes, which parses request and 
+-- response headers and also offers utilities to build request headers. 
 --
 -- Also offers a few functions for parsing GET URL parameters, and different 
 -- POST data types.
 --
--- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
+-- Copyright John Abrahamsen 2011, 2012, 2013
 --
 -- "Permission is hereby granted, free of charge, to any person obtaining a copy of
 -- this software and associated documentation files (the "Software"), to deal in
@@ -53,6 +51,7 @@ local b = string.byte
 
 local httputil = {} -- httputil namespace
 
+--- Must match the enum in http-parser.h!
 local method_map = {
     [0] = "DELETE",
     "GET",
@@ -82,6 +81,12 @@ local method_map = {
     "PURGE"
 }
 
+local function MAX(a,b) return a > b and a or b end
+
+--*************** HTTP Header parsing *************** 
+
+
+--- URL Field table.
 httputil.UF = {
     SCHEMA           = 0
   , HOST             = 1
@@ -92,153 +97,122 @@ httputil.UF = {
   , USERINFO         = 6
 }
 
---- HTTPHeaders Class
+--- HTTP header type. Use on HTTPHeaders initialize() to specify
+-- header type to parse.
+httputil.hdr_t = {
+    HTTP_REQUEST    = 0,
+    HTTP_RESPONSE   = 1,
+    HTTP_BOTH       = 2
+}
+
+--- HTTPParser Class
 -- Class for creation and parsing of HTTP headers.
-httputil.HTTPHeaders = class("HTTPHeaders")
+httputil.HTTPParser = class("HTTPParser")
 
 --- Pass request headers as parameters to parse them into
 -- the returned object. 
-function httputil.HTTPHeaders:initialize(raw_request_headers)	
-    self._raw_headers = nil
-    self.uri = nil
-    self.url = nil
-    self.method = nil
-    self.version = nil
-    self.status_code = nil
-    self.content_length = nil
-    self.http_parser_url = nil -- for http_wrapper.c
-    self._arguments = {}
-    self._fields = {}
-    self._arguments_parsed = false
-    if type(raw_request_headers) == "string" then
-    	local rc, httperrno, errnoname, errnodesc = 
-            self:parse_request_header(raw_request_headers)
-    	if rc == -1 then
-    	    error(string.format(
-                "Malformed HTTP headers. %s, %s", 
-                errnoname, 
-                errnodesc))
-    	end
+function httputil.HTTPParser:initialize(hdr_str, hdr_t)
+    if hdr_str and hdr_t then
+        if hdr_t == httputil.hdr_t["HTTP_REQUEST"] then
+            self:parse_request_header(hdr_str)
+        elseif hdr_t == httputil.hdr_t["HTTP_RESPONSE"] then
+            self:parse_response_header(hdr_str)
+        end
     end
+    -- Arguments are only parsed on-demand.
+    self._arguments_parsed = false
 end
 
-local _http_parser_url = ffi.new("struct http_parser_url")
 --- Parse standalone URL and populate class instance with values. 
+-- HTTPParser.get_url_field must be used to read out values.
 -- @param url (String) URL string.
--- @return -1 on error, else 0 and HTTPHeaders:get_url_field must be used
--- to read out values.
-function httputil.HTTPHeaders:parse_url(url)
+-- @note Will throw error if URL does not parse correctly.
+function httputil.HTTPParser:parse_url(url)
+    if type(url) ~= "string" then
+        error("URL parameter is not a string")
+    end
+    local htpurl = ffi.C.malloc(ffi.sizeof("struct http_parser_url"))
+    if htpurl == nil then
+        error("Could not allocate memory")
+    end
+    ffi.gc(htpurl, ffi.C.free)
+    self.http_parser_url = ffi.cast("struct http_parser_url *", htpurl)
     local rc = libturbo_parser.http_parser_parse_url(
-        url, 
+        url,
         url:len(), 
         0, 
-        _http_parser_url)
+        self.http_parser_url)
     if rc ~= 0 then
-	   return -1
-    else
-	   self.http_parser_url = _http_parser_url
-	   self:set_uri(url)
-	   return 0
+	   error("Could not parse URL")
+    end
+    if not self.url then
+        self.url = url
     end
 end
 
---- Get a URL field. 
--- The URL must have been parsed by the class first, either with 
--- HTTPHeader:parse_url or the HTTPHeader:parse_*_headers
+--- Get a URL field.
 -- @param UF_prop (Number) Available fields described in the httputil.UF table.
--- @return -1 if not found, else the string value is returned.
-function httputil.HTTPHeaders:get_url_field(UF_prop)
-    if not self.http_parser_url then
-	   error("parse_request_header() or parse_url() has not been used to parse \
-            the URL, get_url_field is not supported.")
+-- @return nil if not found, else the string value is returned.
+function httputil.HTTPParser:get_url_field(UF_prop)
+    if not self.url then
+        self:get_url()
     end
-    -- Use the http-parser.c functions.
+    if not self.http_parser_url then
+        self:parse_url(self.url)
+    end
     if libturbo_parser.url_field_is_set(
         self.http_parser_url, UF_prop) == true then
-        local field = libturbo_parser.url_field(self.uri, 
-            self.http_parser_url, 
-            UF_prop)
-        local field_lua = ffi.string(field)
-        ffi.C.free(field)
-        return field_lua
+        local url = ffi.cast("const char *", self.url)
+        local field = ffi.string(
+            url+self.http_parser_url.field_data[UF_prop].off,
+            self.http_parser_url.field_data[UF_prop].len)
+        return field
     end
     -- Field is not set.
-    return -1
+    return nil
 end
 
---- Set URI. Mostly usefull when building up request headers, NOT when parsing
--- response headers. Parsing should be done with HTTPHeaders:parse_url.
--- @param uri (String)
-function httputil.HTTPHeaders:set_uri(uri)
-    if type(uri) ~= "string" then
-        error("argument #1 not a string.")
-    end
-    self.uri = uri
-end
-
---- Get current URI.
+--- Get URL.
 -- @return Currently set URI or nil if not set.
-function httputil.HTTPHeaders:get_uri() return self.uri end
-
---- Set Content-Length attribute.
--- @param len (Number) Must be number, or error is raised.
-function httputil.HTTPHeaders:set_content_length(len)
-    if type(len) ~= "number" then
-        error("argument #1 not a number.")
+function httputil.HTTPParser:get_url() 
+    if self.url then 
+        return self.url
+    else
+        if not self.tpw then
+            error("No URL or header has been parsed. Can not return URL.")   
+        end
+        self.url = ffi.string(self.tpw.url_str, self.tpw.url_sz)
     end
-    self.content_length = len
-end
-
---- Get Content-Length attribute.
--- @return Current length as number, or nil if not set.
-function httputil.HTTPHeaders:get_content_length() return self.content_length end
-
---- Set HTTP method.
--- @param method (String) Must be string, or error is raised.
-function httputil.HTTPHeaders:set_method(method)
-    if type(method) ~= "string" then
-        error("argument #1 not a string.")
-    end
-    self.method = method
+    return self.url
 end
 
 --- Get HTTP method
 -- @return Current method as string or nil if not set.
-function httputil.HTTPHeaders:get_method() return self.method end
-
---- Set the HTTP version.
--- Applies when building response headers only.
--- @param version (String) Version in string form, e.g "1.1" or "1.0"
--- Must be string or error is raised.
-function httputil.HTTPHeaders:set_version(version)
-    if type(version) ~= "string" then
-	   error("argument #1 not a string.")
+function httputil.HTTPParser:get_method() 
+    if not self.tpw then
+        error("No header has been parsed. Can not return method.")
     end
-    self.version = version
+    return method_map[self.tpw.parser.method]
 end
 
---- Get the current HTTP version. 
+--- Get the HTTP version. 
 -- @return Currently set version as string or nil if not set.
-function httputil.HTTPHeaders:get_version() return self.version end
-
---- Set the status code.
--- Applies when building response headers.
--- @param code (Number) HTTP status code to set. Must be number or
--- error is raised.
-function httputil.HTTPHeaders:set_status_code(code)
-    if type(code) ~= "number" then
-	   error("argument #1 not a number.")
-    end
-    if not status_codes[code] then
-	   error(string.format("Invalid HTTP status code given: %d", code))
-    end
-    self.status_code = code
+function httputil.HTTPParser:get_version() 
+    return string.format(
+        "HTTP/%d.%d",
+        self.tpw.parser.http_major,
+        self.tpw.parser.http_minor)
 end
 
---- Get the current status code.
+--- Get the status code.
 -- @return Status code and status code message if set, else nil.
-function httputil.HTTPHeaders:get_status_code()	
-    return self.status_code, status_codes[self.status_code]
+function httputil.HTTPParser:get_status_code()
+    if not self.tpw then
+        error("No header has been parsed. Can not return status code.")
+    elseif self.hdr_t ~= httputil.hdr_t["HTTP_RESPONSE"] then
+        error("Parsed header not a HTTP response header.")
+    end
+    return self.tpw.parser.status_code, status_codes[self.status_code]
 end
 
 function _unescape(s) return string.char(tonumber(s,16)) end
@@ -247,9 +221,6 @@ function _unescape(s) return string.char(tonumber(s,16)) end
 local function _parse_arguments(uri)
     local arguments = {}
     local elements = 0;
-    if (uri == -1) then
-        return {}
-    end
     
     for k, v in uri:gmatch("([^&=]+)=([^&]+)") do
         elements = elements + 1;
@@ -276,7 +247,7 @@ end
 -- @return If argument exists then the argument is either returned
 -- as a table if multiple values is given the same key, or as a string if the 
 -- key only has one value. If argument does not exist, nil is returned.
-function httputil.HTTPHeaders:get_argument(argument)
+function httputil.HTTPParser:get_argument(argument)
     if not self._arguments_parsed then
     	self._arguments = _parse_arguments(self:get_url_field(httputil.UF.QUERY))
     	self._arguments_parsed = true
@@ -293,12 +264,232 @@ end
 
 --- Get all arguments of the header as a table. 
 -- @return (Table) Table with keys and values.
-function httputil.HTTPHeaders:get_arguments()
+function httputil.HTTPParser:get_arguments()
     if not self._arguments_parsed then
-    	self._arguments = _parse_arguments(self:get_url_field(httputil.UF.QUERY))
+        local query = self:get_url_field(httputil.UF.QUERY)
+        if query then
+    	   self._arguments = _parse_arguments(query)
+        end
     	self._arguments_parsed = true
     end
     return self._arguments
+end
+
+--- Get given key from header key value section.
+-- @param key (String) The key to get.
+-- @param caseinsensitive (Boolean) If true then the key will be matched without
+-- regard for case sensitivity.
+-- @return The value of the key, or nil if not existing. May return a table if 
+-- multiple keys are set.
+function httputil.HTTPParser:get(key, caseinsensitive)
+    local value
+    local c = 0
+    local hdr_sz = tonumber(self.tpw.hkv_sz)
+    
+    if hdr_sz <= 0 then
+        return nil
+    end
+    if caseinsensitive then
+        -- Case insensitive key.
+        for i = 0, hdr_sz-1 do
+            local field = self.tpw.hkv[i]
+            local key_sz = key:len()
+            if field.key_sz == key_sz then
+                if ffi.C.strncasecmp(
+                    field.key, 
+                    key, 
+                    field.key_sz) == 0 then
+                    local str = ffi.string(field.value, field.value_sz)
+                    if c == 0 then
+                        value = str
+                        c = 1
+                    elseif c == 1 then
+                        value = {value, str}
+                        c = 2
+                    else
+                        value[#value+1] = str
+                        c = c + 1
+                    end
+                end
+            end
+        end
+    else
+        -- Case sensitive key.
+        for i = 0, hdr_sz-1 do
+            local field = self.tpw.hkv[i]
+            local key_sz = key:len()
+            if field.key_sz == key_sz then 
+                if ffi.C.memcmp(
+                    field.key, 
+                    key, 
+                    MAX(field.key_sz, key_sz)) == 0 then
+                    local str = ffi.string(field.value, field.value_sz)
+                    if c == 0 then
+                        value = str
+                        c = 1
+                    elseif c == 1 then
+                        value = {value, str}
+                        c = 2
+                    else
+                        value[#value+1] = str
+                        c = c + 1
+                    end
+                end
+            end
+        end
+    end
+    return value, c
+end
+
+--- Parse HTTP request or response headers.
+-- Populates the class with all data in headers.
+-- @param hdr_str (String) HTTP header string.
+-- @param hdr_t (Number) A number defined in httputil.hdr_t representing header 
+-- type.
+-- @note Will throw error on parsing failure.
+function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
+    -- Ensure the string is not GCed while we are still using it by keeping a 
+    -- reference to it. There is no way for LuaJIT to know we are still 
+    -- using pointers to it.
+    self.hdr_str = hdr_str
+    self.hdr_t = hdr_t
+    local tpw = libturbo_parser.turbo_parser_wrapper_init(
+        hdr_str,
+        hdr_str:len(),
+        hdr_t)
+    if tpw ~= nil then
+        ffi.gc(tpw, libturbo_parser.turbo_parser_wrapper_exit)
+    else
+        error("libturbo_parser could not allocate memory for struct.")
+    end
+    self.tpw = tpw
+    if self.tpw.parser.http_errno ~= 0 or self.tpw.parsed_sz == 0 then
+        error(
+            string.format(
+                "libturbo_parser could not parse HTTP header. %s %s", 
+                ffi.string(libturbo_parser.http_errno_name(
+                    self.tpw.parser.http_errno)),
+                ffi.string(libturbo_parser.http_errno_description(
+                    self.tpw.parser.http_errno))))
+    end
+    if self.tpw.headers_complete == false then
+        error("libturbo_parser could not parse header. Unknown error.")
+    end
+end
+
+--- Parse HTTP response headers.
+-- Populates the class with all data in headers.
+-- @param raw_headers (String) HTTP header string.
+-- @note Will throw error on parsing failure.
+function httputil.HTTPParser:parse_response_header(raw_headers)
+    self:parse_header(raw_headers, httputil.hdr_t["HTTP_RESPONSE"])
+end
+
+--- Parse HTTP request headers.
+-- Populates the class with all data in headers.
+-- @param raw_headers (String) HTTP header string.
+-- @note Will throw error on parsing failure.
+function httputil.HTTPParser:parse_request_header(raw_headers)
+    self:parse_header(raw_headers, httputil.hdr_t["HTTP_REQUEST"])
+end
+
+--- Parse HTTP post arguments.
+function httputil.parse_post_arguments(data)
+    if type(data) ~= "string" then
+        error("data argument not a string.")
+    end
+    return _parse_arguments(data)
+end
+
+--- Parse multipart form data.
+function httputil.parse_multipart_data(data)  
+    local arguments = {}
+    local data = escape.unescape(data)
+    
+    for key, ctype, name, value in 
+       data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([%w]+)\"%c+([^%c]+)") do
+        if ctype == "form-data" then
+            if arguments[name] then
+               arguments[name][#arguments[name] +1] = value
+            else
+               arguments[name] = { value }
+            end
+        end
+    end
+    return arguments
+end
+
+
+--*************** HTTP Header generation *************** 
+
+
+--- HTTPHeaders Class
+-- Class for creating HTTP headers in a programmatic fashion.
+httputil.HTTPHeaders = class("HTTPHeaders")
+
+function httputil.HTTPHeaders:initialize()
+    self._fields = {}
+end
+
+--- Set URI.
+-- @param uri (String)
+function httputil.HTTPHeaders:set_uri(uri)
+    if type(uri) ~= "string" then
+        error("argument #1 not a string.")
+    end
+    self.uri = uri
+end
+
+--- Get current URI.
+-- @return Currently set URI or nil if not set.
+function httputil.HTTPHeaders:get_uri() return self.uri end
+
+--- Set HTTP method.
+-- @param method (String) Must be string, or error is raised.
+function httputil.HTTPHeaders:set_method(method)
+    if type(method) ~= "string" then
+        error("argument #1 not a string.")
+    end
+    self.method = method
+end
+
+--- Get HTTP method
+-- @return Current method as string or nil if not set.
+function httputil.HTTPHeaders:get_method() return self.method end
+
+--- Set the HTTP version.
+-- Applies when building response headers only.
+-- @param version (String) Version in string form, e.g "1.1" or "1.0"
+-- Must be string or error is raised.
+function httputil.HTTPHeaders:set_version(version)
+    if type(version) ~= "string" then
+       error("argument #1 not a string.")
+    end
+    self.version = version
+end
+
+--- Get the current HTTP version. 
+-- @return Currently set version as string or nil if not set.
+function httputil.HTTPHeaders:get_version() return self.version end
+
+--- Set the status code.
+-- Applies when building response headers.
+-- @param code (Number) HTTP status code to set. Must be number or
+-- error is raised.
+function httputil.HTTPHeaders:set_status_code(code)
+    if type(code) ~= "number" then
+       error("argument #1 not a number.")
+    end
+    if not status_codes[code] then
+       error(string.format("Invalid HTTP status code given: %d", code))
+    end
+    self.status_code = code
+end
+
+--- Get the current status code.
+-- @return Status code and status code message if set, else nil.
+function httputil.HTTPHeaders:get_status_code() 
+    return self.status_code, status_codes[self.status_code]
 end
 
 --- Get given key from header key value section.
@@ -351,7 +542,7 @@ end
 -- @param value (String or Number) Value to associate with the key. 
 function httputil.HTTPHeaders:add(key, value)
     if type(key) ~= "string" then
-	   error("Key parameter must be a string.")
+       error("Key parameter must be a string.")
     end
     local t = type(value)
     if t == "string" then
@@ -368,7 +559,7 @@ end
 --- Set a key with value to the headers. Overwiting existing key.
 -- @param key (String) Key to set to headers. Must be string or error is raised.
 -- @param value (String) Value to associate with the key.
-function httputil.HTTPHeaders:set(key, value, caseinsensitive)	
+function httputil.HTTPHeaders:set(key, value, caseinsensitive)  
     if type(key) ~= "string" then
        error("Key parameter must be a string.")
     end
@@ -390,7 +581,7 @@ end
 -- regard for case sensitivity.
 function httputil.HTTPHeaders:remove(key, caseinsensitive)
     if type(key) ~= "string" then
-	   error("Key parameter must be a string.")
+       error("Key parameter must be a string.")
     end
     if caseinsensitive == false then
         for i = 1, #self._fields do
@@ -406,86 +597,6 @@ function httputil.HTTPHeaders:remove(key, caseinsensitive)
             end
         end       
     end
-end
-
---- Internal method to get errno returned by http-parser.c.
-function httputil.HTTPHeaders:get_errno() return self.errno end
-
-
-local nw = ffi.new("struct turbo_parser_wrapper") 
---- Parse HTTP response headers.
--- Populates the class with all data in headers.
--- @param raw_headers (String) HTTP header string.
--- @return -1 on error or parsed bytes on success.
-function httputil.HTTPHeaders:parse_response_header(raw_headers)
-    local sz = libturbo_parser.turbo_parser_wrapper_init(nw, raw_headers, raw_headers:len(), 1)
-    
-    self.errno = tonumber(nw.parser.http_errno)
-    if (self.errno ~= 0) then
-       local errno_name = ffi.string(libturbo_parser.http_errno_name(self.errno))
-       local errno_desc = ffi.string(libturbo_parser.http_errno_description(self.errno))
-	   libturbo_parser.turbo_parser_wrapper_exit(nw)
-       return -1, self.errno, errno_name, errno_desc
-    end
-    local major_version = nw.parser.http_major
-    local minor_version = nw.parser.http_minor
-    local version_str = string.format("HTTP/%d.%d", major_version, minor_version)
-    self:set_status_code(nw.parser.status_code)
-    local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
-    for i = 0, keyvalue_sz, 1 do
-        local key = ffi.string(nw.header_key_values[i].key)
-        local value = ffi.string(nw.header_key_values[i].value)
-        self:add(key, value)
-    end
-    libturbo_parser.turbo_parser_wrapper_exit(nw)
-    return sz
-end
-
---- Parse HTTP request headers.
--- Populates the class with all data in headers.
--- @param raw_headers (String) HTTP header string.
--- @return -1 on error or parsed bytes on success.
-function httputil.HTTPHeaders:parse_request_header(raw_headers)
-    local sz = libturbo_parser.turbo_parser_wrapper_init(
-        nw, 
-        raw_headers, 
-        raw_headers:len(), 
-        0)
-    
-    self.errno = tonumber(nw.parser.http_errno)
-    if (self.errno ~= 0) then
-       local errno_name = ffi.string(
-            libturbo_parser.http_errno_name(self.errno))
-       local errno_desc = ffi.string(
-            libturbo_parser.http_errno_description(self.errno))
-	   libturbo_parser.turbo_parser_wrapper_exit(nw)
-       return -1, self.errno, errno_name, errno_desc
-    end
-    if sz > 0 then      
-        local major_version = nw.parser.http_major
-        local minor_version = nw.parser.http_minor
-        local version_str = string.format(
-            "HTTP/%d.%d", 
-            major_version, 
-            minor_version)
-        self._raw_headers = raw_headers
-        self:set_version(version_str)
-        self:set_uri(ffi.string(nw.url_str))
-        self:set_method(method_map[tonumber(nw.parser.method)])
-        self.http_parser_url = nw.url
-        local url = self:get_url_field(httputil.UF.PATH)
-        if url ~= -1 then
-            self.url = url
-        end
-        local keyvalue_sz = tonumber(nw.header_key_values_sz) - 1
-        for i = 0, keyvalue_sz, 1 do
-            local key = ffi.string(nw.header_key_values[i].key)
-            local value = ffi.string(nw.header_key_values[i].value)
-            self:add(key, value)
-        end        
-    end
-    libturbo_parser.turbo_parser_wrapper_exit(nw)
-    return sz;
 end
 
 --- Stringify data set in class as a HTTP request header.
@@ -534,32 +645,6 @@ end
 -- conversion.
 function httputil.HTTPHeaders:__tostring() 
     return self:stringify_as_response() 
-end
-
---- Parse HTTP post arguments.
-function httputil.parse_post_arguments(data)
-    if type(data) ~= "string" then
-		error("data argument not a string.")
-    end
-	return _parse_arguments(data)
-end
-
---- Parse multipart form data.
-function httputil.parse_multipart_data(data)  
-    local arguments = {}
-    local data = escape.unescape(data)
-    
-    for key, ctype, name, value in 
-	   data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([%w]+)\"%c+([^%c]+)") do
-        if ctype == "form-data" then
-            if arguments[name] then
-        	   arguments[name][#arguments[name] +1] = value
-            else
-        	   arguments[name] = { value }
-            end
-        end
-    end
-    return arguments
 end
 
 return httputil
