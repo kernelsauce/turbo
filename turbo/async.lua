@@ -170,7 +170,7 @@ async.errors = errors
 -- is "Turbo Client vx.x.x"
 function async.HTTPClient:fetch(url, kwargs)
     if self.in_progress then
-        self._throw_error(errors.BUSY, "HTTPClient is busy.")
+        self:_throw_error(errors.BUSY, "HTTPClient is busy.")
         -- This client is busy with another request.
         -- Do not overwrite the already existing co ctx, return a temp one.
         return coctx.CoroutineContext:new(self.io_loop):set_state(coctx.DEAD)
@@ -194,7 +194,9 @@ function async.HTTPClient:fetch(url, kwargs)
             "Standard does not support this request method without a body.")
         return self.coctx
     end
-    self:_set_url(url)
+    if self:_set_url(url) == -1 then
+        return self.coctx
+    end
     local sock, msg = socket.new_nonblock_socket(self.family, 
         socket.SOCK_STREAM, 
         0)
@@ -223,7 +225,7 @@ end
 
 function async.HTTPClient:_set_url(url)
     if type(url) ~= "string" then
-        self._throw_error(errors.INVALID_URL, "URL must be string.")
+        self:_throw_error(errors.INVALID_URL, "URL must be string.")
         return -1
     end
     self.headers = httputil.HTTPHeaders()
