@@ -43,7 +43,8 @@ local log = {
         ["warning"] = true,
         ["error"] = true,
         ["debug"] = true,
-        ["development"] = true
+        ["development"] = true,
+        ["stacktrace"] = true
     }
 } -- log namespace.
 
@@ -270,6 +271,11 @@ end
 -- Use for warnings.
 -- @note Messages are printed with white color.
 -- @param str (String) Message to output.
-function log.stacktrace(str) io.stderr:write(str .. "\n") end
+function log.stacktrace(str) 
+    if log.categories.stacktrace == false then
+        return
+    end
+    io.stderr:write(str .. "\n") 
+end
 
 return log
