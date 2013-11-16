@@ -101,7 +101,7 @@ end
 -- @param sock A socket descriptor
 -- @param ai a struct addrinfo
 function sockutils.connect_addrinfo(sock, ai)
-    local p = ffi.new("struct addrinfo *[1]")
+    local p
     local r = 0
     local errno = 0
     p = ai
@@ -109,7 +109,7 @@ function sockutils.connect_addrinfo(sock, ai)
         if p == nil then
             return nil, "Could not connect"
         end
-        r = socket.connect(sock, p[0].ai_addr, p[0].ai_addrlen)
+        r = socket.connect(sock, p.ai_addr, p.ai_addrlen)
         if r ~= 0 then
             errno = ffi.errno()
             if errno == EINPROGRESS then
@@ -118,7 +118,7 @@ function sockutils.connect_addrinfo(sock, ai)
         else
             break
         end
-        p = p[0].ai_next
+        p = p.ai_next
     end
     return p
 end

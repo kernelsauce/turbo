@@ -29,6 +29,7 @@ local buffer =      require "turbo.structs.buffer"
 local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
+local signal =        require "turbo.signal"
 -- __Global value__ _G.TURBO_SSL allows the user to enable the SSL module.
 local crypto =      _G.TURBO_SSL and require "turbo.crypto"
 local bit =         require "bit"
@@ -47,9 +48,13 @@ local AF_INET6 =    socket.AF_INET6
 local AF_UNSPEC =   socket.AF_UNSPEC
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EINPROGRESS = socket.EINPROGRESS
-local ECONNRESET = socket.ECONNRESET
+local ECONNRESET =  socket.ECONNRESET
 local EPIPE =       socket.EPIPE
 local EAGAIN =      socket.EAGAIN
+local SIGRTMIN =    signal.SIGRTMIN
+local SIGEV_SIGNAL  =   socket.SIGEV_SIGNAL
+local GAI_NOWAIT =  socket.GAI_NOWAIT
+local libanl =  ffi.load("anl")
 local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")
 if not libtffi_loaded then
     libtffi_loaded, libtffi = 
@@ -106,6 +111,34 @@ function iostream.IOStream:initialize(fd, io_loop, max_buffer_size)
     if (rc == -1) then
         error("[iostream.lua] " .. msg)
     end
+    -- Set the signal handler that invoked when getaddrinfo_a has results..
+    self.io_loop:add_signal_handler(SIGRTMIN, self._handle_ga_signal, self)
+end
+
+function iostream.IOStream:_handle_ga_signal(signo, siginfo, fd, events)
+    local req
+    local ai
+    local err
+    local result
+    req = ffi.cast("struct gaicb *", siginfo.ptr)
+    result = req.ar_result
+    ffi.gc(result, function (ai) ffi.C.freeaddrinfo(ai) end)
+    ai, err = sockutils.connect_addrinfo(self.socket, result)
+    if not ai then
+        -- TODO: Should we set connecting=false or something 
+        -- else when this happens?
+        if self._connect_fail_callback then
+            if self._connect_callback_arg then
+                self._connect_fail_callback(self._connect_callback_arg, -1, err)
+            else
+                self._connect_fail_callback(-1, err)
+            end
+        else
+            -- FIXME: What to do here??
+        end
+        return
+    end
+    self:_add_io_state(ioloop.WRITE)
 end
 
 --- Connect to a address without blocking.
@@ -116,44 +149,57 @@ end
 -- @param errhandler (Function) Optional callback for "on error".
 -- @param arg Optional argument for callback.
 -- @return (Number) -1 and error string on fail, 0 on success.
-function iostream.IOStream:connect(address, port, family, 
-    callback, errhandler, arg)
+function iostream.IOStream:connect(address, port, family, callback,
+                                   errhandler, arg)
     assert(type(address) == "string", "argument #1, address, is not a string.")
     assert(type(port) == "number", "argument #2, ports, is not a number.")
     assert((not family or type(family) == "number"), 
-        "argument #3, family, is not a number or nil")
+            "argument #3, family, is not a number or nil")
 
-    local hints = ffi.new("struct addrinfo[1]")
-    local servinfo = ffi.new("struct addrinfo *[1]")
-    local rc
-    local errno
-    local ai
-    local err
+    local c_address
+    local c_port
+    local hints
+    local req
+    local reqp    -- The list argument to getaddrinfo_a
+    local sigev    
+    local r
 
-    self._connect_fail_callback = errhandler
+    self._connect_callback = callback
+    self._connect_callback_arg = arg
+    self._connect_fail_callback = callback
     self._connecting = true
 
-    ffi.fill(hints[0], ffi.sizeof(hints[0]))
+    c_address = ffi.new("char[?]", #address)
+    ffi.copy(c_address, address)
+    port = tostring(port)
+    c_port = ffi.new("char[?]", #port)
+    ffi.copy(c_port, port)
+
+    hints = ffi.new("struct addrinfo[1]")
+    ffi.fill(hints, ffi.sizeof("struct addrinfo"))
     hints[0].ai_socktype = SOCK_STREAM
     hints[0].ai_family = family or AF_UNSPEC
     hints[0].ai_protocol = 0
 
-    rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
-    if rc ~= 0 then
-        return -1, string.format("Could not resolve hostname '%s': %s",
-            address, ffi.string(ffi.C.gai_strerror(rc)))
+    req = ffi.new("struct gaicb[1]")
+    ffi.fill(req, ffi.sizeof("struct gaicb"))
+    req[0].ar_name = c_address
+    req[0].ar_service = c_port
+    req[0].ar_request = hints
+    reqp = ffi.new("struct gaicb *[1]", {req})
+    
+    sigev = ffi.new("struct sigevent[1]")
+    ffi.fill(sigev, ffi.sizeof("struct sigevent"))
+    sigev[0].sigev_notify = SIGEV_SIGNAL
+    sigev[0].sigev_value.sival_ptr = ffi.cast("struct gaicb *", req)
+    sigev[0].sigev_signo = SIGRTMIN
+    
+    r = libanl.getaddrinfo_a(GAI_NOWAIT, reqp, 1, sigev)
+    if r ~= 0 then
+        return -1, string.format("Could not resolve hostname '%s': %s", 
+            address, ffi.C.gai_strerror(r))
+        -- FIXME: Call error callback???
     end
-
-    ffi.gc(servinfo, function (ai) ffi.C.freeaddrinfo(ai[0]) end)
-
-    local ai, err = sockutils.connect_addrinfo(self.socket, servinfo)
-    if not ai then
-        return -1, err
-    end
-
-    self._connect_callback = callback
-    self._connect_callback_arg = arg
-    self:_add_io_state(ioloop.WRITE)
     return 0
 end
 

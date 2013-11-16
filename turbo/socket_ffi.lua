@@ -25,6 +25,8 @@ local util =    require "turbo.util"
 local ffi =     require "ffi"
 require "turbo.cdef"
 
+local libanl = ffi.load("anl")
+
 local octal = function (s) return tonumber(s, 8) end
 
 local F = {}
@@ -33,6 +35,20 @@ F.F_GETFD =		        1
 F.F_SETFD =		        2		
 F.F_GETFL =		        3		
 F.F_SETFL =		        4		
+
+local GAI = {}
+GAI.GAI_WAIT =          0
+GAI.GAI_NOWAIT =        1
+
+local SIGEV = {}
+SIGEV.SIGEV_SIGNAL =    0	-- notify via signal
+SIGEV.SIGEV_NONE =      1	-- other notification: meaningless
+SIGEV.SIGEV_THREAD =    2	-- deliver via thread creation
+SIGEV.SIGEV_THREAD_ID = 4	-- deliver to thread
+
+local SFD = {}
+SFD.SFD_NONBLOCK =      2048
+SFD.SFD_CLOEXEC =       524288
 
 local O = {}
 O.O_ACCMODE = 		    octal("0003")
@@ -298,15 +314,19 @@ end
 local export = util.tablemerge(SOCK,
     util.tablemerge(F,
 	util.tablemerge(O,
+    util.tablemerge(GAI,
+    util.tablemerge(SIGEV,
+    util.tablemerge(SFD,
     util.tablemerge(AF,
     util.tablemerge(PF,
     util.tablemerge(SOL,
-    util.tablemerge(SO, E)))))))
+    util.tablemerge(SO, E))))))))))
     
 return util.tablemerge({
     strerror = strerror,
     resolv_hostname = resolv_hostname,
     getaddrinfo = ffi.C.getaddrinfo,
+    getaddrinfo_a = libanl.getaddrinfo_a,
     set_nonblock_flag = set_nonblock_flag,
     set_reuseaddr_opt = set_reuseaddr_opt,
     new_nonblock_socket = new_nonblock_socket,
