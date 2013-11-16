@@ -1,3 +1,4 @@
 doc/_build
+*.so.*
 *.so
 *.o
