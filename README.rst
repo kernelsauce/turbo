@@ -9,6 +9,8 @@ If you do not know Lua then do not fear as its probably one of the easiest langu
 
 Turbo.lua is non-blocking and features a fast web server and a HTTP client. The toolkit is good for REST APIs, traditional HTTP requests and open connections like Websockets and offers a high degree of freedom to do whatever you want, your way.
 
+API Documentation is available at http://turbolua.org/doc/
+
 It's main features and design principles are:
 
 - Simple and intuitive API (much like Tornado).
@@ -28,6 +30,7 @@ It's main features and design principles are:
 - Small footprint
 
 - SSL support
+
 
 Installation
 ------------
