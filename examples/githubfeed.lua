@@ -29,7 +29,7 @@ function GithubFeed:get(search)
     
     if res.error or res.headers:get_status_code() ~= 200 then
         -- Check for errors.
-	    -- If data could not be fetched a 500 error is sent as response.
+        -- If data could not be fetched a 500 error is sent as response.
         error(turbo.web.HTTPError:new(500, res.error.message))
     end
 
@@ -37,12 +37,12 @@ function GithubFeed:get(search)
     -- Ugly inlining of HTML code. You get the point!
     self:write([[<html><head></head><body>]])
     self:write(string.format(
-    	[[
-    	<h1>Turbo.lua Github feed<h1>
-    	<p>Current watchers %d</p>
-    	]],
-    	json.watchers_count
-    	))
+        [[
+        <h1>Turbo.lua Github feed<h1>
+        <p>Current watchers %d</p>
+        ]],
+        json.watchers_count
+        ))
     self:write([[</body></html>]])
 end
 

@@ -19,15 +19,15 @@ local turbo = require "turbo"
 local ChunkedHandler = class("ChunkedHandler", turbo.web.RequestHandler)
 
 function ChunkedHandler:get()
-	self:set_chunked_write()
-	self:write("Hello world! ")
-	self:write("Another world is coming soon. ")
-	self:flush() -- At this point the RequestHandler buffer is flushed.
-	self:write("Hello Mars!") -- Refill buffer.
-	-- Flush again.
-	-- Each flush will end up as one chunk in the IOStream.
-	self:flush() 
-	self:finish()
+    self:set_chunked_write()
+    self:write("Hello world! ")
+    self:write("Another world is coming soon. ")
+    self:flush() -- At this point the RequestHandler buffer is flushed.
+    self:write("Hello Mars!") -- Refill buffer.
+    -- Flush again.
+    -- Each flush will end up as one chunk in the IOStream.
+    self:flush() 
+    self:finish()
 end
  
 turbo.web.Application({{"^/$", ChunkedHandler}}):listen(8888)

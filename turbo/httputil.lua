@@ -25,13 +25,13 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE."
 
-local log = 		require "turbo.log"
+local log =         require "turbo.log"
 local status_codes = require "turbo.http_response_codes"
-local deque = 		require "turbo.structs.deque"
-local buffer = 		require "turbo.structs.buffer"
-local escape = 		require "turbo.escape"
-local util = 		require "turbo.util"
-local ffi = 		require "ffi"
+local deque =       require "turbo.structs.deque"
+local buffer =      require "turbo.structs.buffer"
+local escape =      require "turbo.escape"
+local util =        require "turbo.util"
+local ffi =         require "ffi"
 local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
@@ -143,7 +143,7 @@ function httputil.HTTPParser:parse_url(url)
         0, 
         self.http_parser_url)
     if rc ~= 0 then
-	   error("Could not parse URL")
+       error("Could not parse URL")
     end
     if not self.url then
         self.url = url
@@ -249,16 +249,16 @@ end
 -- key only has one value. If argument does not exist, nil is returned.
 function httputil.HTTPParser:get_argument(argument)
     if not self._arguments_parsed then
-    	self._arguments = _parse_arguments(self:get_url_field(httputil.UF.QUERY))
-    	self._arguments_parsed = true
+        self._arguments = _parse_arguments(self:get_url_field(httputil.UF.QUERY))
+        self._arguments_parsed = true
     end
     local arguments = self:get_arguments()
     if arguments then
-    	if type(arguments[argument]) == "table" then
-    	    return arguments[argument]
-    	elseif type(arguments[argument]) == "string" then
-    	    return { arguments[argument] }
-    	end
+        if type(arguments[argument]) == "table" then
+            return arguments[argument]
+        elseif type(arguments[argument]) == "string" then
+            return { arguments[argument] }
+        end
     end
 end
 
@@ -268,9 +268,9 @@ function httputil.HTTPParser:get_arguments()
     if not self._arguments_parsed then
         local query = self:get_url_field(httputil.UF.QUERY)
         if query then
-    	   self._arguments = _parse_arguments(query)
+           self._arguments = _parse_arguments(query)
         end
-    	self._arguments_parsed = true
+        self._arguments_parsed = true
     end
     return self._arguments
 end

@@ -92,16 +92,16 @@ ffi.cdef [[
     extern int64_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
     extern int64_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
     extern int64_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
-    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);	    
+    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);        
 ]]
 end
 
 ffi.cdef[[
 typedef union epoll_data {
-	void        *ptr;
-	int          fd;
-	uint32_t     u32;
-	uint64_t     u64;
+    void        *ptr;
+    int          fd;
+    uint32_t     u32;
+    uint64_t     u64;
 } epoll_data_t;
 ]]
 if (ffi.abi("32bit")) then 
@@ -109,15 +109,15 @@ if (ffi.abi("32bit")) then
 --but not on 32 bit.
 ffi.cdef[[
 struct epoll_event {
-	uint32_t     events;      /* Epoll events */
-	epoll_data_t data;        /* User data variable */
+    uint32_t     events;      /* Epoll events */
+    epoll_data_t data;        /* User data variable */
 };
 ]]
 else
-ffi.cdef[[	
+ffi.cdef[[  
 struct epoll_event {
-	uint32_t     events;      /* Epoll events */
-	epoll_data_t data;        /* User data variable */
+    uint32_t     events;      /* Epoll events */
+    epoll_data_t data;        /* User data variable */
 } __attribute__ ((__packed__));
 ]]
 end
@@ -127,7 +127,7 @@ typedef struct epoll_event epoll_event;
 int epoll_create(int size);
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, 
-	int timeout);
+    int timeout);
 ]]
 
 
@@ -144,16 +144,16 @@ typedef void ASN1_STRING;
 
 const SSL_METHOD *SSLv3_server_method(void);  /* SSLv3 */
 const SSL_METHOD *SSLv3_client_method(void);  /* SSLv3 */
-const SSL_METHOD *SSLv23_method(void);		  /* SSLv3 but can rollback to v2 */
+const SSL_METHOD *SSLv23_method(void);        /* SSLv3 but can rollback to v2 */
 const SSL_METHOD *SSLv23_server_method(void); /* SSLv3 but can rollback to v2 */
 const SSL_METHOD *SSLv23_client_method(void); /* SSLv3 but can rollback to v2 */
-const SSL_METHOD *TLSv1_method(void);		  /* TLSv1.0 */
+const SSL_METHOD *TLSv1_method(void);         /* TLSv1.0 */
 const SSL_METHOD *TLSv1_server_method(void);  /* TLSv1.0 */
 const SSL_METHOD *TLSv1_client_method(void);  /* TLSv1.0 */
-const SSL_METHOD *TLSv1_1_method(void);		  /* TLSv1.1 */
+const SSL_METHOD *TLSv1_1_method(void);       /* TLSv1.1 */
 const SSL_METHOD *TLSv1_1_server_method(void);/* TLSv1.1 */
 const SSL_METHOD *TLSv1_1_client_method(void);/* TLSv1.1 */    
-const SSL_METHOD *TLSv1_2_method(void);		  /* TLSv1.2 */
+const SSL_METHOD *TLSv1_2_method(void);       /* TLSv1.2 */
 const SSL_METHOD *TLSv1_2_server_method(void);/* TLSv1.2 */
 const SSL_METHOD *TLSv1_2_client_method(void);/* TLSv1.2 */
 
@@ -168,7 +168,7 @@ void SSL_CTX_free(SSL_CTX *);
 int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
 int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type);
 int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, 
-	const char *CApath);
+    const char *CApath);
 int SSL_CTX_check_private_key(const SSL_CTX *ctx);
 
 SSL *SSL_new(SSL_CTX *ctx);
@@ -197,11 +197,11 @@ unsigned long ERR_get_error(void);
 unsigned long ERR_peek_error(void);
 unsigned long ERR_peek_error_line(const char **file,int *line);
 unsigned long ERR_peek_error_line_data(const char **file,int *line,
-				       const char **data,int *flags);
+                       const char **data,int *flags);
 unsigned long ERR_peek_last_error(void);
 unsigned long ERR_peek_last_error_line(const char **file,int *line);
 unsigned long ERR_peek_last_error_line_data(const char **file,int *line,
-				       const char **data,int *flags);
+                       const char **data,int *flags);
 void ERR_clear_error(void );
 char *ERR_error_string(unsigned long e,char *buf);
 void ERR_error_string_n(unsigned long e, char *buf, size_t len);
@@ -222,27 +222,27 @@ typedef long time_t ;
 typedef long suseconds_t ;
 struct timeval
 {            
-    time_t tv_sec;		/* Seconds.  */
-    suseconds_t tv_usec;	/* Microseconds.  */
+    time_t tv_sec;      /* Seconds.  */
+    suseconds_t tv_usec;    /* Microseconds.  */
 };
 struct timezone
 {
-    int tz_minuteswest;		/* Minutes west of GMT.  */
-    int tz_dsttime;		/* Nonzero if DST is ever in effect.  */
+    int tz_minuteswest;     /* Minutes west of GMT.  */
+    int tz_dsttime;     /* Nonzero if DST is ever in effect.  */
 };
 struct tm
 {
-  int tm_sec;			/* Seconds.	[0-60] (1 leap second) */
-  int tm_min;			/* Minutes.	[0-59] */
-  int tm_hour;			/* Hours.	[0-23] */
-  int tm_mday;			/* Day.		[1-31] */
-  int tm_mon;			/* Month.	[0-11] */
-  int tm_year;			/* Year	- 1900.  */
-  int tm_wday;			/* Day of week.	[0-6] */
-  int tm_yday;			/* Days in year.[0-365]	*/
-  int tm_isdst;			/* DST.		[-1/0/1]*/
-  long int __tm_gmtoff;		/* Seconds east of UTC.  */
-  const char *__tm_zone;	/* Timezone abbreviation.  */
+  int tm_sec;           /* Seconds. [0-60] (1 leap second) */
+  int tm_min;           /* Minutes. [0-59] */
+  int tm_hour;          /* Hours.   [0-23] */
+  int tm_mday;          /* Day.     [1-31] */
+  int tm_mon;           /* Month.   [0-11] */
+  int tm_year;          /* Year - 1900.  */
+  int tm_wday;          /* Day of week. [0-6] */
+  int tm_yday;          /* Days in year.[0-365] */
+  int tm_isdst;         /* DST.     [-1/0/1]*/
+  long int __tm_gmtoff;     /* Seconds east of UTC.  */
+  const char *__tm_zone;    /* Timezone abbreviation.  */
 };
 typedef struct timezone * timezone_ptr_t;
 
@@ -261,9 +261,9 @@ extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
 ffi.cdef[[
 unsigned long compressBound(unsigned long sourceLen);
 int compress2(uint8_t *dest, unsigned long *destLen,
-	      const uint8_t *source, unsigned long sourceLen, int level);
+          const uint8_t *source, unsigned long sourceLen, int level);
 int uncompress(uint8_t *dest, unsigned long *destLen,
-	       const uint8_t *source, unsigned long sourceLen);
+           const uint8_t *source, unsigned long sourceLen);
 ]]
 
 
@@ -273,11 +273,11 @@ ffi.cdef [[
 /* Description of data base entry for a single host.  */
 struct hostent
 {
-    char *h_name;		/* Official name of host.  */
-    char **h_aliases;	/* Alias list.  */
-    int32_t h_addrtype;	/* Host address type.  */
-    int32_t h_length;	/* Length of address.  */
-    char **h_addr_list;	/* List of addresses from name server.  */
+    char *h_name;       /* Official name of host.  */
+    char **h_aliases;   /* Alias list.  */
+    int32_t h_addrtype; /* Host address type.  */
+    int32_t h_length;   /* Length of address.  */
+    char **h_addr_list; /* List of addresses from name server.  */
 };
 
 extern struct hostent *gethostbyname (const char *name);

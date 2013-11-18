@@ -13,7 +13,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.		
+-- limitations under the License.       
 
 if not _G.TURBO_SSL then
     return setmetatable({},
@@ -33,26 +33,26 @@ local lssl = ffi.load("ssl")
 
 local crypto = {} -- crypto namespace
 
-crypto.X509_FILETYPE_PEM =			1
-crypto.X509_FILETYPE_ASN1 = 		2
-crypto.X509_FILETYPE_DEFAULT =		3
-crypto.SSL_FILETYPE_ASN1 =			crypto.X509_FILETYPE_ASN1
-crypto.SSL_FILETYPE_PEM	=			crypto.X509_FILETYPE_PEM
-crypto.SSL_ERROR_NONE =				0
-crypto.SSL_ERROR_SSL =				1
-crypto.SSL_ERROR_WANT_READ =		2
-crypto.SSL_ERROR_WANT_WRITE =		3
-crypto.SSL_ERROR_WANT_X509_LOOKUP =	4
-crypto.SSL_ERROR_SYSCALL =			5
-crypto.SSL_ERROR_ZERO_RETURN =		6
-crypto.SSL_ERROR_WANT_CONNECT =		7
-crypto.SSL_ERROR_WANT_ACCEPT =		8
+crypto.X509_FILETYPE_PEM =          1
+crypto.X509_FILETYPE_ASN1 =         2
+crypto.X509_FILETYPE_DEFAULT =      3
+crypto.SSL_FILETYPE_ASN1 =          crypto.X509_FILETYPE_ASN1
+crypto.SSL_FILETYPE_PEM =           crypto.X509_FILETYPE_PEM
+crypto.SSL_ERROR_NONE =             0
+crypto.SSL_ERROR_SSL =              1
+crypto.SSL_ERROR_WANT_READ =        2
+crypto.SSL_ERROR_WANT_WRITE =       3
+crypto.SSL_ERROR_WANT_X509_LOOKUP = 4
+crypto.SSL_ERROR_SYSCALL =          5
+crypto.SSL_ERROR_ZERO_RETURN =      6
+crypto.SSL_ERROR_WANT_CONNECT =     7
+crypto.SSL_ERROR_WANT_ACCEPT =      8
 -- use either SSL_VERIFY_NONE or SSL_VERIFY_PEER, the last 2 options are 'ored'
 -- with SSL_VERIFY_PEER if they are desired
-crypto.SSL_VERIFY_NONE =		0x00
-crypto.SSL_VERIFY_PEER =		0x01
+crypto.SSL_VERIFY_NONE =        0x00
+crypto.SSL_VERIFY_PEER =        0x01
 crypto.SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 0x02
-crypto.SSL_VERIFY_CLIENT_ONCE =		0x04
+crypto.SSL_VERIFY_CLIENT_ONCE =     0x04
 crypto.validate = 
 {
     ["MatchFound"] = 0,
@@ -80,10 +80,10 @@ end
 -- already loaded it will pass.
 function crypto.ssl_init()
    if not _G._TURBO_SSL_INITED then
-	_TURBO_SSL_INITED = true
-	lssl.SSL_load_error_strings()
-	lssl.SSL_library_init()
-	lssl.OPENSSL_add_all_algorithms_noconf()
+    _TURBO_SSL_INITED = true
+    lssl.SSL_load_error_strings()
+    lssl.SSL_library_init()
+    lssl.OPENSSL_add_all_algorithms_noconf()
     end
 end
 if _G.TURBO_SSL then
@@ -109,44 +109,44 @@ function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, ver
     ca_cert_path = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt"
     meth = sslv or lssl.SSLv23_client_method()
     if meth == nil then
-		err = lssl.ERR_peek_error()
-		lssl.ERR_clear_error()
-		return err, crypto.ERR_error_string(err)
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
     end
     ctx = lssl.SSL_CTX_new(meth)
     if ctx == nil then
-		err = lssl.ERR_peek_error()
-		lssl.ERR_clear_error()
-		return err, crypto.ERR_error_string(err)
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
     else
-		ffi.gc(ctx, lssl.SSL_CTX_free)
+        ffi.gc(ctx, lssl.SSL_CTX_free)
     end
     -- If client certifactes are set, load them and verify.
     if type(cert_file) == "string" and type(prv_file) == "string" then
-		if lssl.SSL_CTX_use_certificate_file(ctx, cert_file, 
-			crypto.SSL_FILETYPE_PEM) <= 0 then
-		    err = lssl.ERR_peek_error()
-		    lssl.ERR_clear_error()
-		    return err, crypto.ERR_error_string(err)
-		end
-		if lssl.SSL_CTX_use_PrivateKey_file(ctx, prv_file, 
-			crypto.SSL_FILETYPE_PEM) <= 0 then
-		    err = lssl.ERR_peek_error()
-		    lssl.ERR_clear_error()
-		    return err, crypto.ERR_error_string(err)
-		end
-		-- Check if pub and priv key matches each other.
-		if lssl.SSL_CTX_check_private_key(ctx) ~= 1 then
-		    return -1, "Private and public keys does not match"
-		end
+        if lssl.SSL_CTX_use_certificate_file(ctx, cert_file, 
+            crypto.SSL_FILETYPE_PEM) <= 0 then
+            err = lssl.ERR_peek_error()
+            lssl.ERR_clear_error()
+            return err, crypto.ERR_error_string(err)
+        end
+        if lssl.SSL_CTX_use_PrivateKey_file(ctx, prv_file, 
+            crypto.SSL_FILETYPE_PEM) <= 0 then
+            err = lssl.ERR_peek_error()
+            lssl.ERR_clear_error()
+            return err, crypto.ERR_error_string(err)
+        end
+        -- Check if pub and priv key matches each other.
+        if lssl.SSL_CTX_check_private_key(ctx) ~= 1 then
+            return -1, "Private and public keys does not match"
+        end
     end
     if verify == true then
-		if lssl.SSL_CTX_load_verify_locations(ctx, ca_cert_path, nil) ~= 1 then
-		    err = lssl.ERR_peek_error()
-		    lssl.ERR_clear_error()
-		    return err, crypto.ERR_error_string(err)
-		end
-		lssl.SSL_CTX_set_verify(ctx, crypto.SSL_VERIFY_PEER, nil); 
+        if lssl.SSL_CTX_load_verify_locations(ctx, ca_cert_path, nil) ~= 1 then
+            err = lssl.ERR_peek_error()
+            lssl.ERR_clear_error()
+            return err, crypto.ERR_error_string(err)
+        end
+        lssl.SSL_CTX_set_verify(ctx, crypto.SSL_VERIFY_PEER, nil); 
     end
     return err, ctx
 end
@@ -164,35 +164,35 @@ function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
     local err = 0
     
     if not cert_file then
-		return -1, "No cert file given in arguments";
+        return -1, "No cert file given in arguments";
     elseif not prv_file then
-		return -1, "No priv file given in arguments";
+        return -1, "No priv file given in arguments";
     end
     meth = sslv or lssl.SSLv23_server_method()
     if meth == nil then
-		err = lssl.ERR_peek_error()
-		lssl.ERR_clear_error()
-		return err, crypto.ERR_error_string(err)
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
     end
     ctx = lssl.SSL_CTX_new(meth)
     if ctx == nil then
-		err = lssl.ERR_peek_error()
-		lssl.ERR_clear_error()
-		return err, crypto.ERR_error_string(err)
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
     else
-		ffi.gc(ctx, lssl.SSL_CTX_free)
+        ffi.gc(ctx, lssl.SSL_CTX_free)
     end    
     if lssl.SSL_CTX_use_certificate_file(ctx, cert_file, 
-    	crypto.SSL_FILETYPE_PEM) <= 0 then
-		err = lssl.ERR_peek_error()
-		lssl.ERR_clear_error()
-		return err, crypto.ERR_error_string(err)
+        crypto.SSL_FILETYPE_PEM) <= 0 then
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
     end
     if lssl.SSL_CTX_use_PrivateKey_file(ctx, prv_file, 
-    	crypto.SSL_FILETYPE_PEM) <= 0 then
-		err = lssl.ERR_peek_error()
-		lssl.ERR_clear_error()
-		return err, crypto.ERR_error_string(err)
+        crypto.SSL_FILETYPE_PEM) <= 0 then
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
     end
     return err, ctx
 end
@@ -203,7 +203,7 @@ end
 -- @param sz (Number) Bytes to send from buffer.
 function crypto.SSL_write(ssl, buf, sz)
     if ssl == nil or buf == nil then
-		error("SSL_write passed null pointer.")
+        error("SSL_write passed null pointer.")
     end
     return lssl.SSL_write(ssl, buf, sz)
 end
@@ -214,7 +214,7 @@ end
 -- @param sz (Number) Bytes to maximum read into buffer.
 function crypto.SSL_read(ssl, buf, sz)
     if ssl == nil or buf == nil then
-		error("SSL_read passed null pointer.")
+        error("SSL_read passed null pointer.")
     end
     return lssl.SSL_read(ssl, buf, sz)
 end

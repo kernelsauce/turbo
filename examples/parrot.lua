@@ -19,14 +19,14 @@ local turbo = require "turbo"
 local Parrot = class("Parrot", turbo.tcpserver.TCPServer)
 
 function Parrot:handle_stream(stream, addr)
-	stream:read_until_close(
-		function() 
-			print("Socket closed!")
-		end, nil,
-		function(data)
-			-- Streaming callback
-			stream:write(data)
-		end)
+    stream:read_until_close(
+        function() 
+            print("Socket closed!")
+        end, nil,
+        function(data)
+            -- Streaming callback
+            stream:write(data)
+        end)
 end
 
 Parrot():listen(8888)
