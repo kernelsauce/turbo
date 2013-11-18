@@ -38,6 +38,8 @@ Installing Turbo.lua is easy. Simply download and run ``make install`` (requires
 
 You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
 
+To compile without support for OpenSSL (and SSL connections) use the make option SSL=none.
+
 In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
 To verify a installation you can try running the applications in the examples folder.
 
