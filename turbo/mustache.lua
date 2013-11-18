@@ -32,12 +32,12 @@ require "turbo.3rdparty.middleclass"
 local b = string.byte
 
 local START =           "{{"
-local START_NO_ESC =        "{{{"
+local START_NO_ESC =    "{{{"
 local END =             "}}"
 local END_NO_ESC =      "}}}"
 local START_SEC =       '#'
 local END_SEC =         '/'
-local START_INV_SEC =       '^'
+local START_INV_SEC =   '^'
 local COMMENT =         '!'
 local ESCAPE =          '&'
 local PARTIAL =         '>'
@@ -45,15 +45,15 @@ local PARTIAL =         '>'
 --- Mustache parser states.
 local PNONE =           0x00
 local PSTART =          0x01
-local PSTARTNOESC =         0x02
+local PSTARTNOESC =     0x02
 local PSTARTSEC =       0x03
-local PSTARTSECINV =        0x04
+local PSTARTSECINV =    0x04
 local PTABLEKEY =       0x05
-local PTABLEKEYNOESC =      0x06
+local PTABLEKEYNOESC =  0x06
 local PEND =            0x07
 local PCOMMENT =        0x08
 local PPARTIAL =        0x09
-local PPARTIALNOESC =       0x10
+local PPARTIALNOESC =   0x10
 
 --- Template instruction set
 local MSTR =            0x01    -- Constant string
