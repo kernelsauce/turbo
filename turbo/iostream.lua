@@ -30,7 +30,7 @@ local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
 -- __Global value__ _G.TURBO_SSL allows the user to enable the SSL module.
-local crypto =      _G.TURBO_SSL and require "turbo.crypto"
+local crypto =      require "turbo.crypto"
 local bit =         require "bit"
 local ffi =         require "ffi"
 require "turbo.cdef"
