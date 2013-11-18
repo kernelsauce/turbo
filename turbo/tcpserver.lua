@@ -14,7 +14,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.	
+-- limitations under the License.   
   
 local log =         require "turbo.log"
 local util =        require "turbo.util"
@@ -53,7 +53,7 @@ tcpserver.TCPServer = class('TCPServer')
 -- @param max_buffer_size (Number) The maximum buffer size of the server. If 
 -- the limit is hit, the connection is closed.
 -- @note If the SSL certificates can not be loaded, a error is raised.
-function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)	
+function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)  
     self.io_loop = io_loop
     self.ssl_options = ssl_options
     self.max_buffer_size = max_buffer_size
@@ -125,7 +125,7 @@ end
 -- add them to the sockets table.
 function tcpserver.TCPServer:add_sockets(sockets)
     if not self.io_loop then
-	    self.io_loop = ioloop.instance()
+        self.io_loop = ioloop.instance()
     end
     for _, sock in ipairs(sockets) do
         self._sockets[#self._sockets + 1] = sock
@@ -140,7 +140,7 @@ end
 -- @param socket (Number) Socket fd.
 -- @note Use the sockutil.bind_sockets to create sockets easily and add them to
 -- the sockets table.
-function tcpserver.TCPServer:add_socket(socket)	self:add_sockets({socket}) end
+function tcpserver.TCPServer:add_socket(socket) self:add_sockets({socket}) end
 
 --- Bind this server to port and address.
 -- @note No sockets are bound until TCPServer:start is called.
@@ -155,16 +155,16 @@ function tcpserver.TCPServer:add_socket(socket)	self:add_sockets({socket}) end
 function tcpserver.TCPServer:bind(port, address, backlog, family)
     local sockets = sockutil.bind_sockets(port, address, backlog, family)
     if self._started then
-	   self:add_sockets(sockets)
+       self:add_sockets(sockets)
     else
        self._pending_sockets[#self._pending_sockets + 1] = sockets
     end
 end
 
 --- Start the TCPServer.
-function tcpserver.TCPServer:start(procs)	
-	assert((not self._started), "Already started TCPServer.")
-	self._started = true
+function tcpserver.TCPServer:start(procs)   
+    assert((not self._started), "Already started TCPServer.")
+    self._started = true
     if procs and procs > 1 then
         for _ = 1, procs - 1 do 
             local pid = ffi.C.fork()
@@ -176,16 +176,16 @@ function tcpserver.TCPServer:start(procs)
             end
         end
     end
-	local sockets = self._pending_sockets
-	self._pending_sockets = {}
-	self:add_sockets(sockets)
+    local sockets = self._pending_sockets
+    self._pending_sockets = {}
+    self:add_sockets(sockets)
 end
 
 --- Stop the TCPServer.
 function tcpserver.TCPServer:stop()
     for _, fd in ipairs(self._sockets) do
-	   self.io_loop:remove_handler(fd)
-	   assert(socket.close(fd) == 0, "Failed to close socket.")
+       self.io_loop:remove_handler(fd)
+       assert(socket.close(fd) == 0, "Failed to close socket.")
     end
     self._sockets = {}
 end
@@ -201,10 +201,10 @@ function tcpserver.TCPServer:_handle_connection(connection, address)
             self.max_buffer_size)
         self:handle_stream(stream, address)
     else
-    	local stream = iostream.IOStream:new(connection, 
+        local stream = iostream.IOStream:new(connection, 
             self.io_loop, 
             self.max_buffer_size)
-    	self:handle_stream(stream, address)
+        self:handle_stream(stream, address)
     end
 end
 

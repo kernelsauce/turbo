@@ -64,14 +64,14 @@ turbo.MICRO_VERSION = 0
 -- version 1.2.1 and 0x010300 for version 1.3.
 turbo.VERSION_HEX = 0x010000 
 if turbo.MICRO_VERSION then
-	turbo.VERSION = string.format("%d.%d.%d", 
-		turbo.MAJOR_VERSION, 
-		turbo.MINOR_VERSION, 
-		turbo.MICRO_VERSION)
+    turbo.VERSION = string.format("%d.%d.%d", 
+        turbo.MAJOR_VERSION, 
+        turbo.MINOR_VERSION, 
+        turbo.MICRO_VERSION)
 else
-	turbo.VERSION = string.format("%d.%d", 
-		turbo.MAJOR_VERSION, 
-		turbo.MINOR_VERSION)
+    turbo.VERSION = string.format("%d.%d", 
+        turbo.MAJOR_VERSION, 
+        turbo.MINOR_VERSION)
 end
 turbo.log =             require "turbo.log"
 turbo.ioloop =          require "turbo.ioloop"
@@ -80,7 +80,7 @@ turbo.httputil =        require "turbo.httputil"
 turbo.tcpserver =       require "turbo.tcpserver"
 turbo.httpserver =      require "turbo.httpserver"
 turbo.iostream =        require "turbo.iostream"
-turbo.crypto =        	require "turbo.crypto"
+turbo.crypto =          require "turbo.crypto"
 turbo.async =           require "turbo.async"
 turbo.web =             require "turbo.web"
 turbo.util =            require "turbo.util"

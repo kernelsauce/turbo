@@ -17,10 +17,10 @@
 local turbo = require "turbo"
 
 local app = turbo.web.Application:new({
-	-- Serve single index.html file on root requests.
-	{"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
-	-- Serve contents of directory.
-	{"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
+    -- Serve single index.html file on root requests.
+    {"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
+    -- Serve contents of directory.
+    {"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
 })
 
 local srv = turbo.httpserver.HTTPServer(app)

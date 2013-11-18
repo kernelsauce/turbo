@@ -19,11 +19,11 @@ local turbo = require "turbo"
 local CookieHandler = class("CookieHandler", turbo.web.RequestHandler)
 
 function CookieHandler:get()
-	local counter = self:get_cookie("counter") 
-	local new_count = counter and tonumber(counter) + 1 or 0
-	self:set_cookie("id", "supersecretrandomid!") -- Set cookie for one year.
-	self:write("Cookie counter is at: " .. new_count)
-	self:set_cookie("counter", new_count) 
+    local counter = self:get_cookie("counter") 
+    local new_count = counter and tonumber(counter) + 1 or 0
+    self:set_cookie("id", "supersecretrandomid!") -- Set cookie for one year.
+    self:write("Cookie counter is at: " .. new_count)
+    self:set_cookie("counter", new_count) 
 end
  
 turbo.web.Application({{"^/$", CookieHandler}}):listen(8888)

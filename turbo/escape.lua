@@ -18,7 +18,7 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE."		
+-- SOFTWARE."       
 
 local json = require('turbo.3rdparty.JSON')
 
@@ -28,7 +28,7 @@ local escape = {} -- escape namespace
 -- @param lua_table_or_value Value to JSON encode.
 -- @note May raise a error if table could not be decoded.
 function escape.json_encode(lua_table_or_value) 
-	return json:encode(lua_table_or_value) 
+    return json:encode(lua_table_or_value) 
 end
 
 --- Decode a JSON string to table.
@@ -36,7 +36,7 @@ end
 -- Lua primitives.
 -- @return (Table)
 function escape.json_decode(json_string_literal) 
-	return json:decode(json_string_literal) 
+    return json:decode(json_string_literal) 
 end
 
 local function _unhex(hex) return string.char(tonumber(hex, 16)) end
@@ -58,22 +58,22 @@ end
 -- Remove trailing and leading whitespace from string.
 -- @param s String
 function escape.trim(s)
-  	-- from PiL2 20.4
-  	return (s:gsub("^%s*(.-)%s*$", "%1"))
+    -- from PiL2 20.4
+    return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
 -- Remove leading whitespace from string.
 -- @param s String
 function escape.ltrim(s)
-  	return (s:gsub("^%s*", ""))
+    return (s:gsub("^%s*", ""))
 end
 
 -- Remove trailing whitespace from string.
 -- @param s String
 function escape.rtrim(s)
-  	local n = #s
-  	while n > 0 and s:find("^%s", n) do n = n - 1 end
-  	return s:sub(1, n)
+    local n = #s
+    while n > 0 and s:find("^%s", n) do n = n - 1 end
+    return s:sub(1, n)
 end
 
 return escape

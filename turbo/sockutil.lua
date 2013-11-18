@@ -160,30 +160,30 @@ function sockutils.bind_sockets(port, address, backlog, family)
     
     local fd = socket.socket(family, SOCK_STREAM, 0)
     if fd == -1 then
-    	errno = ffi.errno()
-    	error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", 
+        errno = ffi.errno()
+        error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", 
             errno, 
-            socket.strerror(errno)))		
+            socket.strerror(errno)))        
     end    
     rc, msg = socket.set_nonblock_flag(fd)
     if rc ~= 0 then
-	   error("[iostream.lua] " .. msg)
+       error("[iostream.lua] " .. msg)
     end    
     rc, msg = socket.set_reuseaddr_opt(fd)
     if rc ~= 0 then
-	   error("[tcpserver.lua] " .. msg)
+       error("[tcpserver.lua] " .. msg)
     end
     if socket.bind(fd, ffi.cast("struct sockaddr *", serv_addr), 
         ffi.sizeof(serv_addr)) ~= 0 then
-	    errno = ffi.errno()
-	    error(string.format(
+        errno = ffi.errno()
+        error(string.format(
             "[tcpserver.lua Errno %d] Could not bind to address. %s", 
             errno, 
-            socket.strerror(errno)))		
+            socket.strerror(errno)))        
     end
     if socket.listen(fd, backlog) ~= 0 then 
-	    errno = ffi.errno()
-	    error(string.format(
+        errno = ffi.errno()
+        error(string.format(
             "[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s", 
             errno, 
             fd, 
@@ -248,7 +248,7 @@ end
 -- socket fd (Number) and address (String) of client as parameters.
 -- @param io_loop (IOLoop instance) If not set the global is used.
 -- @param arg Optional argument for callback.
-function sockutils.add_accept_handler(sock, callback, io_loop, arg)	
+function sockutils.add_accept_handler(sock, callback, io_loop, arg) 
     local io_loop = io_loop or ioloop.instance()
     io_loop:add_handler(
         sock, 

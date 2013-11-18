@@ -18,7 +18,7 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE."		
+-- SOFTWARE."       
 
 local ffi = require "ffi"
 local C = ffi.C
@@ -33,7 +33,7 @@ local util = {}
 --*************** String library extensions *************** 
 
 --- Extends the standard string library with a split method.
-function string:split(sep, max, pattern)	
+function string:split(sep, max, pattern)    
     assert(sep ~= '', "Separator is not a string or a empty string.")
     assert(max == nil or max >= 1, "Max is 0 or a negative number.")
 
@@ -104,16 +104,16 @@ end
 
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
-	if not needle or not haystack then 
+    if not needle or not haystack then 
         return nil 
     end
-	local i
-	for i = 1, #haystack, 1 do 
-		if needle == haystack[i] then
-			return true
-		end
-	end
-	return
+    local i
+    for i = 1, #haystack, 1 do 
+        if needle == haystack[i] then
+            return true
+        end
+    end
+    return
 end
 
 --- unpack that does not cause trace abort.

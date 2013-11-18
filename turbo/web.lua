@@ -214,7 +214,7 @@ end
 -- To overwite use the set_header method instead.
 -- @param name (String) Key string for header field.
 -- @param value (String or number) Value for header field.
-function web.RequestHandler:add_header(name, value)	
+function web.RequestHandler:add_header(name, value) 
     self.headers:add(name, value) 
 end
 
@@ -223,7 +223,7 @@ end
 -- key.
 -- @param name (String) Key string for header field.
 -- @param value (String or number) Value for header field.
-function web.RequestHandler:set_header(name, value)	
+function web.RequestHandler:set_header(name, value) 
     self.headers:set(name, value) 
 end
 
@@ -338,7 +338,7 @@ function web.RequestHandler:set_chunked_write()
     self:add_header("Transfer-Encoding", "chunked")
 end
 
---- Writes the given chunk to the output buffer.			
+--- Writes the given chunk to the output buffer.            
 -- To write the output to the network, use the flush() method.
 -- If the given chunk is a Lua table, it will be automatically
 -- stringifed to JSON.
@@ -457,7 +457,7 @@ end
 --- Finishes the HTTP request. This method can only be called once for each
 -- request. This method flushes all data in the write buffer.
 -- @param chunk (String) Final data to write to stream before finishing.
-function web.RequestHandler:finish(chunk)	
+function web.RequestHandler:finish(chunk)   
     if self._finished then
         error("finish() called twice. Something terrible has happened")
     end
@@ -613,7 +613,7 @@ web.STATIC_CACHE = STATIC_CACHE
 -- in memory it is ok.
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
 function web.StaticFileHandler:initialize(app, request, args, options)
-    web.RequestHandler.initialize(self, app, request, args)	
+    web.RequestHandler.initialize(self, app, request, args) 
     if not options or type(options) ~= "string" then
         error("StaticFileHandler not initialized with correct parameters.")
     end
@@ -855,7 +855,7 @@ end
 function web.Application:__call(request)
     local handler = nil
     local handlers, args, options = self:_get_request_handlers(request)
-    if handlers then	
+    if handlers then    
         handler = handlers:new(self, request, args, options)
         local status, err = pcall(handler._execute, handler)
         if err then

@@ -133,7 +133,7 @@ end
 --- Remove a existing handler from the IO Loop.
 -- @param fd (Number) File descriptor to remove handler from.
 -- @return (Boolean) true if successfull else false.
-function ioloop.IOLoop:remove_handler(fd)	
+function ioloop.IOLoop:remove_handler(fd)   
     if not self._handlers[fd] then
         return
     end
@@ -442,30 +442,30 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
     end
     st = coroutine.status(co)
     if st == "suspended" then
-    	local yield_t = type(yielded)
-    	if instanceOf(coctx.CoroutineContext, yielded) then
+        local yield_t = type(yielded)
+        if instanceOf(coctx.CoroutineContext, yielded) then
             -- Advanced yield scenario.
             -- Use CouroutineContext as key in Coroutine map.
             self._co_ctxs[yielded] = co
             return 1
-    	elseif yield_t == "function" then
+        elseif yield_t == "function" then
             -- Schedule coroutine to be run on next iteration with function
             -- as result of yield.
-    	    self._co_cbs[#self._co_cbs + 1] = {co, yielded}
+            self._co_cbs[#self._co_cbs + 1] = {co, yielded}
             return 2
         elseif yield_t == "nil" then
             -- Empty yield. Schedule resume on next iteration.
             self._co_cbs[#self._co_cbs + 1] = {co, 0}
             return 3
-    	else
+        else
             -- Invalid yielded value. Schedule resume of courotine on next 
             -- iteration with -1 as result of yield (to represent error).
-    	    self._co_cbs[#self._co_cbs + 1] = {co, function() return -1 end}
-    	    log.warning(string.format(
+            self._co_cbs[#self._co_cbs + 1] = {co, function() return -1 end}
+            log.warning(string.format(
                 "[ioloop.lua] Callback yielded with unsupported value, %s.",
                 yield_t))
             return 3
-    	end	
+        end 
     end
     return 0
 end
@@ -538,7 +538,7 @@ end
 
 function _EPoll_FFI:unregister(fd)
     return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
-        fd, 0)	
+        fd, 0)  
 end
 
 function _EPoll_FFI:poll(timeout)
