@@ -15,11 +15,23 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.		
 
+if not _G.TURBO_SSL then
+    return setmetatable({},
+    {
+    __index = function(t, k)
+        error("TURBO_SSL is not defined and you are trying to use SSL.")
+    end,
+    __call  = function(t, k)
+        error("TURBO_SSL is not defined and you are trying to use SSL.")
+    end
+    })
+end
+
 local ffi = require "ffi"
+require "turbo.cdef"
+local lssl = ffi.load("ssl")
 
 local crypto = {} -- crypto namespace
-local lssl = ffi.load("ssl")
-require "turbo.cdef"
 
 crypto.X509_FILETYPE_PEM =			1
 crypto.X509_FILETYPE_ASN1 = 		2
