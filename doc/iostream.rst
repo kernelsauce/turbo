@@ -150,6 +150,17 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:type callback: Function
 	:param arg: Optional argument for callback.
 	
+.. function:: IOStream:set_max_buffer_size(sz)
+    
+    Set the maximum amount of bytes to be buffered internally in the IOStream instance.
+    This limit can also be set on class instanciation. This method does NOT check the
+    current size and does NOT immediately raise a error if the size is already exceeded.
+    A error will instead occur when the IOStream is adding data to its buffer on the next
+    occasion and detects a breached limit.
+
+    :param sz: Size of max buffer in bytes.
+    :type sz: Number
+
 .. function:: IOStream:close()
 
 	Close the stream and its associated socket.

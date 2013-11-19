@@ -65,6 +65,7 @@ local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
 -- __Global value__ _G.TURBO_SOCKET_BUFFER_SZ allows the user to set 
 -- his own socket buffer size to be used by the module. Defaults to 4096 bytes.
 _G.TURBO_SOCKET_BUFFER_SZ = _G.TURBO_SOCKET_BUFFER_SZ or 4096
+local TURBO_SOCKET_BUFFER_SZ = _G.TURBO_SOCKET_BUFFER_SZ
 local buf = ffi.new("char[?]", _G.TURBO_SOCKET_BUFFER_SZ)
 
 local iostream = {} -- iostream namespace
@@ -395,11 +396,11 @@ end
 -- If read is not possible at this time, it is added to IOLoop.
 function iostream.IOStream:_initial_read()
     while true do 
-        if (self:_read_from_buffer() == true) then
+        if self:_read_from_buffer() == true then
             return
         end
         self:_check_closed()
-        if (self:_read_to_buffer() == 0) then
+        if self:_read_to_buffer() == 0 then
             break
         end
     end
@@ -540,7 +541,10 @@ end
 -- @return Chunk of data.
 function iostream.IOStream:_read_from_socket()
     local errno
-    local sz = tonumber(socket.recv(self.socket, buf, 4096, 0))
+    local sz = tonumber(socket.recv(self.socket, 
+                                    buf, 
+                                    TURBO_SOCKET_BUFFER_SZ, 
+                                    0))
     if sz == -1 then
         errno = ffi.errno()
         if errno == EWOULDBLOCK or errno == EAGAIN then
@@ -549,10 +553,10 @@ function iostream.IOStream:_read_from_socket()
             local fd = self.socket
             self:close()
             error(string.format(
-                "Error when reading from socket %d. Errno: %d. %s",
-                fd,
-                errno,
-                socket.strerror(errno)))
+                  "Error when reading from socket %d. Errno: %d. %s",
+                  fd,
+                  errno,
+                  socket.strerror(errno)))
         end
     end
     if sz == 0 then

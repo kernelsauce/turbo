@@ -4,6 +4,31 @@
 turbo.async -- Asynchronous clients 
 ***********************************
 
+Utilities for coroutines
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. function:: task(func, ...)
+
+	A wrapper for functions that always takes callback and callback 
+	argument as last arguments to be able to yield and resume execution of
+	function when callback is called from another function.
+
+	No callbacks required, the arguments that would normally be used to
+	call the callback is put in the left-side result.
+
+	Usage:
+	Consider one of the functions of the IOStream class which uses a 
+	callback based API: IOStream:read_until(delimiter, callback, arg)
+
+.. code-block:: lua
+	:linenos:
+
+	local res = coroutine.yield(turbo.async.task(
+		stream.read_until, stream, "\r\n"))
+		
+	-- Result from read_until operation will be returned in the res variable.
+
+
 HTTPClient class
 ~~~~~~~~~~~~~~~~
 Based on the IOStream/SSLIOStream and IOLoop classes.
