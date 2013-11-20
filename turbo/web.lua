@@ -680,9 +680,9 @@ function web.StaticFileHandler:get(path)
         self.headers:set_status_code(200)
         self.headers:set_version("HTTP/1.1")
         self:add_header("Content-Length", tonumber(buf:len()))
-        self:add_header("Cache-Control", "max-age=31536000")
+        self:add_header("Cache-Control", "max-age=604800")
         self:add_header("Expires", os.date("!%a, %d %b %Y %X GMT", 
-            self.request._start_time + 31536000))
+            (self.request._start_time / 1000) + 60*60*24*7))
         self:flush(web.StaticFileHandler._headers_flushed_cb, self)
     else
         error(web.HTTPError(404)) -- Not found
@@ -696,7 +696,7 @@ function web.StaticFileHandler:head(path)
         error(web.HTTPError(404))
     end
     local filename = self._url_args[1]
-    if filename:match("..", true) then -- Prevent dir traversing.
+    if filename:match("%.%.", 0, true) then -- Prevent dir traversing.
         error(web.HTTPError(401))
     end
     local full_path = string.format("%s%s", self.path, 
