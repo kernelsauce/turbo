@@ -19,17 +19,17 @@ local turbo = require "turbo"
 
 local SSL_Handler = class("SSL_Handler", turbo.web.RequestHandler)
 function SSL_Handler:get()
-	self:write("SSL is working!")
+    self:write("SSL is working!")
 end
  
 local application = turbo.web.Application:new({
-	{"^/$", SSL_Handler}
+    {"^/$", SSL_Handler}
 })
 
 application:listen(8888, nil, {
-	ssl_options = {
-		key_file = "./sslkeys/server.key",
-		cert_file = "./sslkeys/server.crt"
-	}
+    ssl_options = {
+        key_file = "./sslkeys/server.key",
+        cert_file = "./sslkeys/server.crt"
+    }
 })
 turbo.ioloop.instance():start()

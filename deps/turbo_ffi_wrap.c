@@ -202,12 +202,12 @@ static int32_t header_field_cb(http_parser *p, const char *buf, size_t len)
     case NOTHING:
     case VALUE:
         if (nw->hkv_sz == nw->hkv_mem){
-            ptr = realloc(
+        ptr = realloc(
                         nw->hkv,
-                        sizeof(struct turbo_key_value_field *) *
+                    sizeof(struct turbo_key_value_field *) *
                         (nw->hkv_sz + 10));
             if (!ptr)
-                return -1;
+            return -1;
             nw->hkv = ptr;
             nw->hkv_mem += 10;
         }

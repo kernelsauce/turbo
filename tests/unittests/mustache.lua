@@ -17,60 +17,60 @@
 local turbo = require "turbo"
 
 describe("turbo.web.Mustache Namespace", function() 
-	it("Basic usage", function()
+    it("Basic usage", function()
 
-	local simple_template = [[
+    local simple_template = [[
 <body>
-	<h1>
-		{{heading }}
-	</h1>
-	{{! 	
+    <h1>
+        {{heading }}
+    </h1>
+    {{!     
 
-			Some comment section that 
-			even spans across multiple lines,
-			that I just have to have to explain my flawless code.		
+            Some comment section that 
+            even spans across multiple lines,
+            that I just have to have to explain my flawless code.       
 
-	}}
-	<h2>
-		{{{desc}}} {{! No escape with triple mustaches allow HTML tags! }}
-		{{&desc}} {{! No escape can also be accomplished by & char }}
-	</h2>
-	<p>I am {{age}} years old. What would {{you}} like to buy in my shop?</p>
-	{{  #items }}  {{! I like spaces alot! 		}}
-		Item: {{item}}
-		{{#types}}
-			{{! Only print items if available.}}
-			Type available: {{type}}
-		{{/types}}
-		{{^types}}	Only one type available.
-		{{! Apparently only one type is available because types is not set, 
-		determined by the hat char ^}}
-		{{/types}}
-	{{/items}}
-	
-	{{^items}}
-		No items available!
-	{{/items}}
-	{{{ >disclaimer   }}} 		{{!! I like partials alot too. }}
+    }}
+    <h2>
+        {{{desc}}} {{! No escape with triple mustaches allow HTML tags! }}
+        {{&desc}} {{! No escape can also be accomplished by & char }}
+    </h2>
+    <p>I am {{age}} years old. What would {{you}} like to buy in my shop?</p>
+    {{  #items }}  {{! I like spaces alot!      }}
+        Item: {{item}}
+        {{#types}}
+            {{! Only print items if available.}}
+            Type available: {{type}}
+        {{/types}}
+        {{^types}}  Only one type available.
+        {{! Apparently only one type is available because types is not set, 
+        determined by the hat char ^}}
+        {{/types}}
+    {{/items}}
+    
+    {{^items}}
+        No items available!
+    {{/items}}
+    {{{ >disclaimer   }}}       {{!! I like partials alot too. }}
 
 </body>]]
-		-- We basically rely on the fact that compile will throw error
-		-- if the compiling is erroring on valid input.
-		local tmpl = turbo.web.Mustache.compile(simple_template)
-		local compiled_tmpl = turbo.web.Mustache.render(tmpl, {
-			heading="My website!", 
-			desc="<b>Big important website</b>",
-			age=27,
-			items={
-				{item="Bread", 
-					types={
-						{type="light"}, 
-						{type="fatty"}
-					}
-				},
-				{item="Milk"},
-				{item="Sugar"}
-			}
-			}, false)
-	end)
+        -- We basically rely on the fact that compile will throw error
+        -- if the compiling is erroring on valid input.
+        local tmpl = turbo.web.Mustache.compile(simple_template)
+        local compiled_tmpl = turbo.web.Mustache.render(tmpl, {
+            heading="My website!", 
+            desc="<b>Big important website</b>",
+            age=27,
+            items={
+                {item="Bread", 
+                    types={
+                        {type="light"}, 
+                        {type="fatty"}
+                    }
+                },
+                {item="Milk"},
+                {item="Sugar"}
+            }
+            }, false)
+    end)
 end)

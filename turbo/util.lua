@@ -18,7 +18,7 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE."		
+-- SOFTWARE."
 
 local ffi = require "ffi"
 local C = ffi.C
@@ -33,7 +33,7 @@ local util = {}
 --*************** String library extensions *************** 
 
 --- Extends the standard string library with a split method.
-function string:split(sep, max, pattern)	
+function string:split(sep, max, pattern)
     assert(sep ~= '', "Separator is not a string or a empty string.")
     assert(max == nil or max >= 1, "Max is 0 or a negative number.")
 
@@ -105,16 +105,16 @@ end
 
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
-	if not needle or not haystack then 
+    if not needle or not haystack then 
         return nil 
     end
-	local i
-	for i = 1, #haystack, 1 do 
-		if needle == haystack[i] then
-			return true
-		end
-	end
-	return
+    local i
+    for i = 1, #haystack, 1 do 
+        if needle == haystack[i] then
+            return true
+        end
+    end
+    return
 end
 
 --- unpack that does not cause trace abort.
@@ -126,7 +126,7 @@ function util.funpack(t, i)
     end
 end
 
---*************** Time and date *************** 
+--*************** Time and date ***************
 
 --- Current msecs since epoch. Better granularity than Lua builtin.
 -- @return Number
@@ -142,9 +142,9 @@ function util.time_format_cookie(epoch)
     g_time_t[0] = epoch
     local tm = C.gmtime(g_time_t)
     local sz = C.strftime(
-        g_time_str_buf, 
-        1024, 
-        "%a, %d-%b-%Y %H:%M:%S GMT", 
+        g_time_str_buf,
+        1024,
+        "%a, %d-%b-%Y %H:%M:%S GMT",
         tm)
     return ffi.string(g_time_str_buf, sz)
 end
@@ -155,9 +155,9 @@ function util.time_format_http_header(time_t)
     g_time_t[0] = time_t
     local tm = C.gmtime(g_time_t)
     local sz = C.strftime(
-        g_time_str_buf, 
-        1024, 
-        "%a, %d %b %Y %H:%M:%S GMT", 
+        g_time_str_buf,
+        1024,
+        "%a, %d %b %Y %H:%M:%S GMT",
         tm)
     return ffi.string(g_time_str_buf, sz)
 end
@@ -181,14 +181,14 @@ end
 
 local function suffixes(x, m, suff)
     local f, g, i
-  
+
     suff[m - 1] = m
     g = m - 1
     i = m - 2
-    while i >= 0 do 
+    while i >= 0 do
         if i > g and suff[i + m - 1 - f] < i - g then
             suff[i] = suff[i + m - 1 - f]
-        else 
+        else
             if i < g then
                 g = i
             end
@@ -245,7 +245,7 @@ local function preBmBc(x, m, bmBc)
 end
 
 local NEEDLE_MAX = 1024
---- Turbo Booyer-Moore memory search algorithm. 
+--- Turbo Booyer-Moore memory search algorithm.
 -- Search through arbitrary memory and find first occurence of given byte sequence.
 -- @param x char* Needle memory pointer
 -- @param m int Needle size
@@ -260,7 +260,7 @@ function util.TBM(x, m, y, n)
         error("Needle exceeds NEEDLE_MAX defined in util.lua. \
             Can not do memory search.")
     end
-    local bcShift, i, j, shift, u, v, turboShift  
+    local bcShift, i, j, shift, u, v, turboShift
     preBmGs(x, m, bmGs);
     preBmBc(x, m, bmBc);
     j = 0
@@ -338,7 +338,7 @@ function util.str_find(s, p, slen, plen)
             local q
             while slen > 0 do
                 q = ffi.cast("char*", C.memchr(s, c, slen))
-                if q == nil then 
+                if q == nil then
                     break
                 end
                 if C.memcmp(q + 1, p, plen) == 0 then

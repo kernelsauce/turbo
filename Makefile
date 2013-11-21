@@ -1,6 +1,6 @@
 ########
 ## Turbo.lua Makefile for installation.
-## Copyright (C) 2013 John Abrahamsen. 
+## Copyright (C) 2013 John Abrahamsen.
 ## See LICENSE file for license information.
 ########
 
@@ -29,20 +29,34 @@ INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
 INSTALL_TFFI_WRAP_SHORT= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SOSHORT)
 TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
-LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1	
+LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
 # Don't link with crypto or ssl if using axTLS
 # TODO: need to make a formal way to specify to build with axTLS instead of
 #       commenting out like this
 #LDFLAGS = -lcrypto -lssl
+CFLAGS=
 
+ifeq ($(SSL), none)
+	# No SSL option.
+	CFLAGS += -DTURBO_NO_SSL=1
+endif
+ifeq ($(SSL),)
+	# Default to OpenSSL
+	SSL=openssl
+endif
+ifeq ($(SSL), openssl)
+	# Link OpenSSL
+	LDFLAGS += -lcrypto -lssl
+endif
+	
 LUAJIT_VERSION?=2.0.2
 LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
 	make -C deps/http-parser library
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
 	make -C deps/http-parser clean
@@ -71,22 +85,21 @@ install:
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
 	@echo "==== Building 3rdparty modules ===="
 	make -C $(HTTP_PARSERDIR) library
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
 	$(LDCONFIG) $(INSTALL_LIB) && \
 	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
 	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
-	
+
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
 	cd $(TEST_DIR) && busted -l /usr/local/bin/luajit run_all_test.lua
-	luajit examples/helloworld.lua & 
+	luajit examples/helloworld.lua &
 	sleep 1
 	wget http://127.0.0.1:8888/
 	test -f index.html
 	rm -f index.html
 	pkill luajit
 	@echo "==== Successfully ran all tests for Turbo.lua $(TVERSION) ===="
-	

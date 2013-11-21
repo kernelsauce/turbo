@@ -35,7 +35,7 @@ local AF_INET = socket.AF_INET
 
 local async = {} -- async namespace
 
---- Task wrapper for functions that always takes callback and callback 
+--- A wrapper for functions that always takes callback and callback 
 -- argument as last arguments. 
 --
 -- Usage:
@@ -43,7 +43,7 @@ local async = {} -- async namespace
 -- callback based API: IOStream:read_until(delimiter, callback, arg)
 --
 -- local res = coroutine.yield(turbo.async.task(
---      stream.read_until, self, "\r\n"))
+--      stream.read_until, stream, "\r\n"))
 --
 -- No callbacks required, the arguments that would normally be used to
 -- call the callback is put in the left-side result.

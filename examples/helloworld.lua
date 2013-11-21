@@ -19,7 +19,7 @@ local turbo = require "turbo"
 local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 
 function ExampleHandler:get()
-	self:write("Hello world!")
+    self:write("Hello world!")
 end
  
 turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888)

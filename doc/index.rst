@@ -32,6 +32,21 @@ Its main features and design principles are:
 - Small footprint
 
 
+Installation
+------------
+Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
+Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
+
+Installing Turbo.lua is easy. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
+
+You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
+
+To compile without support for OpenSSL (and SSL connections) use ``make install SSL=none``.
+
+In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
+To verify a installation you can try running the applications in the examples folder.
+
+
 Object oriented Lua
 -------------------
 Turbo.lua are programmed in a object oriented fashion. There are many ways to do 

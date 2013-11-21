@@ -9,6 +9,8 @@ If you do not know Lua then do not fear as its probably one of the easiest langu
 
 Turbo.lua is non-blocking and features a fast web server and a HTTP client. The toolkit is good for REST APIs, traditional HTTP requests and open connections like Websockets and offers a high degree of freedom to do whatever you want, your way.
 
+API Documentation is available at http://turbolua.org/doc/
+
 It's main features and design principles are:
 
 - Simple and intuitive API (much like Tornado).
@@ -29,6 +31,7 @@ It's main features and design principles are:
 
 - SSL support
 
+
 Installation
 ------------
 Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
@@ -37,6 +40,8 @@ Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://l
 Installing Turbo.lua is easy. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
 
 You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
+
+To compile without support for OpenSSL (and SSL connections) use the make option SSL=none.
 
 In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
 To verify a installation you can try running the applications in the examples folder.
