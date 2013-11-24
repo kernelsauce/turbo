@@ -29,6 +29,7 @@ local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
 local util =            require "turbo.util"
+local hash =            require "turbo.hash"
 require('turbo.3rdparty.middleclass')
 
 -- Use funpack instead of native as the native is not implemented in the 
@@ -286,6 +287,38 @@ function web.RequestHandler:get_cookie(name, default)
     end
 end
 
+--- Get a signed cookie value from incoming request.
+-- If the cookie can not be validated, then an error with a string error 
+-- is raised.
+-- Hash-based message authentication code (HMAC) is used to be able to verify
+-- that the cookie has been created with the "cookie_secret" set in the 
+-- Application class kwargs. This is simply verifing that the cookie has been 
+-- signed by your key, IT IS NOT ENCRYPTING DATA.
+-- @param name The name of the cookie to get.
+-- @param default A default value if no cookie is found.
+-- @return Cookie or the default value.
+-- Max age in seconds.
+function web.RequestHandler:get_secure_cookie(name, default, max_age)
+    local cookie = self:get_cookie(name)
+    if not cookie then
+        return default
+    end
+    local len, hmac, timestamp, value = cookie:match("(%d*)|(%w*)|(%d*)|(.*)")
+    assert(tonumber(len) == value:len(), "Cookie value length has changed!")
+    assert(hmac:len() == 40, "Could not get secure cookie. Hash to short.")
+    if max_age then
+        max_age = max_age * 1000 -- Get milliseconds.
+        local cookietime = tonumber(timestamp)
+        assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
+    end
+    local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
+                               string.format("%d|%s", timestamp, value))
+    assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
+                              Either the cookie is forged or the cookie secret \
+                              has been changed")
+    return value
+end
+
 --- Set a cookie with value to response.
 -- @param name The name of the cookie to set.
 -- @param value The value of the cookie.
@@ -301,6 +334,36 @@ function web.RequestHandler:set_cookie(name, value, domain, expire_hours)
         domain = domain,
         expire_hours = expire_hours or 1
     }
+end
+
+--- Set a cookie in a signed secure way.
+-- Hash-based message authentication code (HMAC) is used to be able to verify
+-- that the cookie has been created with the "cookie_secret" set in the 
+-- Application class kwargs. This is simply verifing that the cookie has been 
+-- signed by your key, IT IS NOT ENCRYPTING DATA.
+-- @param name The name of the cookie to set.
+-- @param value The value of the cookie.
+-- @param domain The domain to apply cookie for.
+-- @param expire_hours Set cookie to expire in given amount of hours.
+-- @note Expiring relies on the requesting browser and may or may not be
+-- respected. Also keep in mind that the servers time is used to calculate
+-- expiry date, so the server should ideally be set up with NTP server.
+function web.RequestHandler:set_secure_cookie(name, value, domain, expire_hours)
+    -- The secure cookie format is as follows:
+    -- Each column is separated by a pipe.
+    -- value length | HMAC hash | timestamp | value
+    -- timestamp and value separated by a pipe char is what is being hashed.
+    assert(type(self.application.kwargs.cookie_secret) == "string", 
+           "No cookie secret has been set in the Application class.")
+    value = tostring(value)
+    local to_hash = string.format("%d|%s", util.gettimeofday(), value)
+    local cookie = string.format("%d|%s|%s", 
+                                 value:len(),
+                                 hash.HMAC(
+                                    self.application.kwargs.cookie_secret,
+                                    to_hash),
+                                 to_hash)
+    return self:set_cookie(name, cookie, domain, expire_hours)
 end
 
 --- Clear a cookie.
@@ -786,12 +849,15 @@ web.Application = class("Application")
 
 --- Initialize a new Application class instance.
 -- @param handlers (Table) As described above.
--- @param default_host (String) Redirect to URL if no matching handler is 
--- found.
-function web.Application:initialize(handlers, default_host)
+-- @param kwargs (Table) Key word arguments.
+-- Key word arguments supported:
+-- "default_host" = Redirect to this URL if no matching handler is found.
+-- "cookie_secret" = Sequence of bytes used for to sign cookies.
+function web.Application:initialize(handlers, kwargs)
     self.handlers = handlers or {}
-    self.default_host = default_host
-    self.application_name = "Turbo.lua 1.0"
+    self.kwargs = kwargs or {}
+    self.default_host = kwargs.default_host
+    self.application_name = kwargs.application_name or "Turbo.lua 1.0"
 end
 
 --- Sets the server name.
@@ -856,7 +922,7 @@ function web.Application:__call(request)
     local handler = nil
     local handlers, args, options = self:_get_request_handlers(request)
     if handlers then    
-        handler = handlers:new(self, request, args, options)
+        handler = handlers(self, request, args, options)
         local status, err = pcall(handler._execute, handler)
         if err then
             if instanceOf(web.HTTPError, err) then

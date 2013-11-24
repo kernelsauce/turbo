@@ -208,6 +208,16 @@ void ERR_error_string_n(unsigned long e, char *buf, size_t len);
 const char *ERR_lib_error_string(unsigned long e);
 const char *ERR_func_error_string(unsigned long e);
 const char *ERR_reason_error_string(unsigned long e);
+
+
+/* OpenSSL Hash functions */
+typedef void EVP_MD;
+const EVP_MD *EVP_sha1(void);
+unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md);
+unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md);
+unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
+               int key_len, const unsigned char *d, int n,
+               unsigned char *md, unsigned int *md_len);
 ]]
 
 
@@ -429,5 +439,6 @@ typedef int32_t pid_t;
 pid_t fork();
 pid_t wait(int32_t *status);
 pid_t getpid();
+
 ]])
 

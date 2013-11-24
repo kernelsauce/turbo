@@ -88,6 +88,7 @@ turbo.coctx =           require "turbo.coctx"
 turbo.signal =          require "turbo.signal"
 turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
+turbo.hash = 			require "turbo.hash"
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
 turbo.structs.buffer =   require "turbo.structs.buffer"
