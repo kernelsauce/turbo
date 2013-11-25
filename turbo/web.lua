@@ -266,12 +266,6 @@ function web.RequestHandler:redirect(url, permanent)
     self:finish()
 end
 
---- Reimplement in inheriting classes to get the current user from
--- for example a cookie, parameter etc.
-function web.RequestHandler:get_current_user() 
-    error("Method not implemented in this class.")
-end
-
 --- Get cookie value from incoming request.
 -- @param name The name of the cookie to get.
 -- @param default A default value if no cookie is found.
@@ -296,8 +290,9 @@ end
 -- signed by your key, IT IS NOT ENCRYPTING DATA.
 -- @param name The name of the cookie to get.
 -- @param default A default value if no cookie is found.
+-- @param max_age Timestamp used to sign cookie must be not be older than this
+-- value in seconds.
 -- @return Cookie or the default value.
--- Max age in seconds.
 function web.RequestHandler:get_secure_cookie(name, default, max_age)
     local cookie = self:get_cookie(name)
     if not cookie then
@@ -336,7 +331,7 @@ function web.RequestHandler:set_cookie(name, value, domain, expire_hours)
     }
 end
 
---- Set a cookie in a signed secure way.
+--- Set a signed cookie value to response.
 -- Hash-based message authentication code (HMAC) is used to be able to verify
 -- that the cookie has been created with the "cookie_secret" set in the 
 -- Application class kwargs. This is simply verifing that the cookie has been 

@@ -16,25 +16,48 @@
 
 local ffi = require "ffi"
 
+
+--- ******* stdlib *******
+ffi.cdef [[
+typedef int32_t pid_t;
+
+void *malloc(size_t sz);
+void *realloc (void* ptr, size_t size);
+void free(void *ptr);
+int sprintf(char * str, const char * format, ...);
+int printf(const char *format, ...);
+void *memmove(void * destination, const void * source, size_t num);
+int memcmp(const void * ptr1, const void * ptr2, size_t num);
+void *memchr(void * ptr, int value, size_t num);
+int strncasecmp(const char *s1, const char *s2, size_t n);
+int snprintf(char *s, size_t n, const char *format, ...);
+pid_t fork();
+pid_t wait(int32_t *status);
+pid_t getpid();
+
+]]
+
+--- ******* Socket *******
 ffi.cdef([[
+typedef int32_t socklen_t;
 
 struct sockaddr {
-    unsigned short    sa_family;    // address family, AF.AF_xxx
-    char              sa_data[14];  // 14 bytes of protocol address
+  unsigned short    sa_family;    // address family, AF.AF_xxx
+  char              sa_data[14];  // 14 bytes of protocol address
 };
 
 struct sockaddr_storage {
-    unsigned short int ss_family;
-    unsigned long int __ss_align;
-    char __ss_padding[128 - (2 * sizeof(unsigned long int))];
+  unsigned short int ss_family;
+  unsigned long int __ss_align;
+  char __ss_padding[128 - (2 * sizeof(unsigned long int))];
 };
 
 struct in_addr {
-    unsigned long s_addr;          // load with inet_pton()
+  unsigned long s_addr;
 };
 
 struct in6_addr {
-    unsigned char   s6_addr[16];   // load with inet_pton()
+    unsigned char   s6_addr[16];
 };
 
 // IPv4 AF.AF_INET sockets:
@@ -56,10 +79,6 @@ struct sockaddr_in6 {
     uint32_t       sin6_scope_id; // Scope ID
 };
 
-typedef int32_t socklen_t;
-
-
-             
 extern char *strerror(int errnum);
 extern int32_t socket (int32_t domain, int32_t type, int32_t protocol);
 extern int32_t bind (int32_t fd, const struct sockaddr * addr, socklen_t len);
@@ -96,6 +115,8 @@ ffi.cdef [[
 ]]
 end
 
+
+--- ******* epoll.h *******
 ffi.cdef[[
 typedef union epoll_data {
     void        *ptr;
@@ -106,7 +127,7 @@ typedef union epoll_data {
 ]]
 if (ffi.abi("32bit")) then 
 -- struct epoll_event is declared packed on 64 bit, 
---but not on 32 bit.
+-- but not on 32 bit.
 ffi.cdef[[
 struct epoll_event {
     uint32_t     events;      /* Epoll events */
@@ -124,13 +145,13 @@ end
 ffi.cdef[[
 typedef struct epoll_event epoll_event;
 
-int epoll_create(int size);
-int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
-int epoll_wait(int epfd, struct epoll_event *events, int maxevents, 
-    int timeout);
+int32_t epoll_create(int32_t size);
+int32_t epoll_ctl(int32_t epfd, int32_t op, int32_t fd, struct epoll_event* event);
+int32_t epoll_wait(int32_t epfd, struct epoll_event *events, int32_t maxevents, int32_t timeout);
 ]]
 
 
+--- ******* OpenSSL *******
 -- Note: Typedef SSL structs to void as we never access their members and they are
 -- massive in ifdef's etc and are best left as blackboxes! 
 ffi.cdef [[
@@ -209,11 +230,21 @@ const char *ERR_lib_error_string(unsigned long e);
 const char *ERR_func_error_string(unsigned long e);
 const char *ERR_reason_error_string(unsigned long e);
 
-
 /* OpenSSL Hash functions */
+typedef unsigned int SHA_LONG;
 typedef void EVP_MD;
+typedef struct SHAstate_st{
+  SHA_LONG h0,h1,h2,h3,h4;
+  SHA_LONG Nl,Nh;
+  SHA_LONG data[16];
+  unsigned int num;
+  } SHA_CTX;
+
 const EVP_MD *EVP_sha1(void);
 unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md);
+int32_t SHA1_Init(SHA_CTX *c);
+int32_t SHA1_Update(SHA_CTX *c, const void *data, size_t len);
+int32_t SHA1_Final(unsigned char *md, SHA_CTX *c);
 unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md);
 unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
                int key_len, const unsigned char *d, int n,
@@ -221,13 +252,15 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
 ]]
 
 
+--- ******* Signals *******
 ffi.cdef([[
 typedef void (*sighandler_t) (int32_t);
 extern sighandler_t signal (int32_t signum, sighandler_t handler);
 ]])
 
+
+--- ******* Time *******
 ffi.cdef([[
-         
 typedef long time_t ;
 typedef long suseconds_t ;
 struct timeval
@@ -268,18 +301,9 @@ extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
 
 ]])
 
-ffi.cdef[[
-unsigned long compressBound(unsigned long sourceLen);
-int compress2(uint8_t *dest, unsigned long *destLen,
-          const uint8_t *source, unsigned long sourceLen, int level);
-int uncompress(uint8_t *dest, unsigned long *destLen,
-           const uint8_t *source, unsigned long sourceLen);
-]]
 
-
+--- ******* Resolv *******
 ffi.cdef [[
-
-
 /* Description of data base entry for a single host.  */
 struct hostent
 {
@@ -291,7 +315,6 @@ struct hostent
 };
 
 extern struct hostent *gethostbyname (const char *name);
-
 ]]
 
 
@@ -316,8 +339,9 @@ const char *gai_strerror(int ecode);
 
 ]]
 
-ffi.cdef[[
 
+--- ******* HTTP parser and libtffi *******
+ffi.cdef[[
 enum http_parser_url_fields
 { UF_SCHEMA           = 0
 , UF_HOST             = 1
@@ -394,7 +418,7 @@ struct turbo_parser_wrapper{
     const char *url_str; ///< Offset for passed in char ptr
     size_t url_sz;
     size_t hkv_sz;
-    size_t hkv_mem ;  ///< We allocate in chunks of 10 structs at a time.
+    size_t hkv_mem;
     struct turbo_key_value_field **hkv;
     struct http_parser parser;
     struct http_parser_url url;
@@ -406,39 +430,10 @@ struct turbo_parser_wrapper *turbo_parser_wrapper_init(
         int32_t type);
 
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
-
 int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
-
-/** Check if a given field is set in http_parser_url  */
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
-
 extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
-
-/* Return a string name of the given error */
 const char *http_errno_name(int32_t err);
-
-/* Return a string description of the given error */
 const char *http_errno_description(int32_t err);
-
 int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
-
-ffi.cdef([[
-void *malloc(size_t sz);
-void *realloc (void* ptr, size_t size);
-void free(void *ptr);
-int sprintf(char * str, const char * format, ...);
-int printf(const char *format, ...);
-void *memmove(void * destination, const void * source, size_t num);
-int memcmp(const void * ptr1, const void * ptr2, size_t num);
-void *memchr(void * ptr, int value, size_t num);
-int strncasecmp(const char *s1, const char *s2, size_t n);
-int snprintf(char *s, size_t n, const char *format, ...);
-
-typedef int32_t pid_t;
-pid_t fork();
-pid_t wait(int32_t *status);
-pid_t getpid();
-
-]])
-

@@ -36,22 +36,62 @@ local lssl = ffi.load("ssl")
 local hexstr = buffer()
 
 local hash = {} -- hash namespace
+hash.SHA_DIGEST_LENGTH = 20
 
 hash.SHA1 = class("SHA1")
 
 --- Create a SHA1 object. Pass a Lua string with the initializer to digest
 -- it.
+-- @param str (String)
 function hash.SHA1:initialize(str)
-	self.md =  ffi.new("unsigned char[21]")
 	if type(str) == "string" then
+		self.md =  ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
 		lssl.SHA1(str, str:len(), self.md)
+		self.final = true
+	else
+		self.ctx = ffi.new("struct SHA_CTX")
+		assert(lssl.SHA1_Init(self.ctx) == 0, "Could not init SHA_CTX.")
+	end
+end
+
+--- Update SHA1 context with more data.
+-- @param str (String)
+function hash.SHA1:update(str)
+	assert(self.ctx, "No SHA_CTX in object.")
+	assert(not self.final, 
+		   "SHA_CTX already finaled. Please create a new context.")
+	assert(lssl.SHA1_Update(self.ctx, str, str:len()) == 0, 
+		   "Could not update SHA_CTX")
+end
+
+--- Finalize SHA1 context.
+-- @return (char*) Message digest.
+function hash.SHA1:final()
+	self.final = true
+	assert(self.ctx, "No SHA_CTX in object.")
+	self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
+	assert(lssl.SHA1_Final(self.md, self.ctx) == 0, "Could not final SHA_CTX.")
+	return self.md
+end
+
+--- Compare two SHA1 contexts with the equality operator ==.
+-- @return (Boolean) True or false.
+function hash.SHA1:__eq(cmp)
+	assert(self.final and cmp.final, "Can not compare non final SHA_CTX's")
+	assert(self.md and cmp.md, "Missing message digest(s).")
+	if ffi.C.memcmp(self.md, cmp.md, hash.SHA_DIGEST_LENGTH) == 0 then
+		return true
+	else
+		return false
 	end
 end
 
 --- Convert message digest to Lua hex string.
+-- @return (String)
 function hash.SHA1:hex()
+	assert(self.final, "SHA_CTX not final.")
 	hexstr:clear()
-	for i=0, 19 do
+	for i=0, hash.SHA_DIGEST_LENGTH-1 do
 		hexstr:append_right(string.format("%02x", self.md[i]), 2)
 	end
 	local str = hexstr:__tostring()
@@ -59,6 +99,12 @@ function hash.SHA1:hex()
 	return str 
 end
 
+--- Keyed-hash message authentication code (HMAC) is a specific construction 
+-- for calculating a message authentication code (MAC) involving a 
+-- cryptographic hash function in combination with a secret cryptographic key.
+-- @param key (String) Sequence of bytes used as a key.
+-- @param digest (String) String to digest.
+-- @return (String) Hex representation of digested string.
 function hash.HMAC(key, digest)
 	assert(type(key) == "string", "Key is invalid type: "..type(key))
 	assert(type(digest) == "string", "Can not hash: "..type(digest))
@@ -70,7 +116,7 @@ function hash.HMAC(key, digest)
 				  nil, 
 				  nil)
 	hexstr:clear()
-	for i=0, 19 do
+	for i=0, hash.SHA_DIGEST_LENGTH-1 do
 		hexstr:append_right(string.format("%02x", digest[i]), 2)
 	end
 	local str = hexstr:__tostring()
