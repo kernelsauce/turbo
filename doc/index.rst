@@ -83,6 +83,7 @@ API documentation
    httpserver
    tcpserver
    structs
+   hash
    util
    sockutil
    escape
