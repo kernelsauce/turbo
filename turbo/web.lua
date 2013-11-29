@@ -194,6 +194,22 @@ function web.RequestHandler:get_arguments(name, strip)
     return values
 end
 
+--- Returns JSON request data as a table. By default, it only parses json
+-- mimetype. It will return an empty table if request data is empty.
+-- @param force (Boolean) if set to true, mimetype will be ignored.
+-- @return (Table) parsed from request data, return nil if mimetype is not
+-- json and force option is not set.
+function web.RequestHandler:get_json(force)
+    local content_type = self.request.headers:get("content-type", true)
+    if not content_type then
+        content_type = ""
+    end
+    if force ~= true and not content_type:find("application/json", 1, true) then
+        return nil
+    end
+    return escape.json_decode(self.request.body)
+end
+
 --*************** Output ***************
 
 --- Reset all headers and content for this request. Run on class initialization.
