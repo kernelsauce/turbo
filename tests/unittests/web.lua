@@ -20,16 +20,16 @@ turbo.log.categories.success = false -- turn of logging.
 
 describe("turbo.web Namespace", function()
 
-    before_each(function() 
+    before_each(function()
         -- Make sure we start with a fresh global IOLoop to
         -- avoid random results.
-        _G.io_loop_instance = nil 
+        _G.io_loop_instance = nil
     end)
 
     describe("Application and RequestHandler classes", function()
         -- Most of tests here use the turbo.async.HTTPClient, so any errors
         -- in that will also show in these tests...
-        it("Accept hello world.", function() 
+        it("Accept hello world.", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
             local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
@@ -38,14 +38,14 @@ describe("turbo.web Namespace", function()
             end
             turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/"))
                 assert.falsy(res.error)
                 assert.equal(res.body, "Hello World!")
                 io:close()
             end)
-            
+
             io:wait(5)
         end)
 
@@ -63,18 +63,18 @@ describe("turbo.web Namespace", function()
                 {"^/(%d*)/(%a*)$", ExampleHandler}
             }):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/"..tostring(param).."/testitem"))
                 assert.falsy(res.error)
                 assert.equal(param, tonumber(res.body))
                 io:close()
             end)
-            
+
             io:wait(5)
         end)
 
-        it("Accept GET parameters", function() 
+        it("Accept GET parameters", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
             local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
@@ -87,7 +87,7 @@ describe("turbo.web Namespace", function()
             end
             turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/",
                     {
@@ -102,11 +102,11 @@ describe("turbo.web Namespace", function()
                 assert.equal(res.body, "Hello World!")
                 io:close()
             end)
-            
+
             io:wait(5)
         end)
 
-        it("Accept POST multipart", function() 
+        it("Accept POST multipart", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
             local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
@@ -119,7 +119,7 @@ describe("turbo.web Namespace", function()
             end
             turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/",
                     {
@@ -135,11 +135,38 @@ describe("turbo.web Namespace", function()
                 assert.equal(res.body, "Hello World!")
                 io:close()
             end)
-            
+
             io:wait(5)
         end)
 
-        it("Test case for reported bug.", function() 
+        it("Accept json data", function()
+            local port = math.random(10000,40000)
+            local io = turbo.ioloop.instance()
+            local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+            function ExampleHandler:post()
+                json = self:get_json(true)
+                assert.equal(json.item1, "Hello")
+                assert.equal(json.item2, "StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½")
+                self:write("Hello World!")
+            end
+            turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
+
+            io:add_callback(function()
+                local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+                    "http://127.0.0.1:"..tostring(port).."/",
+                    {
+                        method="POST",
+                        body="{\"item1\": \"Hello\", \"item2\": \"StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½\"}"
+                    }))
+                assert.falsy(res.error)
+                assert.equal(res.body, "Hello World!")
+                io:close()
+            end)
+
+            io:wait(5)
+        end)
+
+        it("Test case for reported bug.", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
             local closed = false
@@ -155,24 +182,24 @@ describe("turbo.web Namespace", function()
             io:add_callback(function()
                 local hdr = "CONNECT mx2.mail2000.com.tw:25 HTTP/1.0\r\n\r\n"
                 local sock, msg = turbo.socket.new_nonblock_socket(
-                    turbo.socket.AF_INET, 
-                    turbo.socket.SOCK_STREAM, 
+                    turbo.socket.AF_INET,
+                    turbo.socket.SOCK_STREAM,
                     0)
-                if sock == -1 then 
+                if sock == -1 then
                     error("Could not create socket.")
                 end
                 local stream = turbo.iostream.IOStream:new(sock)
                 local rc, msg = stream:connect(
-                    "127.0.0.1", 
+                    "127.0.0.1",
                     port,
                     turbo.socket.AF_INET,
                     function()
-                        stream:set_close_callback(function() 
-                            closed = true    
+                        stream:set_close_callback(function()
+                            closed = true
                             io:close()
                         end)
                         coroutine.yield (turbo.async.task(stream.write, stream, hdr))
-                        io:add_callback(function() 
+                        io:add_callback(function()
                             local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                                 "http://127.0.0.1:"..tostring(port).."/"))
                             assert.falsy(res.error)
@@ -184,7 +211,7 @@ describe("turbo.web Namespace", function()
                     error("Could not connect")
                 end
             end)
-            
+
             io:wait(5)
             assert.equal(closed, true)
             turbo.log.categories.error = true
