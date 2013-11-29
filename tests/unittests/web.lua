@@ -139,6 +139,33 @@ describe("turbo.web Namespace", function()
             io:wait(5)
         end)
 
+        it("Accept json data", function()
+            local port = math.random(10000,40000)
+            local io = turbo.ioloop.instance()
+            local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+            function ExampleHandler:post()
+                json = self:get_json(true)
+                assert.equal(json.item1, "Hello")
+                assert.equal(json.item2, "StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½")
+                self:write("Hello World!")
+            end
+            turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
+
+            io:add_callback(function()
+                local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+                    "http://127.0.0.1:"..tostring(port).."/",
+                    {
+                        method="POST",
+                        body="{\"item1\": \"Hello\", \"item2\": \"StrangeØÆØÅØLÆLØÆL@½$@£$½]@£}½\"}"
+                    }))
+                assert.falsy(res.error)
+                assert.equal(res.body, "Hello World!")
+                io:close()
+            end)
+
+            io:wait(5)
+        end)
+
         it("Test case for reported bug.", function() 
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
