@@ -65,8 +65,10 @@ uninstall:
 	$(LDCONFIG) $(INSTALL_LIB)
 	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
 	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
+	$(RM) $(INSTALL_BIN)/turbovisor
 	$(RM) $(LUA_MODULEDIR)/turbo.lua
 	$(RM) $(LUAJIT_MODULEDIR)/turbo.lua
+	$(RM) $(LUAJIT_MODULEDIR)/turbovisor.lua
 	@echo "==== Turbo.lua uinstalled. Welcome back. ===="
 
 install:
