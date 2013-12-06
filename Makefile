@@ -65,7 +65,7 @@ uninstall:
 	$(LDCONFIG) $(INSTALL_LIB)
 	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
 	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
-	$(RM) $(INSTALL_BIN)/turbovisor
+	$(UNINSTALL) $(INSTALL_BIN)/turbovisor
 	$(RM) $(LUA_MODULEDIR)/turbo.lua
 	$(RM) $(LUAJIT_MODULEDIR)/turbo.lua
 	$(RM) $(LUAJIT_MODULEDIR)/turbovisor.lua
@@ -84,7 +84,7 @@ install:
 	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
 	$(CP_R) turbovisor.lua $(LUAJIT_MODULEDIR)
-	$(CP_R) bin/turbovisor $(INSTALL_BIN)
+	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C $(HTTP_PARSERDIR) library
 	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
