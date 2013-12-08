@@ -91,7 +91,7 @@ function turbovisor.restart(self, fd, events)
     -- Restart application
     ffi.C.kill(self.cpid, 9)
     ffi.C.waitpid(self.cpid, status, 0)
-    assert(status[0] == 9, "Child process not killed.")
+    assert(status[0] == 9 or status[0] == 256, "Child process not killed.")
     self.cpid = ffi.C.fork()
     if self.cpid == 0 then
         turbo.inotify:close()
