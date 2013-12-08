@@ -35,6 +35,8 @@
 --
 -- * Small footprint
 --
+-- Copyright John Abrahamsen 2011, 2012, 2013
+--
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
 -- You may obtain a copy of the License at
@@ -89,6 +91,8 @@ turbo.signal =          require "turbo.signal"
 turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash = 			require "turbo.hash"
+turbo.syscall = 		require "turbo.syscall"
+turbo.inotify = 		require "turbo.inotify"
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
 turbo.structs.buffer =   require "turbo.structs.buffer"

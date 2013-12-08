@@ -33,6 +33,7 @@ int strncasecmp(const char *s1, const char *s2, size_t n);
 int snprintf(char *s, size_t n, const char *format, ...);
 pid_t fork();
 pid_t wait(int32_t *status);
+pid_t waitpid(pid_t pid, int *status, int options);
 pid_t getpid();
 int execvp(const char *path, char *const argv[]);
 
@@ -441,23 +442,6 @@ int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
 
 
---- ******* inotify *******
--- Supported events suitable for MASK parameter of INOTIFY_ADD_WATCH.
-IN_ACCESS        = 0x00000001     -- File was accessed.
-IN_MODIFY        = 0x00000002     -- File was modified.
-IN_ATTRIB        = 0x00000004     -- Metadata changed.
-IN_CLOSE_WRITE   = 0x00000008     -- Writtable file was closed.
-IN_CLOSE_NOWRITE = 0x00000010     -- Unwrittable file closed.
-IN_CLOSE         = bit.bor ( IN_CLOSE_WRITE , IN_CLOSE_NOWRITE) -- Close.
-IN_OPEN          = 0x00000020     -- File was opened.
-IN_MOVED_FROM    = 0x00000040     -- File was moved from X.
-IN_MOVED_TO      = 0x00000080     -- File was moved to Y.
-IN_MOVE          = bit.bor ( IN_MOVED_FROM , IN_MOVED_TO) -- Moves.
-IN_CREATE        = 0x00000100     -- Subfile was created.
-IN_DELETE        = 0x00000200     -- Subfile was deleted.
-IN_DELETE_SELF   = 0x00000400     -- Self was deleted.
-IN_MOVE_SELF     = 0x00000800     -- Self was moved.
-
 ffi.cdef [[
 struct inotify_event
 {
@@ -495,7 +479,7 @@ if ffi.arch == 'x86' then
         unsigned short st_gid;
         unsigned long  st_rdev;
         unsigned long  st_size;
-        nsigned long  st_blksize;
+        unsigned long  st_blksize;
         unsigned long  st_blocks;
         unsigned long  st_atime;
         unsigned long  st_atime_nsec;
@@ -530,64 +514,4 @@ elseif ffi.arch == 'x64' then
         long            __unused[3];
       };
     ]]
-end
--- modes
-local octal = function (s) return tonumber(s, 8) end
-O_DIRECTORY = octal('0200000')
-O_NOFOLLOW  = octal('0400000')
-O_DIRECT    = octal('040000')
-S_IFMT   = octal('0170000')
-S_IFSOCK = octal('0140000')
-S_IFLNK  = octal('0120000')
-S_IFREG  = octal('0100000')
-S_IFBLK  = octal('0060000')
-S_IFDIR  = octal('0040000')
-S_IFCHR  = octal('0020000')
-S_IFIFO  = octal('0010000')
-S_ISUID  = octal('0004000')
-S_ISGID  = octal('0002000')
-S_ISVTX  = octal('0001000')
-S_IRWXU = octal('00700')
-S_IRUSR = octal('00400')
-S_IWUSR = octal('00200')
-S_IXUSR = octal('00100')
-S_IRWXG = octal('00070')
-S_IRGRP = octal('00040')
-S_IWGRP = octal('00020')
-S_IXGRP = octal('00010')
-S_IRWXO = octal('00007')
-S_IROTH = octal('00004')
-S_IWOTH = octal('00002')
-S_IXOTH = octal('00001')
-
-
---- ******* syscalls *******
-if ffi.arch == "x86" then
-    SYS_stat             = 106
-    SYS_fstat            = 108
-    SYS_lstat            = 107
-    SYS_getdents         = 141
-    SYS_io_setup         = 245
-    SYS_io_destroy       = 246
-    SYS_io_getevents     = 247
-    SYS_io_submit        = 248
-    SYS_io_cancel        = 249
-    SYS_clock_settime    = 264
-    SYS_clock_gettime    = 265
-    SYS_clock_getres     = 266
-    SYS_clock_nanosleep  = 267
-elseif ffi.arch == "x64" then
-    SYS_stat             = 4
-    SYS_fstat            = 5
-    SYS_lstat            = 6
-    SYS_getdents         = 78
-    SYS_io_setup         = 206
-    SYS_io_destroy       = 207
-    SYS_io_getevents     = 208
-    SYS_io_submit        = 209
-    SYS_io_cancel        = 210
-    SYS_clock_settime    = 227
-    SYS_clock_gettime    = 228
-    SYS_clock_getres     = 229
-    SYS_clock_nanosleep  = 230
 end
