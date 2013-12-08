@@ -442,6 +442,7 @@ int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
 
 
+--- ******* inotify *******
 ffi.cdef [[
 struct inotify_event
 {
