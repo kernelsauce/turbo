@@ -255,7 +255,8 @@ local function set_reuseaddr_opt(fd)
         setopt,
         ffi.sizeof("int32_t"))
     if rc ~= 0 then
-       return -1
+       errno = ffi.errno()
+       return -1, string.format("setsockopt SO_REUSEADDR failed. %s", strerror(errno))
     end
     return 0
 end
