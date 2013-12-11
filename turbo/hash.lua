@@ -66,7 +66,7 @@ end
 
 --- Finalize SHA1 context.
 -- @return (char*) Message digest.
-function hash.SHA1:final()
+function hash.SHA1:finalize()
 	self.final = true
 	assert(self.ctx, "No SHA_CTX in object.")
 	self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
