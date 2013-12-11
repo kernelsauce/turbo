@@ -71,13 +71,16 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 -- To enable SSL remember to set the _G.TURBO_SSL global.
 -- "key_file" = SSL key file if a SSL enabled server is wanted.
 -- "cert_file" = Certificate file. key_file must also be set.
-function httpserver.HTTPServer:initialize(request_callback, no_keep_alive, 
-    io_loop, xheaders, kwargs)
+function httpserver.HTTPServer:initialize(request_callback, 
+                                          no_keep_alive, 
+                                          io_loop, 
+                                          xheaders, 
+                                          kwargs)
     self.request_callback = request_callback
     self.no_keep_alive = no_keep_alive
     self.xheaders = xheaders
     self.kwargs = kwargs
-    tcpserver.TCPServer:initialize(io_loop, kwargs and kwargs.ssl_options)
+    tcpserver.TCPServer.initialize(self, io_loop, kwargs and kwargs.ssl_options)
 end
 
 --- Internal handle_stream method to be called by super class TCPServer on new 
