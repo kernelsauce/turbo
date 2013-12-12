@@ -550,13 +550,22 @@ end
 function web.RequestHandler:_parse_cookies()
     local cookies = {}
     local cookie_str, cnt = self.request.headers:get("Cookie")
-    if cnt ~= 0 then
-        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
+    self._cookies_parsed = true
+    self._cookies = cookies
+    if cnt == 0 then
+        return
+    elseif cnt == 1 then
+        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);") do
             cookies[escape.unescape(key)] = escape.unescape(value)        
         end
+    elseif cnt > 1 then
+        for i = 1, cnt do
+            for key, value in 
+                cookie_str[i]:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);") do
+                cookies[escape.unescape(key)] = escape.unescape(value)        
+            end
+        end
     end
-    self._cookies = cookies
-    self._cookies_parsed = true
 end
 
 function web.RequestHandler:_finish()
