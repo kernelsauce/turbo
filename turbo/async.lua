@@ -386,7 +386,8 @@ function async.HTTPClient:_prepare_http_request()
             return -1
         end
     elseif type(self.kwargs.params) == "table" then
-        if self.kwargs.method == "POST" then
+        if self.kwargs.method == "POST" or self.kwargs.method == "PUT" or 
+            self.kwargs.method == "DELETE" then
             self.headers:add("Content-Type", 
                 "application/x-www-form-urlencoded")
             local post_data = deque:new()
