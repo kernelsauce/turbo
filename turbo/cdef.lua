@@ -33,7 +33,9 @@ int strncasecmp(const char *s1, const char *s2, size_t n);
 int snprintf(char *s, size_t n, const char *format, ...);
 pid_t fork();
 pid_t wait(int32_t *status);
+pid_t waitpid(pid_t pid, int *status, int options);
 pid_t getpid();
+int execvp(const char *path, char *const argv[]);
 
 ]]
 
@@ -67,7 +69,7 @@ struct sockaddr_in {
     unsigned short   sin_port;     // e.g. htons(3490)
     struct in_addr   sin_addr;     // see struct in_addr, below
     char             sin_zero[8];  // zero this if you want to
-} __attribute__ ((__packed__));   
+} __attribute__ ((__packed__));
 
 // IPv6 AF.AF_INET6 sockets:
 
@@ -111,7 +113,7 @@ ffi.cdef [[
     extern int64_t send (int32_t fd, const void *buf, size_t n, int32_t flags);
     extern int64_t recv (int32_t fd, void *buf, size_t n, int32_t flags);
     extern int64_t sendto (int32_t fd, const void *buf, size_t n, int32_t flags, const struct sockaddr * addr, socklen_t addr_len);
-    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);        
+    extern int64_t recvfrom (int32_t fd, void * buf, size_t n, int32_t flags, struct sockaddr * addr, socklen_t * addr_len);
 ]]
 end
 
@@ -125,8 +127,8 @@ typedef union epoll_data {
     uint64_t     u64;
 } epoll_data_t;
 ]]
-if (ffi.abi("32bit")) then 
--- struct epoll_event is declared packed on 64 bit, 
+if (ffi.abi("32bit")) then
+-- struct epoll_event is declared packed on 64 bit,
 -- but not on 32 bit.
 ffi.cdef[[
 struct epoll_event {
@@ -135,7 +137,7 @@ struct epoll_event {
 };
 ]]
 else
-ffi.cdef[[  
+ffi.cdef[[
 struct epoll_event {
     uint32_t     events;      /* Epoll events */
     epoll_data_t data;        /* User data variable */
@@ -153,7 +155,7 @@ int32_t epoll_wait(int32_t epfd, struct epoll_event *events, int32_t maxevents, 
 
 --- ******* OpenSSL *******
 -- Note: Typedef SSL structs to void as we never access their members and they are
--- massive in ifdef's etc and are best left as blackboxes! 
+-- massive in ifdef's etc and are best left as blackboxes!
 ffi.cdef [[
 typedef void SSL_METHOD;
 typedef void SSL_CTX;
@@ -173,7 +175,7 @@ const SSL_METHOD *TLSv1_server_method(void);  /* TLSv1.0 */
 const SSL_METHOD *TLSv1_client_method(void);  /* TLSv1.0 */
 const SSL_METHOD *TLSv1_1_method(void);       /* TLSv1.1 */
 const SSL_METHOD *TLSv1_1_server_method(void);/* TLSv1.1 */
-const SSL_METHOD *TLSv1_1_client_method(void);/* TLSv1.1 */    
+const SSL_METHOD *TLSv1_1_client_method(void);/* TLSv1.1 */
 const SSL_METHOD *TLSv1_2_method(void);       /* TLSv1.2 */
 const SSL_METHOD *TLSv1_2_server_method(void);/* TLSv1.2 */
 const SSL_METHOD *TLSv1_2_client_method(void);/* TLSv1.2 */
@@ -188,7 +190,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth);
 void SSL_CTX_free(SSL_CTX *);
 int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
 int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type);
-int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, 
+int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile,
     const char *CApath);
 int SSL_CTX_check_private_key(const SSL_CTX *ctx);
 
@@ -256,6 +258,7 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
 ffi.cdef([[
 typedef void (*sighandler_t) (int32_t);
 extern sighandler_t signal (int32_t signum, sighandler_t handler);
+extern int kill(pid_t pid, int sig);
 ]])
 
 
@@ -264,7 +267,7 @@ ffi.cdef([[
 typedef long time_t ;
 typedef long suseconds_t ;
 struct timeval
-{            
+{
     time_t tv_sec;      /* Seconds.  */
     suseconds_t tv_usec;    /* Microseconds.  */
 };
@@ -324,7 +327,7 @@ struct addrinfo {
   int     ai_flags;          // AI_PASSIVE, AI_CANONNAME, ...
   int     ai_family;         // AF_xxx
   int     ai_socktype;       // SOCK_xxx
-  int     ai_protocol;       // 0 (auto) or IPPROTO_TCP, IPPROTO_UDP 
+  int     ai_protocol;       // 0 (auto) or IPPROTO_TCP, IPPROTO_UDP
 
   socklen_t  ai_addrlen;     // length of ai_addr
   struct sockaddr  *ai_addr; // binary address
@@ -381,7 +384,7 @@ unsigned char upgrade : 1;
 /** PUBLIC **/
 void *data; /* A pointer to get hook to the "connection" or "socket" object */
 };
-  
+
 struct http_parser_url {
   uint16_t field_set;           /* Bitmask of (1 << UF_*) values */
   uint16_t port;                /* Converted UF_PORT string */
@@ -437,3 +440,78 @@ const char *http_errno_name(int32_t err);
 const char *http_errno_description(int32_t err);
 int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
+
+
+ffi.cdef [[
+struct inotify_event
+{
+    int wd;
+    uint32_t mask;
+    uint32_t cookie;
+    uint32_t len;
+    char name [];
+};
+
+extern int inotify_init (void) __attribute__ ((__nothrow__ , __leaf__));
+extern int inotify_add_watch (int __fd, const char *__name, uint32_t __mask)
+    __attribute__ ((__nothrow__ , __leaf__));
+extern int inotify_rm_watch (int __fd, int __wd)
+    __attribute__ ((__nothrow__ , __leaf__));
+]]
+
+
+--- ******* file system *******
+ffi.cdef [[
+typedef long int __ssize_t;
+typedef __ssize_t ssize_t;
+extern ssize_t read(int __fd, void *__buf, size_t __nbytes) ;
+int syscall(int number, ...);
+]]
+-- stat structure is architecture dependent in Linux
+if ffi.arch == 'x86' then
+    ffi.cdef[[
+      struct stat {
+        unsigned long  st_dev;
+        unsigned long  st_ino;
+        unsigned short st_mode;
+        unsigned short st_nlink;
+        unsigned short st_uid;
+        unsigned short st_gid;
+        unsigned long  st_rdev;
+        unsigned long  st_size;
+        unsigned long  st_blksize;
+        unsigned long  st_blocks;
+        unsigned long  st_atime;
+        unsigned long  st_atime_nsec;
+        unsigned long  st_mtime;
+        unsigned long  st_mtime_nsec;
+        unsigned long  st_ctime;
+        unsigned long  st_ctime_nsec;
+        unsigned long  __unused4;
+        unsigned long  __unused5;
+      };
+    ]]
+elseif ffi.arch == 'x64' then
+    ffi.cdef [[
+      struct stat {
+        unsigned long   st_dev;
+        unsigned long   st_ino;
+        unsigned long   st_nlink;
+        unsigned int    st_mode;
+        unsigned int    st_uid;
+        unsigned int    st_gid;
+        unsigned int    __pad0;
+        unsigned long   st_rdev;
+        long            st_size;
+        long            st_blksize;
+        long            st_blocks;
+        unsigned long   st_atime;
+        unsigned long   st_atime_nsec;
+        unsigned long   st_mtime;
+        unsigned long   st_mtime_nsec;
+        unsigned long   st_ctime;
+        unsigned long   st_ctime_nsec;
+        long            __unused[3];
+      };
+    ]]
+end
