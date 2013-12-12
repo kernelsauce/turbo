@@ -25,7 +25,7 @@ fs.PATH_MAX = 4096
 
 
 --- Read out file metadata with a given path
-function fs:stat(path, buf)
+function fs.stat(path, buf)
     local stat_t = ffi.typeof("struct stat")
     if not buf then buf = stat_t() end
     local ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
@@ -36,8 +36,8 @@ function fs:stat(path, buf)
 end
 
 --- Check whether a given path is directory
-function fs:is_file(path)
-    buf = self:stat(path, nil)
+function fs.is_file(path)
+    buf = fs.stat(path, nil)
     if bit.band(buf.st_mode, syscall.S_IFREG) == syscall.S_IFREG then
         return true
     else
@@ -46,8 +46,8 @@ function fs:is_file(path)
 end
 
 --- Check whether a given path is directory
-function fs:is_dir(path)
-    buf = self:stat(path, nil)
+function fs.is_dir(path)
+    buf = fs.stat(path, nil)
     if bit.band(buf.st_mode, syscall.S_IFDIR) == syscall.S_IFDIR then
         return true
     else

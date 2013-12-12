@@ -56,7 +56,7 @@ end
 -- @param file_path must be a valid relative path or absolute path
 -- @return true if watch successfully, false otherwise
 function inotify:watch_file(file_path)
-    if fs:is_file(file_path) then
+    if fs.is_file(file_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
         return true
@@ -69,7 +69,7 @@ end
 -- @param dir_path must be a valid relative path or absolute path
 -- @return true if watch successfully, false otherwise
 function inotify:watch_dir(dir_path)
-    if fs:is_dir(dir_path) then
+    if fs.is_dir(dir_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
         return true
@@ -81,13 +81,13 @@ end
 --- Watch given directory as well as all its sub-directories.
 -- @param path must be a valid relative path or absolute path
 function inotify:watch_all(path)
-    if fs:is_dir(path) then
+    if fs.is_dir(path) then
         local wd = ffi.C.inotify_add_watch(self.fd, path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
     end
     for filename in io.popen('ls "' .. path .. '"'):lines() do
         local full_path = path .. '/' .. filename
-        if fs:is_dir(full_path) then self:watch_all(full_path) end
+        if fs.is_dir(full_path) then self:watch_all(full_path) end
     end
 end
 

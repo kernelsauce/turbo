@@ -58,7 +58,7 @@ function turbovisor:supervise()
     self:initialize()
     self:add_handler(i_fd, turbo.ioloop.READ, self.restart, self)
     for i, target in pairs(arg_tbl.watch) do
-        if turbo.fs:is_dir(target) then
+        if turbo.fs.is_dir(target) then
             turbo.inotify:watch_all(target)
         else
             turbo.inotify:watch_file(target)
