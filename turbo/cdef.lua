@@ -36,7 +36,6 @@ pid_t wait(int32_t *status);
 pid_t waitpid(pid_t pid, int *status, int options);
 pid_t getpid();
 int execvp(const char *path, char *const argv[]);
-
 ]]
 
 --- ******* Socket *******
@@ -442,6 +441,7 @@ int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
 
 
+--- ******* inotify *******
 ffi.cdef [[
 struct inotify_event
 {
