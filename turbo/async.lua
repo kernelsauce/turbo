@@ -186,14 +186,6 @@ function async.HTTPClient:fetch(url, kwargs)
     self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
     self.kwargs.request_timeout = self.kwargs.request_timeout or 60
-    -- Check if a body is present for HTTP request methods that requires so.
-    if not self.kwargs.body and not self.kwargs.params and 
-        util.is_in(self.kwargs.method, {"POST", "PATCH", "PUT"}) then
-        -- Request requires a body.
-        self:_throw_error(errors.REQUIRES_BODY, 
-            "Standard does not support this request method without a body.")
-        return self.coctx
-    end
     if self:_set_url(url) == -1 then
         return self.coctx
     end
