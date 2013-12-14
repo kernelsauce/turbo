@@ -89,7 +89,6 @@ function websocket.WebSocketHandler:close() end
 
 --- Main entry point for the Application class.
 function websocket.WebSocketHandler:_execute()
-    self.io_loop = self.request.connection.stream.io_loop
     if self.request.method ~= "GET" then
         error(web.HTTPError(
             405,
@@ -142,18 +141,7 @@ function websocket.WebSocketHandler:_execute()
     self.origin = self.request.headers:get("Origin")
     self:prepare()
     local response_header = self:_create_response_header()
-    -- According to RFC 6455 there must be no more than one socket
-    -- in connecting state from the same host IP at the same time.
-    if self.application._connecting_ws[self.request.remote_ip] then
-        -- Another socket in connecting state exists.
-        -- Wait for this to finish before continuing.
-        table.insert(self.application._connecting_ws[self.request.remote_ip],
-                     self)
-    else
-        self.application._connecting_ws[self.request.remote_ip] = {self}
-        self._connecting_ws_state = true
-        self:_do_ws_handshake()
-    end
+    self.stream:write(response_header.."\r\n", self._continue_ws, self)
 end
 
 function websocket.WebSocketHandler:_calculate_ws_accept()
@@ -173,29 +161,7 @@ function websocket.WebSocketHandler:_create_response_header()
         -- Set user selected subprotocol string.
         header:add("Sec-WebSocket-Protocol", self.subprotocol)
     end
-    return header
-end
-
-local function _waiting_handshake_cb(websockethandler)
-    websockethandler:_do_ws_handshake()
-end
-
-function websocket.WebSocketHandler:_do_ws_handshake()
-    -- NYI
-
-    self._connecting_ws_state = false
-    -- Continue any sockets that may be connecting from the same IP.
-    local connecting = self.application._connecting_ws[self.request.remote_ip]
-    -- Remove self from queue.
-    table.remove(connecting, #connecting)
-    if #connecting ~= 0 then    
-        -- Add IOLoop callback for continouing waiting socket.
-        self.io_loop:add_callback(_waiting_handshake_cb, 
-                                  connecting[#connecting])
-    else
-        -- No more waiting remove key.
-        self.application._connecting_ws[self.request.remote_ip] = nil
-    end
+    return header:stringify_as_response()
 end
 
 --- Websocket opcodes.
@@ -228,5 +194,13 @@ websocket.opcode = {
 --     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 --     |                     Payload Data continued ...                |
 --     +---------------------------------------------------------------+
+
+
+--- Called after HTTP handshake has passed and connection has been upgraded
+-- to WebSocket.
+function websocket.WebSocketHandler:_continue_ws()
+    -- NYI
+end
+
 
 return websocket
