@@ -876,6 +876,7 @@ web.Application = class("Application")
 function web.Application:initialize(handlers, kwargs)
     self.handlers = handlers or {}
     self.kwargs = kwargs or {}
+    self._connecting_ws = {}
     self.default_host = self.kwargs.default_host
     self.application_name = self.kwargs.application_name or "Turbo.lua 1.0"
 end
