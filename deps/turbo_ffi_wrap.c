@@ -31,6 +31,8 @@ SOFTWARE."			*/
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
 #endif
+#include "libb64/include/b64/cdecode.h"
+#include "libb64/include/b64/cencode.h"
 #include "http_parser.h"
 #include "turbo_ffi_wrap.h"
 
@@ -291,5 +293,47 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     }
     free(src->hkv);
     free(src);
+}
+
+int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz)
+{
+    char* output;
+    char* c;
+    base64_encodestate s;
+    int cnt = 0;
+
+    *out_sz = sz*4/3+4;
+    output = malloc(*out_sz);
+    if (!output)
+        return -1;
+    c = output;
+    base64_init_encodestate(&s);
+    cnt = base64_encode_block(in, sz, c, &s);
+    c += cnt;
+    cnt = base64_encode_blockend(c, &s);
+    c += cnt;
+    *out = output;
+
+    return 0;
+}
+
+int32_t turbo_b64_decode(char* in, size_t sz, char** out, size_t *out_sz)
+{
+    char* output;
+    char* c;
+    base64_decodestate s;
+    int cnt = 0;
+
+    *out_sz = sz / 4 * 3;
+    output = malloc(*out_sz + 2);
+    c = output;
+    if (!output)
+        return -1;
+    base64_init_decodestate(&s);
+    cnt = base64_decode_block(in, sz, c, &s);
+    c += cnt;
+
+    *out = output;
+    return 0;
 }
 

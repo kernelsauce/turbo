@@ -89,6 +89,8 @@ char *url_field(
         const struct http_parser_url *url,
         enum http_parser_url_fields prop);
 
+int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz);
+int32_t turbo_b64_decode(char* in, size_t sz, char** out, size_t *out_sz);
 
 // OpenSSL wrapper functions.
 #ifndef TURBO_NO_SSL
@@ -100,4 +102,5 @@ char *url_field(
 
 /** Validate a X509 cert against provided hostname. */
 int32_t validate_hostname(const char *hostname, const SSL *server);
+
 #endif
