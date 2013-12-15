@@ -1,19 +1,19 @@
 --- Turbo.lua Asynchronous event based Lua Web Framework.
 -- It is different from all the other Lua HTTP servers out there in that it's
--- modern, fresh, object oriented and easy to modify. 
+-- modern, fresh, object oriented and easy to modify.
 -- It is written in pure Lua, there are no Lua C modules instead it uses the
--- LuaJIT FFI to do socket and event handling. Users of the Tornado web 
+-- LuaJIT FFI to do socket and event handling. Users of the Tornado web
 -- server will recognize the API offered pretty quick.
--- 
--- If you do not know Lua then do not fear as its probably one of the easiest 
+--
+-- If you do not know Lua then do not fear as its probably one of the easiest
 -- languages to learn if you know C, Python or Javascript from before.
 --
 -- Turbo.lua is non-blocking and a features a extremely fast light weight web
 -- server. The framework is good for REST APIs, traditional HTTP requests and
--- open connections like Websockets requires beacause of its combination of 
+-- open connections like Websockets requires beacause of its combination of
 -- the raw power of LuaJIT and its event driven nature.
 --
--- What sets Turbo.lua apart from the other evented driven servers out there, 
+-- What sets Turbo.lua apart from the other evented driven servers out there,
 -- is that it is the fastest, most scalable and has the smallest footprint of
 -- them all. This is thanks to the excellent work done on LuaJIT.
 --
@@ -51,28 +51,28 @@
 
 local turbo = {}  -- turbo main namespace.
 
--- The Turbo Web version is of the form A.B.C, where A is the major version, 
--- B is the minor version, and C is the micro version. If the micro version 
+-- The Turbo Web version is of the form A.B.C, where A is the major version,
+-- B is the minor version, and C is the micro version. If the micro version
 -- is zero, it’s omitted from the version string.
--- When a new release only fixes bugs and doesn’t add new features or 
--- functionality, the micro version is incremented. When new features are 
--- added in a backwards compatible way, the minor version is incremented and 
--- the micro version is set to zero. When there are backwards incompatible 
+-- When a new release only fixes bugs and doesn’t add new features or
+-- functionality, the micro version is incremented. When new features are
+-- added in a backwards compatible way, the minor version is incremented and
+-- the micro version is set to zero. When there are backwards incompatible
 -- changes, the major version is incremented and others are set to zero.
 turbo.MAJOR_VERSION = 1
 turbo.MINOR_VERSION = 0
 turbo.MICRO_VERSION = 0
--- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for 
+-- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for
 -- version 1.2.1 and 0x010300 for version 1.3.
-turbo.VERSION_HEX = 0x010000 
+turbo.VERSION_HEX = 0x010000
 if turbo.MICRO_VERSION then
-    turbo.VERSION = string.format("%d.%d.%d", 
-        turbo.MAJOR_VERSION, 
-        turbo.MINOR_VERSION, 
+    turbo.VERSION = string.format("%d.%d.%d",
+        turbo.MAJOR_VERSION,
+        turbo.MINOR_VERSION,
         turbo.MICRO_VERSION)
 else
-    turbo.VERSION = string.format("%d.%d", 
-        turbo.MAJOR_VERSION, 
+    turbo.VERSION = string.format("%d.%d",
+        turbo.MAJOR_VERSION,
         turbo.MINOR_VERSION)
 end
 turbo.log =             require "turbo.log"
@@ -94,8 +94,9 @@ turbo.sockutil =        require "turbo.sockutil"
 turbo.hash = 			require "turbo.hash"
 turbo.syscall = 		require "turbo.syscall"
 turbo.inotify = 		require "turbo.inotify"
+turbo.fs =              require "turbo.fs"
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
-turbo.structs.buffer =   require "turbo.structs.buffer"
+turbo.structs.buffer =  require "turbo.structs.buffer"
 
 return turbo
