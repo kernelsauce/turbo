@@ -113,9 +113,9 @@ function websocket.WebSocketHandler:_execute()
                    Probably not a Websocket requets, can not upgrade.")
         error(web.HTTPError(400,"Invalid protocol."))
     end
-    if self.websocket_version ~= "13" then
+    if self.sec_websocket_version ~= "13" then
         log.error(strf("Client wants to use not implemented Websocket Version %s.\
-                       Can not upgrade.", self.websocket_version))
+                       Can not upgrade.", self.sec_websocket_version))
         -- Propose a specific version for the client...
         self:add_header("Sec-WebSocket-Version", "13")
         self:set_status_code(426)
@@ -123,17 +123,19 @@ function websocket.WebSocketHandler:_execute()
         return
     end
     local prot = self.request.headers:get("Sec-WebSocket-Protocol")
-    prot = prot:split(",")
-    for i=0, #prot do
-        prot[i] = escape.trim(prot[i])
-    end
-    if #prot ~= 0 then
-        local selected_protocol = self:subprotocol(prot)
-        if not selected_protocol then
-            log.warning("No acceptable subprotocols for WebSocket were found.")
-            error(web.HTTPError(400, "Invalid subprotocol."))
+    if prot then
+        prot = prot:split(",")
+        for i=0, #prot do
+            prot[i] = escape.trim(prot[i])
         end
-        self.subprotocol = selected_protocol
+        if #prot ~= 0 then
+            local selected_protocol = self:subprotocol(prot)
+            if not selected_protocol then
+                log.warning("No acceptable subprotocols for WebSocket were found.")
+                error(web.HTTPError(400, "Invalid subprotocol."))
+            end
+            self.subprotocol = selected_protocol
+        end
     end
     -- Origin can be used by client applications to either accept or deny
     -- a request. This responsibility is left up to each developer to handle
