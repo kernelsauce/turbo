@@ -301,9 +301,12 @@ int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz)
     char* c;
     base64_encodestate s;
     int cnt = 0;
+    size_t adjustment = ((sz % 3) ? (3 - (sz % 3)) : 0);
+    size_t code_padded_size = ((sz + adjustment) / 3) * 4;
+    size_t newline_size = ((code_padded_size) / 72) * 2;
+    size_t total_size = code_padded_size + newline_size;
 
-    *out_sz = sz*4/3+4;
-    output = malloc(*out_sz);
+    output = malloc(total_size);
     if (!output)
         return -1;
     c = output;
@@ -313,6 +316,7 @@ int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz)
     cnt = base64_encode_blockend(c, &s);
     c += cnt;
     *out = output;
+    *out_sz = c-output;
 
     return 0;
 }
@@ -324,16 +328,16 @@ int32_t turbo_b64_decode(char* in, size_t sz, char** out, size_t *out_sz)
     base64_decodestate s;
     int cnt = 0;
 
-    *out_sz = sz / 4 * 3;
-    output = malloc(*out_sz + 2);
+    output = malloc(sz);
     c = output;
     if (!output)
         return -1;
     base64_init_decodestate(&s);
     cnt = base64_decode_block(in, sz, c, &s);
     c += cnt;
-
     *out = output;
+    *out_sz = c-output;
+
     return 0;
 }
 
