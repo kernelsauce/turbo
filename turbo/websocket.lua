@@ -156,11 +156,16 @@ function websocket.WebSocketHandler:_execute()
     self:prepare()
     local response_header = self:_create_response_header()
     self.stream:write(response_header.."\r\n", self._continue_ws, self)
+    log.success(string.format([[[websocket.lua] Websocket opened %s (%s) %dms]], 
+        self.request.headers:get_url(),
+        self.request.remote_ip,
+        self.request:request_time()))
 end
 
 function websocket.WebSocketHandler:_calculate_ws_accept()
     --- FIXME: Decode key and ensure that it is 16 bytes in length.
-    escape.base64_decode(self.sec_websocket_key):len()
+    assert(escape.base64_decode(self.sec_websocket_key):len() == 16, 
+           "Sec-WebSocket-Key is of invalid size.")
     local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
     return escape.base64_encode(hash:finalize(), 20)
 end
@@ -231,7 +236,6 @@ function websocket.WebSocketHandler:_continue_ws()
     self.stream:read_bytes(2, self._accept_frame, self)
 end
 
-
 --- Accept a new WebSocket frame.
 function websocket.WebSocketHandler:_accept_frame(header)
     local ws_header = ffi.cast("struct ws_header *", header)
@@ -254,7 +258,9 @@ function websocket.WebSocketHandler:_accept_frame(header)
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
-            self.stream:read_bytes(4, self._frame_payload, self)
+            self.stream:read_bytes(self._payload_len, 
+                                   self._frame_payload, 
+                                   self)
         end
     elseif payload_len == 126 then
         -- 16 bit length.
@@ -294,7 +300,7 @@ end
 
 function websocket.WebSocketHandler:_frame_payload(data)
     local opcode = nil
-
+    print(self._opcode, data)
     if self._opcode == websocket.opcode.CLOSE then
         if not self._final_bit then
             self:_error(
@@ -382,7 +388,7 @@ end
 local _ws_header = ffi.new("struct ws_header")
 local _ws_mask = ffi.new("int32_t[1]")
 function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
-    _ws_header.flags = ffi.cast("int8_t", 
+    _ws_header.flags = ffi.cast("uint8_t", 
                                 bit.bor(finflag and 0x80 or 0x0, opcode))
     local data_sz = data:len()
     if data_sz < 0x7e then
@@ -399,9 +405,11 @@ function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
     end
     if self.mask_outgoing == true then
         _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
-        self.stream:write(ffi.string(ffi.cast("uint8*", _ws_mask[0]), 4))
+        self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
+        self.stream:write(_unmask_payload(_ws_mask, data))
+        return
     end
-    self.stream:write(data)
+    self.stream:write(data, function() print("Write finished.") end)
 end
 
 return websocket
