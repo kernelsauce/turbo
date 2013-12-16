@@ -240,8 +240,15 @@ function httpserver.HTTPConnection:_on_request_body(data)
             self.arguments = 
                 httputil.parse_post_arguments(self._request.body) or {}
         elseif content_type:find("multipart/form-data", 1, true) then
+            -- valid boundary must only be max 70 characters not ending in space
+            -- valid characters from RFC2046 are:
+            -- bchar := DIGIT / ALPHA / "'" / "(" / ")" /
+            --          "+" / "_" / "," / "-" / "." /
+            --          "/" / ":" / "=" / "?" / " "
+            -- boundary string is permitted to be quoted
+            local boundary = content_type:match("boundary=[\"]?([0-9a-zA-Z'()+_,-./:=? ]*[0-9a-zA-Z'()+_,-./:=?])")
             self.arguments = 
-                httputil.parse_multipart_data(self._request.body) or {}
+                httputil.parse_multipart_data(self._request.body, boundary) or {}
         end
     end
     self.request_callback(self._request)

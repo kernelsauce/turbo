@@ -184,7 +184,7 @@ function web.RequestHandler:get_arguments(name, strip)
     if strip then
         if type(values) == "string" then
             values = escape.trim(values)
-        elseif type(values) == "table" then
+        elseif type(values) == "table" not type(values[i]) == "table" then
             for i = 1, #values do
                 values[i] = escape.trim(values[i])
             end

@@ -405,6 +405,111 @@ function util.mem_dump(ptr, sz)
     io.write("\n")
 end
 
+----- MIME BASE64 Encoding / Decoding Routines
+---------- authored by Jeff Solinsky
+do
+    local bit = require'bit'
+    local rshift = bit.rshift
+    local lshift = bit.lshift
+    local bor = bit.bor
+    local band = bit.band
+
+    -- fastest way to decode mime64 is array lookup
+    local mime64chars = ffi.new("uint8_t[64]","ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+    local mime64lookup = ffi.new("uint8_t[256]")
+    ffi.fill(mime64lookup, 256, 0xFF)
+    for i=0,63 do
+        mime64lookup[mime64chars[i]]=i
+    end
+
+    local u8arr= ffi.typeof('uint8_t[?]')
+
+    -- Very Fast Mime Base64 Decoding routine by Jeff Solinsky
+    -- takes Mime Base64 encoded input string
+    function util.from_base64(d)
+        local m64, b1, b2 -- val between 0 and 63, partially decoded byte, decoded byte
+        local p = 0 -- position in binary output array
+        local boff = 6 -- bit offset, alternates 0, 2, 4, 6
+        local bin_arr=ffi.new(u8arr, math.floor(bit.rshift(#d*3,2)))
+
+        for i=1,#d do
+            m64 = mime64lookup[d:byte(i)]
+            -- skip non-mime characters like newlines
+            if m64 ~= 0xFF then
+                if boff==6 then
+                    b1=lshift(m64, 2)
+                    boff=0
+                else
+                    if boff ~= 4 then
+                        b2 = bit.bor(b1,rshift(m64, 4-boff))
+                        b1 = lshift(m64,boff+4)
+                    else
+                        b2 = bor(b1, m64)
+                    end
+                    bin_arr[p] = b2; p=p+1
+                    boff=boff+2
+                end
+            end
+        end
+        return ffi.string(bin_arr, p)
+    end
+
+
+    local eq=string.byte('=')
+    local htonl = ffi.abi("le") and bit.bswap or bit.tobit
+    -- note: we could use a 12-bit lookup table (requiring 8096 bytes)
+    --       this should already be fast though using 6-bit lookup
+    function util.to_base64(d)
+        local v
+        local m64_arr=ffi.new(u8arr,math.floor(#d*4/3+(#d/38))+2)
+        local l,p,c=0,0,0
+        local bptr = ffi.cast("int8_t*",d)
+        local bend=bptr+#d
+    ::next4::  -- using a label to be able to jump into the loop
+        v = (ffi.cast("int32_t*", bptr))[0]
+        v = htonl(v)
+    ::encode4:: -- jump here to decode last bytes of the data
+        if c==76 then
+            m64_arr[p]=0x0D; p=p+1 -- CR
+            m64_arr[p]=0x0A; p=p+1 -- LF
+            c=0
+        end
+        m64_arr[p]=mime64chars[rshift(v,26)]; p=p+1
+        m64_arr[p]=mime64chars[band(rshift(v,20),63)]; p=p+1
+        m64_arr[p]=mime64chars[band(rshift(v,14),63)]; p=p+1
+        m64_arr[p]=mime64chars[band(rshift(v,8),63)]; p=p+1
+        c=c+4
+        bptr=bptr+3
+        if bptr+3<=bend then
+            goto next4
+        end
+      -- l is always 0 the first time this is encountered
+      -- this is to add trailing equal signs to encode the end
+      -- of the data according ot the MIME base64 specification
+      if l>0 then
+        -- l will always be 1 or 2 representing the number of remaing
+        -- bytes that were encoded
+        m64_arr[p-1]=eq;
+        -- if only 1 byte of data was left, need to encode a second equal sign
+        if l==1 then
+          m64_arr[p-2]=eq;
+        end
+      else
+        l=bend-bptr -- get the number of remaining bytes to be encoded
+        if l>0 then
+          v=0
+          for i=1,4 do
+            v=lshift(v,8)
+            if bptr<bend then
+              v=v+bptr[0]
+              bptr=bptr+1
+            end
+          end
+          goto encode4
+        end
+      end
+      return ffi.string(m64_arr,p)
+    end
+end
+
 return util
-
-

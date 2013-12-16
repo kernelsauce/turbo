@@ -281,6 +281,13 @@ function ioloop.IOLoop:start()
                     if time_until_timeout == 0 then
                         self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
+                        -- Function may have scheduled work for next iteration
+                        -- must Drop timeout, without this, yielding from a request
+                        -- handler that adds a timeout couroutine task will not wake
+                        -- up the request handler at the end of the timeout until the
+                        -- next poll_timeout occurs which may be as long as the default
+                        -- timeout of 3.6 seconds.
+                        poll_timeout = 0
                     else
                         if poll_timeout > time_until_timeout then
                            poll_timeout = time_until_timeout
