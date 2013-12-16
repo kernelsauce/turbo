@@ -88,13 +88,34 @@ end
 
 local _b64_out = ffi.new("char*[1]")
 local _b64_sz = ffi.new("size_t[1]")
-function escape.base64_encode(str)
-    -- int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz);
-    assert(type(str) == "string", "Input not a string.")
-    assert(str:len() ~= 0, "Input string is empty.")
+--- Base64 encode a string or a FFI char *.
+-- @param str (String or char*) Bytearray to encode.
+-- @param sz (Number) Length of string to encode.
+-- @return (String) Encoded string.
+function escape.base64_encode(str, sz)
     local rc = 
         libturbo_parser.turbo_b64_encode(ffi.cast("const char *", str), 
-                                         str:len(), 
+                                         sz or str:len(), 
+                                         _b64_out, 
+                                         _b64_sz)
+    if rc == -1 then
+        error("Could not allocate memory for base64 encode.")
+    end
+    local b64str = ffi.string(_b64_out[0], _b64_sz[0])
+    ffi.C.free(_b64_out[0])
+    _b64_out[0] = nil
+    _b64_sz[0] = 0
+    return b64str
+end
+
+--- Base64 decode a string or a FFI char *.
+-- @param str (String or char*) Bytearray to decode.
+-- @param sz (Number) Length of string to decode.
+-- @return (String) Decoded string.
+function escape.base64_decode(str, sz)
+    local rc = 
+        libturbo_parser.turbo_b64_decode(ffi.cast("const char *", str), 
+                                         sz or str:len(), 
                                          _b64_out, 
                                          _b64_sz)
     if rc == -1 then
