@@ -101,7 +101,7 @@ function escape.base64_encode(str, sz)
     if rc == -1 then
         error("Could not allocate memory for base64 encode.")
     end
-    local b64str = ffi.string(_b64_out[0], _b64_sz[0])
+    local b64str = ffi.string(_b64_out[0], _b64_sz[0]-1)
     ffi.C.free(_b64_out[0])
     _b64_out[0] = nil
     _b64_sz[0] = 0
