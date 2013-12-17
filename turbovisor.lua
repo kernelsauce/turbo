@@ -84,10 +84,12 @@ end
 --- Callback handler when files changed
 -- For now, just restart the only one application
 function turbovisor.restart(self, fd, events)
-    turbo.log.notice("[turbovisor.lua] Application restarted!")
     local status = ffi.new("int[1]")
     -- Read out event
-    ffi.C.read(fd, self.buf, 128);
+    ffi.C.read(fd, self.buf, turbo.fs.PATH_MAX);
+    self.buf = ffi.cast("struct inotify_event*", self.buf)
+    turbo.log.notice("[turbovisor.lua] File " .. ffi.string(self.buf.name) ..
+                         " changed, application restarted!")
     -- Restart application
     ffi.C.kill(self.cpid, 9)
     ffi.C.waitpid(self.cpid, status, 0)
