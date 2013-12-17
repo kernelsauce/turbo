@@ -20,7 +20,7 @@ local turbo = require "turbo"
 local WSExHandler = class("WSExHandler", turbo.websocket.WebSocketHandler)
 
 function WSExHandler:on_message(msg)
-    print(msg)
+    self:write_message("Hello World.")
 end
 
 turbo.web.Application({{"^/ws$", WSExHandler}}):listen(8888)
