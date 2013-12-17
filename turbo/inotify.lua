@@ -18,6 +18,7 @@ local ffi = require "ffi"
 local bit = require "bit"
 local fs  = require "turbo.fs"
 local log = require "turbo.log"
+local util = require "turbo.util"
 local ioloop  = require "turbo.ioloop"
 local syscall = require "turbo.syscall"
 
@@ -46,6 +47,7 @@ inotify.IN_MOVE_SELF     = 0x00000800     -- Self was moved.
 --- Create a new inotify instance
 function inotify:new()
     self.fd = ffi.C.inotify_init()
+    self.wd2name = {}
     if self.fd == -1 then
         error(ffi.string(ffi.C.strerror(ffi.errno())))
     end
@@ -59,6 +61,7 @@ function inotify:watch_file(file_path)
     if fs.is_file(file_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        self.wd2name[wd] = file_path
         return true
     else
         return false
@@ -72,6 +75,7 @@ function inotify:watch_dir(dir_path)
     if fs.is_dir(dir_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        self.wd2name[wd] = dir_path
         return true
     else
         return false
@@ -80,15 +84,35 @@ end
 
 --- Watch given directory as well as all its sub-directories.
 -- @param path must be a valid relative path or absolute path
-function inotify:watch_all(path)
-    if fs.is_dir(path) then
-        local wd = ffi.C.inotify_add_watch(self.fd, path, self.IN_MODIFY)
-        if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+-- @param ignore an optional table of directories to ignore
+function inotify:watch_all(path, ignore)
+    -- Take care of ignored files
+    if not ignore or not util.is_in(path, ignore) then
+        if fs.is_dir(path) then
+            local wd = ffi.C.inotify_add_watch(self.fd, path, self.IN_MODIFY)
+            if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+            self.wd2name[wd] = path
+        end
+        for filename in io.popen('ls "' .. path .. '"'):lines() do
+            local full_path = path .. '/' .. filename
+            if path == '.' then full_path = filename end -- pass './'
+            if fs.is_dir(full_path) then
+                self:watch_all(full_path, ignore)
+            end
+        end
     end
-    for filename in io.popen('ls "' .. path .. '"'):lines() do
-        local full_path = path .. '/' .. filename
-        if fs.is_dir(full_path) then self:watch_all(full_path) end
-    end
+end
+
+--- Return file name from corresponding file descriptor, for
+-- currently watched file
+-- @param wd file descriptor
+function inotify:get_watched_file(wd)
+    return self.wd2name[wd]
+end
+
+--- Return all file names of currently watched files
+function inotify:get_watched_files()
+    return self.wd2name
 end
 
 --- Close inotify
