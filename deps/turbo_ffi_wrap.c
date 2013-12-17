@@ -341,3 +341,13 @@ int32_t turbo_b64_decode(char* in, size_t sz, char** out, size_t *out_sz)
     return 0;
 }
 
+char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
+{
+    size_t i = 0;
+    char* buf = malloc(sz);
+
+    for (i = 0; i < sz; i++) {
+        buf[i] = in[i] ^ mask32[i % 4];
+    }
+    return buf;
+}
