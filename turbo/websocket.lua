@@ -176,10 +176,9 @@ function websocket.WebSocketHandler:_execute()
     -- HTTP headers read, change to WebSocket protocol. 
     -- Set max buffer size to 64MB as it is 16KB at this point...
     self.stream:set_max_buffer_size(1024*1024*64) 
-    log.success(string.format([[[websocket.lua] Websocket opened %s (%s) %dms]], 
+    log.success(string.format([[[websocket.lua] WebSocket opened %s (%s)]], 
         self.request.headers:get_url(),
-        self.request.remote_ip,
-        self.request:request_time()))
+        self.request.remote_ip))
     self:_continue_ws()
 end
 
@@ -231,17 +230,25 @@ ffi.cdef [[
 
 --- Error handler.
 function websocket.WebSocketHandler:_error(msg)
-    log.error(msg)
+    log.error("[websocket.lua] "..msg)
     if not self._closed == true and not self.stream:closed() then
         self:close()
     end
     self:on_error(msg)
 end
 
+function websocket.WebSocketHandler:_socket_closed()
+    log.success(string.format([[[websocket.lua] WebSocket closed %s (%s) %dms]], 
+        self.request.headers:get_url(),
+        self.request.remote_ip,
+        self.request:request_time()))
+    self:on_close()
+end
+
 --- Called after HTTP handshake has passed and connection has been upgraded
 -- to WebSocket.
 function websocket.WebSocketHandler:_continue_ws()
-    self.stream:set_close_callback(self.on_close, self)
+    self.stream:set_close_callback(self._socket_closed, self)
     self.stream:read_bytes(2, self._accept_frame, self)
     self:open()
 end
