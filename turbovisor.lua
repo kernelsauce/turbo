@@ -1,6 +1,6 @@
 --- Turbo.lua Turbovisor, auto-reload of application on file changes.
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013 John Abrahamsen, Deyuan Deng
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -24,16 +24,17 @@ local turbo = require "turbo"
 -- @return a table containing option/value pair, e.g.
 --    1. {"watch" = {".", "turbo/examples"}, ......}
 local function get_param(arg)
+    local arg_opt
     local arg_tbl = {}
-    local arg_shift = false
     for i = 2, #arg, 1 do
-        if arg_shift == false then
-            if arg[i] == '--watch' or arg[i] == '-w' then
-                arg_tbl.watch = arg[i+1]:split(',', nil, nil) -- util.lua
-                arg_shift = true
-            end
+        if arg[i] == '--watch' or arg[i] == '-w' then
+            arg_tbl.watch = {}
+            arg_opt = 'watch'
+        elseif arg[i] == '--ignore' or arg[i] == '-i' then -- NYI
+            arg_tbl.ignore = {}
+            arg_opt = 'ignore'
         else
-            arg_shift = false
+            table.insert(arg_tbl[arg_opt], arg[i])
         end
     end
     -- Deal with default parameters
@@ -88,8 +89,15 @@ function turbovisor.restart(self, fd, events)
     -- Read out event
     ffi.C.read(fd, self.buf, turbo.fs.PATH_MAX);
     self.buf = ffi.cast("struct inotify_event*", self.buf)
-    turbo.log.notice("[turbovisor.lua] File " .. ffi.string(self.buf.name) ..
-                         " changed, application restarted!")
+    if self.buf.len ~= 0 then
+        turbo.log.notice("[turbovisor.lua] File "
+                             .. ffi.string(self.buf.name) ..
+                             " changed, application restarted!")
+    else                     -- 'len = 0' if we watch on file directly
+        turbo.log.notice("[turbovisor.lua] File "
+                             .. turbo.inotify:get_watched_file(self.buf.wd) ..
+                             " changed, application restarted!")
+    end
     -- Restart application
     ffi.C.kill(self.cpid, 9)
     ffi.C.waitpid(self.cpid, status, 0)

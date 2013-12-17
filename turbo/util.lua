@@ -18,7 +18,7 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE."       
+-- SOFTWARE."
 
 local ffi = require "ffi"
 local C = ffi.C
@@ -30,10 +30,10 @@ local g_timeval = ffi.new("struct timeval")
 
 local util = {}
 
---*************** String library extensions *************** 
+--*************** String library extensions ***************
 
 --- Extends the standard string library with a split method.
-function string:split(sep, max, pattern)    
+function string:split(sep, max, pattern)
     assert(sep ~= '', "Separator is not a string or a empty string.")
     assert(max == nil or max >= 1, "Max is 0 or a negative number.")
 
@@ -75,7 +75,7 @@ function string:substr(from, to)
     return ffi.string(ptr + from, to - from)
 end
 
---*************** Table utilites *************** 
+--*************** Table utilites ***************
 
 --- Merge two tables to one.
 function util.tablemerge(t1, t2)
@@ -89,26 +89,26 @@ function util.tablemerge(t1, t2)
     return t1
 end
 
---- Join a list into a string with  given delimiter. 
+--- Join a list into a string with  given delimiter.
 function util.join(delimiter, list)
     local len = #list
-    if len == 0 then 
-        return "" 
+    if len == 0 then
+        return ""
     end
     local string = list[1]
-    for i = 2, len do 
-        string = string .. delimiter .. list[i] 
+    for i = 2, len do
+        string = string .. delimiter .. list[i]
     end
     return string
 end
 
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
-    if not needle or not haystack then 
-        return nil 
+    if not needle or not haystack then
+        return nil
     end
     local i
-    for i = 1, #haystack, 1 do 
+    for i = 1, #haystack, 1 do
         if needle == haystack[i] then
             return true
         end
@@ -125,13 +125,13 @@ function util.funpack(t, i)
     end
 end
 
---*************** Time and date *************** 
+--*************** Time and date ***************
 
 --- Current msecs since epoch. Better granularity than Lua builtin.
 -- @return Number
 function util.gettimeofday()
     C.gettimeofday(g_timeval, nil)
-    return ((tonumber(g_timeval.tv_sec) * 1000) + 
+    return ((tonumber(g_timeval.tv_sec) * 1000) +
         math.floor(tonumber(g_timeval.tv_usec) / 1000))
 end
 
@@ -141,9 +141,9 @@ function util.time_format_cookie(epoch)
     g_time_t[0] = epoch
     local tm = C.gmtime(g_time_t)
     local sz = C.strftime(
-        g_time_str_buf, 
-        1024, 
-        "%a, %d-%b-%Y %H:%M:%S GMT", 
+        g_time_str_buf,
+        1024,
+        "%a, %d-%b-%Y %H:%M:%S GMT",
         tm)
     return ffi.string(g_time_str_buf, sz)
 end
@@ -154,9 +154,9 @@ function util.time_format_http_header(time_t)
     g_time_t[0] = time_t
     local tm = C.gmtime(g_time_t)
     local sz = C.strftime(
-        g_time_str_buf, 
-        1024, 
-        "%a, %d %b %Y %H:%M:%S GMT", 
+        g_time_str_buf,
+        1024,
+        "%a, %d %b %Y %H:%M:%S GMT",
         tm)
     return ffi.string(g_time_str_buf, sz)
 end
@@ -180,14 +180,14 @@ end
 
 local function suffixes(x, m, suff)
     local f, g, i
-  
+
     suff[m - 1] = m
     g = m - 1
     i = m - 2
-    while i >= 0 do 
+    while i >= 0 do
         if i > g and suff[i + m - 1 - f] < i - g then
             suff[i] = suff[i + m - 1 - f]
-        else 
+        else
             if i < g then
                 g = i
             end
@@ -244,7 +244,7 @@ local function preBmBc(x, m, bmBc)
 end
 
 local NEEDLE_MAX = 1024
---- Turbo Booyer-Moore memory search algorithm. 
+--- Turbo Booyer-Moore memory search algorithm.
 -- Search through arbitrary memory and find first occurence of given byte sequence.
 -- @param x char* Needle memory pointer
 -- @param m int Needle size
@@ -259,7 +259,7 @@ function util.TBM(x, m, y, n)
         error("Needle exceeds NEEDLE_MAX defined in util.lua. \
             Can not do memory search.")
     end
-    local bcShift, i, j, shift, u, v, turboShift  
+    local bcShift, i, j, shift, u, v, turboShift
     preBmGs(x, m, bmGs);
     preBmBc(x, m, bmBc);
     j = 0
@@ -315,7 +315,7 @@ function util.str_find(s, p, slen, plen)
             local q
             while slen > 0 do
                 q = ffi.cast("char*", C.memchr(s, c, slen))
-                if q == nil then 
+                if q == nil then
                     break
                 end
                 if C.memcmp(q + 1, p, plen) == 0 then
@@ -340,15 +340,15 @@ function util.hex(num)
         s = string.sub(hexstr, mod+1, mod+1) .. s
         num = math.floor(num / 16)
     end
-    if s == '' then 
-        s = '0' 
+    if s == '' then
+        s = '0'
     end
     return s
 end
 local hex = util.hex
 
---- Dump memory region to stdout, from ptr to given size. Usefull for 
--- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if 
+--- Dump memory region to stdout, from ptr to given size. Usefull for
+-- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if
 -- not being used on valid pointers.
 -- @param ptr A cdata pointer (from FFI)
 -- @param sz (Number) Length to dump contents for.
@@ -383,5 +383,3 @@ function util.mem_dump(ptr, sz)
 end
 
 return util
-
-

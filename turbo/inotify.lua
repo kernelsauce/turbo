@@ -46,6 +46,7 @@ inotify.IN_MOVE_SELF     = 0x00000800     -- Self was moved.
 --- Create a new inotify instance
 function inotify:new()
     self.fd = ffi.C.inotify_init()
+    self.wd2name = {}
     if self.fd == -1 then
         error(ffi.string(ffi.C.strerror(ffi.errno())))
     end
@@ -59,6 +60,7 @@ function inotify:watch_file(file_path)
     if fs.is_file(file_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        self.wd2name[wd] = file_path
         return true
     else
         return false
@@ -72,6 +74,7 @@ function inotify:watch_dir(dir_path)
     if fs.is_dir(dir_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        self.wd2name[wd] = dir_path
         return true
     else
         return false
@@ -84,11 +87,16 @@ function inotify:watch_all(path)
     if fs.is_dir(path) then
         local wd = ffi.C.inotify_add_watch(self.fd, path, self.IN_MODIFY)
         if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        self.wd2name[wd] = path
     end
     for filename in io.popen('ls "' .. path .. '"'):lines() do
         local full_path = path .. '/' .. filename
         if fs.is_dir(full_path) then self:watch_all(full_path) end
     end
+end
+
+function inotify:get_watched_file(wd)
+    return self.wd2name[wd]
 end
 
 --- Close inotify
