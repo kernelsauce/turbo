@@ -30,6 +30,16 @@ local web =             require "turbo.web"
 local async =           require "turbo.async"
 local buffer =          require "turbo.structs.buffer"
 require('turbo.3rdparty.middleclass')
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+if not ltp_loaded then
+    -- Check /usr/local/lib explicitly also.
+    ltp_loaded, libturbo_parser = 
+        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
+    if not ltp_loaded then 
+        error("Could not load libtffi_wrap.so. \
+            Please run makefile and ensure that installation is done correct.")
+    end
+end
 local strf = string.format
 math.randomseed(util.gettimeofday())
 
@@ -58,6 +68,9 @@ function websocket.WebSocketHandler:on_message(msg) end
 --- Called when the connection is closed.
 function websocket.WebSocketHandler:on_close() end
 
+--- Called when a error is raised.
+function websocket.WebSocketHandler:on_error(msg) end
+
 --- Called when the headers has been parsed and the server is about to initiate
 -- the WebSocket specific handshake. Use this to e.g check if the headers
 -- Origin field matches what you expect.
@@ -82,8 +95,8 @@ function websocket.WebSocketHandler:write_message(msg, binary)
         error("WebSocket connection has been closed. Can not write message.")
     end
     self:_send_frame(true, 
-                     websocket.opcode.BINARY and 
-                        binary or websocket.opcode.TEXT, 
+                     binary and 
+                        websocket.opcode.BINARY or websocket.opcode.TEXT, 
                      msg)
 end
 
@@ -91,11 +104,15 @@ end
 function websocket.WebSocketHandler:ping(data, callback, callback_arg) 
     self._ping_callback = callback
     self._ping_callback_arg = callback_arg
-    self:_write_frame(true, websocket.opcodes.PING, data)
+    self:_send_frame(true, websocket.opcode.PING, data)
 end
 
 --- Close the connection.
-function websocket.WebSocketHandler:close() end
+function websocket.WebSocketHandler:close() 
+    self._closed = true
+    self:_send_frame(true, websocket.opcode.CLOSE, "")
+    self.stream:close()
+end
 
 -- *** Private API ***
 
@@ -155,11 +172,15 @@ function websocket.WebSocketHandler:_execute()
     self.origin = self.request.headers:get("Origin")
     self:prepare()
     local response_header = self:_create_response_header()
-    self.stream:write(response_header.."\r\n", self._continue_ws, self)
+    self.stream:write(response_header.."\r\n")
+    -- HTTP headers read, change to WebSocket protocol. 
+    -- Set max buffer size to 64MB as it is 16KB at this point...
+    self.stream:set_max_buffer_size(1024*1024*64) 
     log.success(string.format([[[websocket.lua] Websocket opened %s (%s) %dms]], 
         self.request.headers:get_url(),
         self.request.remote_ip,
         self.request:request_time()))
+    self:_continue_ws()
 end
 
 function websocket.WebSocketHandler:_calculate_ws_accept()
@@ -174,6 +195,7 @@ function websocket.WebSocketHandler:_create_response_header()
     local header = httputil.HTTPHeaders()
     header:set_status_code(101)
     header:set_version("HTTP/1.1")
+    header:add("Server", "Turbo v1.1")
     header:add("Upgrade", "websocket")
     header:add("Connection", "Upgrade")
     header:add("Sec-WebSocket-Accept", self:_calculate_ws_accept())
@@ -196,44 +218,32 @@ websocket.opcode = {
     -- 0xB-F Reserved
 }
 
---- WebSocket frame format.
---
---      0                   1                   2                   3
---      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
---     +-+-+-+-+-------+-+-------------+-------------------------------+
---     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
---     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
---     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
---     | |1|2|3|       |K|             |                               |
---     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
---     |     Extended payload length continued, if payload len == 127  |
---     + - - - - - - - - - - - - - - - +-------------------------------+
---     |                               |Masking-key, if MASK set to 1  |
---     +-------------------------------+-------------------------------+
---     | Masking-key (continued)       |          Payload Data         |
---     +-------------------------------- - - - - - - - - - - - - - - - +
---     :                     Payload Data continued ...                :
---     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
---     |                     Payload Data continued ...                |
---     +---------------------------------------------------------------+
---
-
 ffi.cdef [[
     struct ws_header {
         uint8_t flags;
         uint8_t len;
-        union ext_len{
+        union {
             uint16_t sh;
             uint64_t ll;
-        };
+        } ext_len;
     } __attribute__ ((__packed__));
 ]]
+
+--- Error handler.
+function websocket.WebSocketHandler:_error(msg)
+    log.error(msg)
+    if not self._closed == true and not self.stream:closed() then
+        self:close()
+    end
+    self:on_error(msg)
+end
 
 --- Called after HTTP handshake has passed and connection has been upgraded
 -- to WebSocket.
 function websocket.WebSocketHandler:_continue_ws()
-    self.stream:set_close_callback(self._error, self)
+    self.stream:set_close_callback(self.on_close, self)
     self.stream:read_bytes(2, self._accept_frame, self)
+    self:open()
 end
 
 --- Accept a new WebSocket frame.
@@ -299,13 +309,13 @@ function websocket.WebSocketHandler:_frame_mask_key(data)
 end
 
 function websocket.WebSocketHandler:_frame_payload(data)
-    local opcode = nil
-    print(self._opcode, data)
+    local opcode
     if self._opcode == websocket.opcode.CLOSE then
         if not self._final_bit then
             self:_error(
                 "WebSocket protocol error: \
                 CLOSE opcode was fragmented.")
+            return
         end
         opcode = self._opcode
     elseif self._opcode == websocket.opcode.CONTINUE then
@@ -313,21 +323,30 @@ function websocket.WebSocketHandler:_frame_payload(data)
             self:_error(
                 "WebSocket protocol error: \
                 CONTINUE opcode, but theres nothing to continue.")
+            return
         end
-        opcode = self._fragmented_message_opcode
-        data = self._fragmented_message_buffer:__tostring()
-        self._fragmented_message_buffer:clear()
+        self._fragmented_message_buffer:append_luastr_right(data)
+        if self._final_bit == true then
+            opcode = self._fragmented_message_opcode
+            data = self._fragmented_message_buffer:__tostring()
+            self._fragmented_message_buffer:clear()
+            self._fragmented_message_opcode = nil
+        end
     else 
         if self._fragmented_message_buffer:len() ~= 0 then
             self:_error(
                 "WebSocket protocol error: \
                 previous CONTINUE opcode not finished.")
+            return
         end
         if self._final_bit == true then
             opcode = self._opcode
         else
             self._fragmented_message_opcode = self._opcode
             self._fragmented_message_buffer:append_luastr_right(data)
+            if data:len() == 0 then
+                log.debug("Zero length data on WebSocket.")
+            end
         end
     end
     if self._final_bit == true then
@@ -346,10 +365,9 @@ function websocket.WebSocketHandler:_handle_opcode(opcode, data)
             opcode == websocket.opcode.BINARY then
         self:on_message(data)
     elseif opcode == websocket.opcode.CLOSE then
-        self._closed = true
         self:close()
     elseif opcode == websocket.opcode.PING then
-        self:_write_frame(true, websocket.opcode.PONG, data)
+        self:_send_frame(true, websocket.opcode.PONG, data)
     elseif opcode == websocket.opcode.PONG then
         if self._ping_callback then
             local callback = self._ping_callback
@@ -365,20 +383,22 @@ function websocket.WebSocketHandler:_handle_opcode(opcode, data)
     else
         self:_error(
             "WebSocket protocol error: \
-            invalid opcode "..util.hex(opcode))
+            invalid opcode ".. tostring(opcode))
+        return
     end
 end
 
 local function _unmask_payload(mask, data)
-    local buf = buffer(1024)
-    local mask = ffi.cast("uint8_t*", mask)
-    local data_sz = data:len()
-    local data_ptr = ffi.cast("const int8_t *", data)
-    for i=0, data_sz-1, 1 do 
-        buf:append_char_right(
-            ffi.cast("int8_t", bit.bxor(data_ptr[i], mask[math.mod(i, 4)])), 1)
+    local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
+    if ptr ~= nil then
+        local str = ffi.string(ptr, data:len())
+        ffi.C.free(ptr)
+        return str
+    else
+        error("Could not allocate memory for WebSocket frame masking.\
+              Catastrophic failure.")
     end
-    return buf:__tostring()
+
 end
 
 function websocket.WebSocketHandler:_masked_frame_payload(data)
@@ -388,9 +408,8 @@ end
 local _ws_header = ffi.new("struct ws_header")
 local _ws_mask = ffi.new("int32_t[1]")
 function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
-    _ws_header.flags = ffi.cast("uint8_t", 
-                                bit.bor(finflag and 0x80 or 0x0, opcode))
     local data_sz = data:len()
+    _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
     if data_sz < 0x7e then
         _ws_header.len = bit.bor(data_sz, self.mask_outgoing and 0x80 or 0x0)
         self.stream:write(ffi.string(_ws_header, 2))
@@ -409,7 +428,7 @@ function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
         self.stream:write(_unmask_payload(_ws_mask, data))
         return
     end
-    self.stream:write(data, function() print("Write finished.") end)
+    self.stream:write(data)
 end
 
 return websocket
