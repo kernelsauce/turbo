@@ -107,7 +107,7 @@ if _G.TURBO_AXTLS then
         assert(type(key) == "string", "Key is invalid type: "..type(key))
         assert(type(digest) == "string", "Can not hash: "..type(digest))
 
-        hmac_sha1(digest, digest:len(), key, key:len(), md)
+        lssl.hmac_sha1(digest, digest:len(), key, key:len(), md)
 
         hexstr:clear()
         for i=0, hash.SHA_DIGEST_LENGTH-1 do
