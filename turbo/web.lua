@@ -184,7 +184,7 @@ function web.RequestHandler:get_arguments(name, strip)
     if strip then
         if type(values) == "string" then
             values = escape.trim(values)
-        elseif type(values) == "table" not type(values[i]) == "table" then
+        elseif type(values) == "table" and not type(values[i]) == "table" then
             for i = 1, #values do
                 values[i] = escape.trim(values[i])
             end
@@ -496,9 +496,9 @@ function web.RequestHandler:_parse_cookies()
         end
     elseif cnt > 1 then
         for i = 1, cnt do
-            for key, value in 
+            for key, value in
                 cookie_str[i]:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);") do
-                cookies[escape.unescape(key)] = escape.unescape(value)        
+                cookies[escape.unescape(key)] = escape.unescape(value)
             end
         end
     end
