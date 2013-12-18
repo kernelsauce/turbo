@@ -459,13 +459,15 @@ do
 
     local mime64shorts=ffi.new('uint16_t[4096]')
     for i=0,63 do
-      for j=0,63 do
-        local v
-        if ffi.abi("le") then
-          v= mime64chars[j]*256+mime64chars[i]
+        for j=0,63 do
+            local v
+            if ffi.abi("le") then
+                v=mime64chars[j]*256+mime64chars[i]
+            else
+                v=mime64chars[i]*256+mime64chars[j]
+            end
+            mime64shorts[i*64+j]=v
         end
-        mime64shorts[i*64+j]=v
-      end
     end
 
     local eq=string.byte('=')
