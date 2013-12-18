@@ -30,7 +30,7 @@ local g_timeval = ffi.new("struct timeval")
 
 local util = {}
 
---*************** String library extensions *************** 
+--*************** String library extensions ***************
 
 --- Extends the standard string library with a split method.
 function string:split(sep, max, pattern)
@@ -76,7 +76,7 @@ function string:substr(from, to)
     return ffi.string(ptr + from, to - from)
 end
 
---*************** Table utilites *************** 
+--*************** Table utilites ***************
 
 --- Merge two tables to one.
 function util.tablemerge(t1, t2)
@@ -90,26 +90,26 @@ function util.tablemerge(t1, t2)
     return t1
 end
 
---- Join a list into a string with  given delimiter. 
+--- Join a list into a string with  given delimiter.
 function util.join(delimiter, list)
     local len = #list
-    if len == 0 then 
-        return "" 
+    if len == 0 then
+        return ""
     end
     local string = list[1]
-    for i = 2, len do 
-        string = string .. delimiter .. list[i] 
+    for i = 2, len do
+        string = string .. delimiter .. list[i]
     end
     return string
 end
 
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
-    if not needle or not haystack then 
-        return nil 
+    if not needle or not haystack then
+        return nil
     end
     local i
-    for i = 1, #haystack, 1 do 
+    for i = 1, #haystack, 1 do
         if needle == haystack[i] then
             return true
         end
@@ -132,7 +132,7 @@ end
 -- @return Number
 function util.gettimeofday()
     C.gettimeofday(g_timeval, nil)
-    return ((tonumber(g_timeval.tv_sec) * 1000) + 
+    return ((tonumber(g_timeval.tv_sec) * 1000) +
         math.floor(tonumber(g_timeval.tv_usec) / 1000))
 end
 
@@ -363,15 +363,15 @@ function util.hex(num)
         s = string.sub(hexstr, mod+1, mod+1) .. s
         num = math.floor(num / 16)
     end
-    if s == '' then 
-        s = '0' 
+    if s == '' then
+        s = '0'
     end
     return s
 end
 local hex = util.hex
 
---- Dump memory region to stdout, from ptr to given size. Usefull for 
--- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if 
+--- Dump memory region to stdout, from ptr to given size. Usefull for
+-- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if
 -- not being used on valid pointers.
 -- @param ptr A cdata pointer (from FFI)
 -- @param sz (Number) Length to dump contents for.
@@ -463,26 +463,28 @@ do
         local v
         local m64_arr=ffi.new(u8arr,math.floor(#d*4/3+(#d/38))+2)
         local l,p,c=0,0,0
-        local bptr = ffi.cast("int8_t*",d)
+        local bptr = ffi.cast("uint8_t*",d)
         local bend=bptr+#d
-    ::next4::  -- using a label to be able to jump into the loop
-        v = (ffi.cast("int32_t*", bptr))[0]
-        v = htonl(v)
-    ::encode4:: -- jump here to decode last bytes of the data
-        if c==76 then
-            m64_arr[p]=0x0D; p=p+1 -- CR
-            m64_arr[p]=0x0A; p=p+1 -- LF
-            c=0
-        end
-        m64_arr[p]=mime64chars[rshift(v,26)]; p=p+1
-        m64_arr[p]=mime64chars[band(rshift(v,20),63)]; p=p+1
-        m64_arr[p]=mime64chars[band(rshift(v,14),63)]; p=p+1
-        m64_arr[p]=mime64chars[band(rshift(v,8),63)]; p=p+1
-        c=c+4
-        bptr=bptr+3
-        if bptr+3<=bend then
-            goto next4
-        end
+        ::while_3bytes::  -- using a label to be able to jump into the loop
+            if bptr+3>bend then
+                goto break3
+            end
+            v = (ffi.cast("int32_t*", bptr))[0]
+            v = htonl(v)
+            ::encode4:: -- jump here to decode last bytes of the data
+            if c==76 then
+                m64_arr[p]=0x0D; p=p+1 -- CR
+                m64_arr[p]=0x0A; p=p+1 -- LF
+                c=0
+            end
+            m64_arr[p]=mime64chars[rshift(v,26)]; p=p+1
+            m64_arr[p]=mime64chars[band(rshift(v,20),63)]; p=p+1
+            m64_arr[p]=mime64chars[band(rshift(v,14),63)]; p=p+1
+            m64_arr[p]=mime64chars[band(rshift(v,8),63)]; p=p+1
+            c=c+4
+            bptr=bptr+3
+            goto while_3bytes
+        ::break3::
       -- l is always 0 the first time this is encountered
       -- this is to add trailing equal signs to encode the end
       -- of the data according ot the MIME base64 specification
