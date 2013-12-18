@@ -46,6 +46,20 @@ local function get_param(arg)
     return arg_tbl;
 end
 
+--- Kill all descendants for a given pid
+local function kill_tree(pid)
+    local status = ffi.new("int[1]")
+    local cpids = io.popen('pgrep -P ' .. pid)
+    for cpid in cpids:lines() do
+        kill_tree(cpid)
+        ffi.C.kill(tonumber(cpid), 9)
+        ffi.C.waitpid(tonumber(cpid), status, 0)
+        assert(status[0] == 9 or bit.band(status[0], 0x7f) == 0,
+               "Child process " .. cpid .. " not killed.")
+    end
+    cpids:close()
+end
+
 
 --- The turbovisor class is a supervisor for detecting file changes
 -- and restart supervised application.
@@ -77,8 +91,8 @@ function turbovisor:supervise()
     para[2] = nil
     self.para = ffi.cast("char *const*", para)
     -- Run application and supervisor
-    self.cpid = ffi.C.fork()
-    if self.cpid == 0 then
+    local cpid = ffi.C.fork()
+    if cpid == 0 then
         turbo.inotify:close()
         ffi.C.execvp("luajit", self.para)
         error(ffi.string(ffi.C.strerror(ffi.errno())))
@@ -90,7 +104,6 @@ end
 --- Callback handler when files changed
 -- For now, just restart the only one application
 function turbovisor.restart(self, fd, events)
-    local status = ffi.new("int[1]")
     -- Read out event
     ffi.C.read(fd, self.buf, turbo.fs.PATH_MAX);
     self.buf = ffi.cast("struct inotify_event*", self.buf)
@@ -109,11 +122,9 @@ function turbovisor.restart(self, fd, events)
     turbo.log.notice("[turbovisor.lua] File '" .. full_path ..
                          "' changed, application restarted!")
     -- Restart application
-    ffi.C.kill(self.cpid, 9)
-    ffi.C.waitpid(self.cpid, status, 0)
-    assert(status[0] == 9 or status[0] == 256, "Child process not killed.")
-    self.cpid = ffi.C.fork()
-    if self.cpid == 0 then
+    kill_tree(ffi.C.getpid())
+    local cpid = ffi.C.fork()
+    if cpid == 0 then
         turbo.inotify:close()
         ffi.C.execvp("luajit", self.para)
         error(ffi.string(ffi.C.strerror(ffi.errno())))
