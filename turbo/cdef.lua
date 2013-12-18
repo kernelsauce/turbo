@@ -171,6 +171,40 @@ void ssl_display_error(int error_code);
 const char *ssl_get_cert_dn(const SSL *ssl, int component);
 const char *ssl_get_cert_subject_alt_dnsname(const SSL *ssl, int dnsindex);
 int ssl_obj_load(SSL_CTX *ssl_ctx, int obj_type, const char *filename, const char *password);
+
+
+/* axTLS Hash functions */
+typedef struct
+{
+  uint32_t state[4];        /* state (ABCD) */
+  uint32_t count[2];        /* number of bits, modulo 2^64 (lsb first) */
+  uint8_t buffer[64];       /* input buffer */
+} MD5_CTX;
+typedef struct
+{
+    uint32_t Intermediate_Hash[SHA1_SIZE/4]; /* Message Digest */
+    uint32_t Length_Low;            /* Message length in bits */
+    uint32_t Length_High;           /* Message length in bits */
+    uint16_t Message_Block_Index;   /* Index into message block array   */
+    uint8_t Message_Block[64];      /* 512-bit message blocks */
+} SHA1_CTX;
+
+void SHA1_Init(SHA1_CTX *ctx);
+void SHA1_Update(SHA1_CTX *ctx, const uint8_t *msg, int len);
+void SHA1_Final(uint8_t *digest, SHA1_CTX *ctx);
+
+void MD5_Init(MD5_CTX *ctx);
+void MD5_Update(MD5_CTX *ctx, const uint8_t * msg, int len);
+void MD5_Final(uint8_t *digest, MD5_CTX *ctx);
+
+// TODO: implement these in lua or just use the above 6
+// unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md);
+// unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md);
+
+// note: digest length is fixed at 20 bytes (160-bit)
+void hmac_sha1(const uint8_t *msg, int length, const uint8_t *key,
+        int key_len, uint8_t *digest)
+
 ]]
 elseif _G.TURBO_SSL then
 --- ******* OpenSSL *******
