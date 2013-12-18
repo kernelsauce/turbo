@@ -422,7 +422,10 @@ do
         mime64lookup[mime64chars[i]]=i
     end
 
-    local u8arr= ffi.typeof('uint8_t[?]')
+    local u8arr= ffi.typeof'uint8_t[?]'
+    local u16ptr=ffi.typeof'uint16_t*'
+    local i32ptr=ffi.typeof'int32_t*'
+    local u8ptr=ffi.typeof'uint8_t*'
 
     -- Very Fast Mime Base64 Decoding routine by Jeff Solinsky
     -- takes Mime Base64 encoded input string
@@ -454,6 +457,16 @@ do
         return ffi.string(bin_arr, p)
     end
 
+    local mime64shorts=ffi.new('uint16_t[4096]')
+    for i=0,63 do
+      for j=0,63 do
+        local v
+        if ffi.abi("le") then
+          v= mime64chars[j]*256+mime64chars[i]
+        end
+        mime64shorts[i*64+j]=v
+      end
+    end
 
     local eq=string.byte('=')
     local htonl = ffi.abi("le") and bit.bswap or bit.tobit
@@ -464,54 +477,52 @@ do
         outlen = outlen + math.floor(outlen/38)+5
         local m64_arr=ffi.new(u8arr,outlen)
         local l,p,c,v=0,0,0
-        local bptr = ffi.cast("uint8_t*",d)
+        local bptr = ffi.cast(u8ptr,d)
+        local m64wptr
         local bend=bptr+#d
         ::while_3bytes::  -- using a label to be able to jump into the loop
             if bptr+3>bend then
                 goto break3
             end
-            v = (ffi.cast("int32_t*", bptr))[0]
+            v = (ffi.cast(i32ptr, bptr))[0]
             v = htonl(v)
             ::encode4:: -- jump here to decode last bytes of the data
-            if c==76 then
+            if p-c==76 then
                 m64_arr[p]=0x0D; p=p+1 -- CR
                 m64_arr[p]=0x0A; p=p+1 -- LF
-                c=0
+                c=p
             end
-            m64_arr[p]=mime64chars[rshift(v,26)]; p=p+1
-            m64_arr[p]=mime64chars[band(rshift(v,20),63)]; p=p+1
-            m64_arr[p]=mime64chars[band(rshift(v,14),63)]; p=p+1
-            m64_arr[p]=mime64chars[band(rshift(v,8),63)]; p=p+1
-            c=c+4
+            m64wptr = ffi.cast(u16ptr,m64_arr+p)
+            m64wptr[0]=mime64shorts[rshift(v,20)];
+            m64wptr[1]=mime64shorts[band(rshift(v,8),4095)];
+            p=p+4
             bptr=bptr+3
             goto while_3bytes
         ::break3::
-      -- l is always 0 the first time this is encountered
-      -- this is to add trailing equal signs to encode the end
-      -- of the data according ot the MIME base64 specification
-      if l>0 then
-        -- l will always be 1 or 2 representing the number of remaing
-        -- bytes that were encoded
-        m64_arr[p-1]=eq;
-        -- if only 1 byte of data was left, need to encode a second equal sign
-        if l==1 then
-          m64_arr[p-2]=eq;
-        end
-      else
-        l=bend-bptr -- get the number of remaining bytes to be encoded
         if l>0 then
-          v=0
-          for i=1,4 do
-            v=lshift(v,8)
-            if bptr<bend then
-              v=v+bptr[0]
-              bptr=bptr+1
+            -- Add trailing equal signs to encode the end
+            -- of the data according ot the MIME base64 specification
+            -- l will be 1 or 2 for number of final bytes encoded
+            m64_arr[p-1]=eq;
+            -- if only 1 byte of data was left, encode second equal sign
+            if l==1 then
+              m64_arr[p-2]=eq;
             end
-          end
-          goto encode4
+        else
+            l=bend-bptr -- get number of remaining bytes to be encoded
+            if l>0 then
+                v=0
+                for i=1,4 do
+                    v=lshift(v,8)
+                    if bptr<bend then
+                        v=v+bptr[0]
+                        bptr=bptr+1
+                    end
+                end
+                goto encode4
+            end
         end
-      end
-      return ffi.string(m64_arr,p)
+        return ffi.string(m64_arr,p)
     end
 end
 
