@@ -12,7 +12,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.   
+-- limitations under the License.
 
 require "turbo.cdef"
 require 'turbo.3rdparty.middleclass'
@@ -26,11 +26,6 @@ ffi.cdef([[
         size_t sz_hint;
     };
 ]])
-
-if not _G._BUFFER_H then
-    _G._BUFFER_H = 1
-
-end
 
 --- Low-level Buffer class.
 -- Using C buffers. This class supports storing above the LuaJIT memory limit.
@@ -89,8 +84,8 @@ end
 
 --- Append Lua string to right side of buffer.
 -- @param str Lua string
-function Buffer:append_luastr_right(str) 
-    self:append_right(str, str:len()) 
+function Buffer:append_luastr_right(str)
+    self:append_right(str, str:len())
     return self
 end
 
@@ -102,8 +97,8 @@ function Buffer:append_left(data, len)
         -- Do not use ffi.copy, but memmove as the memory are overlapping.
         if self.tbuffer.sz ~= 0 then
             ffi.C.memmove(
-                self.tbuffer.data + len, 
-                self.tbuffer.data, 
+                self.tbuffer.data + len,
+                self.tbuffer.data,
                 self.tbuffer.sz)
         end
         ffi.copy(self.tbuffer.data, data, len)
@@ -129,7 +124,7 @@ end
 
 --- Prepend Lua string to the buffer
 -- @param str Lua string
-function Buffer:append_luastr_left(str) 
+function Buffer:append_luastr_left(str)
     return self:append_left(str, str:len())
 end
 
@@ -203,18 +198,18 @@ function Buffer:mem() return self.tbuffer.mem end
 -- @return current size of buffer, in bytes.
 function Buffer:get() return self.tbuffer.data, self.tbuffer.sz end
 
---- Convert to Lua type string using the tostring() builtin or implicit 
+--- Convert to Lua type string using the tostring() builtin or implicit
 -- conversions.
-function Buffer:__tostring() 
-    return ffi.string(self.tbuffer.data, self.tbuffer.sz) 
+function Buffer:__tostring()
+    return ffi.string(self.tbuffer.data, self.tbuffer.sz)
 end
 
 --- Compare two buffers by using the == operator.
 function Buffer:__eq(cmp)
     if instanceOf(Buffer, cmp) == true then
         if cmp.tbuffer.sz == self.tbuffer.sz then
-            if ffi.C.memcmp(cmp.tbuffer.data, 
-                self.tbuffer.data, 
+            if ffi.C.memcmp(cmp.tbuffer.data,
+                self.tbuffer.data,
                 self.tbuffer.sz) == 0 then
                 return true
             end
@@ -225,8 +220,8 @@ function Buffer:__eq(cmp)
     return false
 end
 
---- Concat by using the .. operator, Lua type strings can be concated also. 
--- Please note that this involves deep copying and is slower than manually 
+--- Concat by using the .. operator, Lua type strings can be concated also.
+-- Please note that this involves deep copying and is slower than manually
 -- building a buffer with append_right().
 function Buffer:__concat(src)
     if type(self) == "string" then
@@ -244,7 +239,7 @@ function Buffer:__concat(src)
             local new = Buffer(strlen + self.tbuffer.sz)
             new:append_right(self:get())
             new:append_right(src, strlen)
-            return new      
+            return new
         end
     end
     error("Trying to concat Buffer with " .. type(cmp))

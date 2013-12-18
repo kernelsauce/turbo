@@ -193,6 +193,22 @@ function web.RequestHandler:get_arguments(name, strip)
     return values
 end
 
+--- Returns JSON request data as a table. By default, it only parses json
+-- mimetype. It will return an empty table if request data is empty.
+-- @param force (Boolean) if set to true, mimetype will be ignored.
+-- @return (Table) parsed from request data, return nil if mimetype is not
+-- json and force option is not set.
+function web.RequestHandler:get_json(force)
+    local content_type = self.request.headers:get("content-type", true)
+    if not content_type then
+        content_type = ""
+    end
+    if force ~= true and not content_type:find("application/json", 1, true) then
+        return nil
+    end
+    return escape.json_decode(self.request.body)
+end
+
 --*************** Output ***************
 
 --- Reset all headers and content for this request. Run on class initialization.
@@ -263,12 +279,6 @@ function web.RequestHandler:redirect(url, permanent)
     self:set_status(status)
     self:add_header("Location", url)
     self:finish()
-end
-
---- Reimplement in inheriting classes to get the current user from
--- for example a cookie, parameter etc.
-function web.RequestHandler:get_current_user()
-    error("Method not implemented in this class.")
 end
 
 --- Get cookie value from incoming request.
@@ -476,13 +486,22 @@ end
 function web.RequestHandler:_parse_cookies()
     local cookies = {}
     local cookie_str, cnt = self.request.headers:get("Cookie")
-    if cnt ~= 0 then
-        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
+    self._cookies_parsed = true
+    self._cookies = cookies
+    if cnt == 0 then
+        return
+    elseif cnt == 1 then
+        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);") do
             cookies[escape.unescape(key)] = escape.unescape(value)
         end
+    elseif cnt > 1 then
+        for i = 1, cnt do
+            for key, value in 
+                cookie_str[i]:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);") do
+                cookies[escape.unescape(key)] = escape.unescape(value)        
+            end
+        end
     end
-    self._cookies = cookies
-    self._cookies_parsed = true
 end
 
 function web.RequestHandler:_finish()
@@ -786,12 +805,16 @@ web.Application = class("Application")
 
 --- Initialize a new Application class instance.
 -- @param handlers (Table) As described above.
--- @param default_host (String) Redirect to URL if no matching handler is
--- found.
-function web.Application:initialize(handlers, default_host)
+
+-- @param kwargs (Table) Key word arguments.
+-- Key word arguments supported:
+-- "default_host" = Redirect to this URL if no matching handler is found.
+-- "cookie_secret" = Sequence of bytes used for to sign cookies.
+function web.Application:initialize(handlers, kwargs)
     self.handlers = handlers or {}
-    self.default_host = default_host
-    self.application_name = "Turbo.lua 1.0"
+    self.kwargs = kwargs or {}
+    self.default_host = self.kwargs.default_host
+    self.application_name = self.kwargs.application_name or "Turbo.lua 1.0"
 end
 
 --- Sets the server name.
@@ -856,7 +879,7 @@ function web.Application:__call(request)
     local handler = nil
     local handlers, args, options = self:_get_request_handlers(request)
     if handlers then
-        handler = handlers:new(self, request, args, options)
+        handler = handlers(self, request, args, options)
         local status, err = pcall(handler._execute, handler)
         if err then
             if instanceOf(web.HTTPError, err) then

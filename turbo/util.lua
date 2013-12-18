@@ -23,7 +23,7 @@
 local ffi = require "ffi"
 local C = ffi.C
 require "turbo.cdef"
-local  UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
+local UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
 local g_time_str_buf = ffi.new("char[1024]")
 local g_time_t = ffi.new("time_t[1]")
 local g_timeval = ffi.new("struct timeval")

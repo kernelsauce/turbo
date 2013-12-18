@@ -14,9 +14,9 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.       
+-- limitations under the License.
 
-if not _G.TURBO_SSL then
+if not _G.TURBO_SSL and not _G.TURBO_AXTLS then
     return setmetatable({},
     {
     __index = function(t, k)
@@ -410,7 +410,7 @@ else
     crypto.SSL_VERIFY_PEER =        0x01
     crypto.SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 0x02
     crypto.SSL_VERIFY_CLIENT_ONCE =     0x04
-    crypto.validate = 
+    crypto.validate =
     {
         ["MatchFound"] = 0,
         ["MatchNotFound"] = 1,

@@ -325,7 +325,7 @@ function ioloop.IOLoop:start()
                 end
             end
         end
-        if self._stopped == true then 
+        if self._stopped == true then
             self._running = false
             self._stopped = false
             break
@@ -370,7 +370,7 @@ function ioloop.IOLoop:wait(timeout)
     local timedout
     if timeout then
         local io = self
-        self:add_timeout(util.gettimeofday() + (timeout*1000), function() 
+        self:add_timeout(util.gettimeofday() + (timeout*1000), function()
             timedout = true
             io:close()
         end)
@@ -464,7 +464,7 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
             -- Empty yield. Schedule resume on next iteration.
             self._co_cbs[#self._co_cbs + 1] = {co, 0}
             return 3
-    	else
+        else
             -- Invalid yielded value. Schedule resume of coroutine on next
             -- iteration with -1 as result of yield (to represent error).
             self._co_cbs[#self._co_cbs + 1] = {co, function() return -1 end}
