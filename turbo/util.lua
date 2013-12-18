@@ -461,7 +461,7 @@ do
     --       this should already be fast though using 6-bit lookup
     function util.to_base64(d)
         local v
-        local m64_arr=ffi.new(u8arr,math.floor(#d*4/3+(#d/38))+2)
+        local m64_arr=ffi.new(u8arr,math.floor(#d*4/3+(#d/38))+4)
         local l,p,c=0,0,0
         local bptr = ffi.cast("uint8_t*",d)
         local bend=bptr+#d
