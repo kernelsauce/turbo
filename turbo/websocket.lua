@@ -434,7 +434,7 @@ if le then
         elseif data_sz <= 0xffff then
             _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
             _ws_header.ext_len.sh = data_sz
-            _ws_header.ext_len.sh = ffi.C.htons(data_sz)
+            _ws_header.ext_len.sh = ffi.C.htons(_ws_header.ext_len.sh)
             self.stream:write(ffi.string(_ws_header, 4))
         else
             _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
