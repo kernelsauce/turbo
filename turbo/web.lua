@@ -282,15 +282,6 @@ function web.RequestHandler:redirect(url, permanent)
     self:finish()
 end
 
-<<<<<<< HEAD
---- Reimplement in inheriting classes to get the current user from
--- for example a cookie, parameter etc.
-function web.RequestHandler:get_current_user()
-    error("Method not implemented in this class.")
-end
-
-=======
->>>>>>> 03a5aaa0126682bb8fad6eb3ea52e1897c8bae59
 --- Get cookie value from incoming request.
 -- @param name The name of the cookie to get.
 -- @param default A default value if no cookie is found.
@@ -559,11 +550,6 @@ end
 function web.RequestHandler:_parse_cookies()
     local cookies = {}
     local cookie_str, cnt = self.request.headers:get("Cookie")
-<<<<<<< HEAD
-    if cnt ~= 0 then
-        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);-") do
-            cookies[escape.unescape(key)] = escape.unescape(value)
-=======
     self._cookies_parsed = true
     self._cookies = cookies
     if cnt == 0 then
@@ -884,11 +870,7 @@ web.Application = class("Application")
 
 --- Initialize a new Application class instance.
 -- @param handlers (Table) As described above.
-<<<<<<< HEAD
--- @param default_host (String) Redirect to URL if no matching handler is
--- found.
-function web.Application:initialize(handlers, default_host)
-=======
+
 -- @param kwargs (Table) Key word arguments.
 -- Key word arguments supported:
 -- "default_host" = Redirect to this URL if no matching handler is found.
@@ -962,13 +944,8 @@ end
 function web.Application:__call(request)
     local handler = nil
     local handlers, args, options = self:_get_request_handlers(request)
-<<<<<<< HEAD
-    if handlers then
-        handler = handlers:new(self, request, args, options)
-=======
     if handlers then    
         handler = handlers(self, request, args, options)
->>>>>>> 03a5aaa0126682bb8fad6eb3ea52e1897c8bae59
         local status, err = pcall(handler._execute, handler)
         if err then
             if instanceOf(web.HTTPError, err) then
