@@ -93,13 +93,15 @@ function inotify:watch_all(path, ignore)
             if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
             self.wd2name[wd] = path
         end
-        for filename in io.popen('ls "' .. path .. '"'):lines() do
+        local ls = io.popen('ls "' .. path .. '"')
+        for filename in ls:lines() do
             local full_path = path .. '/' .. filename
             if path == '.' then full_path = filename end -- pass './'
             if fs.is_dir(full_path) then
                 self:watch_all(full_path, ignore)
             end
         end
+        ls:close()
     end
 end
 
