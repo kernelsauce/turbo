@@ -40,6 +40,7 @@ if not ltp_loaded then
             Please run makefile and ensure that installation is done correct.")
     end
 end
+local le = ffi.abi("le")
 local strf = string.format
 math.randomseed(util.gettimeofday())
 
@@ -288,25 +289,31 @@ function websocket.WebSocketHandler:_accept_frame(header)
     end
 end
 
-function websocket.WebSocketHandler:_frame_len_16(data)
-    self._payload_len = tonumber(ffi.cast("uint16_t", data))
-    if self._mask_bit then
-        self.stream:read_bytes(4, self._frame_mask_key, self)
-    else
-        self.stream:read_bytes(self._payload_len, 
-                               self._frame_payload, 
-                               self)
+if le then
+    function websocket.WebSocketHandler:_frame_len_16(data)
+        -- Network byte order for multi-byte length values.
+        -- What were they thinking!
+        self._payload_len = tonumber(
+            ffi.C.htons(ffi.cast("uint16_t", data)))
+        if self._mask_bit then
+            self.stream:read_bytes(4, self._frame_mask_key, self)
+        else
+            self.stream:read_bytes(self._payload_len, 
+                                   self._frame_payload, 
+                                   self)
+        end
     end
-end
 
-function websocket.WebSocketHandler:_frame_len_64(data)
-    self._payload_len = tonumber(ffi.cast("uint64_t", data))
-    if self._mask_bit then
-        self.stream:read_bytes(4, self._frame_mask_key, self)
-    else
-        self.stream:read_bytes(self._payload_len, 
-                               self._frame_payload, 
-                               self)
+    function websocket.WebSocketHandler:_frame_len_64(data)
+        self._payload_len = tonumber(
+            libturbo_parser.turbo_bswap_u64(ffi.cast("uint64_t", data)))
+        if self._mask_bit then
+            self.stream:read_bytes(4, self._frame_mask_key, self)
+        else
+            self.stream:read_bytes(self._payload_len, 
+                                   self._frame_payload, 
+                                   self)
+        end
     end
 end
 
@@ -414,28 +421,38 @@ end
 
 local _ws_header = ffi.new("struct ws_header")
 local _ws_mask = ffi.new("int32_t[1]")
-function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
-    local data_sz = data:len()
-    _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
-    if data_sz < 0x7e then
-        _ws_header.len = bit.bor(data_sz, self.mask_outgoing and 0x80 or 0x0)
-        self.stream:write(ffi.string(_ws_header, 2))
-    elseif data_sz <= 0xffff then
-        _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
-        _ws_header.ext_len.sh = data_sz
-        self.stream:write(ffi.string(_ws_header, 4))
-    else
-        _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
-        _ws_header.ext_len.ll = data_sz
-        self.stream:write(ffi.string(_ws_header, 10))
+if le then
+    -- Multi-byte lengths must be sent in network byte order, e.g
+    -- big-endian. Ugh...
+    function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
+        local data_sz = data:len()
+        _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
+        if data_sz < 0x7e then
+            _ws_header.len = bit.bor(data_sz, 
+                                     self.mask_outgoing and 0x80 or 0x0)
+            self.stream:write(ffi.string(_ws_header, 2))
+        elseif data_sz <= 0xffff then
+            _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
+            _ws_header.ext_len.sh = data_sz
+            _ws_header.ext_len.sh = ffi.C.htons(data_sz)
+            self.stream:write(ffi.string(_ws_header, 4))
+        else
+            _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
+            _ws_header.ext_len.ll = data_sz
+            -- bit.bswap supports only 32-bit bit swap, so instead of a 64-bit
+            -- split to two ints a native C function is used.
+            _ws_header.ext_len.ll = libturbo_parser.turbo_bswap_u64(
+                _ws_header.ext_len.ll)
+            self.stream:write(ffi.string(_ws_header, 10))
+        end
+        if self.mask_outgoing == true then
+            _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
+            self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
+            self.stream:write(_unmask_payload(_ws_mask, data))
+            return
+        end
+        self.stream:write(data)
     end
-    if self.mask_outgoing == true then
-        _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
-        self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
-        self.stream:write(_unmask_payload(_ws_mask, data))
-        return
-    end
-    self.stream:write(data)
 end
 
 return websocket
