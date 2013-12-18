@@ -56,7 +56,7 @@ if _G.TURBO_AXTLS then
 
         if type(str) == "string" then
             self.md =  ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-            lssl.SHA1_Update(sha1ctx, str, str:len()
+            lssl.SHA1_Update(sha1ctx, str, str:len())
             lssl.SHA1_Final(self.md, sha1ctx)
             self.final = true
         else
@@ -70,7 +70,7 @@ if _G.TURBO_AXTLS then
         assert(self.ctx, "No SHA_CTX in object.")
         assert(not self.final,
                "SHA_CTX already finaled. Please create a new context.")
-        lssl.SHA1_Update(self.ctx, str, str:len()
+        lssl.SHA1_Update(self.ctx, str, str:len())
     end
 
     --- Finalize SHA1 context.

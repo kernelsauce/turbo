@@ -182,7 +182,7 @@ typedef struct
 } MD5_CTX;
 typedef struct
 {
-    uint32_t Intermediate_Hash[SHA1_SIZE/4]; /* Message Digest */
+    uint32_t Intermediate_Hash[20/4]; /* Message Digest */
     uint32_t Length_Low;            /* Message length in bits */
     uint32_t Length_High;           /* Message length in bits */
     uint16_t Message_Block_Index;   /* Index into message block array   */
@@ -197,15 +197,12 @@ void MD5_Init(MD5_CTX *ctx);
 void MD5_Update(MD5_CTX *ctx, const uint8_t * msg, int len);
 void MD5_Final(uint8_t *digest, MD5_CTX *ctx);
 
-// TODO: implement these in lua or just use the above 6
-// unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md);
-// unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md);
-
-// note: digest length is fixed at 20 bytes (160-bit)
+/* note: digest length is fixed at 20 bytes (160-bit) */
 void hmac_sha1(const uint8_t *msg, int length, const uint8_t *key,
-        int key_len, uint8_t *digest)
+               int key_len, uint8_t *digest);
 
 ]]
+
 elseif _G.TURBO_SSL then
 --- ******* OpenSSL *******
 -- Note: Typedef SSL structs to void as we never access their members and they are
