@@ -441,6 +441,7 @@ int32_t validate_hostname(const char *hostname, const SSL *server);
 int32_t turbo_b64_encode(const char* in, size_t sz, char** out, size_t *out_sz);
 int32_t turbo_b64_decode(const char* in, size_t sz, char** out, size_t *out_sz);
 char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz);
+uint64_t turbo_bswap_u64(uint64_t swap);
 ]]
 
 
