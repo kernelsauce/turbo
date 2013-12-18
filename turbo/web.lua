@@ -556,8 +556,7 @@ function web.RequestHandler:_parse_cookies()
         return
     elseif cnt == 1 then
         for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);") do
-            cookies[escape.unescape(key)] = escape.unescape(value)        
->>>>>>> 03a5aaa0126682bb8fad6eb3ea52e1897c8bae59
+            cookies[escape.unescape(key)] = escape.unescape(value)
         end
     elseif cnt > 1 then
         for i = 1, cnt do
@@ -876,7 +875,6 @@ web.Application = class("Application")
 -- "default_host" = Redirect to this URL if no matching handler is found.
 -- "cookie_secret" = Sequence of bytes used for to sign cookies.
 function web.Application:initialize(handlers, kwargs)
->>>>>>> 03a5aaa0126682bb8fad6eb3ea52e1897c8bae59
     self.handlers = handlers or {}
     self.kwargs = kwargs or {}
     self.default_host = self.kwargs.default_host
@@ -944,7 +942,7 @@ end
 function web.Application:__call(request)
     local handler = nil
     local handlers, args, options = self:_get_request_handlers(request)
-    if handlers then    
+    if handlers then
         handler = handlers(self, request, args, options)
         local status, err = pcall(handler._execute, handler)
         if err then
