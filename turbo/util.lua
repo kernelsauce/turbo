@@ -460,9 +460,10 @@ do
     -- note: we could use a 12-bit lookup table (requiring 8096 bytes)
     --       this should already be fast though using 6-bit lookup
     function util.to_base64(d)
-        local v
-        local m64_arr=ffi.new(u8arr,math.floor(#d*4/3+(#d/38))+4)
-        local l,p,c=0,0,0
+        local outlen = math.floor(#d*4/3)
+        outlen = outlen + math.floor(outlen/38)+5
+        local m64_arr=ffi.new(u8arr,outlen)
+        local l,p,c,v=0,0,0
         local bptr = ffi.cast("uint8_t*",d)
         local bend=bptr+#d
         ::while_3bytes::  -- using a label to be able to jump into the loop
