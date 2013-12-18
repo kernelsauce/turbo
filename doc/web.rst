@@ -150,6 +150,71 @@ Input
 	:type strip: Boolean
 	:rtype: Table
 
+.. function :: RequestHandler:get_cookie(name, default)
+
+	Get cookie value from incoming request.
+
+	:param name: The name of the cookie to get.
+	:type name: String
+	:param default: A default value if no cookie is found.
+	:type default: String
+	:rtype: String or nil if not found
+
+.. function :: RequestHandler:get_secure_cookie(name, default, max_age)
+
+	Get a signed cookie value from incoming request.
+
+	If the cookie can not be validated, then an error with a string error 
+	is raised.
+	
+	Hash-based message authentication code (HMAC) is used to be able to verify
+	that the cookie has been created with the "cookie_secret" set in the 
+	Application class kwargs. This is simply verifing that the cookie has been 
+	signed by your key, IT IS NOT ENCRYPTING DATA.
+
+	:param name: The name of the cookie to get.
+	:type name: String
+	:param default: A default value if no cookie is found.
+	:type default: String
+	:param max_age: Timestamp used to sign cookie must be not be older than this value in seconds.
+	:type max_age: Number
+	:rtype: String or nil if not found
+
+.. function :: RequestHandler:set_cookie(name, value, domain, expire_hours)
+
+	Set a cookie with value to response. 
+	
+	Note: Expiring relies on the requesting browser and may or may not be respected. Also keep in mind that the servers time is used to calculate expiry date, so the server should ideally be set up with NTP server.
+
+	:param name: The name of the cookie to set.
+	:type name: String
+	:param value: The value of the cookie:
+	:type value: String
+	:param domain: The domain to apply cookie for.
+	:type domain: String
+	:param expire_hours: Set cookie to expire in given amount of hours.
+	:type expire_hours: Number
+
+.. function :: RequestHandler:set_secure_cookie(name, value, domain, expire_hours)
+
+	Set a signed cookie value to response.
+
+	Hash-based message authentication code (HMAC) is used to be able to verify
+	that the cookie has been created with the "cookie_secret" set in the 
+	Application class kwargs. This is simply verifing that the cookie has been 
+	signed by your key, IT IS NOT ENCRYPTING DATA. 
+	
+	Note: Expiring relies on the requesting browser and may or may not be respected. Also keep in mind that the servers time is used to calculate expiry date, so the server should ideally be set up with NTP server.
+
+	:param name: The name of the cookie to set.
+	:type name: String
+	:param value: The value of the cookie:
+	:type value: String
+	:param domain: The domain to apply cookie for.
+	:type domain: String
+	:param expire_hours: Set cookie to expire in given amount of hours.
+	:type expire_hours: Number	
+
 :RequestHandler.request:
 
 	``turbo.httpserver.HTTPRequest`` class instance for this request. This object contains e.g ``turbo.httputil.HTTPHeader`` and the body payload etc. See the documentation for the classes for more details.
@@ -339,14 +404,19 @@ handler pattern's only the first handler matched is delegated the request. There
 
 A good read on Lua patterns matching can be found here: http://www.wowwiki.com/Pattern_matching.
 
-.. function:: Application(handlers, default_host)
+.. function:: Application(handlers, kwargs)
 
 	Initialize a new Application class instance.
 	
 	:param handlers: As described above. Table of tables with pattern to handler binding.
 	:type handlers: Table
-	:param default_host: Redirect to URL if no matching handler is found.
-	:type default_host: String
+	:param kwargs: Keyword arguments
+	:type kwargs: Table
+
+	Keyword arguments supported:
+	
+	* "default_host" (String) - Redirect to this URL if no matching handler is found.
+	* "cookie_secret" (String) - Sequence of bytes used for to sign cookies.
 
 .. function:: Application:add_handler(pattern, handler, arg)
 

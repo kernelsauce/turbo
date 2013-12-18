@@ -23,14 +23,14 @@
 local ffi = require "ffi"
 local C = ffi.C
 require "turbo.cdef"
-local  UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
+local UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
 local g_time_str_buf = ffi.new("char[1024]")
 local g_time_t = ffi.new("time_t[1]")
 local g_timeval = ffi.new("struct timeval")
 
 local util = {}
 
---*************** String library extensions *************** 
+--*************** String library extensions ***************
 
 --- Extends the standard string library with a split method.
 function string:split(sep, max, pattern)
@@ -76,7 +76,7 @@ function string:substr(from, to)
     return ffi.string(ptr + from, to - from)
 end
 
---*************** Table utilites *************** 
+--*************** Table utilites ***************
 
 --- Merge two tables to one.
 function util.tablemerge(t1, t2)
@@ -90,26 +90,26 @@ function util.tablemerge(t1, t2)
     return t1
 end
 
---- Join a list into a string with  given delimiter. 
+--- Join a list into a string with  given delimiter.
 function util.join(delimiter, list)
     local len = #list
-    if len == 0 then 
-        return "" 
+    if len == 0 then
+        return ""
     end
     local string = list[1]
-    for i = 2, len do 
-        string = string .. delimiter .. list[i] 
+    for i = 2, len do
+        string = string .. delimiter .. list[i]
     end
     return string
 end
 
 --- Returns true if value exists in table.
 function util.is_in(needle, haystack)
-    if not needle or not haystack then 
-        return nil 
+    if not needle or not haystack then
+        return nil
     end
     local i
-    for i = 1, #haystack, 1 do 
+    for i = 1, #haystack, 1 do
         if needle == haystack[i] then
             return true
         end
@@ -132,7 +132,7 @@ end
 -- @return Number
 function util.gettimeofday()
     C.gettimeofday(g_timeval, nil)
-    return ((tonumber(g_timeval.tv_sec) * 1000) + 
+    return ((tonumber(g_timeval.tv_sec) * 1000) +
         math.floor(tonumber(g_timeval.tv_usec) / 1000))
 end
 
@@ -363,15 +363,15 @@ function util.hex(num)
         s = string.sub(hexstr, mod+1, mod+1) .. s
         num = math.floor(num / 16)
     end
-    if s == '' then 
-        s = '0' 
+    if s == '' then
+        s = '0'
     end
     return s
 end
 local hex = util.hex
 
---- Dump memory region to stdout, from ptr to given size. Usefull for 
--- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if 
+--- Dump memory region to stdout, from ptr to given size. Usefull for
+-- debugging Luajit FFI. Notice! This can and will cause a SIGSEGV if
 -- not being used on valid pointers.
 -- @param ptr A cdata pointer (from FFI)
 -- @param sz (Number) Length to dump contents for.

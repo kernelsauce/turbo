@@ -1,4 +1,4 @@
---- Turbo.lua Hello world example
+-- Turbo Unit test
 --
 -- Copyright 2013 John Abrahamsen
 --
@@ -16,11 +16,9 @@
 
 local turbo = require "turbo"
 
-local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
-
-function ExampleHandler:get()
-    self:write("Hello World!")
-end
-
-turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888)
-turbo.ioloop.instance():start()
+describe("turbo.hash Namespace", function()
+    it("SHA1 class", function()
+    	local hash = turbo.hash.SHA1("lol")	
+    	assert.equal(hash:hex(), "403926033d001b5279df37cbbe5287b7c7c267fa")
+    end)
+end)

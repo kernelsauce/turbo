@@ -27,11 +27,6 @@ ffi.cdef([[
     };
 ]])
 
-if not _G._BUFFER_H then
-    _G._BUFFER_H = 1
-
-end
-
 --- Low-level Buffer class.
 -- Using C buffers. This class supports storing above the LuaJIT memory limit.
 -- It is still garbage collected.
