@@ -92,6 +92,7 @@ char *url_field(
 int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz);
 int32_t turbo_b64_decode(char* in, size_t sz, char** out, size_t *out_sz);
 char* turbo_websocket_mask(const char *mask32, const char* in, size_t sz);
+u_int64_t turbo_bswap_u64(u_int64_t swap);
 
 // OpenSSL wrapper functions.
 #ifndef TURBO_NO_SSL
