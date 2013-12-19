@@ -303,7 +303,7 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
                int key_len, const unsigned char *d, int n,
                unsigned char *md, unsigned int *md_len);
 
--- only want validate_hostname for OPENSSL, axTLS does this in lua code
+/* only want validate_hostname for OPENSSL, axTLS does this in lua code */
 int32_t validate_hostname(const char *hostname, const SSL *server);
 ]]
 end
