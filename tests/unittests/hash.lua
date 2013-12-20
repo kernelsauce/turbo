@@ -1,4 +1,4 @@
---- Turbo.lua Static file server example
+-- Turbo Unit test
 --
 -- Copyright 2013 John Abrahamsen
 --
@@ -16,15 +16,9 @@
 
 local turbo = require "turbo"
 
-local app = turbo.web.Application:new({
-    -- Serve single index.html file on root requests.
-    {"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
-    -- Serve contents of directory.
-    {"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
-})
-
-local srv = turbo.httpserver.HTTPServer(app)
-srv:bind(8888)
-srv:start(2) -- Adjust amount of processes to fork.
-
-turbo.ioloop.instance():start()
+describe("turbo.hash Namespace", function()
+    it("SHA1 class", function()
+    	local hash = turbo.hash.SHA1("lol")	
+    	assert.equal(hash:hex(), "403926033d001b5279df37cbbe5287b7c7c267fa")
+    end)
+end)

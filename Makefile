@@ -23,6 +23,7 @@ TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
 HTTP_PARSERDIR = $(TDEPS)/http-parser
 INSTALL_LIB= $(PREFIX)/lib
+INSTALL_BIN= $(PREFIX)/bin
 INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.so
 INSTALL_TFFI_WRAP_SONAME= $(INSTALL_TFFI_WRAP_SOSHORT).$(TVERSION)
 INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
@@ -49,7 +50,7 @@ ifeq ($(SSL), openssl)
 	# Link OpenSSL
 	LDFLAGS += -lcrypto -lssl
 endif
-	
+
 LUAJIT_VERSION?=2.0.2
 LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
@@ -68,21 +69,26 @@ uninstall:
 	$(LDCONFIG) $(INSTALL_LIB)
 	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
 	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
+	$(UNINSTALL) $(INSTALL_BIN)/turbovisor
 	$(RM) $(LUA_MODULEDIR)/turbo.lua
 	$(RM) $(LUAJIT_MODULEDIR)/turbo.lua
+	$(RM) $(LUAJIT_MODULEDIR)/turbovisor.lua
 	@echo "==== Turbo.lua uinstalled. Welcome back. ===="
 
 install:
 	@echo "==== Installing Turbo.lua v$(TVERSION) to: ===="
 	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
 	@echo "==== $(LUAJIT_MODULEDIR) ===="
-	$(MKDIR) $(INSTALL_LIB)	
+	$(MKDIR) $(INSTALL_LIB)
 	$(MKDIR) $(LUA_MODULEDIR)/turbo
 	$(MKDIR) $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo/* $(LUA_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUA_MODULEDIR)
+	$(CP_R) turbovisor.lua $(LUA_MODULEDIR)
 	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
+	$(CP_R) turbovisor.lua $(LUAJIT_MODULEDIR)
+	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C $(HTTP_PARSERDIR) library
 	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
