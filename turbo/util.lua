@@ -424,19 +424,23 @@ do
 
     local u8arr= ffi.typeof'uint8_t[?]'
     local u16ptr=ffi.typeof'uint16_t*'
-    local i32ptr=ffi.typeof'int32_t*'
     local u8ptr=ffi.typeof'uint8_t*'
 
     -- Very Fast Mime Base64 Decoding routine by Jeff Solinsky
     -- takes Mime Base64 encoded input string
-    function util.from_base64(d)
+    -- @param d A Mime Base64 encoded string or cdata
+    -- @param sz (Number) length of d, optional if d is a string
+    -- @return string with binary decoded data
+    function util.from_base64(d,sz)
+        if type(d)=="string" then sz=#d end
         local m64, b1, b2 -- val between 0 and 63, partially decoded byte, decoded byte
         local p = 0 -- position in binary output array
         local boff = 6 -- bit offset, alternates 0, 2, 4, 6
-        local bin_arr=ffi.new(u8arr, math.floor(bit.rshift(#d*3,2)))
+        local bin_arr=ffi.new(u8arr, math.floor(bit.rshift(sz*3,2)))
+        local bptr = ffi.cast(u8ptr,d)
 
-        for i=1,#d do
-            m64 = mime64lookup[d:byte(i)]
+        for i=0,sz-1 do
+            m64 = mime64lookup[bptr[i]]
             -- skip non-mime characters like newlines
             if m64 ~= 0xFF then
                 if boff==6 then
@@ -471,32 +475,33 @@ do
     end
 
     local eq=string.byte('=')
-    local htonl = ffi.abi("le") and bit.bswap or bit.tobit
-    -- note: we could use a 12-bit lookup table (requiring 8096 bytes)
-    --       this should already be fast though using 6-bit lookup
-    function util.to_base64(d)
-        local outlen = math.floor(#d*4/3)
+    -- Convert binary data to MIME base64
+    -- @param d A data string or a cdata pointer (from FFI)
+    -- @param sz (Number) Length of d, optional if d is a string.
+    -- @return base64 encoded string
+    function util.to_base64(d,sz)
+        if type(d)=="string" then sz=#d end
+        local outlen = math.floor(sz*4/3)
         outlen = outlen + math.floor(outlen/38)+5
         local m64_arr=ffi.new(u8arr,outlen)
-        local l,p,c,v=0,0,0
+        local l,p,c,v=0,0,76
         local bptr = ffi.cast(u8ptr,d)
         local m64wptr
-        local bend=bptr+#d
+        local bend=bptr+sz
         ::while_3bytes::  -- using a label to be able to jump into the loop
             if bptr+3>bend then
                 goto break3
             end
-            v = (ffi.cast(i32ptr, bptr))[0]
-            v = htonl(v)
+            v = bor(lshift(bptr[0],16),lshift(bptr[1],8),bptr[2])
             ::encode4:: -- jump here to decode last bytes of the data
-            if p-c==76 then
+            if p==c then
                 m64_arr[p]=0x0D; p=p+1 -- CR
                 m64_arr[p]=0x0A; p=p+1 -- LF
-                c=p
+                c=p+76
             end
             m64wptr = ffi.cast(u16ptr,m64_arr+p)
-            m64wptr[0]=mime64shorts[rshift(v,20)];
-            m64wptr[1]=mime64shorts[band(rshift(v,8),4095)];
+            m64wptr[0]=mime64shorts[rshift(v,12)];
+            m64wptr[1]=mime64shorts[band(v,4095)];
             p=p+4
             bptr=bptr+3
             goto while_3bytes
@@ -508,16 +513,16 @@ do
             m64_arr[p-1]=eq;
             -- if only 1 byte of data was left, encode second equal sign
             if l==1 then
-              m64_arr[p-2]=eq;
+                m64_arr[p-2]=eq;
             end
         else
             l=bend-bptr -- get number of remaining bytes to be encoded
             if l>0 then
                 v=0
-                for i=1,4 do
+                for i=1,3 do
                     v=lshift(v,8)
                     if bptr<bend then
-                        v=v+bptr[0]
+                        v=bor(v,bptr[0])
                         bptr=bptr+1
                     end
                 end
