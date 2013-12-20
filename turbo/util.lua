@@ -405,8 +405,8 @@ function util.mem_dump(ptr, sz)
     io.write("\n")
 end
 
------ MIME BASE64 Encoding / Decoding Routines
----------- authored by Jeff Solinsky
+----- Very Fast MIME BASE64 Encoding / Decoding Routines
+--------------- authored by Jeff Solinsky
 do
     local bit = require'bit'
     local rshift = bit.rshift
@@ -415,8 +415,8 @@ do
     local band = bit.band
     local floor = math.floor
 
-    -- fastest way to decode mime64 is array lookup
-    local mime64chars = ffi.new("uint8_t[64]","ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+    local mime64chars = ffi.new("uint8_t[64]",
+     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
     local mime64lookup = ffi.new("uint8_t[256]")
     ffi.fill(mime64lookup, 256, 0xFF)
     for i=0,63 do
@@ -427,14 +427,13 @@ do
     local u16ptr=ffi.typeof'uint16_t*'
     local u8ptr=ffi.typeof'uint8_t*'
 
-    -- Very Fast Mime Base64 Decoding routine by Jeff Solinsky
     -- takes Mime Base64 encoded input string
     -- @param d A Mime Base64 encoded string or cdata
     -- @param sz (Number) length of d, optional if d is a string
     -- @return string with binary decoded data
     function util.from_base64(d,sz)
         if type(d)=="string" then sz=#d end
-        local m64, b1, b2 -- val between 0 and 63, partially decoded byte, decoded byte
+        local m64, b1, b2 -- value 0 and 63, partial byte, decoded byte
         local p = 0 -- position in binary output array
         local boff = 6 -- bit offset, alternates 0, 2, 4, 6
         local bin_arr=ffi.new(u8arr, floor(bit.rshift(sz*3,2)))
@@ -506,12 +505,11 @@ do
             goto while_3bytes
         ::break3::
         if l>0 then
-            -- Add trailing equal sign padding
-            m64_arr[p-1]=eq
-            -- 1 byte to encode means we need a second equal sign
+            m64_arr[p-1]=eq -- Add trailing equal sign padding
+            -- 1 byte encoded needs second trailing equal sign sign
             if l==1 then m64_arr[p-2]=eq end
         else
-            l=bend-bptr -- get len remaining to encode (1 or 2 bytes)
+            l=bend-bptr -- get remaining len (1 or 2 bytes)
             if l>0 then
                 v= lshift(bptr[0],16)
                 if l==2 then v=bor(v,lshift(bptr[1],8)) end
