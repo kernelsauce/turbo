@@ -489,11 +489,9 @@ do
         local m64wptr
         local bend=bptr+sz
         ::while_3bytes::  -- using a label to be able to jump into the loop
-            if bptr+3>bend then
-                goto break3
-            end
+            if bptr+3>bend then goto break3 end
             v = bor(lshift(bptr[0],16),lshift(bptr[1],8),bptr[2])
-            ::encode4:: -- jump here to decode last bytes of the data
+            ::encode3:: -- jump here to decode last bytes of the data
             if p==c then
                 m64_arr[p]=0x0D; p=p+1 -- CR
                 m64_arr[p]=0x0A; p=p+1 -- LF
@@ -518,15 +516,11 @@ do
         else
             l=bend-bptr -- get number of remaining bytes to be encoded
             if l>0 then
-                v=0
-                for i=1,3 do
-                    v=lshift(v,8)
-                    if bptr<bend then
-                        v=bor(v,bptr[0])
-                        bptr=bptr+1
-                    end
+                v= lshift(bptr[0],16)
+                if l==2 then
+                    v=bor(v,lshift(bptr[1],8))
                 end
-                goto encode4
+                goto encode3
             end
         end
         return ffi.string(m64_arr,p)
