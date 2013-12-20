@@ -413,6 +413,7 @@ do
     local lshift = bit.lshift
     local bor = bit.bor
     local band = bit.band
+    local floor = math.floor
 
     -- fastest way to decode mime64 is array lookup
     local mime64chars = ffi.new("uint8_t[64]","ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
@@ -436,7 +437,7 @@ do
         local m64, b1, b2 -- val between 0 and 63, partially decoded byte, decoded byte
         local p = 0 -- position in binary output array
         local boff = 6 -- bit offset, alternates 0, 2, 4, 6
-        local bin_arr=ffi.new(u8arr, math.floor(bit.rshift(sz*3,2)))
+        local bin_arr=ffi.new(u8arr, floor(bit.rshift(sz*3,2)))
         local bptr = ffi.cast(u8ptr,d)
 
         for i=0,sz-1 do
@@ -481,17 +482,17 @@ do
     -- @return base64 encoded string
     function util.to_base64(d,sz)
         if type(d)=="string" then sz=#d end
-        local outlen = math.floor(sz*4/3)
-        outlen = outlen + math.floor(outlen/38)+5
+        local outlen = floor(sz*4/3)
+        outlen = outlen + floor(outlen/38)+5
         local m64_arr=ffi.new(u8arr,outlen)
+        local m64wptr
         local l,p,c,v=0,0,76
         local bptr = ffi.cast(u8ptr,d)
-        local m64wptr
         local bend=bptr+sz
-        ::while_3bytes::  -- using a label to be able to jump into the loop
+        ::while_3bytes::
             if bptr+3>bend then goto break3 end
             v = bor(lshift(bptr[0],16),lshift(bptr[1],8),bptr[2])
-            ::encode3:: -- jump here to decode last bytes of the data
+            ::encode_last3::
             if p==c then
                 m64_arr[p]=0x0D; p=p+1 -- CR
                 m64_arr[p]=0x0A; p=p+1 -- LF
@@ -505,22 +506,16 @@ do
             goto while_3bytes
         ::break3::
         if l>0 then
-            -- Add trailing equal signs to encode the end
-            -- of the data according ot the MIME base64 specification
-            -- l will be 1 or 2 for number of final bytes encoded
-            m64_arr[p-1]=eq;
-            -- if only 1 byte of data was left, encode second equal sign
-            if l==1 then
-                m64_arr[p-2]=eq;
-            end
+            -- Add trailing equal sign padding
+            m64_arr[p-1]=eq
+            -- 1 byte to encode means we need a second equal sign
+            if l==1 then m64_arr[p-2]=eq end
         else
-            l=bend-bptr -- get number of remaining bytes to be encoded
+            l=bend-bptr -- get len remaining to encode (1 or 2 bytes)
             if l>0 then
                 v= lshift(bptr[0],16)
-                if l==2 then
-                    v=bor(v,lshift(bptr[1],8))
-                end
-                goto encode3
+                if l==2 then v=bor(v,lshift(bptr[1],8)) end
+                goto encode_last3
             end
         end
         return ffi.string(m64_arr,p)
