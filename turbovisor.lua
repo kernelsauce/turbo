@@ -17,6 +17,7 @@
 local ffi = require "ffi"
 local bit = require "bit"
 local turbo = require "turbo"
+local fs = require "turbo.fs"
 
 --- Parsing arguments for turbovisor
 -- @param arg All command line input. Note arg[0] is 'turbovisor', arg[1] is
@@ -38,7 +39,13 @@ local function get_param(arg)
             if string.sub(arg[i], 1, 2) == "./" then
                 arg[i] = string.sub(arg[i], 3) -- pass './'
             end
-            table.insert(arg_tbl[arg_opt], arg[i])
+            local files = fs.glob(arg[i])
+            -- insert glob expanded result into table
+            if files then
+                for _,v in ipairs(files) do
+                    table.insert(arg_tbl[arg_opt], v)
+                end
+            end
         end
     end
     -- Deal with default parameters
