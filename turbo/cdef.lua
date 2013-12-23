@@ -515,3 +515,20 @@ elseif ffi.arch == 'x64' then
       };
     ]]
 end
+
+--- ******* glob *******
+ffi.cdef[[
+typedef struct {
+    long unsigned int gl_pathc;
+    char **gl_pathv;
+    long unsigned int gl_offs;
+    int gl_flags;
+    void (*gl_closedir)(void *);
+    void *(*gl_readdir)(void *);
+    void *(*gl_opendir)(const char *);
+    int (*gl_lstat)(const char *restrict, void *restrict);
+    int (*gl_stat)(const char *restrict, void *restrict);
+} glob_t;
+int glob(const char *pattern, int flag, int (*)(const char *, int), glob_t *pglob);
+void globfree(glob_t *pglob);
+]]
