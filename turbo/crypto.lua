@@ -615,7 +615,7 @@ else
             -- SSL_ERROR_WANT_* or equal syscall return code.
             if err == crypto.SSL_ERROR_WANT_READ or
                 err == crypto.SSL_ERROR_WANT_READ then
-                return
+                return false
             elseif err == crypto.SSL_ERROR_SYSCALL then
                 -- Error on socket.
                 errno = ffi.errno()
@@ -660,6 +660,7 @@ else
                 end
             end
         end
+        return true
     end
 
     --- Write data to a SSL connection.
