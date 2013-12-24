@@ -620,7 +620,7 @@ else
                 -- Error on socket.
                 errno = ffi.errno()
                 if errno == EWOULDBLOCK or errno == EINPROGRESS then
-                    return
+                    return false
                 elseif errno ~= 0 then
                     local fd = SSLIOStream.socket
                     SSLIOStream:close()
