@@ -1,4 +1,3 @@
-
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
 .. image:: https://api.travis-ci.org/kernelsauce/turbo.png
    :target: http://travis-ci.org/kernelsauce/turbo
@@ -42,6 +41,7 @@ Installing Turbo.lua is easy. Simply download and run ``make install`` (requires
 You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
 
 To compile without support for OpenSSL (and SSL connections) use the make option SSL=none.
+To compile with axTLS support instead of OpenSSL use the make option SSL=axTLS.
 
 In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
 To verify a installation you can try running the applications in the examples folder.
@@ -70,7 +70,7 @@ https://github.com/kikito/middleclass.
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
-OpenSSL is required for SSL support. It is possible to run without this feature, and thus not need OpenSSL.
+OpenSSL or axTLS is required for SSL support. It is possible to run without this feature, and thus not need an SSL library.
 
 License
 -------
