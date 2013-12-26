@@ -55,4 +55,23 @@ function fs.is_dir(path)
     end
 end
 
+function fs.glob(pattern)
+    local re = -1
+    glob_t = ffi.new("glob_t[1]")
+    re = ffi.C.glob(pattern, 0, nil, glob_t)
+    if re ~= 0 then
+        ffi.C.globfree(glob_t)
+        return nil
+    end
+
+    local files = {}
+    local i = 0
+    while i < glob_t[0].gl_pathc do
+        table.insert(files, ffi.string(glob_t[0].gl_pathv[i]))
+        i = i + 1
+    end
+    ffi.C.globfree(glob_t)
+    return files
+end
+
 return fs

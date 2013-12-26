@@ -27,7 +27,7 @@ local coctx =               require "turbo.coctx"
 local deque =               require "turbo.structs.deque"
 local buffer =              require "turbo.structs.buffer"
 local escape =              require "turbo.escape"
-local crypto =              _G.TURBO_SSL and require "turbo.crypto"
+local crypto =              require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
 local unpack = util.funpack
@@ -292,7 +292,7 @@ function async.HTTPClient:_connect()
             -- one SSL context per instance! The user must create more class 
             -- instances if he wishes to do so.
             self.ssl_options._ssl_ctx = ctx_or_err
-            self.ssl_options._type = 1
+            self.ssl_options._type = 1  -- set type as client...
         end
         if not self.port then
             -- Default to port 443 if not specified in URL.

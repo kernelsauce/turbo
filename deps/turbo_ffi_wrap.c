@@ -27,14 +27,17 @@ SOFTWARE."			*/
 #include <assert.h>
 #include <stdbool.h>
 #include <limits.h>
+
+#include "http_parser.h"
+#include "turbo_ffi_wrap.h"
+
+// not sure why our compiler doesn't seem to know about this prototype
+char *strndup(const char *s, size_t n);
+
 #ifndef TURBO_NO_SSL
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
 #endif
-#include "libb64/include/b64/cdecode.h"
-#include "libb64/include/b64/cencode.h"
-#include "http_parser.h"
-#include "turbo_ffi_wrap.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -50,6 +53,7 @@ SOFTWARE."			*/
     (((u_int64_t) (val) & (u_int64_t) 0xff00000000000000) >> 56)))
 
 #ifndef TURBO_NO_SSL
+
 static int matches_common_name(const char *hostname, const X509 *server_cert)
 {
     int common_name_loc = -1;
@@ -211,12 +215,12 @@ static int32_t header_field_cb(http_parser *p, const char *buf, size_t len)
     case NOTHING:
     case VALUE:
         if (nw->hkv_sz == nw->hkv_mem){
-            ptr = realloc(
+        ptr = realloc(
                         nw->hkv,
-                        sizeof(struct turbo_key_value_field *) *
+                    sizeof(struct turbo_key_value_field *) *
                         (nw->hkv_sz + 10));
             if (!ptr)
-                return -1;
+            return -1;
             nw->hkv = ptr;
             nw->hkv_mem += 10;
         }
@@ -303,52 +307,6 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     }
     free(src->hkv);
     free(src);
-}
-
-int32_t turbo_b64_encode(char* in, size_t sz, char** out, size_t *out_sz)
-{
-    char* output;
-    char* c;
-    base64_encodestate s;
-    int cnt = 0;
-    size_t adjustment = ((sz % 3) ? (3 - (sz % 3)) : 0);
-    size_t code_padded_size = ((sz + adjustment) / 3) * 4;
-    size_t newline_size = ((code_padded_size) / 72) * 2;
-    size_t total_size = code_padded_size + newline_size;
-
-    output = malloc(total_size);
-    if (!output)
-        return -1;
-    c = output;
-    base64_init_encodestate(&s);
-    cnt = base64_encode_block(in, sz, c, &s);
-    c += cnt;
-    cnt = base64_encode_blockend(c, &s);
-    c += cnt;
-    *out = output;
-    *out_sz = c-output;
-
-    return 0;
-}
-
-int32_t turbo_b64_decode(char* in, size_t sz, char** out, size_t *out_sz)
-{
-    char* output;
-    char* c;
-    base64_decodestate s;
-    int cnt = 0;
-
-    output = malloc(sz);
-    c = output;
-    if (!output)
-        return -1;
-    base64_init_decodestate(&s);
-    cnt = base64_decode_block(in, sz, c, &s);
-    c += cnt;
-    *out = output;
-    *out_sz = c-output;
-
-    return 0;
 }
 
 char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)

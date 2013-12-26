@@ -34,6 +34,14 @@ LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
 CFLAGS= -g
 
+ifeq ($(SSL), axTLS)
+# axTLS only uses axtls lib from luajit
+# Don't link with crypto or ssl if using axTLS
+# C wrapper needs TURBO_NO_SSL set in order
+# to not include any of the OpenSSL wrapper
+	SSL=none
+endif
+
 ifeq ($(SSL), none)
 	# No SSL option.
 	CFLAGS += -DTURBO_NO_SSL=1
@@ -53,12 +61,10 @@ LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
 	make -C deps/http-parser library
-	make -C deps/libb64
 	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
 	make -C deps/http-parser clean
-	make -C deps/libb64 clean
 	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
 
 uninstall:
@@ -89,8 +95,7 @@ install:
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C deps/http-parser library
-	make -C deps/libb64
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(TDEPS)/libb64/src/cencode.o $(TDEPS)/libb64/src/cdecode.o $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \

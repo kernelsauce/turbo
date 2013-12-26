@@ -177,7 +177,7 @@ function websocket.WebSocketHandler:_execute()
     -- HTTP headers read, change to WebSocket protocol. 
     -- Set max buffer size to 64MB as it is 16KB at this point...
     self.stream:set_max_buffer_size(1024*1024*64) 
-    log.success(string.format([[[websocket.lua] WebSocket opened %s (%s)]], 
+    log.success(string.format([[[websocket.lua] WebSocket opened %s (%s)]],
         self.request.headers:get_url(),
         self.request.remote_ip))
     self:_continue_ws()
@@ -185,10 +185,10 @@ end
 
 function websocket.WebSocketHandler:_calculate_ws_accept()
     --- FIXME: Decode key and ensure that it is 16 bytes in length.
-    assert(escape.base64_decode(self.sec_websocket_key):len() == 16, 
+    assert(util.from_base64(self.sec_websocket_key):len() == 16, 
            "Sec-WebSocket-Key is of invalid size.")
     local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
-    return escape.base64_encode(hash:finalize(), 20)
+    return util.to_base64(ffi.string(hash:finalize(), 20))
 end
 
 function websocket.WebSocketHandler:_create_response_header()
