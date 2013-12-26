@@ -14,7 +14,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.   
+-- limitations under the License.
   
 local log =         require "turbo.log"
 local util =        require "turbo.util"
@@ -53,7 +53,7 @@ tcpserver.TCPServer = class('TCPServer')
 -- @param max_buffer_size (Number) The maximum buffer size of the server. If 
 -- the limit is hit, the connection is closed.
 -- @note If the SSL certificates can not be loaded, a error is raised.
-function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)  
+function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
     self.io_loop = io_loop
     self.ssl_options = ssl_options
     self.max_buffer_size = max_buffer_size
@@ -162,7 +162,7 @@ function tcpserver.TCPServer:bind(port, address, backlog, family)
 end
 
 --- Start the TCPServer.
-function tcpserver.TCPServer:start(procs)   
+function tcpserver.TCPServer:start(procs)
     assert((not self._started), "Already started TCPServer.")
     self._started = true
     if procs and procs > 1 then

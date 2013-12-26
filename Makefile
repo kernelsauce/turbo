@@ -34,6 +34,14 @@ LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
 CFLAGS=
 
+ifeq ($(SSL), axTLS)
+# axTLS only uses axtls lib from luajit
+# Don't link with crypto or ssl if using axTLS
+# C wrapper needs TURBO_NO_SSL set in order
+# to not include any of the OpenSSL wrapper
+	SSL=none
+endif
+
 ifeq ($(SSL), none)
 	# No SSL option.
 	CFLAGS += -DTURBO_NO_SSL=1

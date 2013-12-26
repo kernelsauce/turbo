@@ -27,17 +27,20 @@ SOFTWARE."			*/
 #include <assert.h>
 #include <stdbool.h>
 #include <limits.h>
+
+#include "http_parser.h"
+#include "turbo_ffi_wrap.h"
+
+// not sure why our compiler doesn't seem to know about this prototype
+char *strndup(const char *s, size_t n);
+
 #ifndef TURBO_NO_SSL
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
-#endif
-#include "http_parser.h"
-#include "turbo_ffi_wrap.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-#ifndef TURBO_NO_SSL
 static int matches_common_name(const char *hostname, const X509 *server_cert)
 {
     int common_name_loc = -1;
@@ -199,12 +202,12 @@ static int32_t header_field_cb(http_parser *p, const char *buf, size_t len)
     case NOTHING:
     case VALUE:
         if (nw->hkv_sz == nw->hkv_mem){
-            ptr = realloc(
+        ptr = realloc(
                         nw->hkv,
-                        sizeof(struct turbo_key_value_field *) *
+                    sizeof(struct turbo_key_value_field *) *
                         (nw->hkv_sz + 10));
             if (!ptr)
-                return -1;
+            return -1;
             nw->hkv = ptr;
             nw->hkv_mem += 10;
         }

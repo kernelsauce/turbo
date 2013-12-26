@@ -20,7 +20,7 @@ local fs  = require "turbo.fs"
 local log = require "turbo.log"
 local util = require "turbo.util"
 local ioloop  = require "turbo.ioloop"
-local syscall = require "turbo.syscall"
+--local syscall = require "turbo.syscall"
 
 local inotify = {}
 
