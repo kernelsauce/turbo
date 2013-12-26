@@ -28,6 +28,7 @@ local bit =         require "bit"
 require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
+local C = ffi.C
 local SOL_SOCKET =  socket.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO_REUSEADDR
 local O_NONBLOCK =  socket.O_NONBLOCK
@@ -185,7 +186,7 @@ end
 function tcpserver.TCPServer:stop()
     for _, fd in ipairs(self._sockets) do
        self.io_loop:remove_handler(fd)
-       assert(socket.close(fd) == 0, "Failed to close socket.")
+       assert(C.close(fd) == 0, "Failed to close socket.")
     end
     self._sockets = {}
 end

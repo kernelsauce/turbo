@@ -21,8 +21,9 @@
 -- SOFTWARE."
 
 local ffi = require "ffi"
-local C = ffi.C
+local buffer = require "turbo.structs.buffer"
 require "turbo.cdef"
+local C = ffi.C
 local UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
 local g_time_str_buf = ffi.new("char[1024]")
 local g_time_t = ffi.new("time_t[1]")
@@ -73,6 +74,18 @@ function string:substr(from, to)
     assert(from < to, "From greater than to.")
     local ptr = ffi.cast("char *", self)
     return ffi.string(ptr + from, to - from)
+end
+
+--- Create a random string.
+function util.rand_str(len)
+    math.randomseed(util.gettimeofday()+math.random(0x0,0xffffffffff))
+    len = len or 64
+    local bytes = buffer(len)
+    for i = 1, 64 do
+        bytes:append_char_right(ffi.cast("char", math.random(0x0, 0x80)))
+    end
+    bytes = tostring(bytes)
+    return bytes
 end
 
 --*************** Table utilites ***************

@@ -61,6 +61,7 @@ if not libtffi_loaded then
 end
 
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
+local C = ffi.C
 
 -- __Global value__ _G.TURBO_SOCKET_BUFFER_SZ allows the user to set 
 -- his own socket buffer size to be used by the module. Defaults to 4096 bytes.
@@ -370,7 +371,7 @@ function iostream.IOStream:close()
             self.io_loop:remove_handler(self.socket)
             self._state = nil
         end
-        socket.close(self.socket)
+        C.close(self.socket)
         self.socket = nil
         if self._close_callback and self._pending_callbacks == 0 then
             local callback = self._close_callback
@@ -541,7 +542,7 @@ end
 -- @return Chunk of data.
 function iostream.IOStream:_read_from_socket()
     local errno
-    local sz = tonumber(socket.recv(self.socket, 
+    local sz = tonumber(C.recv(self.socket, 
                                     buf, 
                                     TURBO_SOCKET_BUFFER_SZ, 
                                     0))
@@ -690,7 +691,7 @@ function iostream.IOStream:_handle_write_nonconst()
     local errno, fd
     local ptr, sz = self._write_buffer:get()
     local buf = ptr + self._write_buffer_offset
-    local num_bytes = tonumber(socket.send(
+    local num_bytes = tonumber(C.send(
         self.socket, 
         buf, 
         self._write_buffer_size, 
@@ -740,7 +741,7 @@ function iostream.IOStream:_handle_write_const()
     local buf, sz = self._const_write_buffer:get()
     local ptr = buf + self._write_buffer_offset
     local _sz = sz - self._write_buffer_offset
-    local num_bytes = socket.send(
+    local num_bytes = C.send(
         self.socket, 
         ptr, 
         _sz, 
@@ -1097,7 +1098,7 @@ function iostream.SSLIOStream:_handle_connect()
                     fd))
             end
         end
-        self._connecting = false    
+        self._connecitng = false    
     end
     self:_do_ssl_handshake()
 end
