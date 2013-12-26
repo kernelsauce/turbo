@@ -28,7 +28,7 @@ It's main features and design principles are:
 
 - Small footprint
 
-- SSL support
+- SSL support (requires OpenSSL or axTLS)
 
 
 Installation
