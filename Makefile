@@ -32,11 +32,15 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
-# Don't link with crypto or ssl if using axTLS
-# TODO: need to make a formal way to specify to build with axTLS instead of
-#       commenting out like this
-#LDFLAGS = -lcrypto -lssl
 CFLAGS=
+
+$ifeq($(SSL), axTLS)
+# axTLS only uses axtls lib from luajit
+# Don't link with crypto or ssl if using axTLS
+# C wrapper needs TURBO_NO_SSL set in order
+# to not include any of the OpenSSL wrapper
+    SSL=none
+endif
 
 ifeq ($(SSL), none)
 	# No SSL option.

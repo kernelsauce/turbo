@@ -146,10 +146,9 @@ end
 ffi.cdef[[
 typedef struct epoll_event epoll_event;
 
-int epoll_create(int size);
-int epoll_ctl(int epfd, int op, int fd, struct epoll_event* event);
-int epoll_wait(int epfd, struct epoll_event *events, int maxevents,
-    int timeout);
+int32_t epoll_create(int32_t size);
+int32_t epoll_ctl(int32_t epfd, int32_t op, int32_t fd, struct epoll_event* event);
+int32_t epoll_wait(int32_t epfd, struct epoll_event *events, int32_t maxevents, int32_t timeout);
 ]]
 
 

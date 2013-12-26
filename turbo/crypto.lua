@@ -39,25 +39,25 @@ local ffi = require "ffi"
 local crypto = {} -- crypto namespace
 require "turbo.cdef"
 
-local lssl	-- will load openssl or axtls library as lssl
+local lssl  -- will load openssl or axtls library as lssl
 
 
 
 if _G.TURBO_AXTLS then
     _G.TURBO_SSL = true -- make both flags true when using AXTLS
                         -- to prevent needing to check both flags
-			-- in other places
+            -- in other places
     local util = require"turbo.util"
 
     -- to be compatible with the way openssl works in non-blocking mode
     -- must return this error when no bytes can be read
     -- since it is checked in iostream to determine that the read would block
-    crypto.SSL_ERROR_WANT_READ =		2
+    crypto.SSL_ERROR_WANT_READ =        2
 
     -- AXTLS crypto library
     lssl = ffi.load "axtls"
     local SSL_SERVER_VERIFY_LATER = 0x00020000 -- use for client mode, certificate verified later with ssl_verify_cert
-    local SSL_CONNECT_IN_PARTS = 0x00800000	 -- for non-blocking operation
+    local SSL_CONNECT_IN_PARTS = 0x00800000  -- for non-blocking operation
     local SSL_DISPLAY_BYTES = 0x00100000
     local SSL_DISPLAY_CERTS = 0x00200000
 
@@ -77,42 +77,42 @@ if _G.TURBO_AXTLS then
     local SSL_X509_CA_CERT_ORGANIZATIONAL_NAME  = 5
 
     function crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
-	local ctx
-	local err = 0
-	if not ctx_options then
-	    ctx_options = SSL_CONNECT_IN_PARTS
-	else
-	    bit.bor(ctx_options, SSL_CONNECT_IN_PARTS)
-	end
+        local ctx
+        local err = 0
+        if not ctx_options then
+            ctx_options = SSL_CONNECT_IN_PARTS
+        else
+            bit.bor(ctx_options, SSL_CONNECT_IN_PARTS)
+        end
 
-	ctx = lssl.ssl_ctx_new(ctx_options, 5)
+        ctx = lssl.ssl_ctx_new(ctx_options, 5)
 
-	if ctx == 0 then
-	    return (-272), "can't load our key/certificate pair, so die"
-	end
-	ffi.gc(ctx, lssl.ssl_ctx_free)
+        if ctx == 0 then
+            return (-272), "can't load our key/certificate pair, so die"
+        end
+        ffi.gc(ctx, lssl.ssl_ctx_free)
 
-	-- if certifactes are set, load them and verify.
-	if type(cert_file) == "string" and type(prv_file) == "string" then
-	    -- load certificate file
-	    err = lssl.ssl_obj_load(ctx, SSL_OBJ_X509_CERT, cert_file, ffi.cast("const char*",0))
-	    if err ~= SSL_OK then
-		lssl.ssl_display_error(err)
-		return err, "can't load cert file: " .. cert_file
-	    end
-	    -- load private key file
-	    err = lssl.ssl_obj_load(ctx, SSL_OBJ_RSA_KEY, prv_file, ffi.cast("const char*",0))
-	    if err ~= SSL_OK then
-		lssl.ssl_display_error(err)
-		return err, "Can't load private key file: " .. prv_file
-	    end
-	    -- TODO: if cert doesn't exist
-	    -- TODO: 	generate x509 cert from private key file
-	    -- TODO: else
-	    -- TODO: 	Check if pub and priv key matches each other similar to OpenSSL's SSL_CTX_check_private_key(ctx)
-	end
+        -- if certifactes are set, load them and verify.
+        if type(cert_file) == "string" and type(prv_file) == "string" then
+            -- load certificate file
+            err = lssl.ssl_obj_load(ctx, SSL_OBJ_X509_CERT, cert_file, ffi.cast("const char*",0))
+            if err ~= SSL_OK then
+                lssl.ssl_display_error(err)
+                return err, "can't load cert file: " .. cert_file
+            end
+            -- load private key file
+            err = lssl.ssl_obj_load(ctx, SSL_OBJ_RSA_KEY, prv_file, ffi.cast("const char*",0))
+            if err ~= SSL_OK then
+                lssl.ssl_display_error(err)
+                return err, "Can't load private key file: " .. prv_file
+            end
+            -- TODO: if cert doesn't exist
+            -- TODO:    generate x509 cert from private key file
+            -- TODO: else
+            -- TODO:    Check if pub and priv key matches each other similar to OpenSSL's SSL_CTX_check_private_key(ctx)
+        end
 
-	return err, ctx
+        return err, ctx
     end
 
     --- Create a client type SSL context.
@@ -126,37 +126,37 @@ if _G.TURBO_AXTLS then
     -- error string, or -1 and a error string.
     -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
     function crypto.ssl_create_client_context(cert_file, prv_file, ca_cert_path, verify, sslv)
-	local err, ctx
-	local ctx_options = 0 -- SSL_DISPLAY_BYTES  -- display bytes for debugging
+        local err, ctx
+        local ctx_options = 0 -- SSL_DISPLAY_BYTES  -- display bytes for debugging
 
-	-- Use standardish path to ca-certificates if not specified by user.
-	-- May not be present on all Unix systems.
-	ca_cert_path = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt"
+        -- Use standardish path to ca-certificates if not specified by user.
+        -- May not be present on all Unix systems.
+        ca_cert_path = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt"
 
-	if not verify then
-	    -- doesn't stop handshake if cert doesn't verify
-	    -- verification can still happen later by calling ssl_verify_cert
-	    -- without this option verification will happen automatically
-	    -- during the handshake
+        if not verify then
+            -- doesn't stop handshake if cert doesn't verify
+            -- verification can still happen later by calling ssl_verify_cert
+            -- without this option verification will happen automatically
+            -- during the handshake
 
-	    --
-	    bit.bor(ctx_options, SSL_SERVER_VERIFY_LATER)
-	end
+            --
+            bit.bor(ctx_options, SSL_SERVER_VERIFY_LATER)
+        end
 
-	err, ctx = crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
+        err, ctx = crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
 
-	if err == SSL_OK then
-	    -- if verify is set
-	    if verify then
-		-- load all the CA certificates in ca_cert_path
-		err = lssl.ssl_obj_load(ctx, SSL_OBJ_X509_CACERT, ca_cert_path, ffi.cast("char*",0));
-		if err ~= SSL_OK then
-		    lssl.ssl_display_error(err)
-		    return err, "can't load CA cert file: " .. ca_cert_path
-		end
-	    end
-	end
-	return err, ctx
+        if err == SSL_OK then
+            -- if verify is set
+            if verify then
+                -- load all the CA certificates in ca_cert_path
+                err = lssl.ssl_obj_load(ctx, SSL_OBJ_X509_CACERT, ca_cert_path, ffi.cast("char*",0));
+                if err ~= SSL_OK then
+                    lssl.ssl_display_error(err)
+                    return err, "can't load CA cert file: " .. ca_cert_path
+                end
+            end
+        end
+        return err, ctx
     end
 
     --- Create a server type SSL context.
@@ -167,136 +167,136 @@ if _G.TURBO_AXTLS then
     -- error string, or -1 and a error string.
     -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
     function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
-	local ctx
-	local ctx_options = 0 -- SSL_DISPLAY_BYTES + SSL_DISPLAY_CERTS -- display bytes and certs for debugging
-	local err = 0
+        local ctx
+        local ctx_options = 0 -- SSL_DISPLAY_BYTES + SSL_DISPLAY_CERTS -- display bytes and certs for debugging
+        local err = 0
 
-	if not cert_file then
-	    return -1, "No cert file given in arguments";
-	elseif not prv_file then
-	    return -1, "No priv file given in arguments";
-	end
-	err, ctx = crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
+        if not cert_file then
+            return -1, "No cert file given in arguments";
+        elseif not prv_file then
+            return -1, "No priv file given in arguments";
+        end
+        err, ctx = crypto.ssl_create_context(cert_file, prv_file, sslv, ctx_options)
 
-	return err, ctx;
+        return err, ctx;
     end
 
     function crypto.ssl_new(ctx, fd_sock, client)
-	local ssl
-	-- local err
+        local ssl
+        -- local err
 
-	if client then
-	    -- last two params are const uint8_t *session_id, uint8_t sess_id_size
-	    -- may want to support sessions for faster repeated client requests
-	    ssl = lssl.ssl_client_new(ctx, fd_sock, ffi.cast("char *",0), 0)
-	else
-	    ssl = lssl.ssl_server_new(ctx, fd_sock)
-	end
-	if ssl == nil then
-	    error(string.format(
-                "Could not do SSL handshake. Failed to create SSL*. %s",
-                "(no error code available)"))
-	end
-	ffi.gc(ssl, lssl.ssl_free)
+        if client then
+            -- last two params are const uint8_t *session_id, uint8_t sess_id_size
+            -- may want to support sessions for faster repeated client requests
+            ssl = lssl.ssl_client_new(ctx, fd_sock, ffi.cast("char *",0), 0)
+        else
+            ssl = lssl.ssl_server_new(ctx, fd_sock)
+        end
+        if ssl == nil then
+            error(string.format(
+                    "Could not do SSL handshake. Failed to create SSL*. %s",
+                    "(no error code available)"))
+        end
+        ffi.gc(ssl, lssl.ssl_free)
 
-	return ssl
+        return ssl
     end
 
     -- return true if hostname is valid, else return false
     function crypto.validate_hostname(hostname, ssl_server)
-	local dnsname
-	local dnsindex
-	local wildhostname
+        local dnsname
+        local dnsindex
+        local wildhostname
 
-	-- check for hostname matching subjective alt dnsnames
-	dnsindex = 0
-	while true do
-	    dnsname = lssl.ssl_get_cert_subject_alt_dnsname(ssl_server, dnsindex)
-	    if dnsname == ffi.cast("const char*",0) then
-		break
-	    end
+        -- check for hostname matching subjective alt dnsnames
+        dnsindex = 0
+        while true do
+            dnsname = lssl.ssl_get_cert_subject_alt_dnsname(ssl_server, dnsindex)
+            if dnsname == ffi.cast("const char*",0) then
+                break
+            end
 
-	    dnsindex = dnsindex + 1
-	    dnsname = ffi.string(dnsname)
+            dnsindex = dnsindex + 1
+            dnsname = ffi.string(dnsname)
 
-	    -- if starting with *. (wildcard) indicating wildcard subdomain
-	    if (string.byte(dnsname,1) == string.byte'*') and
-	       (string.byte(dnsname,2) == string.byte'.') then
-		if not wildhostname then
-		    -- get the wildcard hostname by stripping off the leading component
-		    wildhostname = string.match(hostname,"[.](.*)$")
-		end
+            -- if starting with *. (wildcard) indicating wildcard subdomain
+            if (string.byte(dnsname,1) == string.byte'*') and
+               (string.byte(dnsname,2) == string.byte'.') then
+                if not wildhostname then
+                    -- get the wildcard hostname by stripping off the leading component
+                    wildhostname = string.match(hostname,"[.](.*)$")
+                end
 
-		if ( util.strcasecmp(wildhostname,
-				    string.sub(dnsname,3)) == 0 ) then
-		    return true
-		end
-	    else
-		if util.strcasecmp(hostname,dnsname) == 0 then
-		    return true
-		end
-	    end
-	end
+                if ( util.strcasecmp(wildhostname,
+                            string.sub(dnsname,3)) == 0 ) then
+                    return true
+                end
+            else
+                if util.strcasecmp(hostname,dnsname) == 0 then
+                    return true
+                end
+            end
+        end
 
-	-- check if the host name matches the common name
-	dnsname = lssl.ssl_get_cert_dn(ssl_server, SSL_X509_CERT_COMMON_NAME)
-	dnsname = ffi.string(dnsname)
-	if util.strcasecmp(hostname,dnsname) == 0 then
-	    return true
-	end
-	return false
+        -- check if the host name matches the common name
+        dnsname = lssl.ssl_get_cert_dn(ssl_server, SSL_X509_CERT_COMMON_NAME)
+        dnsname = ffi.string(dnsname)
+        if util.strcasecmp(hostname,dnsname) == 0 then
+            return true
+        end
+        return false
     end
 
     function crypto.ssl_do_handshake(SSLIOStream)
-	local client = SSLIOStream._ssl_options._type == 1
-	local ssl = SSLIOStream._ssl
-	local err
+    local client = SSLIOStream._ssl_options._type == 1
+    local ssl = SSLIOStream._ssl
+    local err
 
-	-- call read to continue the handshaking
-	err = lssl.ssl_read(ssl, NULL)
-	if err == SSL_OK then
-	    -- check the handshake status to see that the handshake is complete
-	    err = lssl.ssl_handshake_status(ssl)
-	    if err == SSL_OK then
-		if client and SSLIOStream._ssl_verify then
-            -- verify that the hostname is valid by
-            --       checking that the host name SSLIOStream._ssl_hostname
-            --       matches the domain name or alt domain names in the
-            --       x509 cert received from the server which can be retrieved
-            --       using:
-            --         const char* ssl_get_cert_dn(const SSL *ssl, int component)
-            --         where component = SSL_X509_CERT_COMMON_NAME
-	        --         const char* ssl_get_cert_subject_alt_dnsname(const SSL *ssl, int dnsindex)
-            --         where dnsindex starts at 0 and increases in a loop until the function returns null
+    -- call read to continue the handshaking
+    err = lssl.ssl_read(ssl, NULL)
+    if err == SSL_OK then
+        -- check the handshake status to see that the handshake is complete
+        err = lssl.ssl_handshake_status(ssl)
+        if err == SSL_OK then
+            if client and SSLIOStream._ssl_verify then
+                -- verify that the hostname is valid by
+                --       checking that the host name SSLIOStream._ssl_hostname
+                --       matches the domain name or alt domain names in the
+                --       x509 cert received from the server which can be retrieved
+                --       using:
+                --         const char* ssl_get_cert_dn(const SSL *ssl, int component)
+                --         where component = SSL_X509_CERT_COMMON_NAME
+                --         const char* ssl_get_cert_subject_alt_dnsname(const SSL *ssl, int dnsindex)
+                --         where dnsindex starts at 0 and increases in a loop until the function returns null
 
-		    if not crypto.validate_hostname(SSLIOStream._ssl_hostname, ssl) then
-		        error("SSL certficate hostname validation failed")
-		    end
-		end
-		return true
-	    end
-	end
+                if not crypto.validate_hostname(SSLIOStream._ssl_hostname, ssl) then
+                    error("SSL certficate hostname validation failed")
+                end
+            end
+            return true
+        end
+    end
 
-	if err ~= SSL_NOT_OK then
-	    lssl.ssl_display_error(err)
-	    if err == SSL_ERROR_DEAD then
-		error("SSL connection died during handshake")
-	    else
-		error("Could not do SSL handshake. err = "..err)
-	    end
-	end
+    if err ~= SSL_NOT_OK then
+        lssl.ssl_display_error(err)
+        if err == SSL_ERROR_DEAD then
+            error("SSL connection died during handshake")
+        else
+            error("Could not do SSL handshake. err = "..err)
+        end
+    end
 
-	return false
+    return false
     end
 
     --- Initialize the SSL library.
     -- Can be called multiple times without causing any pain. If the library is
     -- already loaded it will pass.
     function crypto.ssl_init()
-       if not _G._TURBO_SSL_INITED then
-	    _TURBO_SSL_INITED = true
-	    -- NOTE: may want to load error strings here to use with error codes
-	end
+        if not _G._TURBO_SSL_INITED then
+            _TURBO_SSL_INITED = true
+            -- NOTE: may want to load error strings here to use with error codes
+        end
     end
 
     --- Write data to a SSL connection.
@@ -304,17 +304,17 @@ if _G.TURBO_AXTLS then
     -- @param buf (const char *) Buffer to send.
     -- @param sz (Number) Bytes to send from buffer.
     function crypto.SSL_write(ssl, buf, sz)
-	local ret
-	if ssl == nil or buf == nil then
-	    error("SSL_write passed null pointer.")
-	end
+        local ret
+        if ssl == nil or buf == nil then
+            error("SSL_write passed null pointer.")
+        end
 
-	ret = lssl.ssl_write(ssl, buf, sz)
-	if ret <= 0 then
-	    crypto.last_err = ret
-	    return -1
-	end
-	return ret
+        ret = lssl.ssl_write(ssl, buf, sz)
+        if ret <= 0 then
+            crypto.last_err = ret
+            return -1
+        end
+        return ret
     end
 
     --- Read data from a SSL connection.
@@ -322,72 +322,72 @@ if _G.TURBO_AXTLS then
     -- @param buf (char *) Buffer to read to.
     -- @param sz (Number) Bytes to maximum read into buffer.
     function crypto.SSL_read(ssl, buf, sz)
-	local len
-	if ssl == nil or buf == nil then
-	    error("SSL_read passed null pointer.")
-	end
+        local len
+        if ssl == nil or buf == nil then
+            error("SSL_read passed null pointer.")
+        end
 
-	ppbuf = ffi.new("char*[1]")
-	len = lssl.ssl_read(ssl,ppbuf)
-	if len <= 0 then
-	    if len == 0 then
-		    crypto.last_err = crypto.SSL_ERROR_WANT_READ
-	    elseif len == SSL_CLOSE_NOTIFY then
-		    return 0
-	    else
-	        crypto.last_err = len
-	    end
-	    return -1
-	end
-	if len > sz then
-	    len = sz
-	    -- probably want to trigger an error here since this would
-	    -- mean we are dropping bytes from the stream
-	    error("axTLS ERROR: ssl_read, read more bytes than calling buffer can hold, bytes would be dropped...")
-	end
-	-- copy out the bytes
-	if len > 0 then
-	    ffi.copy(buf, ppbuf[0], len)
-	end
-	return len
+        ppbuf = ffi.new("char*[1]")
+        len = lssl.ssl_read(ssl,ppbuf)
+        if len <= 0 then
+            if len == 0 then
+                crypto.last_err = crypto.SSL_ERROR_WANT_READ
+            elseif len == SSL_CLOSE_NOTIFY then
+                return 0
+            else
+                crypto.last_err = len
+            end
+            return -1
+        end
+        if len > sz then
+            len = sz
+            -- probably want to trigger an error here since this would
+            -- mean we are dropping bytes from the stream
+            error("axTLS ERROR: ssl_read, read more bytes than calling buffer can hold, bytes would be dropped...")
+        end
+        -- copy out the bytes
+        if len > 0 then
+            ffi.copy(buf, ppbuf[0], len)
+        end
+        return len
     end
 
     function crypto.ERR_get_error()
-	if not crypto.last_err then
-	    return 0
-	end
-	return crypto.last_err
+        if not crypto.last_err then
+            return 0
+        end
+        return crypto.last_err
     end
 
     --- Convert OpenSSL unsigned long error to string.
     -- @param rc unsigned long error from OpenSSL library.
     -- @returns Lua string.
     function crypto.ERR_error_string(rc)
-	lssl.ssl_display_error(rc)
-	if err == SSL_ERROR_DEAD then
-	    return "SSL connection died."
-	end
-	-- TODO: lookup error string or add a function to axTLS to get the error
-	--       string rather than have it printed to stdout...
-	return ""
+        lssl.ssl_display_error(rc)
+        if err == SSL_ERROR_DEAD then
+            return "SSL connection died."
+        end
+        -- TODO: lookup error string or add a function to axTLS to get the error
+        --       string rather than have it printed to stdout...
+        return ""
     end
     function crypto.SSL_get_error(ssl,ret)
-	    local rc = crypto.ERR_get_error()
-	    if rc ~= crypto.SSL_ERROR_WANT_READ then
-	        crypto.ERR_error_string(rc)
-	    end
-	    return rc
+        local rc = crypto.ERR_get_error()
+        if rc ~= crypto.SSL_ERROR_WANT_READ then
+            crypto.ERR_error_string(rc)
+        end
+        return rc
     end
 else
     lssl = ffi.load("ssl")
     local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")
     if not libtffi_loaded then
-		libtffi_loaded, libtffi =
-			pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-		if not libtffi_loaded then
-			error("Could not load libtffi_wrap.so. \
-			Please run makefile and ensure that installation is done correct.")
-		end
+        libtffi_loaded, libtffi =
+            pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
+        if not libtffi_loaded then
+            error("Could not load libtffi_wrap.so. \
+            Please run makefile and ensure that installation is done correct.")
+        end
     end
 
     crypto.X509_FILETYPE_PEM =          1
@@ -668,8 +668,8 @@ else
     -- @param buf (const char *) Buffer to send.
     -- @param sz (Number) Bytes to send from buffer.
     function crypto.SSL_write(ssl, buf, sz)
-	    if ssl == nil or buf == nil then
-	        error("SSL_write passed null pointer.")
+        if ssl == nil or buf == nil then
+            error("SSL_write passed null pointer.")
         end
         return lssl.SSL_write(ssl, buf, sz)
     end
