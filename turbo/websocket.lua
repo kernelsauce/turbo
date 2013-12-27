@@ -42,7 +42,20 @@ if not ltp_loaded then
 end
 local le = ffi.abi("le")
 local strf = string.format
+local bor = bit.bor
 math.randomseed(util.gettimeofday())
+
+if jit.version_num >= 20100 then
+    function ENDIAN_SWAP_U64(val)
+        return bit.bswap(val)
+    end
+else
+    -- Only v2.1 support 64bit bit swap.
+    -- Use a native C function instead for v2.0.
+    function ENDIAN_SWAP_U64(val)
+        return libturbo_parser.turbo_bswap_u64(val)
+    end
+end
 
 -- *** Public API ***
 
@@ -306,7 +319,7 @@ if le then
 
     function websocket.WebSocketHandler:_frame_len_64(data)
         self._payload_len = tonumber(
-            libturbo_parser.turbo_bswap_u64(ffi.cast("uint64_t", data)))
+            ENDIAN_SWAP_U64(ffi.cast("uint64_t", data)))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
@@ -403,16 +416,21 @@ function websocket.WebSocketHandler:_handle_opcode(opcode, data)
 end
 
 local function _unmask_payload(mask, data)
-    local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
-    if ptr ~= nil then
-        local str = ffi.string(ptr, data:len())
-        ffi.C.free(ptr)
-        return str
-    else
+    local sz = data:len()
+    local ptr = ffi.cast("const int8_t *", data)
+    local mask = ffi.cast("const int8_t *", mask)
+    local buf = ffi.C.malloc(data:len())
+    if buf == nil then
         error("Could not allocate memory for WebSocket frame masking.\
               Catastrophic failure.")
     end
-
+    buf = ffi.cast("int8_t *", buf)
+    for i = 0, sz - 1, 1 do
+        buf[i] = ptr[i] ^ mask[i % 4]
+    end
+    local unmasked = ffi.string(buf, sz)
+    ffi.C.free(buf)
+    return unmasked
 end
 
 function websocket.WebSocketHandler:_masked_frame_payload(data)
@@ -439,10 +457,7 @@ if le then
         else
             _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
             _ws_header.ext_len.ll = data_sz
-            -- bit.bswap supports only 32-bit bit swap, so instead of a 64-bit
-            -- split to two ints a native C function is used.
-            _ws_header.ext_len.ll = libturbo_parser.turbo_bswap_u64(
-                _ws_header.ext_len.ll)
+            _ws_header.ext_len.ll = ENDIAN_SWAP_U64(_ws_header.ext_len.ll)
             self.stream:write(ffi.string(_ws_header, 10))
         end
         if self.mask_outgoing == true then
