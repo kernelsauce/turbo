@@ -60,11 +60,11 @@ local turbo = {}  -- turbo main namespace.
 -- the micro version is set to zero. When there are backwards incompatible
 -- changes, the major version is incremented and others are set to zero.
 turbo.MAJOR_VERSION = 1
-turbo.MINOR_VERSION = 0
+turbo.MINOR_VERSION = 1
 turbo.MICRO_VERSION = 0
 -- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for
 -- version 1.2.1 and 0x010300 for version 1.3.
-turbo.VERSION_HEX = 0x010000
+turbo.VERSION_HEX = 0x010100
 if turbo.MICRO_VERSION then
     turbo.VERSION = string.format("%d.%d.%d",
         turbo.MAJOR_VERSION,
