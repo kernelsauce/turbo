@@ -30,16 +30,7 @@ local web =             require "turbo.web"
 local async =           require "turbo.async"
 local buffer =          require "turbo.structs.buffer"
 require('turbo.3rdparty.middleclass')
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
-if not ltp_loaded then
-    -- Check /usr/local/lib explicitly also.
-    ltp_loaded, libturbo_parser = 
-        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not ltp_loaded then 
-        error("Could not load libtffi_wrap.so. \
-            Please run makefile and ensure that installation is done correct.")
-    end
-end
+
 local le = ffi.abi("le")
 local strf = string.format
 local bor = bit.bor
@@ -52,6 +43,15 @@ if jit.version_num >= 20100 then
 else
     -- Only v2.1 support 64bit bit swap.
     -- Use a native C function instead for v2.0.
+    local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+    if not ltp_loaded then
+        -- Check /usr/local/lib explicitly also.
+        ltp_loaded, libturbo_parser = 
+            pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
+        if not ltp_loaded then 
+            error("Could not load libtffi_wrap.so.")
+        end
+    end
     function ENDIAN_SWAP_U64(val)
         return libturbo_parser.turbo_bswap_u64(val)
     end
@@ -157,8 +157,9 @@ function websocket.WebSocketHandler:_execute()
         error(web.HTTPError(400,"Invalid protocol."))
     end
     if self.sec_websocket_version ~= "13" then
-        log.error(strf("Client wants to use not implemented Websocket Version %s.\
-                       Can not upgrade.", self.sec_websocket_version))
+        log.error(strf(
+            "Client wants to use not implemented Websocket Version %s.\
+            Can not upgrade.", self.sec_websocket_version))
         -- Propose a specific version for the client...
         self:add_header("Sec-WebSocket-Version", "13")
         self:set_status_code(426)
@@ -174,7 +175,8 @@ function websocket.WebSocketHandler:_execute()
         if #prot ~= 0 then
             local selected_protocol = self:subprotocol(prot)
             if not selected_protocol then
-                log.warning("No acceptable subprotocols for WebSocket were found.")
+                log.warning(
+                    "No acceptable subprotocols for WebSocket were found.")
                 error(web.HTTPError(400, "Invalid subprotocol."))
             end
             self.subprotocol = selected_protocol
