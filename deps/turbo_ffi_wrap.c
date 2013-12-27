@@ -31,9 +31,6 @@ SOFTWARE."			*/
 #include "http_parser.h"
 #include "turbo_ffi_wrap.h"
 
-// not sure why our compiler doesn't seem to know about this prototype
-char *strndup(const char *s, size_t n);
-
 #ifndef TURBO_NO_SSL
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
@@ -190,8 +187,10 @@ char *url_field(const char *url_str,
                 const struct http_parser_url *url,
                 enum http_parser_url_fields prop)
 {
-    return strndup(url_str + url->field_data[prop].off,
-                   url->field_data[prop].len);
+    char * urlstr = malloc(url->field_data[prop].len + 1);
+    memcpy(urlstr, url_str + url->field_data[prop].off, url->field_data[prop].len);
+    urlstr[url->field_data[prop].len] = '\0';
+    return urlstr;
 }
 
 
@@ -307,17 +306,6 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     }
     free(src->hkv);
     free(src);
-}
-
-char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
-{
-    size_t i = 0;
-    char* buf = malloc(sz);
-
-    for (i = 0; i < sz; i++) {
-        buf[i] = in[i] ^ mask32[i % 4];
-    }
-    return buf;
 }
 
 u_int64_t turbo_bswap_u64(u_int64_t swap)
