@@ -17,7 +17,7 @@ LDCONFIG= ldconfig -n
 PREFIX ?= /usr/local
 
 MAJVER=  1
-MINVER=  0
+MINVER=  1
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
