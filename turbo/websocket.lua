@@ -30,6 +30,15 @@ local web =             require "turbo.web"
 local async =           require "turbo.async"
 local buffer =          require "turbo.structs.buffer"
 require('turbo.3rdparty.middleclass')
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+if not ltp_loaded then
+    -- Check /usr/local/lib explicitly also.
+    ltp_loaded, libturbo_parser = 
+        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
+    if not ltp_loaded then 
+        error("Could not load libtffi_wrap.so.")
+    end
+end
 
 local le = ffi.abi("le")
 local strf = string.format
@@ -43,15 +52,6 @@ if jit.version_num >= 20100 then
 else
     -- Only v2.1 support 64bit bit swap.
     -- Use a native C function instead for v2.0.
-    local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
-    if not ltp_loaded then
-        -- Check /usr/local/lib explicitly also.
-        ltp_loaded, libturbo_parser = 
-            pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-        if not ltp_loaded then 
-            error("Could not load libtffi_wrap.so.")
-        end
-    end
     function ENDIAN_SWAP_U64(val)
         return libturbo_parser.turbo_bswap_u64(val)
     end
@@ -418,21 +418,15 @@ function websocket.WebSocketHandler:_handle_opcode(opcode, data)
 end
 
 local function _unmask_payload(mask, data)
-    local sz = data:len()
-    local ptr = ffi.cast("const int8_t *", data)
-    local mask = ffi.cast("const int8_t *", mask)
-    local buf = ffi.C.malloc(data:len())
-    if buf == nil then
+    local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
+    if ptr ~= nil then
+        local str = ffi.string(ptr, data:len())
+        ffi.C.free(ptr)
+        return str
+    else
         error("Could not allocate memory for WebSocket frame masking.\
               Catastrophic failure.")
     end
-    buf = ffi.cast("int8_t *", buf)
-    for i = 0, sz - 1, 1 do
-        buf[i] = ptr[i] ^ mask[i % 4]
-    end
-    local unmasked = ffi.string(buf, sz)
-    ffi.C.free(buf)
-    return unmasked
 end
 
 function websocket.WebSocketHandler:_masked_frame_payload(data)

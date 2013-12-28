@@ -308,6 +308,20 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     free(src);
 }
 
+
+char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
+{
+    size_t i = 0;
+    char* buf = malloc(sz);
+    
+    if (!buf)
+        return 0;
+    for (i = 0; i < sz; i++) {
+        buf[i] = in[i] ^ mask32[i % 4];
+    }
+    return buf;
+ }
+
 u_int64_t turbo_bswap_u64(u_int64_t swap)
 {
     u_int64_t swapped;
