@@ -310,6 +310,7 @@ end
 
 function util.read_all(file)
     local f = io.open(file, "rb")
+    assert(f, "Could not open file " .. file .. "for reading.")
     local content = f:read("*all")
     f:close()
     return content
