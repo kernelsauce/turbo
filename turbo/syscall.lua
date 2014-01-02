@@ -51,7 +51,7 @@ local flags = {
 
 local cmds
 --- ******* syscalls *******
-if ffi.abi("32bit") then
+if ffi.arch == "x86" then
     cmds = {
         SYS_stat             = 106,
         SYS_fstat            = 108,
@@ -67,7 +67,7 @@ if ffi.abi("32bit") then
         SYS_clock_getres     = 266,
         SYS_clock_nanosleep  = 267
     }
-elseif ffi.abi("64bit") then
+elseif ffi.arch == "x64" then
     cmds = {
         SYS_stat             = 4,
         SYS_fstat            = 5,
@@ -82,6 +82,22 @@ elseif ffi.abi("64bit") then
         SYS_clock_gettime    = 228,
         SYS_clock_getres     = 229,
         SYS_clock_nanosleep  = 230
+    }
+elseif ffi.arch == "ppc" then
+    cmds = {
+        SYS_stat             = 106,
+        SYS_fstat            = 108,
+        SYS_lstat            = 107,
+        SYS_getdents         = 141,
+        SYS_io_setup         = 227,
+        SYS_io_destroy       = 228,
+        SYS_io_getevents     = 229,
+        SYS_io_submit        = 230,
+        SYS_io_cancel        = 231,
+        SYS_clock_settime    = 245,
+        SYS_clock_gettime    = 246,
+        SYS_clock_getres     = 247,
+        SYS_clock_nanosleep  = 248
     }
 end
 
