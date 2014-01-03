@@ -181,8 +181,8 @@ end
 
 --- Add a timeout with function to be called in future.
 -- @param timestamp (Number) Timestamp when to call function. Based on
--- Unix epoch time in milliseconds precision.
--- E.g util.gettimeofday + 3000 will timeout in 3 seconds.
+-- Unix CLOCK_MONOTONIC time in milliseconds precision.
+-- E.g util.gettimemonotonic + 3000 will timeout in 3 seconds.
 -- @param func (Function)
 -- @param Optional argument for func.
 -- @return (Number) Reference to timeout.
@@ -274,7 +274,7 @@ function ioloop.IOLoop:start()
         end
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
-            local current_time = util.gettimeofday()
+            local current_time = util.gettimemonotonic()
             for i = 1, timeout_sz do
                 if self._timeouts[i] ~= nil then
                     local time_until_timeout = self._timeouts[i]:timed_out(current_time)
@@ -298,7 +298,7 @@ function ioloop.IOLoop:start()
         end
         local intervals_sz = #self._intervals
         if intervals_sz ~= 0 then
-            local time_now = util.gettimeofday()
+            local time_now = util.gettimemonotonic()
             for i = 1, intervals_sz do
                 if self._intervals[i] ~= nil then
                     local timed_out = self._intervals[i]:timed_out(time_now)
@@ -310,7 +310,7 @@ function ioloop.IOLoop:start()
                         -- Get current time to protect against building
                         -- diminishing interval time on heavy functions.
                         -- It is debatable wether this feature is wanted or not.
-                        time_now = util.gettimeofday()
+                        time_now = util.gettimemonotonic()
                         local next_call = self._intervals[i]:set_last_call(
                             time_now)
                         if next_call < poll_timeout then
@@ -370,7 +370,7 @@ function ioloop.IOLoop:wait(timeout)
     local timedout
     if timeout then
         local io = self
-        self:add_timeout(util.gettimeofday() + (timeout*1000), function()
+        self:add_timeout(util.gettimemonotonic() + (timeout*1000), function()
             timedout = true
             io:close()
         end)
@@ -482,7 +482,7 @@ function _Interval:initialize(msec, callback, arg)
     self.interval_msec = msec
     self.callback = callback
     self.arg = arg
-    self.next_call = util.gettimeofday() + self.interval_msec
+    self.next_call = util.gettimemonotonic() + self.interval_msec
 end
 
 function _Interval:timed_out(time_now)
