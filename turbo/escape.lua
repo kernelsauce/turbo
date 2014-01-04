@@ -20,8 +20,18 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE."       
 
-local json = require('turbo.3rdparty.JSON')
-
+local json = require 'turbo.3rdparty.JSON'
+local ffi = require "ffi"
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+if not ltp_loaded then
+    -- Check /usr/local/lib explicitly also.
+    ltp_loaded, libturbo_parser = 
+        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
+    if not ltp_loaded then 
+        error("Could not load libtffi_wrap.so. \
+            Please run makefile and ensure that installation is done correct.")
+    end
+end
 local escape = {} -- escape namespace
 
 --- JSON stringify a table.
@@ -74,6 +84,48 @@ function escape.rtrim(s)
     local n = #s
     while n > 0 and s:find("^%s", n) do n = n - 1 end
     return s:sub(1, n)
+end
+
+local _b64_out = ffi.new("char*[1]")
+local _b64_sz = ffi.new("size_t[1]")
+--- Base64 encode a string or a FFI char *.
+-- @param str (String or char*) Bytearray to encode.
+-- @param sz (Number) Length of string to encode.
+-- @return (String) Encoded string.
+function escape.base64_encode(str, sz)
+    local rc = 
+        libturbo_parser.turbo_b64_encode(ffi.cast("const char *", str), 
+                                         sz or str:len(), 
+                                         _b64_out, 
+                                         _b64_sz)
+    if rc == -1 then
+        error("Could not allocate memory for base64 encode.")
+    end
+    local b64str = ffi.string(_b64_out[0], _b64_sz[0]-1)
+    ffi.C.free(_b64_out[0])
+    _b64_out[0] = nil
+    _b64_sz[0] = 0
+    return b64str
+end
+
+--- Base64 decode a string or a FFI char *.
+-- @param str (String or char*) Bytearray to decode.
+-- @param sz (Number) Length of string to decode.
+-- @return (String) Decoded string.
+function escape.base64_decode(str, sz)
+    local rc = 
+        libturbo_parser.turbo_b64_decode(ffi.cast("const char *", str), 
+                                         sz or str:len(), 
+                                         _b64_out, 
+                                         _b64_sz)
+    if rc == -1 then
+        error("Could not allocate memory for base64 encode.")
+    end
+    local b64str = ffi.string(_b64_out[0], _b64_sz[0])
+    ffi.C.free(_b64_out[0])
+    _b64_out[0] = nil
+    _b64_sz[0] = 0
+    return b64str
 end
 
 return escape

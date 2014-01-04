@@ -82,6 +82,26 @@ function Buffer:append_right(data, len)
     return self
 end
 
+function Buffer:append_char_right(char) 
+    if self.tbuffer.mem - self.tbuffer.sz >= 1 then
+        self.tbuffer.data[self.tbuffer.sz] = char
+        self.tbuffer.sz = self.tbuffer.sz + 1
+    else
+        -- Realloc and double required memory size.
+        local new_sz = self.tbuffer.sz + 1
+        local new_mem  = new_sz * 2
+        local ptr = ffi.C.realloc(self.tbuffer.data, new_mem)
+        if ptr == nil then
+            error("No memory.")
+        end
+        self.tbuffer.data = ptr
+        self.tbuffer.data[self.tbuffer.sz] = char
+        self.tbuffer.mem = new_mem
+        self.tbuffer.sz = new_sz
+    end
+    return self
+end
+
 --- Append Lua string to right side of buffer.
 -- @param str Lua string
 function Buffer:append_luastr_right(str)

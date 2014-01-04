@@ -75,7 +75,10 @@ if _G.TURBO_AXTLS then
 
     --- Finalize SHA1 context.
     -- @return (char*) Message digest.
-    function hash.SHA1:final()
+    function hash.SHA1:finalize()
+        if self.final == true then
+            return self.md
+        end
         self.final = true
         assert(self.ctx, "No SHA_CTX in object.")
         self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
@@ -145,7 +148,10 @@ else
 
     --- Finalize SHA1 context.
     -- @return (char*) Message digest.
-    function hash.SHA1:final()
+    function hash.SHA1:finalize()
+        if self.final == true then
+            return self.md
+        end
         self.final = true
         assert(self.ctx, "No SHA_CTX in object.")
         self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
