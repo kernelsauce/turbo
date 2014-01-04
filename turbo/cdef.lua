@@ -523,7 +523,7 @@ extern ssize_t read(int __fd, void *__buf, size_t __nbytes) ;
 int syscall(int number, ...);
 ]]
 -- stat structure is architecture dependent in Linux
-if ffi.abi("32bit") then
+if ffi.arch == "x86" then
     ffi.cdef[[
       struct stat {
         unsigned long  st_dev;
@@ -546,7 +546,7 @@ if ffi.abi("32bit") then
         unsigned long  __unused5;
       };
     ]]
-elseif ffi.abi("64bit") then
+elseif ffi.arch =="x64" then
     ffi.cdef [[
       struct stat {
         unsigned long   st_dev;
@@ -569,7 +569,31 @@ elseif ffi.abi("64bit") then
         long            __unused[3];
       };
     ]]
+elseif ffi.arch == "ppc" then
+    ffi.cdef[[
+      struct stat {
+        uint32_t  st_dev;
+        uint32_t  st_ino;
+        uint32_t st_mode;
+        uint32_t st_nlink;
+        uint32_t st_uid;
+        uint32_t st_gid;
+        uint32_t st_rdev;
+        uint32_t st_size;
+        uint32_t st_blksize;
+        uint32_t  st_blocks;
+        uint32_t  st_atime;
+        uint32_t  st_atime_nsec;
+        uint32_t  st_mtime;
+        uint32_t  st_mtime_nsec;
+        uint32_t  st_ctime;
+        uint32_t  st_ctime_nsec;
+        uint32_t  __unused4;
+        uint32_t  __unused5;
+      };
+    ]]
 end
+
 
 --- ******* glob *******
 ffi.cdef[[

@@ -126,7 +126,9 @@ function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 
 --*************** Input ***************
 
---- Returns the value of the argument with the given name.
+--- Returns the value of the argument with the given name. 
+-- If multiple values are set with the same name, then only one is returned.
+-- For multiple arguments, use get_arguments() instead.
 -- If default value is not given the argument is considered to be required and
 -- will result in a raise of a HTTPError 400 Bad Request if the argument does
 -- not exist.
@@ -136,14 +138,15 @@ function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 -- @return Value of argument if set.
 function web.RequestHandler:get_argument(name, default, strip)
     local args = self:get_arguments(name, strip)
-    if type(args) == "string" then
+    local t = type(args)
+    if t == "string" then
         return args
-    elseif type(args) == "table" and #args > 0 then
-        return args[1]
+    elseif t == "table" then
+        return args[1][1]
     elseif default ~= nil then
         return default
     else
-        error(web.HTTPError:new(400))
+        error(web.HTTPError:new(400, "Missing required argument."))
     end
 end
 

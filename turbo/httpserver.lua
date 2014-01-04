@@ -80,8 +80,8 @@ function httpserver.HTTPServer:initialize(request_callback,
     self.no_keep_alive = no_keep_alive
     self.xheaders = xheaders
     self.kwargs = kwargs
-    tcpserver.TCPServer.initialize(self, 
-                                   io_loop, 
+    tcpserver.TCPServer.initialize(self,
+                                   io_loop,
                                    kwargs and kwargs.ssl_options)
 end
 

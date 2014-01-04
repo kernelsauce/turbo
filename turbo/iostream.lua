@@ -55,7 +55,7 @@ local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
 local C = ffi.C
 
 -- __Global value__ _G.TURBO_SOCKET_BUFFER_SZ allows the user to set
--- his own socket buffer size to be used by the module. Defaults to 
+-- his own socket buffer size to be used by the module. Defaults to
 -- (16384+1024) bytes, which is the default max used by axTLS.
 _G.TURBO_SOCKET_BUFFER_SZ = _G.TURBO_SOCKET_BUFFER_SZ or (16384+1024)
 local TURBO_SOCKET_BUFFER_SZ =  _G.TURBO_SOCKET_BUFFER_SZ
@@ -213,7 +213,7 @@ end
 --- Reads all data from the socket until it is closed.
 -- If a streaming_callback argument is given, it will be called with chunks of
 -- data as they become available, and the argument to the final call to
--- callback will contain the final chunk. This method respects the 
+-- callback will contain the final chunk. This method respects the
 -- max_buffer_size set in the IOStream instance.
 -- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback. If arg is given then it will
@@ -339,6 +339,9 @@ function iostream.IOStream:set_close_callback(callback, arg)
 end
 
 function iostream.IOStream:set_max_buffer_size(sz)
+    if sz < TURBO_SOCKET_BUFFER_SZ then
+        sz = TURBO_SOCKET_BUFFER_SZ+8
+    end
     self.max_buffer_size = sz
 end
 
@@ -385,7 +388,7 @@ end
 --- Initial inline read for read methods.
 -- If read is not possible at this time, it is added to IOLoop.
 function iostream.IOStream:_initial_read()
-    while true do 
+    while true do
         if self:_read_from_buffer() == true then
             return
         end
@@ -532,9 +535,9 @@ end
 function iostream.IOStream:_read_from_socket()
     local errno
     local sz = tonumber(C.recv(self.socket, 
-                                    buf, 
-                                    TURBO_SOCKET_BUFFER_SZ, 
-                                    0))
+                               buf, 
+                               TURBO_SOCKET_BUFFER_SZ, 
+                               0))
     if sz == -1 then
         errno = ffi.errno()
         if errno == EWOULDBLOCK or errno == EAGAIN then
@@ -654,7 +657,7 @@ function iostream.IOStream:_read_from_buffer()
             -- different size.
             local ptr, sz = self:_get_buffer_ptr()
             ptr = ptr + self._read_scan_offset
-            sz = sz - self._read_scan_offset 
+            sz = sz - self._read_scan_offset
             local chunk = ffi.string(ptr, sz)
             local s_start, s_end = chunk:find(self._read_pattern, 1, false)
             if s_start then
