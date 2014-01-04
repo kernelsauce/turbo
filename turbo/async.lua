@@ -178,7 +178,7 @@ function async.HTTPClient:fetch(url, kwargs)
     self.coctx = coctx.CoroutineContext:new(self.io_loop)
     self.coctx:set_state(coctx.states.WORKING)
     self.in_progress = true
-    self.start_time = util.gettimeofday()
+    self.start_time = util.gettimemonotonic()
     self.kwargs = kwargs or {}
     -- Set sane defaults for kwargs if not present.
     self.redirect_max = self.kwargs.max_redirects or 4
@@ -324,7 +324,7 @@ function async.HTTPClient:_connect()
     end
     -- Add connect timeout.
     self.connect_timeout_ref = self.io_loop:add_timeout(
-        self.kwargs.connect_timeout * 1000 + util.gettimeofday(), 
+        self.kwargs.connect_timeout * 1000 + util.gettimemonotonic(),
         self._handle_connect_timeout,
         self)
     return 0
@@ -434,7 +434,7 @@ function async.HTTPClient:_handle_connect()
     self.io_loop:remove_timeout(self.connect_timeout_ref)
     self.connect_timeout_ref = nil
     self.request_timeout_ref = self.io_loop:add_timeout(
-        self.kwargs.request_timeout * 1000 + util.gettimeofday(), 
+        self.kwargs.request_timeout * 1000 + util.gettimemonotonic(),
         self._handle_request_timeout,
         self)
     self:_send_http_request()
@@ -574,8 +574,8 @@ function async.HTTPClient:_finalize_request()
     if self.connect_timeout_ref then
         self.io_loop:remove_timeout(self.connect_timeout_ref)
     end
-    if not self.s_error then 
-        self.finish_time = util.gettimeofday()
+    if not self.s_error then
+        self.finish_time = util.gettimemonotonic()
         local status_code = self.response_headers:get_status_code()
         if (status_code == 200) then
             log.success(string.format("[async.lua] %s %s%s => %d %s %dms",

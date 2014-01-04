@@ -149,6 +149,19 @@ function util.gettimeofday()
         math.floor(tonumber(g_timeval.tv_usec) / 1000))
 end
 
+do
+    local rt = ffi.load("rt")
+    local ts = ffi.new("struct timespec")
+    -- Current msecs since arbitrary start point, doesn't jump due to
+    -- time changes
+    -- @return Number
+    function util.gettimemonotonic()
+        rt.clock_gettime(rt.CLOCK_MONOTONIC, ts)
+        return ((tonumber(ts.tv_sec)*1000) +
+                math.floor(tonumber(ts.tv_nsec) / 1000000))
+    end
+end
+
 --- Create a time string used in HTTP cookies.
 -- "Sun, 04-Sep-2033 16:49:21 GMT"
 function util.time_format_cookie(epoch)

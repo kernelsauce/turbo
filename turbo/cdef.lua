@@ -357,6 +357,20 @@ extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
 
 ]])
 
+--- ******* RealTime (for Monotonic time) *******
+ffi.cdef([[
+struct timespec
+{
+    time_t tv_sec;      /* Seconds.  */
+    long tv_nsec;    /* Nanoseconds.  */
+};
+typedef uint32_t clockid_t;
+enum clock_ids {
+    CLOCK_REALTIME,
+    CLOCK_MONOTONIC
+};
+int clock_gettime(clockid_t clk_id, struct timespec *tp);
+]])
 
 --- ******* Resolv *******
 ffi.cdef [[

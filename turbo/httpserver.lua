@@ -371,7 +371,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     self.host = host or self.headers:get("Host") or "127.0.0.1"
     self.files = files or {}
     self.connection = connection
-    self._start_time = util.gettimeofday()
+    self._start_time = util.gettimemonotonic()
     self._finish_time = nil
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.arguments = self.headers:get_arguments()
@@ -417,7 +417,7 @@ end
 --- Finish the request. Close connection.
 function httpserver.HTTPRequest:finish()
     self.connection:finish()
-    self._finish_time = util.gettimeofday()
+    self._finish_time = util.gettimemonotonic()
 end
 
 --- Return the full URL that the user requested.
@@ -431,7 +431,7 @@ end
 -- completed.
 function httpserver.HTTPRequest:request_time()
     if not self._finish_time then
-        return util.gettimeofday() - self._start_time
+        return util.gettimemonotonic() - self._start_time
     else
         return self._finish_time - self._start_time
     end
