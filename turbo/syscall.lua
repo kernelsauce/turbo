@@ -99,6 +99,22 @@ elseif ffi.arch == "ppc" then
         SYS_clock_getres     = 247,
         SYS_clock_nanosleep  = 248
     }
+elseif ffi.arch == "arm" then
+    cmds = {
+        SYS_stat             = 106,
+        SYS_fstat            = 108,
+        SYS_lstat            = 107,
+        SYS_getdents         = 141,
+        SYS_io_setup         = 243,
+        SYS_io_destroy       = 244,
+        SYS_io_getevents     = 245,
+        SYS_io_submit        = 246,
+        SYS_io_cancel        = 247,
+        SYS_clock_settime    = 262,
+        SYS_clock_gettime    = 263,
+        SYS_clock_getres     = 264,
+        SYS_clock_nanosleep  = 265
+    }
 end
 
 return tm(flags, cmds)
