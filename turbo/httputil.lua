@@ -434,7 +434,7 @@ local javascript_types =
   ["text/x-json"]=true}
 
 -- @return end position of token, token string
-local function getRFC822Token(str,pos)
+local function getRFC822Atom(str,pos)
     local fpos, lpos, token = str:find('([^%c%s()<>@,;:\\"/[%]?=]+)',pos)
     return lpos, token
 end
@@ -505,7 +505,7 @@ function httputil.parse_multipart_data(data, boundary)
                         argument[fname] = {}
                         local p = 1
                         repeat
-                            p, key = getRFC822Token(content_kvs,p)
+                            p, key = getRFC822Atom(content_kvs,p)
                             if p == nil then break end
                             if content_kvs:byte(p+1) ~= string.byte('=') then break end
                             p=p+2
@@ -514,7 +514,7 @@ function httputil.parse_multipart_data(data, boundary)
                             local _, p2, val = content_kvs:find('^"([^"]+)"',p)
                             -- if not a quoted paramter, get paramter token
                             if not p2 then
-                                p2, val = getRFC822Token(content_kvs,p)
+                                p2, val = getRFC822Atom(content_kvs,p)
                                 if not p2 then break end
                             end
                             p = p2+1
