@@ -550,7 +550,7 @@ function httputil.parse_multipart_data(data, boundary)
                 argument[1] = data:sub(v1, b2)
                 if argument["content-transfer-encoding"] == "base64" then
                     -- decode the base64 data
-                    argument[1] = util.from_base64(argument[1])
+                    argument[1] = escape.base64_decode(argument[1])
                 end
 
                 -- we can unescape application/javascript, application/json, application/x-javascript, text/x-javascript, text/x-json
