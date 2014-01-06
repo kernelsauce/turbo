@@ -142,7 +142,13 @@ function web.RequestHandler:get_argument(name, default, strip)
     if t == "string" then
         return args
     elseif t == "table" then
-        return args[1][1]
+        -- form-data arguments are wrapped in an additional table
+        -- in order to associate their fields and content-disposition
+        -- parameters with the argument
+        if type(args[1]) == "table" then
+            return args[1][1]
+        end
+        return args[1]
     elseif default ~= nil then
         return default
     else
