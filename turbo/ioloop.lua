@@ -160,10 +160,6 @@ function ioloop.IOLoop:add_callback(callback, arg)
     self._callbacks[#self._callbacks + 1] = {callback, arg}
 end
 
---- List all callbacks scheduled.
--- @return table with all callbacks.
-function ioloop.IOLoop:list_callbacks() return self._callbacks end
-
 --- Finalize a coroutine context.
 -- @param coctx A CourtineContext instance.
 -- @return True if suscessfull else false.

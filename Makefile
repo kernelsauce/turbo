@@ -17,7 +17,7 @@ LDCONFIG= ldconfig -n
 PREFIX ?= /usr/local
 
 MAJVER=  1
-MINVER=  0
+MINVER=  1
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
@@ -32,7 +32,7 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
-CFLAGS=
+CFLAGS= -g
 
 ifeq ($(SSL), axTLS)
 # axTLS only uses axtls lib from luajit
@@ -94,7 +94,7 @@ install:
 	$(CP_R) turbovisor.lua $(LUAJIT_MODULEDIR)
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
-	make -C $(HTTP_PARSERDIR) library
+	make -C deps/http-parser library
 	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \

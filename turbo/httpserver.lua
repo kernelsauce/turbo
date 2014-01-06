@@ -71,8 +71,11 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 -- To enable SSL remember to set the _G.TURBO_SSL global.
 -- "key_file" = SSL key file if a SSL enabled server is wanted.
 -- "cert_file" = Certificate file. key_file must also be set.
-function httpserver.HTTPServer:initialize(request_callback, no_keep_alive,
-    io_loop, xheaders, kwargs)
+function httpserver.HTTPServer:initialize(request_callback, 
+                                          no_keep_alive, 
+                                          io_loop, 
+                                          xheaders, 
+                                          kwargs)
     self.request_callback = request_callback
     self.no_keep_alive = no_keep_alive
     self.xheaders = xheaders
@@ -219,7 +222,7 @@ function httpserver.HTTPConnection:_on_headers(data)
     if content_length then
         content_length = tonumber(content_length)
         -- Set max buffer size to 128MB.
-        self.stream:set_max_buffer_size(self.kwargs.max_body_size or 1024*1024*128)
+        self.stream:set_max_buffer_size(self.kwargs.max_body_size or content_length)
         if content_length > self.stream.max_buffer_size then
             log.error("Content-Length too long")
             self.stream:close()

@@ -505,6 +505,8 @@ extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser
 extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
 const char *http_errno_name(int32_t err);
 const char *http_errno_description(int32_t err);
+char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz);
+uint64_t turbo_bswap_u64(uint64_t swap);
 ]]
 
 
