@@ -433,6 +433,12 @@ local javascript_types =
   ["text/x-javascript"]=true,
   ["text/x-json"]=true}
 
+-- @return end position of token, token string
+local function getRFC822Atom(str,pos)
+    local fpos, lpos, token = str:find('([^%c%s()<>@,;:\\"/[%]?=]+)',pos)
+    return lpos, token
+end
+
 --- Parse multipart form data.
 function httputil.parse_multipart_data(data, boundary)
     local arguments = {}
@@ -497,7 +503,21 @@ function httputil.parse_multipart_data(data, boundary)
                    boundary_headers:gmatch("([^%c%s:]+):%s*([^;]*);?([^\n\r]*)") do
                     if fvalue == "form-data" and fname=="content-disposition" then
                         argument[fname] = {}
-                        for key, val in content_kvs:gmatch('(%w+)="(%w+)";?') do
+                        local p = 1
+                        repeat
+                            p, key = getRFC822Atom(content_kvs,p)
+                            if p == nil then break end
+                            if content_kvs:byte(p+1) ~= string.byte('=') then break end
+                            p=p+2
+                            -- try to get the quoted parameter
+                            print(string.sub(content_kvs,p))
+                            local _, p2, val = content_kvs:find('^"([^"]+)"',p)
+                            -- if not a quoted paramter, get paramter token
+                            if not p2 then
+                                p2, val = getRFC822Atom(content_kvs,p)
+                                if not p2 then break end
+                            end
+                            p = p2+1
                             if key=="name" then
                                 -- name is the primary key in the arguments table
                                 -- for storing the content
@@ -505,7 +525,7 @@ function httputil.parse_multipart_data(data, boundary)
                             end
                             -- store any key values associated with content-disposition
                             argument[fname][key] = val
-                        end
+                        until false
                     else
                         -- content-type, charset, and content-transfer-encoding
                         -- field values are all case insensitive, though some
@@ -530,7 +550,7 @@ function httputil.parse_multipart_data(data, boundary)
                 argument[1] = data:sub(v1, b2)
                 if argument["content-transfer-encoding"] == "base64" then
                     -- decode the base64 data
-                    argument[1] = util.from_base64(argument[1])
+                    argument[1] = escape.base64_decode(argument[1])
                 end
 
                 -- we can unescape application/javascript, application/json, application/x-javascript, text/x-javascript, text/x-json

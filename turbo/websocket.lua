@@ -33,9 +33,9 @@ require('turbo.3rdparty.middleclass')
 local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
-    ltp_loaded, libturbo_parser = 
+    ltp_loaded, libturbo_parser =
         pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not ltp_loaded then 
+    if not ltp_loaded then
         error("Could not load libtffi_wrap.so.")
     end
 end
@@ -64,7 +64,7 @@ websocket.MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 websocket.WebSocketHandler = class("WebSocketHandler", web.RequestHandler)
 
-function websocket.WebSocketHandler:initialize(application, 
+function websocket.WebSocketHandler:initialize(application,
                                                request,
                                                url_args,
                                                options)
@@ -108,21 +108,21 @@ function websocket.WebSocketHandler:write_message(msg, binary)
     if self._closed == true then
         error("WebSocket connection has been closed. Can not write message.")
     end
-    self:_send_frame(true, 
-                     binary and 
-                        websocket.opcode.BINARY or websocket.opcode.TEXT, 
+    self:_send_frame(true,
+                     binary and
+                        websocket.opcode.BINARY or websocket.opcode.TEXT,
                      msg)
 end
 
 --- Send a ping to the connected client.
-function websocket.WebSocketHandler:ping(data, callback, callback_arg) 
+function websocket.WebSocketHandler:ping(data, callback, callback_arg)
     self._ping_callback = callback
     self._ping_callback_arg = callback_arg
     self:_send_frame(true, websocket.opcode.PING, data)
 end
 
 --- Close the connection.
-function websocket.WebSocketHandler:close() 
+function websocket.WebSocketHandler:close()
     self._closed = true
     self:_send_frame(true, websocket.opcode.CLOSE, "")
     self.stream:close()
@@ -140,7 +140,7 @@ function websocket.WebSocketHandler:_execute()
     local upgrade = self.request.headers:get("Upgrade")
     if not upgrade or upgrade:lower() ~= "websocket" then
         error(web.HTTPError(
-            400, 
+            400,
             "Expected a valid \"Upgrade\" HTTP header."))
     end
     self.sec_websocket_key = self.request.headers:get("Sec-WebSocket-Key")
@@ -149,7 +149,7 @@ function websocket.WebSocketHandler:_execute()
                    Probably not a Websocket requets, can not upgrade.")
         error(web.HTTPError(400, "Invalid protocol."))
     end
-    self.sec_websocket_version = 
+    self.sec_websocket_version =
         self.request.headers:get("Sec-WebSocket-Version")
     if not self.sec_websocket_version then
         log.error("Client did not send a Sec-WebSocket-Version field. \
@@ -189,9 +189,9 @@ function websocket.WebSocketHandler:_execute()
     self:prepare()
     local response_header = self:_create_response_header()
     self.stream:write(response_header.."\r\n")
-    -- HTTP headers read, change to WebSocket protocol. 
+    -- HTTP headers read, change to WebSocket protocol.
     -- Set max buffer size to 64MB as it is 16KB at this point...
-    self.stream:set_max_buffer_size(1024*1024*64) 
+    self.stream:set_max_buffer_size(1024*1024*64)
     log.success(string.format([[[websocket.lua] WebSocket opened %s (%s)]],
         self.request.headers:get_url(),
         self.request.remote_ip))
@@ -200,10 +200,10 @@ end
 
 function websocket.WebSocketHandler:_calculate_ws_accept()
     --- FIXME: Decode key and ensure that it is 16 bytes in length.
-    assert(util.from_base64(self.sec_websocket_key):len() == 16, 
+    assert(escape.base64_decode(self.sec_websocket_key):len() == 16,
            "Sec-WebSocket-Key is of invalid size.")
     local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
-    return util.to_base64(ffi.string(hash:finalize(), 20))
+    return escape.base64_encode(hash:finalize(), 20)
 end
 
 function websocket.WebSocketHandler:_create_response_header()
@@ -254,7 +254,7 @@ function websocket.WebSocketHandler:_error(msg)
 end
 
 function websocket.WebSocketHandler:_socket_closed()
-    log.success(string.format([[[websocket.lua] WebSocket closed %s (%s) %dms]], 
+    log.success(string.format([[[websocket.lua] WebSocket closed %s (%s) %dms]],
         self.request.headers:get_url(),
         self.request.remote_ip,
         self.request:request_time()))
@@ -291,8 +291,8 @@ function websocket.WebSocketHandler:_accept_frame(header)
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
-            self.stream:read_bytes(self._payload_len, 
-                                   self._frame_payload, 
+            self.stream:read_bytes(self._payload_len,
+                                   self._frame_payload,
                                    self)
         end
     elseif payload_len == 126 then
@@ -313,8 +313,8 @@ if le then
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
-            self.stream:read_bytes(self._payload_len, 
-                                   self._frame_payload, 
+            self.stream:read_bytes(self._payload_len,
+                                   self._frame_payload,
                                    self)
         end
     end
@@ -325,8 +325,8 @@ if le then
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
-            self.stream:read_bytes(self._payload_len, 
-                                   self._frame_payload, 
+            self.stream:read_bytes(self._payload_len,
+                                   self._frame_payload,
                                    self)
         end
     end
@@ -361,7 +361,7 @@ function websocket.WebSocketHandler:_frame_payload(data)
             self._fragmented_message_buffer:clear()
             self._fragmented_message_opcode = nil
         end
-    else 
+    else
         if self._fragmented_message_buffer:len() ~= 0 then
             self:_error(
                 "WebSocket protocol error: \
@@ -390,7 +390,7 @@ function websocket.WebSocketHandler:_handle_opcode(opcode, data)
     if self._closed == true then
         return
     end
-    if opcode == websocket.opcode.TEXT or 
+    if opcode == websocket.opcode.TEXT or
             opcode == websocket.opcode.BINARY then
         self:on_message(data)
     elseif opcode == websocket.opcode.CLOSE then
@@ -442,7 +442,7 @@ if le then
         local data_sz = data:len()
         _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
         if data_sz < 0x7e then
-            _ws_header.len = bit.bor(data_sz, 
+            _ws_header.len = bit.bor(data_sz,
                                      self.mask_outgoing and 0x80 or 0x0)
             self.stream:write(ffi.string(_ws_header, 2))
         elseif data_sz <= 0xffff then
