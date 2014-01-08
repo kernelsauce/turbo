@@ -109,7 +109,7 @@ do
         local p = 0 -- position in binary output array
         local boff = 6 -- bit offset, alternates 0, 2, 4, 6
         local bin_arr=ffi.new(u8arr, floor(bit.rshift(sz*3,2)))
-        local bptr = ffi.cast(u8ptr,d)
+        local bptr = ffi.cast(u8ptr,str)
 
         for i=0,sz-1 do
             m64 = mime64lookup[bptr[i]]
