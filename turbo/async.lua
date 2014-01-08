@@ -86,7 +86,7 @@ end
 -- Simple usage:
 -- local res = coroutine.yield(
 --    turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json",
---    {params = { q=search, result_type="mixed"}
+--    {params = {q="Turbo.lua", result_type="mixed"}
 -- }))
 --
 -- The res variable will contain a HTTPResponse class instance. This class has 
