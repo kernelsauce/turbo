@@ -91,7 +91,7 @@ local SignInHandler = class("SignInHandler", turbo.web.RequestHandler)
 
 --- Handler to register nickname etc.
 function SignInHandler:post()
-	local nick = self:get_argument("nick")[1]
+	local nick = self:get_argument("nick")
 	if not self.options.chatroom:add(nick) then
 		self:write({ok=false})
 		return
