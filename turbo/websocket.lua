@@ -199,7 +199,6 @@ function websocket.WebSocketHandler:_execute()
 end
 
 function websocket.WebSocketHandler:_calculate_ws_accept()
-    --- FIXME: Decode key and ensure that it is 16 bytes in length.
     assert(util.from_base64(self.sec_websocket_key):len() == 16, 
            "Sec-WebSocket-Key is of invalid size.")
     local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
@@ -265,6 +264,7 @@ end
 -- to WebSocket.
 function websocket.WebSocketHandler:_continue_ws()
     self.stream:set_close_callback(self._socket_closed, self)
+    self._fragmented_message_buffer = buffer(1024)
     self.stream:read_bytes(2, self._accept_frame, self)
     self:open()
 end
@@ -272,7 +272,6 @@ end
 --- Accept a new WebSocket frame.
 function websocket.WebSocketHandler:_accept_frame(header)
     local ws_header = ffi.cast("struct ws_header *", header)
-    self._fragmented_message_buffer = buffer(1024)
     self._final_bit = bit.band(ws_header.flags, 0x80) ~= 0
     self._rsv1_bit = bit.band(ws_header.flags, 0x40) ~= 0
     self._rsv2_bit = bit.band(ws_header.flags, 0x20) ~= 0
