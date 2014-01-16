@@ -14,26 +14,84 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var ws = new WebSocket("ws://127.0.0.1:8888/chatcom");
+function write_to_chatwindow (msg, t)  {
+    var hours = t.getHours();
+    var minutes = t.getMinutes();
+    var seconds = t.getSeconds();
+    var formatted_time = hours + ':' + minutes + ':' + seconds;
+    $("#chat-window").
+        append("<p>["+ formatted_time + "] "+ msg +"</p>");
 
-ws.onmessage = function (evt) {
-	var msg = JSON.parse(evt.data);
-	var date = new Date(msg.time);
-	var hours = date.getHours();
-	var minutes = date.getMinutes();
-	var seconds = date.getSeconds();
-	var formatted_time = hours + ':' + minutes + ':' + seconds;
-	$("#chat-window").append("<p>["+ formatted_time + "] "+msg.nick+": "+msg.msg+"</p>");
-};
+}
 
-$("#chat-submit-msg").click(function() {
-	ws.send($("#chat-input").val());
-	$("#chat-input").val("");
-});
+function connect_to_chatcom () {
+    var ws = new WebSocket("ws://127.0.0.1:8888/chatcom");
+    ws.onmessage = function(evt) {
+        var msg = JSON.parse(evt.data);
+        var pack = msg.package;
+        var date = new Date(msg.time);
 
-$("#chat-input").keyup(function(event) {
-	if (event.keyCode == 13) {
-		ws.send($("#chat-input").val());
-		$("#chat-input").val("");
-	}
+        switch (pack.type){
+            case "participant-update":
+                console.log("Partc update.");
+                break;
+            case "participant-joined":
+                write_to_chatwindow(pack.data + " joined the room.", date);
+                break;
+            case "participant-left":
+                write_to_chatwindow(pack.data + " left the room.", date);
+                break;
+            case "message":
+                write_to_chatwindow(
+                    "["+pack.data.nick+"] " + pack.data.msg,
+                    date);
+                break;
+        }
+    };
+
+    $("#chat-submit-msg").click(function () {
+        ws.send(JSON.stringify({
+            "package": {
+                "data": {
+                    "msg": $("#chat-input").val()
+                }
+            }
+        }));
+        $("#chat-input").val("");
+    });
+
+    $("#chat-input").keyup(function (event) {
+        if (event.keyCode == 13){
+            $("#chat-submit-msg").trigger("click");
+        }
+    });
+}
+
+function do_login () {
+    $('#login').modal('show');
+    $("#chat-login-btn").click(function(){
+        $.ajax({
+            type: "POST",
+            url: "/signin",
+            data: {nick: $("#chat-login-nick").val()},
+            success: function(res){
+                $('#login').modal('hide');
+                connect_to_chatcom();
+            }
+        });
+    });
+}
+
+$(document).ready(function () {
+    $.ajax({
+        type: "GET",
+        url: "/signin",
+        success: function (res) {
+            connect_to_chatcom();
+        },
+        error: function(res){
+            if (res.status === 400){
+                do_login();
+            }
+        }});
 });

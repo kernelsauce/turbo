@@ -1,17 +1,63 @@
+<!doctype html>
 <html>
-	<head>
-		<title>Turbo.lua, Chatapp</title>
-	</head>
-	<body>
-		<div id="chat-window" style="height:500px;width:500px; font-family:monospace; font-size:10px;">
-
-		</div>
-		<input type="text" id="chat-input"/>
-		<button id="chat-submit-msg">Send</button>
-	</body>
-	<script src="https://www.google.com/jsapi"></script>
-	<script>
-	google.load('jquery', '1.3.1');
-	</script>
-	<script src="assets/chatapp.js"></script>
+    <head>
+        <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.0.3/css/bootstrap.min.css" />
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.0.3/js/bootstrap.min.js"></script>
+        <title>Turbo.lua, Chatapp</title>
+        <style>
+            body {
+                background-color: #000;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="row">
+            <div class="col-md-4" style="padding: 30px; color: whitesmoke">
+                <span class="glyphicon glyphicon-user"> Participants</span>
+                
+            </div>
+            <div class="col-md-8" style="padding: 30px; color: whitesmoke">
+                <span class="glyphicon glyphicon-eye-open"> Chatroom</span>
+                
+                <div id="chat-window" 
+                    style=" height:500px;width:500px; 
+                            font-family:monospace; 
+                            font-size:10px;
+                            color:whitesmoke;">
+                    <!-- Chat area -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="row" style="padding:50px;">
+            <div class="col-md-8">
+                <input type="text" id="chat-input" class="form-control" placeholder="Enter message...">
+            </div>
+            <div class="col-md-4">
+                <button id="chat-submit-msg" class="btn btn-primary"><span class="  glyphicon glyphicon-bullhorn"></span> Send</button>
+            </div>
+        </div>
+        
+        <!-- Modal -->
+        <div class="modal fade" id="login" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title" id="myModalLabel">Login to chatroom.</h4>
+              </div>
+              <div class="modal-body">
+                <div class="row" style="padding:50px;">
+                <input type="text" id="chat-login-nick" class="form-control" placeholder="Nickname">
+                <button id="chat-login-btn" class="btn btn-primary" >Send</button>
+                </div>
+              </div>
+            </div><!-- /.modal-content -->
+          </div><!-- /.modal-dialog -->
+        </div><!-- /.modal -->
+        
+    </body>
+    <script src="assets/chatapp.js"></script>
 </html>

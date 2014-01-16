@@ -24,14 +24,13 @@ function ChatRoom:initialize()
 	self.subscribers = {}
 end
 
-function ChatRoom:broadcast(nick, msg)
+function ChatRoom:broadcast(package)
 	local time = turbo.util.gettimeofday()
 	for i = 1, #self.subscribers do
 		local sub = self.subscribers[i]
 		sub.socket:write_message(turbo.escape.json_encode {
-			nick=nick,
-			msg=msg,
-			time=time
+			package = package,
+			time = time
 		})
 	end
 end
@@ -56,10 +55,37 @@ end
 
 function ChatRoom:subscribe(nick, socket)
 	table.insert(self.subscribers, {nick=nick, socket=socket})
+
+	-- Send a partcipant joined message.
+	self:broadcast({
+		type = "participant-joined",
+		data = nick
+	})
+
+	-- Send a updated participant list.
+	local nicks = {}
+	for i = 1, #self.subscribers do 
+		nicks[#nicks+1] = self.subscribers[i].nick
+	end
+	self:broadcast({
+		type = "participant-update",
+		data = nicks
+	})
 end
 
 function ChatRoom:unsubscribe(nick, socket)
-	-- NYI
+	-- NYI, remove nick and socket object.
+	for i = 1, #self.subscribers do 
+		if self.subscribers[i].nick == nick then
+			assert(self.subscribers[i].socket == socket,
+				   "Uh oh...")
+			table.remove(self.subscribers, i)
+		end
+	end
+	self:broadcast({
+		type = "participant-left",
+		data = nick
+	})
 end
 
 
@@ -84,20 +110,44 @@ function ChatCom:open()
 end
 
 function ChatCom:on_message(msg)
-    self.options.chatroom:broadcast(self.nick, msg)
+	local pack = turbo.escape.json_decode(msg).package
+	assert(pack, "Invalid ChatCom application protocol.")
+
+    self.options.chatroom:broadcast({
+    	type = "message",
+    	data = {
+    		nick = self.nick, 
+    		msg = pack.data.msg
+    	}
+    })
+end
+
+function ChatCom:on_close()
+	self.options.chatroom:unsubscribe(self.nick, self)
+	turbo.log.notice("User disconnected: " .. self.nick)
 end
 
 local SignInHandler = class("SignInHandler", turbo.web.RequestHandler)
+
+--- Handler to check if user is already logged in.
+function SignInHandler:get()
+	local nick = self:get_argument("nick")
+	if not self.options.chatroom:is_registered(nick) then
+		self:write({ok = false})
+		return
+	end
+	self:write({ok = true})
+end
 
 --- Handler to register nickname etc.
 function SignInHandler:post()
 	local nick = self:get_argument("nick")
 	if not self.options.chatroom:add(nick) then
-		self:write({ok=false})
+		self:write({ok = false})
 		return
 	end
 	self:set_secure_cookie("nick", nick)
-	self:write({ok=true})
+	self:write({ok = true})
 end
 
 
