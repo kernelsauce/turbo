@@ -51,7 +51,7 @@ if _G.TURBO_AXTLS then
     -- it.
     -- @param str (String)
     function hash.SHA1:initialize(str)
-        local sha1ctx = ffi.new("struct SHA1_CTX")
+        local sha1ctx = ffi.new("SHA1_CTX")
         lssl.SHA1_Init(sha1ctx)
 
         if type(str) == "string" then
