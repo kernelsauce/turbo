@@ -308,6 +308,14 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     free(src);
 }
 
+bool turbo_parser_check(struct turbo_parser_wrapper *s)
+{
+    if (s->parser.http_errno != 0 || s->parsed_sz == 0)
+        return false;
+    else
+        return true;
+}
+
 
 char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
 {

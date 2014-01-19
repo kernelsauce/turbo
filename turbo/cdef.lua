@@ -500,6 +500,7 @@ struct turbo_parser_wrapper *turbo_parser_wrapper_init(
         int32_t type);
 
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
+bool turbo_parser_check(struct turbo_parser_wrapper *s);
 int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
 extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);

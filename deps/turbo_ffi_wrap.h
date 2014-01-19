@@ -89,6 +89,7 @@ char *url_field(
         const char *url_str,
         const struct http_parser_url *url,
         enum http_parser_url_fields prop);
+bool turbo_parser_check(struct turbo_parser_wrapper *s);
 
 char* turbo_websocket_mask(const char *mask32, const char* in, size_t sz);
 u_int64_t turbo_bswap_u64(u_int64_t swap);
