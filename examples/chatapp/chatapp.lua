@@ -61,7 +61,10 @@ function ChatRoom:subscribe(nick, socket)
         type = "participant-joined",
         data = nick
     })
+    self:update_participants()
+end
 
+function ChatRoom:update_participants()
     -- Send a updated participant list.
     local nicks = {}
     for i = 1, #self.subscribers do 
@@ -86,6 +89,7 @@ function ChatRoom:unsubscribe(nick, socket)
         type = "participant-left",
         data = nick
     })
+    self:update_participants()
 end
 
 

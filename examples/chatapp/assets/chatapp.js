@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function write_to_chatwindow (msg, time, cl)  {
+function write_to_chatwindow (msg, time, cl) {
     var ps = $("#chat-window p");
     if (ps.length >= 100) {
         ps.first().remove();
@@ -26,14 +26,22 @@ function write_to_chatwindow (msg, time, cl)  {
     var class_str = cl ? "class=\"" + cl + "\"": "";
     
     $("#chat-window").
-        append("<p "+class_str+">["+ time_str + "] "+ msg +"</p>");
+        append("<p "+class_str+">["+ time_str + "] "+ msg +"</p>").
+        animate({scrollTop: $("#chat-window").height()}, "fast");
 }
 
 function update_participants (t) {
-
+    var list = $("#participant-list");
+    var ul = $("<ul>");
+    for (var i = 0; i < t.length; i++){
+        ul.append("<li>"+t[i]+"</li>");
+    }
+    list.html(ul);
 }
 
 function connect_to_chatcom () {
+    $(".connected").removeClass("hidden");
+    $("#chat-input").click();
     var ws = new WebSocket("ws://127.0.0.1:8888/chatcom");
     ws.onmessage = function(evt) {
         var msg = JSON.parse(evt.data);
@@ -78,6 +86,13 @@ function connect_to_chatcom () {
 
 function do_login () {
     $('#login').modal('show');
+    
+    $("#chat-login-nick").keyup(function (event) {
+        if (event.keyCode == 13){
+            $("#chat-login-btn").click();
+        }
+    });
+       
     $("#chat-login-btn").click(function(){
         $.ajax({
             type: "POST",
@@ -89,6 +104,11 @@ function do_login () {
             }
         });
     });
+}
+
+function position_chat (w) {
+    var h = w.height() - 160;
+    $("#chat-window, #participant-list").css("height", h+"px");
 }
 
 $(document).ready(function () {
@@ -103,4 +123,9 @@ $(document).ready(function () {
                 do_login();
             }
         }});
+    var w = $(window);
+    w.resize(function(){
+        position_chat(w);
+    });
+    position_chat(w);
 });
