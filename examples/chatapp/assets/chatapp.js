@@ -14,13 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function write_to_chatwindow (msg, t)  {
-    var hours = t.getHours();
-    var minutes = t.getMinutes();
-    var seconds = t.getSeconds();
-    var formatted_time = hours + ':' + minutes + ':' + seconds;
+function write_to_chatwindow (msg, time, cl)  {
+    var ps = $("#chat-window p");
+    if (ps.length >= 100) {
+        ps.first().remove();
+    }
+    var time_str = ("0" + time.getHours()).slice(-2)   + ":" +
+    ("0" + time.getMinutes()).slice(-2) + ":" +
+    ("0" + time.getSeconds()).slice(-2);
+
+    var class_str = cl ? "class=\"" + cl + "\"": "";
+    
     $("#chat-window").
-        append("<p>["+ formatted_time + "] "+ msg +"</p>");
+        append("<p "+class_str+">["+ time_str + "] "+ msg +"</p>");
+}
+
+function update_participants (t) {
 
 }
 
@@ -33,17 +42,17 @@ function connect_to_chatcom () {
 
         switch (pack.type){
             case "participant-update":
-                console.log("Partc update.");
+                update_participants(pack.data);
                 break;
             case "participant-joined":
-                write_to_chatwindow(pack.data + " joined the room.", date);
+                write_to_chatwindow("* " + pack.data + " joined the room.", date);
                 break;
             case "participant-left":
-                write_to_chatwindow(pack.data + " left the room.", date);
+                write_to_chatwindow("* " + pack.data + " has quit.", date);
                 break;
             case "message":
                 write_to_chatwindow(
-                    "["+pack.data.nick+"] " + pack.data.msg,
+                    "&lt"+pack.data.nick+"&gt; " + pack.data.msg,
                     date);
                 break;
         }
