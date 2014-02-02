@@ -1,4 +1,4 @@
---- Turbo.lua Hello world example
+--- Turbo.lua Secure Cookie example
 --
 -- Copyright 2013 John Abrahamsen
 --
@@ -14,13 +14,20 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.  
 
+TURBO_SSL = true
 local turbo = require "turbo"
 
-local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+local CookieHandler = class("CookieHandler", turbo.web.RequestHandler)
 
-function ExampleHandler:get()
-    self:write("Hello world!")
+function CookieHandler:get()
+    local counter = self:get_secure_cookie("counter") 
+    local new_count = counter and tonumber(counter) + 1 or 0
+    self:set_secure_cookie("id", "supersecretrandomid!")
+    self:write("Cookie counter is at: " .. new_count)
+    self:set_secure_cookie("counter", new_count) 
 end
  
-turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888, "::1")
+turbo.web.Application({{"^/$", CookieHandler}}, {
+	cookie_secret = "kasoidkfsadfsai12#¤1234123'å421å4l1åplåpk<ok<lkcmlk<cxp"
+	}):listen(8888)
 turbo.ioloop.instance():start()

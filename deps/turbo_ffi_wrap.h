@@ -24,10 +24,11 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE."			*/
+SOFTWARE."          */
 
 #include <stdint.h>
 #include <malloc.h>
+
 #ifndef TURBO_NO_SSL
 #include <openssl/ssl.h>
 #endif
@@ -88,7 +89,10 @@ char *url_field(
         const char *url_str,
         const struct http_parser_url *url,
         enum http_parser_url_fields prop);
+bool turbo_parser_check(struct turbo_parser_wrapper *s);
 
+char* turbo_websocket_mask(const char *mask32, const char* in, size_t sz);
+u_int64_t turbo_bswap_u64(u_int64_t swap);
 
 // OpenSSL wrapper functions.
 #ifndef TURBO_NO_SSL

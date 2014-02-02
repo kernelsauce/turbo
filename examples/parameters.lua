@@ -19,26 +19,26 @@ local turbo = require "turbo"
 local NumericHandler = class("NumericHandler", turbo.web.RequestHandler)
 
 function NumericHandler:get(num)
-	-- This handler takes one parameter from the Application class.
-	-- The argument must consists of arbitrary length of digits.
-	self:write("Numeric resource is: " .. num)
+    -- This handler takes one parameter from the Application class.
+    -- The argument must consists of arbitrary length of digits.
+    self:write("Numeric resource is: " .. num)
 end
 
 
 local ArgumentsHandler = class("ArgumentsHandler", turbo.web.RequestHandler)
 
 function ArgumentsHandler:get()
-	-- This handler takes one GET argument.
-	self:write("Argument is: " .. self:get_argument("query"))
+    -- This handler takes one GET argument.
+    self:write("Argument is: " .. self:get_argument("query"))
 end
 
 function ArgumentsHandler:post()
-	-- This handler takes one POST argument.
-	self:write("Argument is: " .. self:get_argument("query"))
+    -- This handler takes one POST argument.
+    self:write("Argument is: " .. self:get_argument("query"))
 end
 
 turbo.web.Application({
-	{"^/num/(%d*)$", NumericHandler},
-	{"^/argument$", ArgumentsHandler}
+    {"^/num/(%d*)$", NumericHandler},
+    {"^/argument$", ArgumentsHandler}
 }):listen(8888)
 turbo.ioloop.instance():start()

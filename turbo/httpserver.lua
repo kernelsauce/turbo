@@ -1,7 +1,7 @@
 --- Turbo.lua HTTP Server module
 -- A non-blocking HTTPS Server based on the TCPServer class.
 -- Supports HTTP/1.0 and HTTP/1.1.
--- Includes SSL support. 
+-- Includes SSL support.
 -- Copyright 2011, 2012, 2013 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
- 
+
 local tcpserver =   require "turbo.tcpserver"
 local httputil =    require "turbo.httputil"
 local ioloop =      require "turbo.ioloop"
@@ -31,8 +31,8 @@ local httpserver = {} -- httpserver namespace
 -- The server itself is only responsible for handling incoming requests, no
 -- response to the request is produced, that is the purpose of the request
 -- callback given as argument on initialization. The callback recieves the
--- HTTPRequest class instance produced for the incoming request and can 
--- by data provided in that instance decide on how it want to respond to 
+-- HTTPRequest class instance produced for the incoming request and can
+-- by data provided in that instance decide on how it want to respond to
 -- the client. The callback must produce a valid HTTP response header and
 -- optionally a response body and use the HTTPRequest:write method.
 
@@ -59,7 +59,7 @@ local httpserver = {} -- httpserver namespace
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
 --- Create a new HTTPServer class instance.
--- @param request_callback (Function) Callback when requests are recieved by 
+-- @param request_callback (Function) Callback when requests are recieved by
 -- the server.
 -- @param no_keep_alive (Boolean) If clients request to use Keep-Alive is to be
 -- ignored.
@@ -71,37 +71,42 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 -- To enable SSL remember to set the _G.TURBO_SSL global.
 -- "key_file" = SSL key file if a SSL enabled server is wanted.
 -- "cert_file" = Certificate file. key_file must also be set.
-function httpserver.HTTPServer:initialize(request_callback, no_keep_alive, 
-    io_loop, xheaders, kwargs)
+function httpserver.HTTPServer:initialize(request_callback, 
+                                          no_keep_alive, 
+                                          io_loop, 
+                                          xheaders, 
+                                          kwargs)
     self.request_callback = request_callback
     self.no_keep_alive = no_keep_alive
     self.xheaders = xheaders
     self.kwargs = kwargs
-    tcpserver.TCPServer:initialize(io_loop, kwargs and kwargs.ssl_options)
+    tcpserver.TCPServer.initialize(self,
+                                   io_loop,
+                                   kwargs and kwargs.ssl_options)
 end
 
---- Internal handle_stream method to be called by super class TCPServer on new 
+--- Internal handle_stream method to be called by super class TCPServer on new
 -- connection.
 -- @param stream (IOStream instance) Stream for the newly connected client.
 -- @param address (String) IP address of newly connected client.
 function httpserver.HTTPServer:handle_stream(stream, address)
     local http_conn = httpserver.HTTPConnection(
-        stream, 
-        address, 
+        stream,
+        address,
         self.request_callback,
-        self.no_keep_alive, 
-        self.xheaders, 
+        self.no_keep_alive,
+        self.xheaders,
         self.kwargs)
 end
 
 
 --- HTTPConnection class.
--- Represents a live connection to the server. Basically a helper class to 
+-- Represents a live connection to the server. Basically a helper class to
 -- HTTPServer. It uses the IOStream class's callbacks to handle the different
 -- sections of a HTTP request.
 httpserver.HTTPConnection = class('HTTPConnection')
 
-function httpserver.HTTPConnection:initialize(stream, address, 
+function httpserver.HTTPConnection:initialize(stream, address,
     request_callback, no_keep_alive, xheaders, kwargs)
     self.stream = stream
     self.address = address
@@ -143,13 +148,13 @@ end
 
 --- Write the given ``turbo.structs.buffer`` to the underlying stream.
 -- @param buf (Buffer class instance)
--- @param callback (Function) Optional function called when buffer is fully 
+-- @param callback (Function) Optional function called when buffer is fully
 -- flushed.
 -- @param arg Optional first argument for callback.
 function httpserver.HTTPConnection:write_buffer(buf, callback, arg)
     if not self._request then
         error("Request closed.")
-    end    
+    end
     if not self.stream:closed() then
         self:_set_write_callback(callback, arg)
         self.stream:write_buffer(buf, self._on_write_complete, self)
@@ -180,7 +185,7 @@ function httpserver.HTTPConnection:write_zero_copy(buf, callback, arg)
 end
 
 --- Finishes the request.
-function httpserver.HTTPConnection:finish()    
+function httpserver.HTTPConnection:finish()
     assert(self._request, "Request closed")
     self._request_finished = true
     if not self.stream:writing() then
@@ -197,32 +202,32 @@ end
 -- request headers.
 function httpserver.HTTPConnection:_on_headers(data)
     local headers
-    local status, headers = xpcall(httputil.HTTPParser, 
+    local status, headers = xpcall(httputil.HTTPParser,
         _on_headers_error_handler, data, httputil.hdr_t["HTTP_REQUEST"])
 
     if status == false then
         -- Invalid headers. Close stream.
-        -- Log line is printed by error handler describing the reason.       
+        -- Log line is printed by error handler describing the reason.
         self.stream:close()
         return
     end
-    self._request = httpserver.HTTPRequest:new(headers:get_method(), 
+    self._request = httpserver.HTTPRequest:new(headers:get_method(),
         headers:get_url(), {
-            version = headers.version,
-            connection = self,
-            headers = headers,
+        version = headers.version,
+        connection = self,
+        headers = headers,
             remote_ip = self.address
             })
     local content_length = headers:get("Content-Length")
     if content_length then
         content_length = tonumber(content_length)
         -- Set max buffer size to 128MB.
-        self.stream:set_max_buffer_size(self.kwargs.max_body_size or 1024*1024*128)
+        self.stream:set_max_buffer_size(self.kwargs.max_body_size or content_length)
         if content_length > self.stream.max_buffer_size then
             log.error("Content-Length too long")
             self.stream:close()
         end
-        if headers:get("Expect") == "100-continue" then 
+        if headers:get("Expect") == "100-continue" then
             self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
         end
         self.stream:read_bytes(content_length, self._on_request_body, self)
@@ -237,20 +242,27 @@ function httpserver.HTTPConnection:_on_request_body(data)
     local content_type = self._request.headers:get("Content-Type")
     if content_type then
         if content_type:find("x-www-form-urlencoded", 1, true) then
-            self.arguments = 
+            self.arguments =
                 httputil.parse_post_arguments(self._request.body) or {}
         elseif content_type:find("multipart/form-data", 1, true) then
-            self.arguments = 
-                httputil.parse_multipart_data(self._request.body) or {}
+            -- valid boundary must only be max 70 characters not ending in space
+            -- valid characters from RFC2046 are:
+            -- bchar := DIGIT / ALPHA / "'" / "(" / ")" /
+            --          "+" / "_" / "," / "-" / "." /
+            --          "/" / ":" / "=" / "?" / " "
+            -- boundary string is permitted to be quoted
+            local boundary = content_type:match("boundary=[\"]?([0-9a-zA-Z'()+_,-./:=? ]*[0-9a-zA-Z'()+_,-./:=?])")
+            self.arguments =
+                httputil.parse_multipart_data(self._request.body, boundary) or {}
         end
     end
     self.request_callback(self._request)
 end
 
---- Finish request. 
+--- Finish request.
 function httpserver.HTTPConnection:_finish_request()
     local disconnect = false
-    
+
     if self.no_keep_alive then
         disconnect = true
     else
@@ -312,10 +324,10 @@ httpserver.HTTPRequest = class('HTTPRequest')
 --         remote_ip,
 --         protocol,
 --         host,
---         files, 
+--         files,
 --         connection
 function httpserver.HTTPRequest:initialize(method, uri, args)
-    local headers, body, remote_ip, protocol, host, files, version, connection 
+    local headers, body, remote_ip, protocol, host, files, version, connection
         = nil, nil, nil, nil, nil, nil, "HTTP/1.0", nil
 
     -- Find arguments sent.
@@ -332,7 +344,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     self.method = method
     self.uri = uri
     self.version = args.version or version
-    self.headers = headers or httputil.HTTPHeaders:new()    
+    self.headers = headers or httputil.HTTPHeaders:new()
     self.body = body or ""
     if connection and connection.xheaders then
         self.remote_ip = self.headers:get("X-Real-Ip") or
@@ -349,7 +361,7 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
         self.remote_ip = remote_ip
         if protocol then
             self.protocol = protocol
-        elseif connection and 
+        elseif connection and
             instanceOf(iostream.SSLIOStream, connection.stream) then
             self.protocol = "https"
         else
@@ -358,8 +370,8 @@ function httpserver.HTTPRequest:initialize(method, uri, args)
     end
     self.host = host or self.headers:get("Host") or "127.0.0.1"
     self.files = files or {}
-    self.connection = connection 
-    self._start_time = util.gettimeofday()
+    self.connection = connection
+    self._start_time = util.gettimemonotonic()
     self._finish_time = nil
     self.path = self.headers:get_url_field(httputil.UF.PATH)
     self.arguments = self.headers:get_arguments()
@@ -405,7 +417,7 @@ end
 --- Finish the request. Close connection.
 function httpserver.HTTPRequest:finish()
     self.connection:finish()
-    self._finish_time = util.gettimeofday()
+    self._finish_time = util.gettimemonotonic()
 end
 
 --- Return the full URL that the user requested.
@@ -413,13 +425,13 @@ function httpserver.HTTPRequest:full_url()
     return self.protocol .. "://" .. self.host .. self.uri
 end
 
---- Return the time used to handle the request or the 
+--- Return the time used to handle the request or the
 -- time up to now if request not finished.
 -- @return (Number) Ms the request took to finish, or up until now if not yet
 -- completed.
 function httpserver.HTTPRequest:request_time()
     if not self._finish_time then
-        return util.gettimeofday() - self._start_time
+        return util.gettimemonotonic() - self._start_time
     else
         return self._finish_time - self._start_time
     end

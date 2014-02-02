@@ -1,8 +1,8 @@
 --- Turbo.lua HTTP Utilities module
--- Contains the HTTPHeaders and HTTPParser classes, which parses request and 
--- response headers and also offers utilities to build request headers. 
+-- Contains the HTTPHeaders and HTTPParser classes, which parses request and
+-- response headers and also offers utilities to build request headers.
 --
--- Also offers a few functions for parsing GET URL parameters, and different 
+-- Also offers a few functions for parsing GET URL parameters, and different
 -- POST data types.
 --
 -- Copyright John Abrahamsen 2011, 2012, 2013
@@ -25,19 +25,19 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE."
 
-local log = 		require "turbo.log"
+local log =         require "turbo.log"
 local status_codes = require "turbo.http_response_codes"
-local deque = 		require "turbo.structs.deque"
-local buffer = 		require "turbo.structs.buffer"
-local escape = 		require "turbo.escape"
-local util = 		require "turbo.util"
-local ffi = 		require "ffi"
+local deque =       require "turbo.structs.deque"
+local buffer =      require "turbo.structs.buffer"
+local escape =      require "turbo.escape"
+local util =        require "turbo.util"
+local ffi =         require "ffi"
 local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
-    ltp_loaded, libturbo_parser = 
+    ltp_loaded, libturbo_parser =
         pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not ltp_loaded then 
+    if not ltp_loaded then
         error("Could not load libtffi_wrap.so. \
             Please run makefile and ensure that installation is done correct.")
     end
@@ -83,7 +83,7 @@ local method_map = {
 
 local function MAX(a,b) return a > b and a or b end
 
---*************** HTTP Header parsing *************** 
+--*************** HTTP Header parsing ***************
 
 
 --- URL Field table.
@@ -110,7 +110,7 @@ httputil.hdr_t = {
 httputil.HTTPParser = class("HTTPParser")
 
 --- Pass request headers as parameters to parse them into
--- the returned object. 
+-- the returned object.
 function httputil.HTTPParser:initialize(hdr_str, hdr_t)
     if hdr_str and hdr_t then
         if hdr_t == httputil.hdr_t["HTTP_REQUEST"] then
@@ -123,7 +123,7 @@ function httputil.HTTPParser:initialize(hdr_str, hdr_t)
     self._arguments_parsed = false
 end
 
---- Parse standalone URL and populate class instance with values. 
+--- Parse standalone URL and populate class instance with values.
 -- HTTPParser.get_url_field must be used to read out values.
 -- @param url (String) URL string.
 -- @note Will throw error if URL does not parse correctly.
@@ -139,11 +139,11 @@ function httputil.HTTPParser:parse_url(url)
     self.http_parser_url = ffi.cast("struct http_parser_url *", htpurl)
     local rc = libturbo_parser.http_parser_parse_url(
         url,
-        url:len(), 
-        0, 
+        url:len(),
+        0,
         self.http_parser_url)
     if rc ~= 0 then
-	   error("Could not parse URL")
+       error("Could not parse URL")
     end
     if not self.url then
         self.url = url
@@ -174,12 +174,12 @@ end
 
 --- Get URL.
 -- @return Currently set URI or nil if not set.
-function httputil.HTTPParser:get_url() 
-    if self.url then 
+function httputil.HTTPParser:get_url()
+    if self.url then
         return self.url
     else
         if not self.tpw then
-            error("No URL or header has been parsed. Can not return URL.")   
+            error("No URL or header has been parsed. Can not return URL.")
         end
         self.url = ffi.string(self.tpw.url_str, self.tpw.url_sz)
     end
@@ -188,16 +188,16 @@ end
 
 --- Get HTTP method
 -- @return Current method as string or nil if not set.
-function httputil.HTTPParser:get_method() 
+function httputil.HTTPParser:get_method()
     if not self.tpw then
         error("No header has been parsed. Can not return method.")
     end
     return method_map[self.tpw.parser.method]
 end
 
---- Get the HTTP version. 
+--- Get the HTTP version.
 -- @return Currently set version as string or nil if not set.
-function httputil.HTTPParser:get_version() 
+function httputil.HTTPParser:get_version()
     return string.format(
         "HTTP/%d.%d",
         self.tpw.parser.http_major,
@@ -217,16 +217,16 @@ end
 
 function _unescape(s) return string.char(tonumber(s,16)) end
 --- Internal function to parse ? and & separated key value fields.
--- @param uri (String) 
+-- @param uri (String)
 local function _parse_arguments(uri)
     local arguments = {}
     local elements = 0;
-    
+
     for k, v in uri:gmatch("([^&=]+)=([^&]+)") do
         elements = elements + 1;
-        if (elements > 256) then 
+        if (elements > 256) then
             -- Limit to 256 elements, which "should be enough for everyone".
-            break 
+            break
         end
         v = v:gsub("+", " "):gsub("%%(%w%w)", _unescape);
         if not arguments[k] then
@@ -245,32 +245,32 @@ end
 --- Get URL argument of the header.
 -- @param argument Key of argument to get value of.
 -- @return If argument exists then the argument is either returned
--- as a table if multiple values is given the same key, or as a string if the 
+-- as a table if multiple values is given the same key, or as a string if the
 -- key only has one value. If argument does not exist, nil is returned.
 function httputil.HTTPParser:get_argument(argument)
     if not self._arguments_parsed then
-    	self._arguments = _parse_arguments(self:get_url_field(httputil.UF.QUERY))
-    	self._arguments_parsed = true
+        self._arguments = _parse_arguments(self:get_url_field(httputil.UF.QUERY))
+        self._arguments_parsed = true
     end
     local arguments = self:get_arguments()
     if arguments then
-    	if type(arguments[argument]) == "table" then
-    	    return arguments[argument]
-    	elseif type(arguments[argument]) == "string" then
-    	    return { arguments[argument] }
-    	end
+        if type(arguments[argument]) == "table" then
+            return arguments[argument]
+        elseif type(arguments[argument]) == "string" then
+            return { arguments[argument] }
+        end
     end
 end
 
---- Get all arguments of the header as a table. 
+--- Get all arguments of the header as a table.
 -- @return (Table) Table with keys and values.
 function httputil.HTTPParser:get_arguments()
     if not self._arguments_parsed then
         local query = self:get_url_field(httputil.UF.QUERY)
         if query then
-    	   self._arguments = _parse_arguments(query)
+           self._arguments = _parse_arguments(query)
         end
-    	self._arguments_parsed = true
+        self._arguments_parsed = true
     end
     return self._arguments
 end
@@ -279,13 +279,13 @@ end
 -- @param key (String) The key to get.
 -- @param caseinsensitive (Boolean) If true then the key will be matched without
 -- regard for case sensitivity.
--- @return The value of the key, or nil if not existing. May return a table if 
+-- @return The value of the key, or nil if not existing. May return a table if
 -- multiple keys are set.
 function httputil.HTTPParser:get(key, caseinsensitive)
     local value
     local c = 0
     local hdr_sz = tonumber(self.tpw.hkv_sz)
-    
+
     if hdr_sz <= 0 then
         return nil
     end
@@ -296,8 +296,8 @@ function httputil.HTTPParser:get(key, caseinsensitive)
             local key_sz = key:len()
             if field.key_sz == key_sz then
                 if ffi.C.strncasecmp(
-                    field.key, 
-                    key, 
+                    field.key,
+                    key,
                     field.key_sz) == 0 then
                     local str = ffi.string(field.value, field.value_sz)
                     if c == 0 then
@@ -318,10 +318,10 @@ function httputil.HTTPParser:get(key, caseinsensitive)
         for i = 0, hdr_sz-1 do
             local field = self.tpw.hkv[i]
             local key_sz = key:len()
-            if field.key_sz == key_sz then 
+            if field.key_sz == key_sz then
                 if ffi.C.memcmp(
-                    field.key, 
-                    key, 
+                    field.key,
+                    key,
                     MAX(field.key_sz, key_sz)) == 0 then
                     local str = ffi.string(field.value, field.value_sz)
                     if c == 0 then
@@ -344,12 +344,12 @@ end
 --- Parse HTTP request or response headers.
 -- Populates the class with all data in headers.
 -- @param hdr_str (String) HTTP header string.
--- @param hdr_t (Number) A number defined in httputil.hdr_t representing header 
+-- @param hdr_t (Number) A number defined in httputil.hdr_t representing header
 -- type.
 -- @note Will throw error on parsing failure.
 function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
-    -- Ensure the string is not GCed while we are still using it by keeping a 
-    -- reference to it. There is no way for LuaJIT to know we are still 
+    -- Ensure the string is not GCed while we are still using it by keeping a
+    -- reference to it. There is no way for LuaJIT to know we are still
     -- using pointers to it.
     self.hdr_str = hdr_str
     self.hdr_t = hdr_t
@@ -363,10 +363,10 @@ function httputil.HTTPParser:parse_header(hdr_str, hdr_t)
         error("libturbo_parser could not allocate memory for struct.")
     end
     self.tpw = tpw
-    if self.tpw.parser.http_errno ~= 0 or self.tpw.parsed_sz == 0 then
+    if libturbo_parser.turbo_parser_check(self.tpw) ~= true then
         error(
             string.format(
-                "libturbo_parser could not parse HTTP header. %s %s", 
+                "libturbo_parser could not parse HTTP header. %s %s",
                 ffi.string(libturbo_parser.http_errno_name(
                     self.tpw.parser.http_errno)),
                 ffi.string(libturbo_parser.http_errno_description(
@@ -401,26 +401,181 @@ function httputil.parse_post_arguments(data)
     return _parse_arguments(data)
 end
 
---- Parse multipart form data.
-function httputil.parse_multipart_data(data)  
-    local arguments = {}
-    local data = escape.unescape(data)
-    
-    for key, ctype, name, value in 
-       data:gmatch("([^%c%s:]+):%s+([^;]+); name=\"([%w]+)\"%c+([^%c]+)") do
-        if ctype == "form-data" then
-            if arguments[name] then
-               arguments[name][#arguments[name] +1] = value
-            else
-               arguments[name] = { value }
-            end
+local DASH = string.byte('-')
+local CR = string.byte'\r'
+local LF = string.byte'\n'
+-- finds the start of a line
+local function find_line_start(str,pos, inc)
+    if not inc then inc = 1 end
+    local skipped = -1
+    -- skip any non-CRLF chars
+    repeat
+        b = str:byte(pos)
+        if b == nil then return nil end
+        pos = pos + inc
+        skipped = skipped+1
+    until (b==CR) or (b==LF)
+
+    local b2 = str:byte(pos)
+    if b2 == nil then return nil end
+    if (b2 == CR) or (b2 == LF) then
+        if b ~= b2 then
+            pos = pos + inc
         end
     end
+    return pos, skipped
+end
+
+local javascript_types =
+ {["application/javascript"]=true,
+  ["application/json"]=true,
+  ["application/x-javascript"]=true,
+  ["text/x-javascript"]=true,
+  ["text/x-json"]=true}
+
+-- @return end position of token, token string
+local function getRFC822Atom(str,pos)
+    local fpos, lpos, token = str:find('([^%c%s()<>@,;:\\"/[%]?=]+)',pos)
+    return lpos, token
+end
+
+--- Parse multipart form data.
+function httputil.parse_multipart_data(data, boundary)
+    local arguments = {}
+    local data = escape.unescape(data)
+    local p1, p2, b1, b2 -- pos_start, pos_end, boundary_start, boundary_end
+
+    -- must prefix the boundary with double dash
+    boundary = "--" .. boundary
+
+    -- print("boundary="..boundary)
+    -- print("multipart data is:\n" .. data)
+
+    -- plain search match the first boundary
+    p1, p2 = data:find(boundary, 1, true)
+    b1 = find_line_start(data,p2+1)
+    -- for each matching boundary
+    repeat
+        p1, p2 = data:find(boundary, p2, true)
+        if p1 == nil then break end
+        -- find the previous line start to be the end
+        b2 = find_line_start(data,p1-1,-1)
+        do
+            local boundary_headers
+            --local bounded = string.sub(data,b1,b2)
+            --print( "----------------------\n".. bounded)
+
+            -- process a boundary
+            local h1, h2, v1, skipped -- boundary header start, header end, value start, characters skipped on line
+            -- find the end of the boundary headers by finding
+            -- the start of the line after the empty line
+            v1 = b1
+            -- determine the start of the headers (skip any leading new lines before headers)
+            repeat
+                h1 = v1
+                v1 = find_line_start(data,v1)
+                if v1 == nil then goto next_boundary end
+            until skipped ~= 0
+
+            -- determine the end of the headers
+            repeat
+                h2 = v1-1
+                v1, skipped = find_line_start(data,v1)
+                if v1 == nil then goto next_boundary end
+            until skipped == 0
+
+            -- boundary headers are from the boundary start to header end
+            boundary_headers = data:sub(h1,h2)
+
+            -- make headers keys lower case, the alternative
+            -- would be to match them in a case insensitive way below
+            boundary_headers = boundary_headers:gsub("([^%c%s:]-):",
+                      function(s) return string.gsub(s,"%u",function(c) return string.lower(c) end) .. ":" end)
+            if not boundary_headers then goto next_boundary end
+
+            do
+                local name, ctype
+                local argument = { }
+                -- parse the Content-Disposition name, value arguments in between and set the
+                -- content-type, charset, and content-transfer-encoding
+                -- fields
+                for fname, fvalue, content_kvs in
+                   boundary_headers:gmatch("([^%c%s:]+):%s*([^;]*);?([^\n\r]*)") do
+                    if fvalue == "form-data" and fname=="content-disposition" then
+                        argument[fname] = {}
+                        local p = 1
+                        repeat
+                            p, key = getRFC822Atom(content_kvs,p)
+                            if p == nil then break end
+                            if content_kvs:byte(p+1) ~= string.byte('=') then break end
+                            p=p+2
+                            -- try to get the quoted parameter
+                            print(string.sub(content_kvs,p))
+                            local _, p2, val = content_kvs:find('^"([^"]+)"',p)
+                            -- if not a quoted paramter, get paramter token
+                            if not p2 then
+                                p2, val = getRFC822Atom(content_kvs,p)
+                                if not p2 then break end
+                            end
+                            p = p2+1
+                            if key=="name" then
+                                -- name is the primary key in the arguments table
+                                -- for storing the content
+                                name=val
+                            end
+                            -- store any key values associated with content-disposition
+                            argument[fname][key] = val
+                        until false
+                    else
+                        -- content-type, charset, and content-transfer-encoding
+                        -- field values are all case insensitive, though some
+                        -- field values may be case sensitive according to standards
+                        -- so only convert those 3 to lowercase
+                        if fname=="content-type" then
+                            ctype = fvalue
+                            fvalue = fvalue:lower()
+                        elseif fname=="charset" or fname=="content-transfer-encoding" then
+                            fvalue = fvalue:lower()
+                        end
+                        -- store the boundary field names and values for the form-data
+                        -- in the argument key, values
+                        argument[fname] = fvalue
+                    end
+                end
+                -- if we didn't have a name with the content-disposition it is invalid...
+                if not name then goto next_boundary end
+
+                -- from the start of the value to the end of the boundary
+                -- makes up the value data
+                argument[1] = data:sub(v1, b2)
+                if argument["content-transfer-encoding"] == "base64" then
+                    -- decode the base64 data
+                    argument[1] = escape.base64_decode(argument[1])
+                end
+
+                -- we can unescape application/javascript, application/json, application/x-javascript, text/x-javascript, text/x-json
+                if javascript_types[argument["content-type"]] then
+                    argument[1] = escape.unescape(argument[1])
+                end
+
+                --print("name:value = " .. name .. ":" .. argument[1])
+                if arguments[name] then
+                    arguments[name][#arguments[name] +1] = argument
+                else
+                    arguments[name] = { argument }
+                end
+            end
+        end
+::next_boundary::
+        b1 = find_line_start(data,p2+1)
+    -- end when we run out of data or the boundary has trailing --
+    until (b1+1 > #data) or (data:byte(p2+1) == DASH and data:byte(p2+2) == DASH)
+
     return arguments
 end
 
 
---*************** HTTP Header generation *************** 
+--*************** HTTP Header generation ***************
 
 
 --- HTTPHeaders Class
@@ -468,7 +623,7 @@ function httputil.HTTPHeaders:set_version(version)
     self.version = version
 end
 
---- Get the current HTTP version. 
+--- Get the current HTTP version.
 -- @return Currently set version as string or nil if not set.
 function httputil.HTTPHeaders:get_version() return self.version end
 
@@ -488,7 +643,7 @@ end
 
 --- Get the current status code.
 -- @return Status code and status code message if set, else nil.
-function httputil.HTTPHeaders:get_status_code() 
+function httputil.HTTPHeaders:get_status_code()
     return self.status_code, status_codes[self.status_code]
 end
 
@@ -496,7 +651,7 @@ end
 -- @param key (String) The key to get.
 -- @param caseinsensitive (Boolean) If true then the key will be matched without
 -- regard for case sensitivity.
--- @return The value of the key, or nil if not existing. May return a table if 
+-- @return The value of the key, or nil if not existing. May return a table if
 -- multiple keys are set.
 function httputil.HTTPHeaders:get(key, caseinsensitive)
     local value
@@ -516,7 +671,7 @@ function httputil.HTTPHeaders:get(key, caseinsensitive)
                     cnt = cnt + 1
                 end
             end
-        end      
+        end
     else
         for i = 1, #self._fields do
             if self._fields[i] and self._fields[i][1] == key then
@@ -536,10 +691,10 @@ function httputil.HTTPHeaders:get(key, caseinsensitive)
     return value, cnt
 end
 
---- Add a key with value to the headers. Supports adding multiple values to 
+--- Add a key with value to the headers. Supports adding multiple values to
 -- one key. E.g mutiple "Set-Cookie" header fields.
 -- @param key (String) Key to add to headers. Must be string or error is raised.
--- @param value (String or Number) Value to associate with the key. 
+-- @param value (String or Number) Value to associate with the key.
 function httputil.HTTPHeaders:add(key, value)
     if type(key) ~= "string" then
        error("Key parameter must be a string.")
@@ -551,7 +706,7 @@ function httputil.HTTPHeaders:add(key, value)
         end
     elseif t ~= "number" then
         error("Value parameter must be a string or number.")
-    end 
+    end
     self._fields[#self._fields + 1] = {key, value}
 end
 
@@ -559,7 +714,7 @@ end
 --- Set a key with value to the headers. Overwiting existing key.
 -- @param key (String) Key to set to headers. Must be string or error is raised.
 -- @param value (String) Value to associate with the key.
-function httputil.HTTPHeaders:set(key, value, caseinsensitive)  
+function httputil.HTTPHeaders:set(key, value, caseinsensitive)
     if type(key) ~= "string" then
        error("Key parameter must be a string.")
     end
@@ -570,7 +725,7 @@ function httputil.HTTPHeaders:set(key, value, caseinsensitive)
         end
     elseif t ~= "number" then
         error("Value parameter must be a string or number.")
-    end 
+    end
     self:remove(key, caseinsensitive)
     self:add(key, value)
 end
@@ -595,7 +750,7 @@ function httputil.HTTPHeaders:remove(key, caseinsensitive)
             if self._fields[i] and self._fields[i][1]:lower() == key then
                 self._fields[i] = nil
             end
-        end       
+        end
     end
 end
 
@@ -605,8 +760,8 @@ function httputil.HTTPHeaders:stringify_as_request()
     local buffer = buffer:new()
     for i = 1, #self._fields do
         if self._fields[i] then
-            buffer:append_luastr_right(string.format("%s: %s\r\n", 
-                self._fields[i][1], self._fields[i][2]));    
+            buffer:append_luastr_right(string.format("%s: %s\r\n",
+                self._fields[i][1], self._fields[i][2]));
         end
     end
     return string.format("%s %s %s\r\n%s\r\n",
@@ -638,13 +793,13 @@ function httputil.HTTPHeaders:stringify_as_response()
         self.version,
         self.status_code,
         status_codes[self.status_code],
-        tostring(buf))    
+        tostring(buf))
 end
 
 --- Convinience method to return HTTPHeaders:stringify_as_response on string
 -- conversion.
-function httputil.HTTPHeaders:__tostring() 
-    return self:stringify_as_response() 
+function httputil.HTTPHeaders:__tostring()
+    return self:stringify_as_response()
 end
 
 return httputil

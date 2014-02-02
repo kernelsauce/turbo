@@ -1,13 +1,17 @@
-
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
 .. image:: https://api.travis-ci.org/kernelsauce/turbo.png
    :target: http://travis-ci.org/kernelsauce/turbo
 
 
-Turbo.lua is a toolkit for developing web and networking applications in Lua. It's web functionality is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify. Users of the Tornado web server will recognize the API offered pretty quick.
-If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
+Turbo.lua is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
 
-Turbo.lua is non-blocking and features a fast web server and a HTTP client. The toolkit is good for REST APIs, traditional HTTP requests and open connections like Websockets and offers a high degree of freedom to do whatever you want, your way.
+First and foremost the framework is aimed at the HTTP(S) protocol. This means web developers and HTTP API developers are the first class citizens. But the framework contains generic nuts and bolts such as; a I/O loop, IO Stream classes, customizeable TCP (with SSL) server classes giving it value for everyone doing any kind of high performance network application. It will also speak directly to your exising C libraries, and happily also create native C struct's for the ultimate memory and CPU performance.
+
+Keep in mind that running this with LuaJIT provides you with roughly the speed of compiled C code with only a fraction of the development time. Perfect for small devices running cheap CPU's on battery power as well as your pay per use Amazon cluster.
+
+LuaJIT 2 is REQUIRED, PUC-RIO Lua is unsupported.
+
+API Documentation is available at http://turbolua.org/doc/
 
 It's main features and design principles are:
 
@@ -15,19 +19,19 @@ It's main features and design principles are:
 
 - Low-level operations is possible if the users wishes that.
 
-- Implemented in pure Lua, so the user can study and modify inner workings without too much effort.
-
-- Being the fastest event driven server.
+- Implemented in straight Lua and LuaJIT FFI, so the user can study and modify inner workings without too much effort.
 
 - Good documentation
-
-- No dependencies, except for LuaJIT the Just-In-Time compiler for Lua.
 
 - Event driven, asynchronous and threadless design
 
 - Small footprint
 
-- SSL support
+- SSL support (requires OpenSSL or axTLS)
+
+Supported Architectures
+-----------------------
+x86, x64, ARM, PPC
 
 Installation
 ------------
@@ -38,34 +42,20 @@ Installing Turbo.lua is easy. Simply download and run ``make install`` (requires
 
 You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
 
+To compile without support for OpenSSL (and SSL connections) use the make option SSL=none.
+To compile with axTLS support instead of OpenSSL use the make option SSL=axTLS.
+
 In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
 To verify a installation you can try running the applications in the examples folder.
 
-Object oriented Lua
--------------------
-Turbo.lua are programmed in a object oriented fashion. There are many ways to do 
-object orientation in Lua, this library uses the Middleclass module. Which is documented
-at https://github.com/kikito/middleclass/wiki. Middleclass is being used internally in 
-Turbo.lua, but is also exposed to the user when inheriting from classes such as the
-``turbo.web.RequestHandler`` class. Middleclass is a very lightweight, fast and very
-easy to learn if you are used to Python, Java or C++. 
-
-Contributions (important read!)
------------------------------------------------
-Making a event-driven server is hard work! I would really like to get some people working together with me on this project. All contributions are greatly appreciated. Not only in developing the server, but also in documentation, howto's, a official web site and any other field you think YOU can help. The plan is to take on node.js, Tornado and others! If you have any questions then please send them to jhnabrhmsn @ gmail.com .
-
 Dependencies
 ------------
-Turbo Web has dropped support for vanilla Lua because of the decision to drop C modules all together and write all these as LuaJIT FFI modules,
-which gives a much better performance. Latest version of LuaJIT can be downloaded here: 
-http://luajit.org/
-
 All of the modules of Turbo.lua are made with the class implementation that Middleclass provides.
 https://github.com/kikito/middleclass. 
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
-OpenSSL is required for SSL support. It is possible to run without this feature, and thus not need OpenSSL.
+OpenSSL or axTLS is required for SSL support. It is possible to run without this feature, and thus not need an SSL library.
 
 License
 -------

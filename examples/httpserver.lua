@@ -30,11 +30,11 @@ local hdr_msg = header:stringify_as_response()
 local buf = hdr_msg .. "\r\n" ..  message
 
 local function handle_request(request)
-	-- This is the callback function for HTTPServer.
-	-- It will be called with a HTTPRequest class instance for every request
-	-- issued to the server.
-	request:write(buf)
-	request:finish()
+    -- This is the callback function for HTTPServer.
+    -- It will be called with a HTTPRequest class instance for every request
+    -- issued to the server.
+    request:write(buf)
+    request:finish()
 end
 
 -- Assign callback when creating HTTPServer.

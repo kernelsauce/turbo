@@ -104,7 +104,7 @@ function deque:strlen()
             sz = l.value:len() + sz
             l = l.next            
         end
-	return sz
+    return sz
     end
 end
 

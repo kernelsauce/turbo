@@ -18,11 +18,11 @@ local turbo = require "turbo"
 
 local MyJSONHandler = class("MyJSONHandler", turbo.web.RequestHandler)
 function MyJSONHandler:get()
-	self:write({ "one", "two", "three", "easy", "json" })
+    self:write({ "one", "two", "three", "easy", "json" })
 end
  
 turbo.web.Application:new({
-	{"^/json$", MyJSONHandler}
+    {"^/json$", MyJSONHandler}
 }):listen(8888)
 
 turbo.ioloop.instance():start()

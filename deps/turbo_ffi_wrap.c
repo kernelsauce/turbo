@@ -27,17 +27,30 @@ SOFTWARE."			*/
 #include <assert.h>
 #include <stdbool.h>
 #include <limits.h>
+
+#include "http_parser.h"
+#include "turbo_ffi_wrap.h"
+
 #ifndef TURBO_NO_SSL
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
 #endif
-#include "http_parser.h"
-#include "turbo_ffi_wrap.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#define ENDIAN_SWAP_U64(val) ((u_int64_t) ( \
+    (((u_int64_t) (val) & (u_int64_t) 0x00000000000000ff) << 56) | \
+    (((u_int64_t) (val) & (u_int64_t) 0x000000000000ff00) << 40) | \
+    (((u_int64_t) (val) & (u_int64_t) 0x0000000000ff0000) << 24) | \
+    (((u_int64_t) (val) & (u_int64_t) 0x00000000ff000000) <<  8) | \
+    (((u_int64_t) (val) & (u_int64_t) 0x000000ff00000000) >>  8) | \
+    (((u_int64_t) (val) & (u_int64_t) 0x0000ff0000000000) >> 24) | \
+    (((u_int64_t) (val) & (u_int64_t) 0x00ff000000000000) >> 40) | \
+    (((u_int64_t) (val) & (u_int64_t) 0xff00000000000000) >> 56)))
+
 #ifndef TURBO_NO_SSL
+
 static int matches_common_name(const char *hostname, const X509 *server_cert)
 {
     int common_name_loc = -1;
@@ -174,8 +187,10 @@ char *url_field(const char *url_str,
                 const struct http_parser_url *url,
                 enum http_parser_url_fields prop)
 {
-    return strndup(url_str + url->field_data[prop].off,
-                   url->field_data[prop].len);
+    char * urlstr = malloc(url->field_data[prop].len + 1);
+    memcpy(urlstr, url_str + url->field_data[prop].off, url->field_data[prop].len);
+    urlstr[url->field_data[prop].len] = '\0';
+    return urlstr;
 }
 
 
@@ -199,12 +214,12 @@ static int32_t header_field_cb(http_parser *p, const char *buf, size_t len)
     case NOTHING:
     case VALUE:
         if (nw->hkv_sz == nw->hkv_mem){
-            ptr = realloc(
+        ptr = realloc(
                         nw->hkv,
-                        sizeof(struct turbo_key_value_field *) *
+                    sizeof(struct turbo_key_value_field *) *
                         (nw->hkv_sz + 10));
             if (!ptr)
-                return -1;
+            return -1;
             nw->hkv = ptr;
             nw->hkv_mem += 10;
         }
@@ -293,3 +308,32 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     free(src);
 }
 
+bool turbo_parser_check(struct turbo_parser_wrapper *s)
+{
+    if (s->parser.http_errno != 0 || s->parsed_sz == 0)
+        return false;
+    else
+        return true;
+}
+
+
+char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
+{
+    size_t i = 0;
+    char* buf = malloc(sz);
+    
+    if (!buf)
+        return 0;
+    for (i = 0; i < sz; i++) {
+        buf[i] = in[i] ^ mask32[i % 4];
+    }
+    return buf;
+ }
+
+u_int64_t turbo_bswap_u64(u_int64_t swap)
+{
+    u_int64_t swapped;
+
+    swapped = ENDIAN_SWAP_U64(swap);
+    return swapped;
+}
