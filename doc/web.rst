@@ -364,13 +364,13 @@ Usage:
 		{"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
 	})
 
-Paths are not checked until intial hit on handler. It is then cached in memory.
+Paths are not checked until intial hit on handler. The file is then cached in memory if it is a valid path.
 Notice that paths postfixed with / indicates that it should be treated as a directory. Paths with no / is treated
 as a single file.
 
 RedirectHandler class
 ~~~~~~~~~~~~~~~~~~~~~
-Static redirect handler that simple redirect the client to the given
+A simple redirect handler that simply redirects the client to the given
 URL in 3rd argument of a entry in the Application class's routing table.
 
 .. code-block:: lua
