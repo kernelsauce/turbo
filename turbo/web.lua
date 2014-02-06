@@ -332,7 +332,7 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
         assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
     end
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
-                               string.format("%d|%s", timestamp, value))
+                               string.format("%s|%s", tostring(timestamp), value))
     assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
                               Either the cookie is forged or the cookie secret \
                               has been changed")
@@ -376,7 +376,7 @@ function web.RequestHandler:set_secure_cookie(name, value, domain, expire_hours)
     assert(type(self.application.kwargs.cookie_secret) == "string", 
            "No cookie secret has been set in the Application class.")
     value = tostring(value)
-    local to_hash = string.format("%d|%s", util.gettimeofday(), value)
+    local to_hash = string.format("%s|%s", tostring(util.gettimeofday()), value)
     local cookie = string.format("%d|%s|%s", 
                                  value:len(),
                                  hash.HMAC(
@@ -712,7 +712,7 @@ function web.StaticFileHandler:initialize(app, request, args, options)
     self.path = options
     -- Check if this is a single file or directory.
     local last_char = self.path:sub(self.path:len())
-    if self.path:sub(self.path:len()) ~= "/" then
+    if last_char ~= "/" then
         self.file = true
     end
 end
