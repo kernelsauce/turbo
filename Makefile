@@ -4,6 +4,8 @@
 ## See LICENSE file for license information.
 ########
 
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+
 CC ?= gcc
 RM= rm -f
 UNINSTALL= rm -rf
@@ -33,6 +35,10 @@ LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
 CFLAGS= -g
+
+ifeq ($(uname_S),Darwin)
+  CFLAGS += -I/usr/include/malloc
+endif
 
 ifeq ($(SSL), axTLS)
 # axTLS only uses axtls lib from luajit
