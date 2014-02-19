@@ -145,8 +145,8 @@ end
 -- @return Number
 function util.gettimeofday()
     C.gettimeofday(g_timeval, nil)
-    return ((tonumber(g_timeval.tv_sec) * 1000) +
-        math.floor(tonumber(g_timeval.tv_usec) / 1000))
+    return (tonumber((g_timeval.tv_sec * 1000)+
+                     (g_timeval.tv_usec / 1000)))
 end
 
 do
@@ -157,8 +157,7 @@ do
     -- @return Number
     function util.gettimemonotonic()
         rt.clock_gettime(rt.CLOCK_MONOTONIC, ts)
-        return ((tonumber(ts.tv_sec)*1000) +
-                math.floor(tonumber(ts.tv_nsec) / 1000000))
+        return (tonumber((ts.tv_sec*1000)+(ts.tv_nsec/1000000)))
     end
 end
 

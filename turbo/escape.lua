@@ -79,13 +79,13 @@ end
 ----- Very Fast MIME BASE64 Encoding / Decoding Routines
 --------------- authored by Jeff Solinsky
 do
+    local ffi = require'ffi'
     local bit = require'bit'
     local rshift = bit.rshift
     local lshift = bit.lshift
     local bor = bit.bor
     local band = bit.band
     local floor = math.floor
-    local ffi = require"ffi"
 
     local mime64chars = ffi.new("uint8_t[64]",
      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
@@ -105,33 +105,43 @@ do
     -- @return (String) Decoded string.
     function escape.base64_decode(str, sz)
         if (type(str)=="string") and (sz == nil) then sz=#str end
-        local m64, b1, b2 -- value 0 and 63, partial byte, decoded byte
-        local p = 0 -- position in binary output array
-        local boff = 6 -- bit offset, alternates 0, 2, 4, 6
+        local m64, b1 -- value 0 to 63, partial byte
         local bin_arr=ffi.new(u8arr, floor(bit.rshift(sz*3,2)))
+        local mptr = ffi.cast(u8ptr,bin_arr) -- position in binary mime64 output array
         local bptr = ffi.cast(u8ptr,str)
-
-        for i=0,sz-1 do
-            m64 = mime64lookup[bptr[i]]
-            -- skip non-mime characters like newlines
-            if m64 ~= 0xFF then
-                if boff==6 then
-                    b1=lshift(m64, 2)
-                    boff=0
-                else
-                    if boff ~= 4 then
-                        b2 = bit.bor(b1,rshift(m64, 4-boff))
-                        b1 = lshift(m64,boff+4)
-                    else
-                        b2 = bor(b1, m64)
-                    end
-                    bin_arr[p] = b2; p=p+1
-                    boff=boff+2
-                end
-            end
+        local i = 0
+        while true do
+            repeat
+                if i >= sz then goto done end
+                m64 = mime64lookup[bptr[i]]
+                i=i+1
+            until m64 ~= 0xFF -- skip non-mime characters like newlines
+            b1=lshift(m64, 2)
+            repeat
+                if i >= sz then goto done end
+                m64 = mime64lookup[bptr[i]]
+                i=i+1
+            until m64 ~= 0xFF -- skip non-mime characters like newlines
+            mptr[0] = bor(b1,rshift(m64, 4)); mptr=mptr+1
+            b1 = lshift(m64,4)
+            repeat
+                if i >= sz then goto done end
+                m64 = mime64lookup[bptr[i]]
+                i=i+1
+            until m64 ~= 0xFF -- skip non-mime characters like newlines
+            mptr[0] = bor(b1,rshift(m64, 2)); mptr=mptr+1
+            b1 = lshift(m64,6)
+            repeat
+                if i >= sz then goto done end
+                m64 = mime64lookup[bptr[i]]
+                i=i+1
+            until m64 ~= 0xFF -- skip non-mime characters like newlines
+            mptr[0] = bor(b1, m64); mptr=mptr+1
         end
-        return ffi.string(bin_arr, p)
+    ::done::
+        return ffi.string(bin_arr, (mptr-bin_arr))
     end
+
 
     local mime64shorts=ffi.new('uint16_t[4096]')
     for i=0,63 do
@@ -146,6 +156,12 @@ do
         end
     end
 
+    local crlf16 = ffi.new("uint16_t[1]")
+    if ffi.abi("le") then
+        crlf16[0] = (0x0A*256)+0x0D
+    else
+        crlf16[0] = (0x0D*256)+0x0A
+    end
     local eq=string.byte('=')
     --- Base64 encode binary data of a string or a FFI char *.
     -- @param str (String or char*) Bytearray to encode.
@@ -156,36 +172,39 @@ do
         local outlen = floor(sz*4/3)
         outlen = outlen + floor(outlen/38)+5
         local m64_arr=ffi.new(u8arr,outlen)
-        local m64wptr
-        local l,p,c,v=0,0,76
+        local l,p,v=0,0
         local bptr = ffi.cast(u8ptr,str)
-        local bend=bptr+sz
+        local m64wptr = ffi.cast(u16ptr,m64_arr)
+        local nlptr = m64wptr+38 -- put a new line after every 76 characters
+        local i=0
         ::while_3bytes::
-            if bptr+3>bend then goto break3 end
-            v = bor(lshift(bptr[0],16),lshift(bptr[1],8),bptr[2])
+            if i+3>sz then goto break3 end
+            v = bor(lshift(bptr[i],16),lshift(bptr[i+1],8),bptr[i+2])
             ::encode_last3::
-            if p==c then
-                m64_arr[p]=0x0D; p=p+1 -- CR
-                m64_arr[p]=0x0A; p=p+1 -- LF
-                c=p+76
+            if nlptr==m64wptr then
+                m64wptr[0]=crlf16[0]
+                m64wptr=m64wptr + 1
+                nlptr=m64wptr+38 -- 76 /2 = 38
             end
-            m64wptr = ffi.cast(u16ptr,m64_arr+p)
             m64wptr[0]=mime64shorts[rshift(v,12)];
             m64wptr[1]=mime64shorts[band(v,4095)];
-            p=p+4
-            bptr=bptr+3
+            m64wptr=m64wptr+2
+            i=i+3
             goto while_3bytes
         ::break3::
         if l>0 then
+            p = tonumber(ffi.cast(u8ptr,m64wptr)-m64_arr)
             m64_arr[p-1]=eq -- Add trailing equal sign padding
             -- 1 byte encoded needs second trailing equal sign sign
             if l==1 then m64_arr[p-2]=eq end
         else
-            l=bend-bptr -- get remaining len (1 or 2 bytes)
+            l=sz-i -- get remaining len (1 or 2 bytes)
             if l>0 then
-                v= lshift(bptr[0],16)
-                if l==2 then v=bor(v,lshift(bptr[1],8)) end
+                v= lshift(bptr[i],16)
+                if l==2 then v=bor(v,lshift(bptr[i+1],8)) end
                 goto encode_last3
+            else
+                p = tonumber(ffi.cast(u8ptr,m64wptr)-m64_arr)
             end
         end
         return ffi.string(m64_arr,p)
