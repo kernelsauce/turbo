@@ -96,7 +96,6 @@ do
     end
 
     local u8arr= ffi.typeof'uint8_t[?]'
-    local u16ptr=ffi.typeof'uint16_t*'
     local u8ptr=ffi.typeof'uint8_t*'
 
     --- Base64 decode a string or a FFI char *.
@@ -156,6 +155,7 @@ do
         end
     end
 
+    local u16arr = ffi.typeof"uint16_t[?]"
     local crlf16 = ffi.new("uint16_t[1]")
     if ffi.abi("le") then
         crlf16[0] = (0x0A*256)+0x0D
@@ -169,45 +169,46 @@ do
     -- @return (String) Encoded base64 string.
     function escape.base64_encode(str, sz)
         if (type(str)=="string") and (sz == nil) then sz=#str end
-        local outlen = floor(sz*4/3)
-        outlen = outlen + floor(outlen/38)+5
-        local m64_arr=ffi.new(u8arr,outlen)
+        local outlen = floor(sz*2/3)
+        outlen = outlen + floor(outlen/19)+3
+        local m64arr=ffi.new(u16arr,outlen)
         local l,p,v=0,0
         local bptr = ffi.cast(u8ptr,str)
-        local m64wptr = ffi.cast(u16ptr,m64_arr)
-        local nlptr = m64wptr+38 -- put a new line after every 76 characters
-        local i=0
+        local c = 38 -- put a new line after every 76 characters
+        local i,k=0,0
         ::while_3bytes::
             if i+3>sz then goto break3 end
-            v = bor(lshift(bptr[i],16),lshift(bptr[i+1],8),bptr[i+2])
-            ::encode_last3::
-            if nlptr==m64wptr then
-                m64wptr[0]=crlf16[0]
-                m64wptr=m64wptr + 1
-                nlptr=m64wptr+38 -- 76 /2 = 38
-            end
-            m64wptr[0]=mime64shorts[rshift(v,12)];
-            m64wptr[1]=mime64shorts[band(v,4095)];
-            m64wptr=m64wptr+2
+            v=bor(lshift(bptr[i],16),lshift(bptr[i+1],8),bptr[i+2])
             i=i+3
+            ::encode_last3::
+            if c==k then
+                m64arr[k]=crlf16[0]
+                k=k+1
+                c=k+38 -- 76 /2 = 38
+            end
+            m64arr[k]=mime64shorts[rshift(v,12)]
+            m64arr[k+1]=mime64shorts[band(v,4095)]
+            k=k+2
             goto while_3bytes
         ::break3::
         if l>0 then
-            p = tonumber(ffi.cast(u8ptr,m64wptr)-m64_arr)
-            m64_arr[p-1]=eq -- Add trailing equal sign padding
-            -- 1 byte encoded needs second trailing equal sign sign
-            if l==1 then m64_arr[p-2]=eq end
+            -- Add trailing equal sign padding
+            if l==1 then
+                -- 1 byte encoded needs two trailing equal signs
+                m64arr[k-1]=bor(lshift(eq,8),eq)
+            else
+                -- 2 bytes encoded needs one trailing equal sign
+                (ffi.cast(u8ptr,m64arr))[lshift(k,1)-1]=eq
+            end
         else
             l=sz-i -- get remaining len (1 or 2 bytes)
             if l>0 then
-                v= lshift(bptr[i],16)
+                v=lshift(bptr[i],16)
                 if l==2 then v=bor(v,lshift(bptr[i+1],8)) end
                 goto encode_last3
-            else
-                p = tonumber(ffi.cast(u8ptr,m64wptr)-m64_arr)
             end
         end
-        return ffi.string(m64_arr,p)
+        return ffi.string(m64arr,lshift(k,1))
     end
 end
 
