@@ -47,7 +47,7 @@ local AF_INET6 =    socket.AF_INET6
 local AF_UNSPEC =   socket.AF_UNSPEC
 local EWOULDBLOCK = socket.EWOULDBLOCK
 local EINPROGRESS = socket.EINPROGRESS
-local ECONNRESET = socket.ECONNRESET
+local ECONNRESET =  socket.ECONNRESET
 local EPIPE =       socket.EPIPE
 local EAGAIN =      socket.EAGAIN
 
@@ -132,10 +132,10 @@ function iostream.IOStream:connect(address, port, family,
     rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
     if rc ~= 0 then
         return -1, string.format("Could not resolve hostname '%s': %s",
-            address, ffi.string(ffi.C.gai_strerror(rc)))
+            address, ffi.string(C.gai_strerror(rc)))
     end
 
-    ffi.gc(servinfo, function (ai) ffi.C.freeaddrinfo(ai[0]) end)
+    ffi.gc(servinfo, function (ai) C.freeaddrinfo(ai[0]) end)
 
     local ai, err = sockutils.connect_addrinfo(self.socket, servinfo)
     if not ai then
@@ -406,7 +406,8 @@ end
 function iostream.IOStream:_handle_events(fd, events)
     if not self.socket then
         -- Connection has been closed. Can not handle events...
-        log.warning("got events for closed stream" .. fd)
+        log.warning(
+            string.format("Got events for closed stream on fd %d.", fd))
         return
     end
     -- Handle different events.
