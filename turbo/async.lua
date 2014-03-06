@@ -578,17 +578,19 @@ function async.HTTPClient:_finalize_request()
         self.finish_time = util.gettimemonotonic()
         local status_code = self.response_headers:get_status_code()
         if (status_code == 200) then
-            log.success(string.format("[async.lua] %s %s%s => %d %s %dms",
+            log.success(string.format("[async.lua] %s %s:%d%s => %d %s %dms",
               self.kwargs.method,
               self.hostname,
+              self.port,
               self.path or "",
               status_code,
               http_response_codes[status_code],
               self.finish_time - self.start_time))
         else
-            log.warning(string.format("[async.lua] %s %s%s => %d %s %dms",
+            log.warning(string.format("[async.lua] %s %s:%d%s => %d %s %dms",
               self.kwargs.method,
               self.hostname,
+              self.port,
               self.path or "",
               status_code,
               http_response_codes[status_code],
