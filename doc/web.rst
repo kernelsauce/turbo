@@ -150,6 +150,14 @@ Input
 	:type strip: Boolean
 	:rtype: Table
 
+.. function:: RequestHandler:get_json(force)
+
+	Returns JSON request data as a table. By default, it only parses request with "application/json" as content-type header.
+
+	:param force: If force is set to true, all request will be parsed regardless of content-type header.
+	:type force: Boolean
+	:rtype: Table or nil
+
 .. function :: RequestHandler:get_cookie(name, default)
 
 	Get cookie value from incoming request.
