@@ -39,8 +39,8 @@ if not ltp_loaded then
         error("Could not load libtffi_wrap.so.")
     end
 end
-
 local le = ffi.abi("le")
+local be = not le
 local strf = string.format
 local bor = bit.bor
 math.randomseed(util.gettimeofday())
@@ -57,6 +57,31 @@ else
     end
 end
 
+ffi.cdef [[
+    struct ws_header {
+        uint8_t flags;
+        uint8_t len;
+        union {
+            uint16_t sh;
+            uint64_t ll;
+        } ext_len;
+    } __attribute__ ((__packed__));
+]]
+
+local _ws_header = ffi.new("struct ws_header")
+local _ws_mask = ffi.new("int32_t[1]")
+
+local function _unmask_payload(mask, data)
+    local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
+    if ptr ~= nil then
+        local str = ffi.string(ptr, data:len())
+        ffi.C.free(ptr)
+        return str
+    else
+        error("Could not allocate memory for WebSocket frame masking.\
+              Catastrophic failure.")
+    end
+end
 
 local websocket = {}
 websocket.MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -72,20 +97,10 @@ websocket.opcode = {
     -- 0xB-F Reserved
 }
 
-ffi.cdef [[
-    struct ws_header {
-        uint8_t flags;
-        uint8_t len;
-        union {
-            uint16_t sh;
-            uint64_t ll;
-        } ext_len;
-    } __attribute__ ((__packed__));
-]]
 
 --- WebSocketStream is a abstraction for a WebSocket connection,
--- used by WebSocketHandler and WebSocketClient.
-websocket.WebSocketStream = class("WebSocketStream")
+-- used as class mixin in WebSocketHandler and WebSocketClient.
+websocket.WebSocketStream = {}
 
 --- Send a message to the client of the active Websocket.
 -- @param msg The message to send. This may be either a JSON-serializable table
@@ -121,6 +136,112 @@ function websocket.WebSocketStream:_calculate_ws_accept()
            "Sec-WebSocket-Key is of invalid size.")
     local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
     return escape.base64_encode(hash:finalize(), 20)
+end
+
+--- Accept a new WebSocket frame.
+function websocket.WebSocketStream:_accept_frame(header)
+    local ws_header = ffi.cast("struct ws_header *", header)
+    self._final_bit = bit.band(ws_header.flags, 0x80) ~= 0
+    self._rsv1_bit = bit.band(ws_header.flags, 0x40) ~= 0
+    self._rsv2_bit = bit.band(ws_header.flags, 0x20) ~= 0
+    self._rsv3_bit = bit.band(ws_header.flags, 0x10) ~= 0
+    self._opcode = bit.band(ws_header.flags, 0xf)
+    self._mask_bit = bit.band(ws_header.len, 0x80) ~= 0
+    local payload_len = bit.band(ws_header.len, 0x7f)
+    if self._opcode == websocket.opcode.CLOSE and payload_len >= 126 then
+        self:_error(
+            "WebSocket protocol error: \
+            Recieved CLOSE opcode with greater than 126 payload.")
+        return
+    end
+    if payload_len < 126 then
+        self._payload_len = payload_len
+        if self._mask_bit then
+            self.stream:read_bytes(4, self._frame_mask_key, self)
+        else
+            self.stream:read_bytes(self._payload_len,
+                                   self._frame_payload,
+                                   self)
+        end
+    elseif payload_len == 126 then
+        -- 16 bit length.
+        self.stream:read_bytes(2, self._frame_len_16, self)
+    elseif payload_len == 127 then
+        -- 64 bit length.
+        self.stream:read_bytes(8, self._frame_len_64, self)
+    end
+end
+
+if le then
+    function websocket.WebSocketStream:_frame_len_16(data)
+        -- Network byte order for multi-byte length values.
+        -- What were they thinking!
+        self._payload_len = tonumber(
+            ffi.C.htons(ffi.cast("uint16_t", data)))
+        if self._mask_bit then
+            self.stream:read_bytes(4, self._frame_mask_key, self)
+        else
+            self.stream:read_bytes(self._payload_len,
+                                   self._frame_payload,
+                                   self)
+        end
+    end
+
+    function websocket.WebSocketStream:_frame_len_64(data)
+        self._payload_len = tonumber(
+            ENDIAN_SWAP_U64(ffi.cast("uint64_t", data)))
+        if self._mask_bit then
+            self.stream:read_bytes(4, self._frame_mask_key, self)
+        else
+            self.stream:read_bytes(self._payload_len,
+                                   self._frame_payload,
+                                   self)
+        end
+    end
+elseif be then
+    -- FIXME: Create funcs for BE.
+end
+
+function websocket.WebSocketStream:_frame_mask_key(data)
+    self._frame_mask = data
+    self.stream:read_bytes(self._payload_len, self._masked_frame_payload, self)
+end
+
+function websocket.WebSocketStream:_masked_frame_payload(data)
+    self:_frame_payload(_unmask_payload(self._frame_mask, data))
+end
+
+if le then
+    -- Multi-byte lengths must be sent in network byte order, aka
+    -- big-endian. Ugh...
+    function websocket.WebSocketStream:_send_frame(finflag, opcode, data)
+        local data_sz = data:len()
+        _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
+        if data_sz < 0x7e then
+            _ws_header.len = bit.bor(data_sz,
+                                     self.mask_outgoing and 0x80 or 0x0)
+            self.stream:write(ffi.string(_ws_header, 2))
+        elseif data_sz <= 0xffff then
+            _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
+            _ws_header.ext_len.sh = data_sz
+            _ws_header.ext_len.sh = ffi.C.htons(_ws_header.ext_len.sh)
+            self.stream:write(ffi.string(_ws_header, 4))
+        else
+            _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
+            _ws_header.ext_len.ll = data_sz
+            _ws_header.ext_len.ll = ENDIAN_SWAP_U64(_ws_header.ext_len.ll)
+            self.stream:write(ffi.string(_ws_header, 10))
+        end
+        if self.mask_outgoing == true then
+            _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
+            self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
+            self.stream:write(_unmask_payload(_ws_mask, data))
+            return
+        end
+        self.stream:write(data)
+    end
+elseif be then
+    -- TODO: create websocket.WebSocketStream:_send_frame for BE.
 end
 
 
@@ -163,7 +284,6 @@ function websocket.WebSocketHandler:prepare() end
 -- If all of the suggested protocols are unacceptable then dismissing of
 -- the request is done by either raising error or returning nil.
 function websocket.WebSocketHandler:subprotocol(protocols) end
-
 
 --- Main entry point for the Application class.
 function websocket.WebSocketHandler:_execute()
@@ -274,73 +394,6 @@ function websocket.WebSocketHandler:_continue_ws()
     self:open()
 end
 
---- Accept a new WebSocket frame.
-function websocket.WebSocketHandler:_accept_frame(header)
-    local ws_header = ffi.cast("struct ws_header *", header)
-    self._final_bit = bit.band(ws_header.flags, 0x80) ~= 0
-    self._rsv1_bit = bit.band(ws_header.flags, 0x40) ~= 0
-    self._rsv2_bit = bit.band(ws_header.flags, 0x20) ~= 0
-    self._rsv3_bit = bit.band(ws_header.flags, 0x10) ~= 0
-    self._opcode = bit.band(ws_header.flags, 0xf)
-    self._mask_bit = bit.band(ws_header.len, 0x80) ~= 0
-    local payload_len = bit.band(ws_header.len, 0x7f)
-    if self._opcode == websocket.opcode.CLOSE and payload_len >= 126 then
-        self:_error(
-            "WebSocket protocol error: \
-            Recieved CLOSE opcode with greater than 126 payload.")
-        return
-    end
-    if payload_len < 126 then
-        self._payload_len = payload_len
-        if self._mask_bit then
-            self.stream:read_bytes(4, self._frame_mask_key, self)
-        else
-            self.stream:read_bytes(self._payload_len,
-                                   self._frame_payload,
-                                   self)
-        end
-    elseif payload_len == 126 then
-        -- 16 bit length.
-        self.stream:read_bytes(2, self._frame_len_16, self)
-    elseif payload_len == 127 then
-        -- 64 bit length.
-        self.stream:read_bytes(8, self._frame_len_64, self)
-    end
-end
-
-if le then
-    function websocket.WebSocketHandler:_frame_len_16(data)
-        -- Network byte order for multi-byte length values.
-        -- What were they thinking!
-        self._payload_len = tonumber(
-            ffi.C.htons(ffi.cast("uint16_t", data)))
-        if self._mask_bit then
-            self.stream:read_bytes(4, self._frame_mask_key, self)
-        else
-            self.stream:read_bytes(self._payload_len,
-                                   self._frame_payload,
-                                   self)
-        end
-    end
-
-    function websocket.WebSocketHandler:_frame_len_64(data)
-        self._payload_len = tonumber(
-            ENDIAN_SWAP_U64(ffi.cast("uint64_t", data)))
-        if self._mask_bit then
-            self.stream:read_bytes(4, self._frame_mask_key, self)
-        else
-            self.stream:read_bytes(self._payload_len,
-                                   self._frame_payload,
-                                   self)
-        end
-    end
-end
-
-function websocket.WebSocketHandler:_frame_mask_key(data)
-    self._frame_mask = data
-    self.stream:read_bytes(self._payload_len, self._masked_frame_payload, self)
-end
-
 function websocket.WebSocketHandler:_frame_payload(data)
     local opcode
     if self._opcode == websocket.opcode.CLOSE then
@@ -421,55 +474,6 @@ function websocket.WebSocketHandler:_handle_opcode(opcode, data)
     end
 end
 
-local function _unmask_payload(mask, data)
-    local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
-    if ptr ~= nil then
-        local str = ffi.string(ptr, data:len())
-        ffi.C.free(ptr)
-        return str
-    else
-        error("Could not allocate memory for WebSocket frame masking.\
-              Catastrophic failure.")
-    end
-end
-
-function websocket.WebSocketHandler:_masked_frame_payload(data)
-    self:_frame_payload(_unmask_payload(self._frame_mask, data))
-end
-
-local _ws_header = ffi.new("struct ws_header")
-local _ws_mask = ffi.new("int32_t[1]")
-if le then
-    -- Multi-byte lengths must be sent in network byte order, aka
-    -- big-endian. Ugh...
-    function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
-        local data_sz = data:len()
-        _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
-        if data_sz < 0x7e then
-            _ws_header.len = bit.bor(data_sz,
-                                     self.mask_outgoing and 0x80 or 0x0)
-            self.stream:write(ffi.string(_ws_header, 2))
-        elseif data_sz <= 0xffff then
-            _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
-            _ws_header.ext_len.sh = data_sz
-            _ws_header.ext_len.sh = ffi.C.htons(_ws_header.ext_len.sh)
-            self.stream:write(ffi.string(_ws_header, 4))
-        else
-            _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
-            _ws_header.ext_len.ll = data_sz
-            _ws_header.ext_len.ll = ENDIAN_SWAP_U64(_ws_header.ext_len.ll)
-            self.stream:write(ffi.string(_ws_header, 10))
-        end
-        if self.mask_outgoing == true then
-            _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
-            self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
-            self.stream:write(_unmask_payload(_ws_mask, data))
-            return
-        end
-        self.stream:write(data)
-    end
-end
-
 
 --- WebSocket Client.
 -- Usage:
@@ -485,5 +489,15 @@ end
 --  })
 websocket.WebSocketClient = class("WebSocketClient")
 websocket.WebSocketClient:include(websocket.WebSocketStream)
+
+function websocket.WebSocketClient:initialize(address, kwargs) 
+    self.kwargs = kwargs or {}
+end
+
+function websocket.WebSocketClient:_error(msg) end
+
+function websocket.WebSocketClient:_frame_payload(data) end
+
+function websocket.WebSocketClient:_socket_closed() end
 
 return websocket
