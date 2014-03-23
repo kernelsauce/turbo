@@ -150,8 +150,10 @@ function ioloop.IOLoop:running() return self._running end
 --- Add a callback to be run on next iteration of the IOLoop.
 -- @param callback (Function)
 -- @param arg Optional argument to call callback with as first argument.
+-- @return (IOLoop class) Return self for convinience.
 function ioloop.IOLoop:add_callback(callback, arg)
     self._callbacks[#self._callbacks + 1] = {callback, arg}
+    return self
 end
 
 --- Finalize a coroutine context.

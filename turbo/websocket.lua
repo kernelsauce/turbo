@@ -308,7 +308,7 @@ function websocket.WebSocketHandler:_execute()
         self.request.headers:get("Sec-WebSocket-Version")
     if not self.sec_websocket_version then
         log.error("Client did not send a Sec-WebSocket-Version field. \
-                   Probably not a Websocket requets, can not upgrade.")
+                   Probably not a Websocket request, can not upgrade.")
         error(web.HTTPError(400,"Invalid protocol."))
     end
     if self.sec_websocket_version ~= "13" then
@@ -478,20 +478,55 @@ end
 --- WebSocket Client.
 -- Usage:
 --  websocket.WebSocketClient("ws://websockethost.com/app", {
---      on_message = function(msg) end,
---      on_error = function(err) end,
---      on_headers = function(header) end,
---      modify_headers = function(header) end,
---      request_timeout = 10,
---      connect_timeout = 10,
---      user_agent = "Turbo WS Client v1.1",
---      cookie = "Bla"
+--      on_message =         function(self, msg) end,
+--      on_error =           function(self, code, msg) end,
+--      on_headers =         function(self, header) end,
+--      on_connect =         function(self) end
+--      modify_headers =     function(header) end,
+--      request_timeout =    10,
+--      connect_timeout =    10,
+--      user_agent =         "Turbo WS Client v1.1",
+--      cookie =             "Bla",
+--      websocket_protocol = "meh"
 --  })
 websocket.WebSocketClient = class("WebSocketClient")
 websocket.WebSocketClient:include(websocket.WebSocketStream)
 
 function websocket.WebSocketClient:initialize(address, kwargs) 
     self.kwargs = kwargs or {}
+    self.http_cli = async.HTTPClient()
+    local websocket_key = util.rand_str(16)
+    local res = coroutine.yield(self.http_cli:fetch(address, {
+        keep_alive = true,
+        allow_websocket_connect = true,
+        on_headers = function(http_header) 
+            http_header:add("Upgrade", "Websocket")
+            http_header:add("Sec-WebSocket-Key", 
+                            escape.base64_encode(websocket_key))
+            http_header:add("Sec-WebSocket-Version", "13")
+            -- WebSocket Sub-Protocol handling... 
+            if type(self.kwargs.websocket_protocol) == "string" then
+                http_header:add("Sec-WebSocket-Protocol", 
+                                self.kwargs.websocket_protocol)
+            elseif self.kwargs.websocket_protocol then
+                error("Invalid type of \"websocket_protocol\" value")
+            end
+            if self.kwargs.cookie then
+               -- Handle cookie. HTTPClient does not have this?!
+            end
+        end
+    }))
+    if res.code == 101 then
+        -- Check accept key.
+        local accept_key = res.headers:get("Sec-WebSocket-Accept")
+        local match = escape.base64_encode(
+            hash.SHA1(websocket_key..websocket.MAGIC):finalize(), 20)
+        assert(accept_key == match, "Uh oh...")
+        
+    else
+        -- Handle error.
+    end
+
 end
 
 function websocket.WebSocketClient:_error(msg) end

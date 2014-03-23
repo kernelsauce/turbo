@@ -82,7 +82,7 @@ function util.rand_str(len)
     math.randomseed(util.gettimeofday()+math.random(0x0,0xffffffffff))
     len = len or 64
     local bytes = buffer(len)
-    for i = 1, 64 do
+    for i = 1, len do
         bytes:append_char_right(ffi.cast("char", math.random(0x0, 0x80)))
     end
     bytes = tostring(bytes)

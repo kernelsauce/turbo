@@ -316,6 +316,68 @@ function async.HTTPClient:_connect()
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
             return -1
         end
+    elseif self.kwargs.allow_websocket_connect == true then
+        -- Allow a user to use the client to connect with WebSocket schema.
+        -- HTTPClient will not do WebSocket though.
+        if self.schema == "ws" then
+            if not self.port then
+                self.port = 80
+            end
+            self.iostream = iostream.IOStream:new(
+                self.sock,
+                self.io_loop,
+                self.max_buffer_size)
+            local rc, msg = self.iostream:connect(self.hostname,
+                self.port,
+                self.family,
+                self._handle_connect,
+                self._handle_connect_fail,
+                self)
+            if rc ~= 0 then
+                self:_throw_error(errors.COULD_NOT_CONNECT, msg)
+                return -1
+            end
+        elseif self.schema == "wss" then
+            if not self.ssl_options or not self.ssl_options._ssl_ctx then
+                self.ssl_options = self.ssl_options or {}
+                crypto.ssl_init()
+                local rc, ctx_or_err = crypto.ssl_create_client_context(
+                    self.ssl_options.priv_key,
+                    self.ssl_options.cert_key,
+                    self.ssl_options.ca_path,
+                    self.ssl_options.verify_ca ~= nil and
+                        self.ssl_options.verify_ca or true)
+                if rc ~= 0 then
+                    self:_throw_error(errors.SSL_ERROR,
+                        string.format("Could not create SSL context. %s",
+                            ctx_or_err))
+                    return -1
+                end
+                self.ssl_options._ssl_ctx = ctx_or_err
+                self.ssl_options._type = 1
+            end
+            if not self.port then
+                self.port = 443
+            end
+            self.iostream = iostream.SSLIOStream:new(
+                self.sock,
+                self.ssl_options,
+                self.io_loop,
+                self.max_buffer_size)
+            local rc, msg = self.iostream:connect(
+                self.hostname,
+                self.port,
+                self.family,
+                self.ssl_options.verify_ca ~= nil and
+                        self.ssl_options.verify_ca or true,
+                self._handle_connect,
+                self._handle_connect_fail,
+                self)
+            if rc ~= 0 then
+                self:_throw_error(errors.COULD_NOT_CONNECT, msg)
+                return -1
+            end
+        end
     else
         -- Some other strange schema that not is HTTP or supported at all.
         self:_throw_error(errors.INVALID_SCHEMA,
@@ -481,7 +543,11 @@ function async.HTTPClient:_handle_headers(data)
     end
     self.response_headers = headers
     local code = self.response_headers:get_status_code()
-    if 100 <= code and code < 200 then
+    if code == 101 then
+        -- Switching Protocols.
+        self:_finalize_request()
+        return
+    elseif 100 <= code and code < 200 then
         self:_handle_1xx_code(code)
         return
     end
@@ -607,7 +673,7 @@ function async.HTTPClient:_finalize_request()
             end
         end
     end
-    if self.iostream then
+    if self.iostream and self.kwargs.keep_alive ~= true then
         self.iostream:close()
         self.iostream = nil
     end
