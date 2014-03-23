@@ -57,12 +57,77 @@ else
     end
 end
 
--- *** Public API ***
 
 local websocket = {}
 websocket.MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+--- Websocket opcodes.
+websocket.opcode = {
+    CONTINUE =  0x0,
+    TEXT =      0x1,
+    BINARY =    0x2,
+    -- 0x3-7 Reserved
+    CLOSE =     0x8,
+    PING =      0x9,
+    PONG =      0xA,
+    -- 0xB-F Reserved
+}
 
+ffi.cdef [[
+    struct ws_header {
+        uint8_t flags;
+        uint8_t len;
+        union {
+            uint16_t sh;
+            uint64_t ll;
+        } ext_len;
+    } __attribute__ ((__packed__));
+]]
+
+--- WebSocketStream is a abstraction for a WebSocket connection,
+-- used by WebSocketHandler and WebSocketClient.
+websocket.WebSocketStream = class("WebSocketStream")
+
+--- Send a message to the client of the active Websocket.
+-- @param msg The message to send. This may be either a JSON-serializable table
+-- or a string.
+-- @param binary (Boolean) Treat the message as binary data.
+-- If the connection has been closed a error is raised.
+function websocket.WebSocketStream:write_message(msg, binary)
+    if self._closed == true then
+        error("WebSocket connection has been closed. Can not write message.")
+    end
+    self:_send_frame(true,
+                     binary and
+                        websocket.opcode.BINARY or websocket.opcode.TEXT,
+                     msg)
+end
+
+--- Send a ping to the connected client.
+function websocket.WebSocketStream:ping(data, callback, callback_arg)
+    self._ping_callback = callback
+    self._ping_callback_arg = callback_arg
+    self:_send_frame(true, websocket.opcode.PING, data)
+end
+
+--- Close the connection.
+function websocket.WebSocketStream:close()
+    self._closed = true
+    self:_send_frame(true, websocket.opcode.CLOSE, "")
+    self.stream:close()
+end
+
+function websocket.WebSocketStream:_calculate_ws_accept()
+    assert(escape.base64_decode(self.sec_websocket_key):len() == 16,
+           "Sec-WebSocket-Key is of invalid size.")
+    local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
+    return escape.base64_encode(hash:finalize(), 20)
+end
+
+
+--- WebSocket Server
+-- Must be used in turbo.web.Application.
 websocket.WebSocketHandler = class("WebSocketHandler", web.RequestHandler)
+websocket.WebSocketHandler:include(websocket.WebSocketStream)
 
 function websocket.WebSocketHandler:initialize(application,
                                                request,
@@ -99,36 +164,6 @@ function websocket.WebSocketHandler:prepare() end
 -- the request is done by either raising error or returning nil.
 function websocket.WebSocketHandler:subprotocol(protocols) end
 
---- Send a message to the client of the active Websocket.
--- @param msg The message to send. This may be either a JSON-serializable table
--- or a string.
--- @param binary (Boolean) Treat the message as binary data.
--- If the connection has been closed a error is raised.
-function websocket.WebSocketHandler:write_message(msg, binary)
-    if self._closed == true then
-        error("WebSocket connection has been closed. Can not write message.")
-    end
-    self:_send_frame(true,
-                     binary and
-                        websocket.opcode.BINARY or websocket.opcode.TEXT,
-                     msg)
-end
-
---- Send a ping to the connected client.
-function websocket.WebSocketHandler:ping(data, callback, callback_arg)
-    self._ping_callback = callback
-    self._ping_callback_arg = callback_arg
-    self:_send_frame(true, websocket.opcode.PING, data)
-end
-
---- Close the connection.
-function websocket.WebSocketHandler:close()
-    self._closed = true
-    self:_send_frame(true, websocket.opcode.CLOSE, "")
-    self.stream:close()
-end
-
--- *** Private API ***
 
 --- Main entry point for the Application class.
 function websocket.WebSocketHandler:_execute()
@@ -198,13 +233,6 @@ function websocket.WebSocketHandler:_execute()
     self:_continue_ws()
 end
 
-function websocket.WebSocketHandler:_calculate_ws_accept()
-    assert(escape.base64_decode(self.sec_websocket_key):len() == 16,
-           "Sec-WebSocket-Key is of invalid size.")
-    local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
-    return escape.base64_encode(hash:finalize(), 20)
-end
-
 function websocket.WebSocketHandler:_create_response_header()
     local header = httputil.HTTPHeaders()
     header:set_status_code(101)
@@ -219,29 +247,6 @@ function websocket.WebSocketHandler:_create_response_header()
     end
     return header:stringify_as_response()
 end
-
---- Websocket opcodes.
-websocket.opcode = {
-    CONTINUE =  0x0,
-    TEXT =      0x1,
-    BINARY =    0x2,
-    -- 0x3-7 Reserved
-    CLOSE =     0x8,
-    PING =      0x9,
-    PONG =      0xA,
-    -- 0xB-F Reserved
-}
-
-ffi.cdef [[
-    struct ws_header {
-        uint8_t flags;
-        uint8_t len;
-        union {
-            uint16_t sh;
-            uint64_t ll;
-        } ext_len;
-    } __attribute__ ((__packed__));
-]]
 
 --- Error handler.
 function websocket.WebSocketHandler:_error(msg)
@@ -435,7 +440,7 @@ end
 local _ws_header = ffi.new("struct ws_header")
 local _ws_mask = ffi.new("int32_t[1]")
 if le then
-    -- Multi-byte lengths must be sent in network byte order, e.g
+    -- Multi-byte lengths must be sent in network byte order, aka
     -- big-endian. Ugh...
     function websocket.WebSocketHandler:_send_frame(finflag, opcode, data)
         local data_sz = data:len()
@@ -464,5 +469,21 @@ if le then
         self.stream:write(data)
     end
 end
+
+
+--- WebSocket Client.
+-- Usage:
+--  websocket.WebSocketClient("ws://websockethost.com/app", {
+--      on_message = function(msg) end,
+--      on_error = function(err) end,
+--      on_headers = function(header) end,
+--      modify_headers = function(header) end,
+--      request_timeout = 10,
+--      connect_timeout = 10,
+--      user_agent = "Turbo WS Client v1.1",
+--      cookie = "Bla"
+--  })
+websocket.WebSocketClient = class("WebSocketClient")
+websocket.WebSocketClient:include(websocket.WebSocketStream)
 
 return websocket
