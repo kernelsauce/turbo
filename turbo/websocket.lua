@@ -495,14 +495,13 @@ websocket.WebSocketClient:include(websocket.WebSocketStream)
 function websocket.WebSocketClient:initialize(address, kwargs) 
     self.kwargs = kwargs or {}
     self.http_cli = async.HTTPClient()
-    local websocket_key = util.rand_str(16)
+    local websocket_key = escape.base64_encode(util.rand_str(16))
     local res = coroutine.yield(self.http_cli:fetch(address, {
         keep_alive = true,
         allow_websocket_connect = true,
         on_headers = function(http_header) 
             http_header:add("Upgrade", "Websocket")
-            http_header:add("Sec-WebSocket-Key", 
-                            escape.base64_encode(websocket_key))
+            http_header:add("Sec-WebSocket-Key", websocket_key)
             http_header:add("Sec-WebSocket-Version", "13")
             -- WebSocket Sub-Protocol handling... 
             if type(self.kwargs.websocket_protocol) == "string" then
@@ -519,14 +518,18 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     if res.code == 101 then
         -- Check accept key.
         local accept_key = res.headers:get("Sec-WebSocket-Accept")
+        assert(accept_key, 
+               "Missing Sec-WebSocket-Accept header field.")
         local match = escape.base64_encode(
             hash.SHA1(websocket_key..websocket.MAGIC):finalize(), 20)
-        assert(accept_key == match, "Uh oh...")
-        
+        assert(accept_key == match, 
+               "Sec-WebSocket-Accept does not match what was expected.")
     else
         -- Handle error.
+        error("Uh oh.")
     end
-
+    self.stream = self.http_cli.iostream
+    assert(self.stream:closed() == false, "Connection were closed.")
 end
 
 function websocket.WebSocketClient:_error(msg) end
