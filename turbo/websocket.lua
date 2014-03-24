@@ -84,7 +84,9 @@ local function _unmask_payload(mask, data)
 end
 
 local websocket = {}
+
 websocket.MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
 --- Websocket opcodes.
 websocket.opcode = {
     CONTINUE =  0x0,
@@ -97,6 +99,23 @@ websocket.opcode = {
     -- 0xB-F Reserved
 }
 
+websocket.errors = {
+     INVALID_URL            = -1 -- URL could not be parsed.
+    ,INVALID_SCHEMA         = -2 -- Invalid URL schema
+    ,COULD_NOT_CONNECT      = -3 -- Could not connect, check message.
+    ,PARSE_ERROR_HEADERS    = -4 -- Could not parse response headers.
+    ,CONNECT_TIMEOUT        = -5 -- Connect timed out.
+    ,REQUEST_TIMEOUT        = -6 -- Request timed out.
+    ,NO_HEADERS             = -7 -- Shouldnt happen.
+    ,REQUIRES_BODY          = -8 -- Expected a HTTP body, but none set.
+    ,INVALID_BODY           = -9 -- Request body is not a string.
+    ,SOCKET_ERROR           = -10 -- Socket error, check message.
+    ,SSL_ERROR              = -11 -- SSL error, check message.
+    ,BUSY                   = -12 -- Operation in progress.
+    ,REDIRECT_MAX           = -13 -- Redirect maximum reached.
+    ,CALLBACK_ERROR         = -14 -- Error in callback.
+    ,BAD_HTTP_STATUS        = -15
+}
 
 --- WebSocketStream is a abstraction for a WebSocket connection,
 -- used as class mixin in WebSocketHandler and WebSocketClient.
@@ -496,10 +515,12 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     self.kwargs = kwargs or {}
     self.http_cli = async.HTTPClient()
     local websocket_key = escape.base64_encode(util.rand_str(16))
+    -- Reusing async.HTTPClient.
+    local _modify_headers_success = true
     local res = coroutine.yield(self.http_cli:fetch(address, {
         keep_alive = true,
         allow_websocket_connect = true,
-        on_headers = function(http_header) 
+        on_headers = function(http_header)
             http_header:add("Upgrade", "Websocket")
             http_header:add("Sec-WebSocket-Key", websocket_key)
             http_header:add("Sec-WebSocket-Version", "13")
@@ -513,8 +534,20 @@ function websocket.WebSocketClient:initialize(address, kwargs)
             if self.kwargs.cookie then
                -- Handle cookie. HTTPClient does not have this?!
             end
+            if type(self.kwargs.modify_headers) == "function" then
+                -- User can modify header in callback.
+                _modify_headers_success = self:_protected_call(
+                    "modify_headers",
+                    self.kwargs.modify_headers,
+                    self,
+                    http_header)
+            end
         end
     }))
+    if _modify_headers_success == false then
+        -- Must do this outside callback to HTTPClient to get desired effect.
+        return
+    end
     if res.code == 101 then
         -- Check accept key.
         local accept_key = res.headers:get("Sec-WebSocket-Accept")
@@ -524,15 +557,86 @@ function websocket.WebSocketClient:initialize(address, kwargs)
             hash.SHA1(websocket_key..websocket.MAGIC):finalize(), 20)
         assert(accept_key == match, 
                "Sec-WebSocket-Accept does not match what was expected.")
+        if type(self.kwargs.on_headers) == "function" then
+            if not self:_protected_call("on_headers", 
+                                        self.kwargs.on_headers, 
+                                        self, 
+                                        res.headers) then
+                return
+            end
+            if self:closed() then
+                -- User closed the connection in on_headers callback. Just 
+                -- return as the connection is already closed off.
+                return
+            end
+        end
     else
         -- Handle error.
-        error("Uh oh.")
+        self:_error(websocket.errors.BAD_HTTP_STATUS, 
+                    strf("Excpected 101, was %d, can not upgrade.", res.code))
+        return
     end
+    -- Store ref. for IOStream in the HTTPClient.
     self.stream = self.http_cli.iostream
     assert(self.stream:closed() == false, "Connection were closed.")
+    self:_continue_ws()
 end
 
-function websocket.WebSocketClient:_error(msg) end
+--- Close the WebSocketClient connection.
+-- Can be called at any time, including in "on_headers" callback.
+function websocket.WebSocketClient:close()
+    self._closed = true
+    if self.stream then
+        -- IOStream knows if its closed itself, so don't bother checking.
+        self.stream:close()
+    end
+end
+
+--- Is the WebSocketClient closed?
+-- @return true if closed, otherwise nil.
+function websocket.WebSocketClient:closed()
+    return self._closed
+end
+
+
+function websocket.WebSocketClient:_protected_call(name, func, arg, data)
+    local status, err = pcall(func, arg, data)
+    if status ~= true then
+        local err_msg = strf(
+            "WebSocketClient at %p unhandled error in callback \"%s\":\n", 
+            self, 
+            name)
+        self:_error(websocket.errors.CALLBACK_ERROR, 
+                    err and err_msg .. err or err_msg)
+        return false
+    end
+    return true
+end
+
+--- Called after HTTP handshake has passed and connection has been upgraded
+-- to WebSocket.
+function websocket.WebSocketClient:_continue_ws()
+    self.stream:set_close_callback(self._socket_closed, self)
+    self._fragmented_message_buffer = buffer(1024)
+    self.stream:read_bytes(2, self._accept_frame, self)
+    if type(self.kwargs.on_connect) == "function" then
+        self:_protected_call("on_connect", self.kwargs.on_connect, self)
+    end
+end
+
+function websocket.WebSocketClient:_error(code, msg) 
+    if self.stream then
+        self.stream:close()
+    end
+    if type(msg) == "string" then
+        log.error(msg)
+    end
+    if type(self.kwargs.on_error) == "function" then
+        self.kwargs.on_error(self, code, msg)
+    end
+end
+
+function websocket.WebSocketClient:_handle_opcode(code, data) end
 
 function websocket.WebSocketClient:_frame_payload(data) end
 
