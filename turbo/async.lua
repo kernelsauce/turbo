@@ -131,19 +131,19 @@ end
 
 --- Errors that can be set in the return object of fetch (HTTPResponse instance).
 local errors = {
-     INVALID_URL            = -1 -- URL could not be parsed.
-    ,INVALID_SCHEMA         = -5 -- Invalid URL schema
-    ,COULD_NOT_CONNECT      = -2 -- Could not connect, check message.
-    ,PARSE_ERROR_HEADERS    = -3 -- Could not parse response headers.
-    ,CONNECT_TIMEOUT        = -6 -- Connect timed out.
-    ,REQUEST_TIMEOUT        = -7 -- Request timed out.
-    ,NO_HEADERS             = -8 -- Shouldnt happen.
-    ,REQUIRES_BODY          = -9 -- Expected a HTTP body, but none set.
-    ,INVALID_BODY           = -10 -- Request body is not a string.
-    ,SOCKET_ERROR           = -11 -- Socket error, check message.
-    ,SSL_ERROR              = -12 -- SSL error, check message.
-    ,BUSY                   = -13 -- Operation in progress.
-    ,REDIRECT_MAX           = -14 -- Redirect maximum reached.
+     INVALID_URL = -1 -- URL could not be parsed.
+    ,INVALID_SCHEMA = -2 -- Invalid URL schema
+    ,COULD_NOT_CONNECT = -3 -- Could not connect, check message.
+    ,PARSE_ERROR_HEADERS = -4 -- Could not parse response headers.
+    ,CONNECT_TIMEOUT = -5 -- Connect timed out.
+    ,REQUEST_TIMEOUT = -6 -- Request timed out.
+    ,NO_HEADERS = -7 -- Shouldnt happen.
+    ,REQUIRES_BODY = -8 -- Expected a HTTP body, but none set.
+    ,INVALID_BODY = -9 -- Request body is not a string.
+    ,SOCKET_ERROR = -10 -- Socket error, check message.
+    ,SSL_ERROR = -11 -- SSL error, check message.
+    ,BUSY = -12 -- Operation in progress.
+    ,REDIRECT_MAX = -13 -- Redirect maximum reached.
 }
 async.errors = errors
 
@@ -318,7 +318,7 @@ function async.HTTPClient:_connect()
         end
     elseif self.kwargs.allow_websocket_connect == true then
         -- Allow a user to use the client to connect with WebSocket schema.
-        -- HTTPClient will not do WebSocket though.
+        -- HTTPClient will not do the actual WebSocket upgrade protocol though.
         if self.schema == "ws" then
             if not self.port then
                 self.port = 80
