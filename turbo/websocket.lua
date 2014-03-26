@@ -2,6 +2,16 @@
 --
 -- Websockets according to the RFC 6455. http://tools.ietf.org/html/rfc6455
 --
+-- The module offers two classes:
+-- * WebSocketHandler - WebSocket support for turbo.web.Application.
+-- * WebSocketClient  - Callback based WebSocket client.
+-- Both classes uses the mixin class WebSocketStream, which in turn provides
+-- almost identical API's for the two classes once connected. Both classes
+-- support SSL (wss://).
+--
+-- NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be 
+-- installed to use this module.
+--
 -- Copyright 2013 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -100,21 +110,22 @@ websocket.opcode = {
 }
 
 websocket.errors = {
-     INVALID_URL            = -1 -- URL could not be parsed.
-    ,INVALID_SCHEMA         = -2 -- Invalid URL schema
-    ,COULD_NOT_CONNECT      = -3 -- Could not connect, check message.
-    ,PARSE_ERROR_HEADERS    = -4 -- Could not parse response headers.
-    ,CONNECT_TIMEOUT        = -5 -- Connect timed out.
-    ,REQUEST_TIMEOUT        = -6 -- Request timed out.
-    ,NO_HEADERS             = -7 -- Shouldnt happen.
-    ,REQUIRES_BODY          = -8 -- Expected a HTTP body, but none set.
-    ,INVALID_BODY           = -9 -- Request body is not a string.
-    ,SOCKET_ERROR           = -10 -- Socket error, check message.
-    ,SSL_ERROR              = -11 -- SSL error, check message.
-    ,BUSY                   = -12 -- Operation in progress.
-    ,REDIRECT_MAX           = -13 -- Redirect maximum reached.
-    ,CALLBACK_ERROR         = -14 -- Error in callback.
-    ,BAD_HTTP_STATUS        = -15
+     INVALID_URL = -1 -- URL could not be parsed.
+    ,INVALID_SCHEMA = -2 -- Invalid URL schema
+    ,COULD_NOT_CONNECT = -3 -- Could not connect, check message.
+    ,PARSE_ERROR_HEADERS = -4 -- Could not parse response headers.
+    ,CONNECT_TIMEOUT = -5 -- Connect timed out.
+    ,REQUEST_TIMEOUT = -6 -- Request timed out.
+    ,NO_HEADERS = -7 -- Shouldnt happen.
+    ,REQUIRES_BODY = -8 -- Expected a HTTP body, but none set.
+    ,INVALID_BODY = -9 -- Request body is not a string.
+    ,SOCKET_ERROR = -10 -- Socket error, check message.
+    ,SSL_ERROR = -11 -- SSL error, check message.
+    ,BUSY = -12 -- Operation in progress.
+    ,REDIRECT_MAX = -13 -- Redirect maximum reached.
+    ,CALLBACK_ERROR = -14 -- Error in callback.
+    ,BAD_HTTP_STATUS = -15
+    ,WEBSOCKET_PROTOCOL_ERROR = -16
 }
 
 --- WebSocketStream is a abstraction for a WebSocket connection,
@@ -148,13 +159,6 @@ function websocket.WebSocketStream:close()
     self._closed = true
     self:_send_frame(true, websocket.opcode.CLOSE, "")
     self.stream:close()
-end
-
-function websocket.WebSocketStream:_calculate_ws_accept()
-    assert(escape.base64_decode(self.sec_websocket_key):len() == 16,
-           "Sec-WebSocket-Key is of invalid size.")
-    local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
-    return escape.base64_encode(hash:finalize(), 20)
 end
 
 --- Accept a new WebSocket frame.
@@ -236,27 +240,35 @@ if le then
     function websocket.WebSocketStream:_send_frame(finflag, opcode, data)
         local data_sz = data:len()
         _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
+
+        -- 7 bit.
         if data_sz < 0x7e then
             _ws_header.len = bit.bor(data_sz,
                                      self.mask_outgoing and 0x80 or 0x0)
             self.stream:write(ffi.string(_ws_header, 2))
+        
+        -- 16 bit
         elseif data_sz <= 0xffff then
             _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
             _ws_header.ext_len.sh = data_sz
             _ws_header.ext_len.sh = ffi.C.htons(_ws_header.ext_len.sh)
             self.stream:write(ffi.string(_ws_header, 4))
+        
+        -- 64 bit
         else
             _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
             _ws_header.ext_len.ll = data_sz
             _ws_header.ext_len.ll = ENDIAN_SWAP_U64(_ws_header.ext_len.ll)
             self.stream:write(ffi.string(_ws_header, 10))
         end
+        
         if self.mask_outgoing == true then
             _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
             self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
             self.stream:write(_unmask_payload(_ws_mask, data))
             return
         end
+        
         self.stream:write(data)
     end
 elseif be then
@@ -370,6 +382,13 @@ function websocket.WebSocketHandler:_execute()
         self.request.headers:get_url(),
         self.request.remote_ip))
     self:_continue_ws()
+end
+
+function websocket.WebSocketHandler:_calculate_ws_accept()
+    assert(escape.base64_decode(self.sec_websocket_key):len() == 16,
+           "Sec-WebSocket-Key is of invalid size.")
+    local hash = hash.SHA1(self.sec_websocket_key..websocket.MAGIC)
+    return escape.base64_encode(hash:finalize(), 20)
 end
 
 function websocket.WebSocketHandler:_create_response_header()
@@ -500,7 +519,8 @@ end
 --      on_message =         function(self, msg) end,
 --      on_error =           function(self, code, msg) end,
 --      on_headers =         function(self, header) end,
---      on_connect =         function(self) end
+--      on_connect =         function(self) end,
+--      on_close =           function(self) end,
 --      modify_headers =     function(header) end,
 --      request_timeout =    10,
 --      connect_timeout =    10,
@@ -512,7 +532,9 @@ websocket.WebSocketClient = class("WebSocketClient")
 websocket.WebSocketClient:include(websocket.WebSocketStream)
 
 function websocket.WebSocketClient:initialize(address, kwargs) 
+    self.address = address
     self.kwargs = kwargs or {}
+    self._connect_time = util.gettimemonotonic()
     self.http_cli = async.HTTPClient()
     local websocket_key = escape.base64_encode(util.rand_str(16))
     -- Reusing async.HTTPClient.
@@ -520,6 +542,12 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     local res = coroutine.yield(self.http_cli:fetch(address, {
         keep_alive = true,
         allow_websocket_connect = true,
+        request_timeout = self.kwargs.request_timeout,
+        connect_timeout = self.kwargs.connect_timeout,
+        cookie = self.kwargs.cookie,
+        user_agent = self.kwargs.user_agent,
+        allow_redirects = self.kwargs.allow_redirects,
+        max_redirects = self.kwargs.max_redirects,
         on_headers = function(http_header)
             http_header:add("Upgrade", "Websocket")
             http_header:add("Sec-WebSocket-Key", websocket_key)
@@ -530,9 +558,6 @@ function websocket.WebSocketClient:initialize(address, kwargs)
                                 self.kwargs.websocket_protocol)
             elseif self.kwargs.websocket_protocol then
                 error("Invalid type of \"websocket_protocol\" value")
-            end
-            if self.kwargs.cookie then
-               -- Handle cookie. HTTPClient does not have this?!
             end
             if type(self.kwargs.modify_headers) == "function" then
                 -- User can modify header in callback.
@@ -546,6 +571,14 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     }))
     if _modify_headers_success == false then
         -- Must do this outside callback to HTTPClient to get desired effect.
+        -- In the event of error in "modify_headers" callback _error is already 
+        -- called.
+        return
+    end
+    if res.error then
+        -- HTTPClient error codes are compatible with WebSocket errors.
+        -- Copy the error from HTTPClient and reuse for _error.
+        self:_error(res.error.code, res.error.message)
         return
     end
     if res.code == 101 then
@@ -579,6 +612,9 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     -- Store ref. for IOStream in the HTTPClient.
     self.stream = self.http_cli.iostream
     assert(self.stream:closed() == false, "Connection were closed.")
+    log.success(string.format(
+        [[[websocket.lua] WebSocketClient connection open %s]],
+        self.address))
     self:_continue_ws()
 end
 
@@ -636,10 +672,99 @@ function websocket.WebSocketClient:_error(code, msg)
     end
 end
 
-function websocket.WebSocketClient:_handle_opcode(code, data) end
+function websocket.WebSocketClient:_frame_payload(data)
+    local opcode
+    if self._opcode == websocket.opcode.CLOSE then
+        if not self._final_bit then
+            self:_error(websocket.errors.WEBSOCKET_PROTOCOL_ERROR,
+                "WebSocket protocol error: \
+                CLOSE opcode was fragmented.")
+            return
+        end
+        opcode = self._opcode
+    elseif self._opcode == websocket.opcode.CONTINUE then
+        if self._fragmented_message_buffer:len() == 0 then
+            self:_error(websocket.errors.WEBSOCKET_PROTOCOL_ERROR,
+                "WebSocket protocol error: \
+                CONTINUE opcode, but theres nothing to continue.")
+            return
+        end
+        self._fragmented_message_buffer:append_luastr_right(data)
+        if self._final_bit == true then
+            opcode = self._fragmented_message_opcode
+            data = self._fragmented_message_buffer:__tostring()
+            self._fragmented_message_buffer:clear()
+            self._fragmented_message_opcode = nil
+        end
+    else
+        if self._fragmented_message_buffer:len() ~= 0 then
+            self:_error(websocket.errors.WEBSOCKET_PROTOCOL_ERROR,
+                "WebSocket protocol error: \
+                previous CONTINUE opcode not finished.")
+            return
+        end
+        if self._final_bit == true then
+            opcode = self._opcode
+        else
+            self._fragmented_message_opcode = self._opcode
+            self._fragmented_message_buffer:append_luastr_right(data)
+            if data:len() == 0 then
+                log.debug("Zero length data on WebSocket.")
+            end
+        end
+    end
+    if self._final_bit == true then
+        self:_handle_opcode(opcode, data)
+    end
+    if self._closed ~= true then
+        self.stream:read_bytes(2, self._accept_frame, self)
+    end
+end
 
-function websocket.WebSocketClient:_frame_payload(data) end
+function websocket.WebSocketClient:_handle_opcode(opcode, data)
+    if self._closed == true then
+        return
+    end
+    if opcode == websocket.opcode.TEXT or
+            opcode == websocket.opcode.BINARY then
+        if self.kwargs.on_message then
+            self:_protected_call("on_message", 
+                                 self.kwargs.on_message, 
+                                 self, 
+                                 data)
+        end
+    elseif opcode == websocket.opcode.CLOSE then
+        self:close()
+    elseif opcode == websocket.opcode.PING then
+        self:_send_frame(true, websocket.opcode.PONG, data)
+    elseif opcode == websocket.opcode.PONG then
+        if self._ping_callback then
+            local callback = self._ping_callback
+            local arg = self._ping_callback_arg
+            self._ping_callback = nil
+            self._ping_callback_arg = nil
+            if arg then
+                callback(arg, data)
+            else
+                callback(data)
+            end
+        end
+    else
+        self:_error(websocket.errors.WEBSOCKET_PROTOCOL_ERROR,
+            "WebSocket protocol error: \
+            invalid opcode ".. tostring(opcode))
+        return
+    end
+end
 
-function websocket.WebSocketClient:_socket_closed() end
+function websocket.WebSocketClient:_socket_closed() 
+    log.success(string.format(
+        [[[websocket.lua] WebSocketClient closed %s %dms]],
+        self.address,
+        util.gettimemonotonic() - self._connect_time))
+    if type(self.kwargs.on_close) == "function" then
+        self:_protected_call("on_close", self.kwargs.on_close, self)
+    end
+end
 
 return websocket
