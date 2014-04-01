@@ -81,6 +81,7 @@ API documentation
    apiref
    web
    async
+   websocket
    ioloop
    iostream
    httputil

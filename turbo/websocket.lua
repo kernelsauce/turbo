@@ -135,11 +135,15 @@ websocket.WebSocketStream = {}
 --- Send a message to the client of the active Websocket.
 -- @param msg The message to send. This may be either a JSON-serializable table
 -- or a string.
--- @param binary (Boolean) Treat the message as binary data.
+-- @param binary (Boolean) Treat the message as binary data (use WebSocket binary
+-- opcode).
 -- If the connection has been closed a error is raised.
 function websocket.WebSocketStream:write_message(msg, binary)
     if self._closed == true then
         error("WebSocket connection has been closed. Can not write message.")
+    end
+    if type(msg) == "table" then
+        msg = escape.json_encode(msg)
     end
     self:_send_frame(true,
                      binary and
