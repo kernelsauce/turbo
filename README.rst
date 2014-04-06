@@ -1,9 +1,6 @@
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
-.. image:: https://api.travis-ci.org/kernelsauce/turbo.png
-   :target: http://travis-ci.org/kernelsauce/turbo
 
-
-Turbo.lua is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
+Turbo is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
 
 First and foremost the framework is aimed at the HTTP(S) protocol. This means web developers and HTTP API developers are the first class citizens. But the framework contains generic nuts and bolts such as; a I/O loop, IO Stream classes, customizeable TCP (with SSL) server classes giving it value for everyone doing any kind of high performance network application. It will also speak directly to your exising C libraries, and happily also create native C struct's for the ultimate memory and CPU performance.
 
@@ -28,6 +25,9 @@ It's main features and design principles are:
 - Small footprint
 
 - SSL support (requires OpenSSL or axTLS)
+
+.. image:: https://api.travis-ci.org/kernelsauce/turbo.png
+   :target: http://travis-ci.org/kernelsauce/turbo
 
 Supported Architectures
 -----------------------

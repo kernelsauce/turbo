@@ -135,27 +135,6 @@ The easiest to use is probably the first, where the program flow and code paths 
 followed. The builtin HTTPClient uses this style of API... It is probably also a good choice for
 database queries etc, so you can keep your logic clean and easy to follow.
 
-Programming with CoroutineContext class
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This class itself is a really small class, which is more there to provide a abstract of a context
-which is understood easily. To understand how yielding works in Turbo.lua you need to understand what
-the execution stack normally looks like.
-
- ---------------------               ----------------------------
-|       I/O Loop      |             | CoroutineContext instance |
-|  _resume_coroutine  |     <--     |                           | 
-|     main thread     |             |                           |
- ---------------------               ----------------------------     
-        |                                 ^
-        |                                 |
-        |                                 |
-        v                                 |
- ----------------------              -------------
-|    Callback          |            |   yield    |
-|    coroutine thread  |    -->     |            |
- ----------------------              -------------
-
 All callbacks added to the I/O loop are executed in its own coroutine. The callback functions can yield
 execution back to the I/O loop. Lua yield's can return a object as it return to where the coroutine where
 started... This is utilized in the Turbo.lua I/O loop which will treat yields different based on what they 
@@ -165,11 +144,3 @@ return as they yield. The I/O Loop supports these returns:
 * Nil, a empty yield that will simply resume the coroutine thread on next iteration.
 * A CoroutineContext class, which acts as a reference to the I/O loop which allow the coroutine thread to be 
   managed manually and resumed on demand.
-
-As a side note, the turbo.async.task function as demonstrated earlier, uses the CoroutineContext class in its backend.
-
-All you need to know to use the class is this:
-
-* Make sure that you are yielding from a I/O loop callback. This is crucial, yielding outside is not managed in any
-  way by Turbo.lua.
-* Create a new CoroutineContext instance: turbo.coctx.CoroutineContext().
