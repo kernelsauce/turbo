@@ -78,11 +78,11 @@ function log.success(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
     end
 end
 
@@ -122,11 +122,11 @@ function log.warning(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stderr)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
     end
 end
 
@@ -144,11 +144,11 @@ function log.error(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stderr)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
     end
 end
 
@@ -188,11 +188,11 @@ function log.devel(str)
     local offset
     if sz + str:len() < 4094 then
         -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[37m\n", ffi.cast("const char*", str))
+        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
         ffi.C.fputs(buf, io.stdout)
     else
         -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[37m\n")
+        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
     end
 end
 
