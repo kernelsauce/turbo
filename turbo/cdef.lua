@@ -313,7 +313,40 @@ typedef void (*sighandler_t) (int32_t);
 extern sighandler_t signal (int32_t signum, sighandler_t handler);
 extern int kill(pid_t pid, int sig);
 ]])
-
+-- signalfd
+ffi.cdef(string.format([[
+typedef struct {
+    unsigned long int __val[%d];
+} __sigset_t;
+typedef __sigset_t sigset_t;
+int sigemptyset(sigset_t *set);
+int sigfillset(sigset_t *set);
+int sigaddset(sigset_t *set, int signum);
+int sigdelset(sigset_t *set, int signum);
+int sigismember(const sigset_t *set, int signum);
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+struct signalfd_siginfo
+{
+  uint32_t ssi_signo;
+  int32_t ssi_errno;
+  int32_t ssi_code;
+  uint32_t ssi_pid;
+  uint32_t ssi_uid;
+  int32_t ssi_fd;
+  uint32_t ssi_tid;
+  uint32_t ssi_band;
+  uint32_t ssi_overrun;
+  uint32_t ssi_trapno;
+  int32_t ssi_status;
+  int32_t ssi_int;
+  uint64_t ssi_ptr;
+  uint64_t ssi_utime;
+  uint64_t ssi_stime;
+  uint64_t ssi_addr;
+  uint8_t __pad[48];
+};
+int signalfd(int fd, const sigset_t *mask, int flags);
+]], (1024 / (8 * ffi.sizeof("unsigned long")))))
 
 --- ******* Time *******
 ffi.cdef([[

@@ -76,6 +76,7 @@ function ioloop.IOLoop:initialize()
     self._timeouts = {}
     self._intervals = {}
     self._callbacks = {}
+    self._signalfds = {}
     self._running = false
     self._stopped = false
     -- Set the most fitting poll implementation. The API's are all unified.
@@ -226,6 +227,89 @@ function ioloop.IOLoop:clear_interval(ref)
         return true
     else
         return false
+    end
+end
+
+-- Handle event on a signalfd.
+function ioloop.IOLoop:_handle_signalfd_event(fd, events)
+    local sigfdsi = ffi.new("struct signalfd_siginfo[1]")
+    local sigfdsi_size = ffi.sizeof("struct signalfd_siginfo")
+    ffi.fill(sigfdsi, sigfdsi_size)
+    local r = ffi.C.read(fd, sigfdsi, sigfdsi_size)
+    if r ~= sigfdsi_size then
+        log.notice(string.format(
+            "[ioloop.lua] read() in _handle_signalfd_event failed: %s",
+            socket.strerror(ffi.errno())))
+        return
+    end
+    local fdsi = sigfdsi[0]
+    local siginfo = {
+        signo=fdsi.ssi_signo,       -- Signal number
+        errno=fdsi.ssi_errno,       -- Error number (currently unused)
+        code=fdsi.ssi_code,         -- Signal code
+        pid=fdsi.ssi_pid,           -- pid of sender
+        uid=fdsi.ssi_uid,           -- uid of sender
+        fd=fdsi.ssi_fd,             -- File descriptor (SIGIO)
+        tid=fdsi.ssi_tid,           -- Kernel timer ID (POSIX timers)
+        band=fdsi.ssi_band,         -- Band event (SIGIO)
+        overrun=fdsi.ssi_overrun,   -- POSIX time overrun count
+        trapno=fdsi.ssi_trapno,     -- Trap number that caused signal
+        status=fdsi.ssi_status,     -- Exit status or signal (SIGCHLD)
+        int=fdsi.ssi_int,           -- Integer sent by sigqueue(3)
+        ptr=fdsi.ssi_ptr,           -- Pointer sent by sigqueue(3)
+        utime=fdsi.ssi_utime,       -- User CPU time consumed (SIGCHLD)
+        stime=fdsi.ssi_stime,       -- System CPU time consumed (SIGCHLD)
+        addr=fdsi.ssi_addr          -- Address that generated signal
+                                    -- (for hardware signals)
+    }
+    local signo, handler, arg = unpack(self._signalfds[fd])
+    if arg then
+        handler(arg, siginfo.signo, siginfo, fd)
+    else
+        handler(siginfo.signo, siginfo, fd)
+    end
+end
+
+--- Add signal handler.
+-- @param signos (Number) the signal number(s) to handle
+-- @param handler (Function) Handler function.
+-- @param arg Optional argument for handler. Handler is called with
+--            this as first argument if set.
+function ioloop.IOLoop:add_signal_handler(signo, handler, arg)
+    assert(signo ~= signal.SIGPIPE,
+        "Cannot add handler for SIGPIPE. Reserved by IOLoop.")
+    local mask = ffi.new("sigset_t[1]")
+    ffi.C.sigemptyset(mask)
+    ffi.C.sigaddset(mask, signo)
+    ffi.C.sigprocmask(signal.SIG_BLOCK, mask, nil)
+    local sfd = ffi.C.signalfd(-1, mask, 0)
+    if sfd == -1 then
+        log.notice(string.format(
+            "[ioloop.lua] signalfd() in add_signal_handler() failed: %s",
+            socket.strerror(ffi.errno())))
+        return false
+    end
+    local r = self:add_handler(sfd, ioloop.READ,
+                               self._handle_signalfd_event, self)
+    if not r then
+        log.notice("[ioloop.lua] add_handler() in add_signal_handler() failed.")
+        return false
+    end
+    self:remove_signal_handler(signo) -- remove in case we already have one.
+    self._signalfds[sfd] = {signo, handler, arg}
+end
+
+--- Remove signal handler.
+-- @param signo (Number) the signal number to remove handler for.
+function ioloop.IOLoop:remove_signal_handler(signo)
+    for k, v in pairs(self._signalfds) do
+        if v then
+            if v[1] == signo then
+                self._signalfds[k] = nil
+                self:remove_handler(k)
+                return
+            end
+        end
     end
 end
 
