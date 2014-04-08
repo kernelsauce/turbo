@@ -25,6 +25,10 @@ require "turbo.cdef"
 
 return {    
     signal = ffi.C.signal
+    -- For sigprocmask(2)
+    , SIG_BLOCK   = 0
+    , SIG_UNBLOCK = 1
+    , SIG_SETMASK = 2
     -- Fake signal functions.
     , SIG_ERR = ffi.cast("sighandler_t", -1)    --[[ Error return.  ]]
     , SIG_DFL = ffi.cast("sighandler_t", 0) --[[ Default action.  ]]
