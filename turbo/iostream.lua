@@ -335,11 +335,10 @@ end
 
 function iostream.IOStream:set_max_buffer_size(sz)
     if sz < TURBO_SOCKET_BUFFER_SZ then
-        print(debug.traceback())
         log.warning(
             string.format("Max buffer size could not be set to lower value "..
                           "than _G.TURBO_SOCKET_BUFFER_SZ (%dB).", 
-                          TURBO_SOCKET_BUFFER_SZ))
+                          TURBO_SOCKET_BUFFER_SZ + 8))
         sz = TURBO_SOCKET_BUFFER_SZ + 8
     end
     self.max_buffer_size = sz
