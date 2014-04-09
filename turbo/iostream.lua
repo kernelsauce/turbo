@@ -85,7 +85,7 @@ iostream.IOStream = class('IOStream')
 function iostream.IOStream:initialize(fd, io_loop, max_buffer_size)
     self.socket = assert(fd, "argument #1, fd, is not a number.")
     self.io_loop = io_loop or ioloop.instance()
-    self.max_buffer_size = max_buffer_size or 104857600
+    self.max_buffer_size = max_buffer_size or 1024*1024*128
     self._read_buffer = buffer(1024)
     self._read_buffer_size = 0
     self._read_buffer_offset = 0
@@ -123,25 +123,20 @@ function iostream.IOStream:connect(address, port, family,
 
     self._connect_fail_callback = errhandler
     self._connecting = true
-
     ffi.fill(hints[0], ffi.sizeof(hints[0]))
     hints[0].ai_socktype = SOCK_STREAM
     hints[0].ai_family = family or AF_UNSPEC
     hints[0].ai_protocol = 0
-
     rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
     if rc ~= 0 then
         return -1, string.format("Could not resolve hostname '%s': %s",
             address, ffi.string(C.gai_strerror(rc)))
     end
-
     ffi.gc(servinfo, function (ai) C.freeaddrinfo(ai[0]) end)
-
     local ai, err = sockutils.connect_addrinfo(self.socket, servinfo)
     if not ai then
         return -1, err
     end
-
     self._connect_callback = callback
     self._connect_callback_arg = arg
     self:_add_io_state(ioloop.WRITE)
@@ -340,7 +335,12 @@ end
 
 function iostream.IOStream:set_max_buffer_size(sz)
     if sz < TURBO_SOCKET_BUFFER_SZ then
-        sz = TURBO_SOCKET_BUFFER_SZ+8
+        print(debug.traceback())
+        log.warning(
+            string.format("Max buffer size could not be set to lower value "..
+                          "than _G.TURBO_SOCKET_BUFFER_SZ (%dB).", 
+                          TURBO_SOCKET_BUFFER_SZ))
+        sz = TURBO_SOCKET_BUFFER_SZ + 8
     end
     self.max_buffer_size = sz
 end
@@ -535,14 +535,19 @@ end
 -- @return Chunk of data.
 function iostream.IOStream:_read_from_socket()
     local errno
+    local buffer_left = self.max_buffer_size - self._read_buffer_size - 1
+    if buffer_left == 0 then
+        log.devel("Maximum read buffer size reached. Throttling read.")
+        return
+    end
     local sz = tonumber(C.recv(self.socket, 
                                buf, 
-                               TURBO_SOCKET_BUFFER_SZ, 
+                               math.min(TURBO_SOCKET_BUFFER_SZ, buffer_left), 
                                0))
     if sz == -1 then
         errno = ffi.errno()
         if errno == EWOULDBLOCK or errno == EAGAIN then
-            return nil
+            return
         else
             local fd = self.socket
             self:close()
