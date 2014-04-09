@@ -17,6 +17,7 @@
 _G.TURBO_SSL = true
 local turbo = require "turbo"
 math.randomseed(turbo.util.gettimeofday())
+turbo.log.categories.development = false
 
 describe("turbo.web Namespace", function()
 
@@ -139,7 +140,7 @@ describe("turbo.web Namespace", function()
             io:wait(5)
         end)
 
-        it("Accept json data", function()
+        it("Accept JSON data", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
             local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
@@ -349,6 +350,33 @@ describe("turbo.web Namespace", function()
                 io:close()
             end)
             io:wait(5)
+
+        it("Should not accept big headers.", function() 
+            local port = math.random(10000,40000)
+            local io = turbo.ioloop.instance()
+
+            local TestHandler = class("TestHandler", turbo.web.RequestHandler)
+            function TestHandler:get()
+                self:write("Hello World!")
+            end
+        
+            
+            turbo.web.Application({
+                {"^/$", TestHandler}
+            }):listen(port)
+
+            io:add_callback(function() 
+                local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+                    "http://127.0.0.1:"..tostring(port).."/", { 
+                        on_headers = function(h) 
+                            h:add("Bomb", string.rep("B", 1024*1024))
+                        end 
+                    }))
+                io:close()
+            end)
+            io:wait(5)
+
+        end)
 
         end)
 

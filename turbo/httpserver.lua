@@ -125,7 +125,8 @@ function httpserver.HTTPConnection:initialize(stream, address,
     self._request_finished = false
     self._header_callback = self._on_headers
     self.kwargs = kwargs or {}
-    -- 16K max header size by default.
+    self.stream:set_maxed_buffer_callback(self._on_max_buffer, self)
+    -- 18K max header size by default.
     self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*18)
     self.stream:read_until("\r\n\r\n", self._header_callback, self)
 end
@@ -220,6 +221,7 @@ function httpserver.HTTPConnection:_on_headers(data)
         self.stream:close()
         return
     end
+    self._headers_read = true
     self._request = httpserver.HTTPRequest:new(headers:get_method(),
         headers:get_url(), {
             version = headers.version,
@@ -297,6 +299,7 @@ function httpserver.HTTPConnection:_finish_request()
             disconnect = true
         end
     end
+    self._max_buf = false
     self._request_finished = false
     if disconnect then
         self.stream:close()
@@ -324,6 +327,26 @@ function httpserver.HTTPConnection:_on_write_complete()
     if self._request_finished and not self.stream:writing() then
         self:_finish_request()
     end
+end
+
+--- Callback for maxed out buffer.
+function httpserver.HTTPConnection:_on_max_buffer()
+    if self._max_buf then
+        -- Allow one iteration of buffer at max. In case headers
+        -- and body arrive in one chunk.
+        if not self._headers_read then
+            log.error(
+                string.format("Headers too large for limit %dB.",
+                              self.kwargs.max_header_size or 1024*18))
+        else
+            log.error(
+                string.format("Request body too large for limit %dB.",
+                              self.kwargs.max_header_size or 1024*18))
+        end
+        self.stream:close()
+        return
+    end
+    self._max_buf = true
 end
 
 --- HTTPRequest class.

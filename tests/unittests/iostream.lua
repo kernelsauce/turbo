@@ -68,35 +68,6 @@ describe("turbo.iostream Namespace", function()
             assert.falsy(failed)
         end)
 
-        it("IOStream:connect, hostnames,e.g turbolua.org", function()
-            -- If this fails make sure there is a connection available.
-            local io = turbo.ioloop.IOLoop()
-            local connected = false
-            local failed = false
-            io:add_callback(function() 
-                -- Client
-                local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
-                    turbo.socket.SOCK_STREAM, 
-                    0)
-                local stream = turbo.iostream.IOStream(fd, io)
-                assert.equal(stream:connect("turbolua.org", 
-                    80, 
-                    turbo.socket.AF_INET, 
-                    function()
-                        connected = true
-                        stream:close()
-                        io:close()
-                    end,
-                    function(err)
-                        failed = true
-                        error("Could not connect.")
-                    end), 0)
-            end)
-            io:wait(2)
-            assert.truthy(connected)
-            assert.falsy(failed)
-        end)
-
         it("IOStream:read_bytes", function()
             local io = turbo.ioloop.instance()
             local port = math.random(10000,40000)

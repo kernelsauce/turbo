@@ -324,13 +324,20 @@ function iostream.IOStream:writing()
     return self._write_buffer_size ~= 0 or self._const_write_buffer
 end
 
---- Sets the given callback to be called via the :close() method on close.
--- @param callback (Function) Optional callback to call when connection is
--- closed.
+--- Set callback to be called when connection is closed.
+-- @param callback (Function) Callback function.
 -- @param arg Optional argument for callback.
 function iostream.IOStream:set_close_callback(callback, arg)
     self._close_callback = callback
     self._close_callback_arg = arg
+end
+
+--- Sets the given callback to be called when the buffer has been exceeded
+-- @param callback (Function) Callback function.
+-- @param arg Optional argument for callback.
+function iostream.IOStream:set_maxed_buffer_callback(callback, arg)
+    self._maxb_callback = callback
+    self._maxb_callback_arg = arg
 end
 
 function iostream.IOStream:set_max_buffer_size(sz)
@@ -537,6 +544,11 @@ function iostream.IOStream:_read_from_socket()
     local buffer_left = self.max_buffer_size - self._read_buffer_size - 1
     if buffer_left == 0 then
         log.devel("Maximum read buffer size reached. Throttling read.")
+        if self._maxb_callback then
+            self:_run_callback(self._maxb_callback, 
+                               self._maxb_callback_arg, 
+                               self._read_buffer_size)
+        end
         return
     end
     local sz = tonumber(C.recv(self.socket, 
