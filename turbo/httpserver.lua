@@ -61,16 +61,24 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 --- Create a new HTTPServer class instance.
 -- @param request_callback (Function) Callback when requests are recieved by
 -- the server.
--- @param no_keep_alive (Boolean) If clients request to use Keep-Alive is to be
+-- @param no_keep_alive (Boolean) If clients request use Keep-Alive it is to be
 -- ignored.
 -- @param io_loop (IOLoop instance) The IOLoop instance you want to use.
 -- @param xheaders (Boolean) Care about X-* header fields or not.
 -- @param kwargs (Table) Key word arguments.
 -- Key word arguments supported:
--- ** SSL Options **
--- To enable SSL remember to set the _G.TURBO_SSL global.
--- "key_file" = SSL key file if a SSL enabled server is wanted.
--- "cert_file" = Certificate file. key_file must also be set.
+-- "read_body" = Automatically read, and parse any request body. Default is 
+--      true. If set to false, the user must read the body from the connection
+--      himself. Not reading a body in the case of a keep-alive request may 
+--      lead to undefined behaviour. The body should be read or connection 
+--      closed.
+-- "max_header_size" = The maximum amount of bytes a header can be. 
+--      If exceeded, request is dropped.
+-- "max_body_size" = The maxium amount of bytes a request body can be.
+--      If exceeded, request is dropped. HAS NO EFFECT IF read_body IS FALSE.
+-- "ssl_options" = 
+--      "key_file" = SSL key file if a SSL enabled server is wanted.
+--      "cert_file" = Certificate file. key_file must also be set.
 function httpserver.HTTPServer:initialize(request_callback, 
                                           no_keep_alive, 
                                           io_loop, 
@@ -116,8 +124,9 @@ function httpserver.HTTPConnection:initialize(stream, address,
     self._request_finished = false
     self._header_callback = self._on_headers
     self.kwargs = kwargs or {}
-    -- 16K max header size by default.
-    self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*16)
+    self.stream:set_maxed_buffer_callback(self._on_max_buffer, self)
+    -- 18K max header size by default.
+    self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*18)
     self.stream:read_until("\r\n\r\n", self._header_callback, self)
 end
 
@@ -211,27 +220,32 @@ function httpserver.HTTPConnection:_on_headers(data)
         self.stream:close()
         return
     end
+    self._headers_read = true
     self._request = httpserver.HTTPRequest:new(headers:get_method(),
         headers:get_url(), {
-        version = headers.version,
-        connection = self,
-        headers = headers,
+            version = headers.version,
+            connection = self,
+            headers = headers,
             remote_ip = self.address
-            })
-    local content_length = headers:get("Content-Length")
-    if content_length then
-        content_length = tonumber(content_length)
-        -- Set max buffer size to 128MB.
-        self.stream:set_max_buffer_size(self.kwargs.max_body_size or content_length)
-        if content_length > self.stream.max_buffer_size then
-            log.error("Content-Length too long")
-            self.stream:close()
+        })
+    if self.kwargs.read_body ~= false then
+        local content_length = headers:get("Content-Length")
+        if content_length then
+            content_length = tonumber(content_length)
+            -- Set max buffer size to 128MB.
+            self.stream:set_max_buffer_size(
+                self.kwargs.max_body_size or content_length)
+            if content_length > self.stream.max_buffer_size then
+                log.error(
+                    "Content-Length too long compared to current max body size.")
+                self.stream:close()
+            end
+            if headers:get("Expect") == "100-continue" then
+                self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
+            end
+            self.stream:read_bytes(content_length, self._on_request_body, self)
+            return
         end
-        if headers:get("Expect") == "100-continue" then
-            self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
-        end
-        self.stream:read_bytes(content_length, self._on_request_body, self)
-        return
     end
     self.request_callback(self._request)
 end
@@ -245,15 +259,19 @@ function httpserver.HTTPConnection:_on_request_body(data)
             self.arguments =
                 httputil.parse_post_arguments(self._request.body) or {}
         elseif content_type:find("multipart/form-data", 1, true) then
-            -- valid boundary must only be max 70 characters not ending in space
-            -- valid characters from RFC2046 are:
+            -- Valid boundary must only be max 70 characters not 
+            -- ending in space.
+            -- Valid characters from RFC2046 are:
             -- bchar := DIGIT / ALPHA / "'" / "(" / ")" /
             --          "+" / "_" / "," / "-" / "." /
             --          "/" / ":" / "=" / "?" / " "
-            -- boundary string is permitted to be quoted
-            local boundary = content_type:match("boundary=[\"]?([0-9a-zA-Z'()+_,-./:=? ]*[0-9a-zA-Z'()+_,-./:=?])")
+            -- Boundary string is permitted to be quoted.
+            local boundary = 
+                content_type:match(
+                    "boundary=[\"]?([0-9a-zA-Z'()+_,-./:=? ]*[0-9a-zA-Z'()+_,-./:=?])")
             self.arguments =
-                httputil.parse_multipart_data(self._request.body, boundary) or {}
+                httputil.parse_multipart_data(self._request.body, boundary) 
+                    or {}
         end
     end
     self.request_callback(self._request)
@@ -280,6 +298,7 @@ function httpserver.HTTPConnection:_finish_request()
             disconnect = true
         end
     end
+    self._max_buf = false
     self._request_finished = false
     if disconnect then
         self.stream:close()
@@ -287,7 +306,7 @@ function httpserver.HTTPConnection:_finish_request()
     end
     self.arguments = nil  -- Reset table in case of keep-alive.
     if not self.stream:closed() then
-        self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*16)
+        self.stream:set_max_buffer_size(self.kwargs.max_header_size or 1024*18)
         self.stream:read_until("\r\n\r\n", self._header_callback, self)
     else
         log.debug("[httpserver.lua] Client hang up. End Keep-Alive session.")
@@ -307,6 +326,26 @@ function httpserver.HTTPConnection:_on_write_complete()
     if self._request_finished and not self.stream:writing() then
         self:_finish_request()
     end
+end
+
+--- Callback for maxed out buffer.
+function httpserver.HTTPConnection:_on_max_buffer()
+    if self._max_buf then
+        -- Allow one iteration of buffer at max. In case headers
+        -- and body arrive in one chunk.
+        if not self._headers_read then
+            log.error(
+                string.format("Headers too large for limit %dB.",
+                              self.kwargs.max_header_size or 1024*18))
+        else
+            log.error(
+                string.format("Request body too large for limit %dB.",
+                              self.kwargs.max_header_size or 1024*18))
+        end
+        self.stream:close()
+        return
+    end
+    self._max_buf = true
 end
 
 --- HTTPRequest class.

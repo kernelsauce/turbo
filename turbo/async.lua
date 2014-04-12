@@ -117,11 +117,11 @@ async.HTTPClient = class("HTTPClient")
 -- One instance can serve 1 request at a time. If multiple request should be
 -- sent then create multiple instances.
 -- ssl_options kwargs:
--- "priv_file" SSL / HTTPS private key file.
--- "cert_file" SSL / HTTPS certificate key file.
--- "verify_ca" SSL / HTTPS chain verifification and hostname matching.
+-- ``priv_file`` SSL / HTTPS private key file.
+-- ``cert_file`` SSL / HTTPS certificate key file.
+-- ``verify_ca`` SSL / HTTPS chain verifification and hostname matching.
 --      Verification and matching is on as default.
--- "ca_path" SSL / HTTPS CA certificate verify location
+-- ``ca_path`` SSL / HTTPS CA certificate verify location
 function async.HTTPClient:initialize(ssl_options, io_loop, max_buffer_size)
     self.family = AF_INET
     self.io_loop = io_loop or ioloop.instance()
@@ -131,19 +131,19 @@ end
 
 --- Errors that can be set in the return object of fetch (HTTPResponse instance).
 local errors = {
-     INVALID_URL            = -1 -- URL could not be parsed.
-    ,INVALID_SCHEMA         = -5 -- Invalid URL schema
-    ,COULD_NOT_CONNECT      = -2 -- Could not connect, check message.
-    ,PARSE_ERROR_HEADERS    = -3 -- Could not parse response headers.
-    ,CONNECT_TIMEOUT        = -6 -- Connect timed out.
-    ,REQUEST_TIMEOUT        = -7 -- Request timed out.
-    ,NO_HEADERS             = -8 -- Shouldnt happen.
-    ,REQUIRES_BODY          = -9 -- Expected a HTTP body, but none set.
-    ,INVALID_BODY           = -10 -- Request body is not a string.
-    ,SOCKET_ERROR           = -11 -- Socket error, check message.
-    ,SSL_ERROR              = -12 -- SSL error, check message.
-    ,BUSY                   = -13 -- Operation in progress.
-    ,REDIRECT_MAX           = -14 -- Redirect maximum reached.
+     INVALID_URL = -1 -- URL could not be parsed.
+    ,INVALID_SCHEMA = -2 -- Invalid URL schema
+    ,COULD_NOT_CONNECT = -3 -- Could not connect, check message.
+    ,PARSE_ERROR_HEADERS = -4 -- Could not parse response headers.
+    ,CONNECT_TIMEOUT = -5 -- Connect timed out.
+    ,REQUEST_TIMEOUT = -6 -- Request timed out.
+    ,NO_HEADERS = -7 -- Shouldnt happen.
+    ,REQUIRES_BODY = -8 -- Expected a HTTP body, but none set.
+    ,INVALID_BODY = -9 -- Request body is not a string.
+    ,SOCKET_ERROR = -10 -- Socket error, check message.
+    ,SSL_ERROR = -11 -- SSL error, check message.
+    ,BUSY = -12 -- Operation in progress.
+    ,REDIRECT_MAX = -13 -- Redirect maximum reached.
 }
 async.errors = errors
 
@@ -151,23 +151,23 @@ async.errors = errors
 -- @param url (String) URL to fetch.
 -- @param kwargs (table) Optional keyword arguments
 -- ** Available options **
--- "method" = The HTTP method to use. Default is "GET"
--- "params" = Provide parameters as table.
--- "cookie" = (Table) The cookies to use.
--- "http_version" = Set HTTP version. Default is HTTP1.1
--- "use_gzip" = Use gzip compression. Default is true.
--- "allow_redirects" = Allow or disallow redirects. Default is true.
--- "max_redirects" = Maximum redirections allowed. Default is 4.
--- "on_headers" = Callback to be called when assembling request headers. Called
+-- ``method`` = The HTTP method to use. Default is ``GET``
+-- ``params`` = Provide parameters as table.
+-- ``cookie`` = (Table or single string) The cookie(s) to use.
+-- ``http_version`` = Set HTTP version. Default is HTTP1.1
+-- ``use_gzip`` = Use gzip compression. Default is true.
+-- ``allow_redirects`` = Allow or disallow redirects. Default is true.
+-- ``max_redirects`` = Maximum redirections allowed. Default is 4.
+-- ``on_headers`` = Callback to be called when assembling request headers. Called
 --  with headers as argument.-- Default to port 80 if not specified in URL.
--- "body" = Request HTTP body in plain form.
--- "request_timeout" = Total timeout in seconds (including connect) for
+-- ``body`` = Request HTTP body in plain form.
+-- ``request_timeout`` = Total timeout in seconds (including connect) for
 -- request. Default is 60 seconds.
--- "connect_timeout" = Timeout in seconds for connect. Default is 20 secs.
--- "auth_username" = Basic Auth user name.
--- "auth_password" = Basic Auth password.
--- "user_agent" = User Agent string used in request headers. Default
--- is "Turbo Client vx.x.x"
+-- ``connect_timeout`` = Timeout in seconds for connect. Default is 20 secs.
+-- ``auth_username`` = Basic Auth user name.
+-- ``auth_password`` = Basic Auth password.
+-- ``user_agent`` = User Agent string used in request headers. Default
+-- is ``Turbo Client vx.x.x``
 function async.HTTPClient:fetch(url, kwargs)
     if self.in_progress then
         self:_throw_error(errors.BUSY, "HTTPClient is busy.")
@@ -183,7 +183,7 @@ function async.HTTPClient:fetch(url, kwargs)
     -- Set sane defaults for kwargs if not present.
     self.redirect_max = self.kwargs.max_redirects or 4
     self.kwargs.method = self.kwargs.method or "GET"
-    self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
+    self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.1.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
     self.kwargs.request_timeout = self.kwargs.request_timeout or 60
     if self:_set_url(url) == -1 then
@@ -315,6 +315,68 @@ function async.HTTPClient:_connect()
         if rc ~= 0 then
             self:_throw_error(errors.COULD_NOT_CONNECT, msg)
             return -1
+        end
+    elseif self.kwargs.allow_websocket_connect == true then
+        -- Allow a user to use the client to connect with WebSocket schema.
+        -- HTTPClient will not do the actual WebSocket upgrade protocol though.
+        if self.schema == "ws" then
+            if not self.port then
+                self.port = 80
+            end
+            self.iostream = iostream.IOStream:new(
+                self.sock,
+                self.io_loop,
+                self.max_buffer_size)
+            local rc, msg = self.iostream:connect(self.hostname,
+                self.port,
+                self.family,
+                self._handle_connect,
+                self._handle_connect_fail,
+                self)
+            if rc ~= 0 then
+                self:_throw_error(errors.COULD_NOT_CONNECT, msg)
+                return -1
+            end
+        elseif self.schema == "wss" then
+            if not self.ssl_options or not self.ssl_options._ssl_ctx then
+                self.ssl_options = self.ssl_options or {}
+                crypto.ssl_init()
+                local rc, ctx_or_err = crypto.ssl_create_client_context(
+                    self.ssl_options.priv_key,
+                    self.ssl_options.cert_key,
+                    self.ssl_options.ca_path,
+                    self.ssl_options.verify_ca ~= nil and
+                        self.ssl_options.verify_ca or true)
+                if rc ~= 0 then
+                    self:_throw_error(errors.SSL_ERROR,
+                        string.format("Could not create SSL context. %s",
+                            ctx_or_err))
+                    return -1
+                end
+                self.ssl_options._ssl_ctx = ctx_or_err
+                self.ssl_options._type = 1
+            end
+            if not self.port then
+                self.port = 443
+            end
+            self.iostream = iostream.SSLIOStream:new(
+                self.sock,
+                self.ssl_options,
+                self.io_loop,
+                self.max_buffer_size)
+            local rc, msg = self.iostream:connect(
+                self.hostname,
+                self.port,
+                self.family,
+                self.ssl_options.verify_ca ~= nil and
+                        self.ssl_options.verify_ca or true,
+                self._handle_connect,
+                self._handle_connect_fail,
+                self)
+            if rc ~= 0 then
+                self:_throw_error(errors.COULD_NOT_CONNECT, msg)
+                return -1
+            end
         end
     else
         -- Some other strange schema that not is HTTP or supported at all.
@@ -481,7 +543,11 @@ function async.HTTPClient:_handle_headers(data)
     end
     self.response_headers = headers
     local code = self.response_headers:get_status_code()
-    if 100 <= code and code < 200 then
+    if code == 101 then
+        -- Switching Protocols.
+        self:_finalize_request()
+        return
+    elseif 100 <= code and code < 200 then
         self:_handle_1xx_code(code)
         return
     end
@@ -607,7 +673,7 @@ function async.HTTPClient:_finalize_request()
             end
         end
     end
-    if self.iostream then
+    if self.iostream and self.kwargs.keep_alive ~= true then
         self.iostream:close()
         self.iostream = nil
     end
@@ -643,6 +709,5 @@ function async.HTTPResponse:initialize()
     self.error = err
     self.request_time = nil
 end
-
 
 return async
