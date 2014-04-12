@@ -323,7 +323,8 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
     if not cookie then
         return default
     end
-    local len, hmac, timestamp, value = cookie:match("(%d*)|(%w*)|(%d*)|(.*)")
+
+    local hmac, len, timestamp, value = cookie:match("(%w*)|(%d*)|(%d*)|(.*)")
     assert(tonumber(len) == value:len(), "Cookie value length has changed!")
     assert(hmac:len() == 40, "Could not get secure cookie. Hash to short.")
     if max_age then
@@ -332,7 +333,7 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
         assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
     end
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
-                               string.format("%s|%s", tostring(timestamp), value))
+                               string.format("%d|%s|%s", len, tostring(timestamp), value))
     assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
                               Either the cookie is forged or the cookie secret \
                               has been changed")
@@ -375,10 +376,14 @@ function web.RequestHandler:set_secure_cookie(name, value, domain, expire_hours)
     -- timestamp and value separated by a pipe char is what is being hashed.
     assert(type(self.application.kwargs.cookie_secret) == "string", 
            "No cookie secret has been set in the Application class.")
-    value = tostring(value)
-    local to_hash = string.format("%s|%s", tostring(util.gettimeofday()), value)
-    local cookie = string.format("%d|%s|%s", 
-                                 value:len(),
+    if type(value) ~= "string" then
+        value = tostring(value)
+    end
+    local to_hash = string.format("%d|%s|%s", 
+                                  value:len(), 
+                                  tostring(util.gettimeofday()), 
+                                  value)
+    local cookie = string.format("%s|%s",
                                  hash.HMAC(
                                     self.application.kwargs.cookie_secret,
                                     to_hash),
@@ -556,21 +561,31 @@ function web.RequestHandler:finish(chunk)
     self:_finish()
 end
 
+--- Parse cookies according to the RFC 6265 document.
+-- Valid cookie format is:
+-- cookie-pair       = cookie-name "=" cookie-value
+-- cookie-name       = token
+-- cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+-- cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+--                       ; US-ASCII characters excluding CTLs,
+--                       ; whitespace DQUOTE, comma, semicolon,
+--                       ; and backslash
 function web.RequestHandler:_parse_cookies()
     local cookies = {}
     local cookie_str, cnt = self.request.headers:get("Cookie")
+    local rfc6265pat = '%s*([%w]+)="*([%w%p]+[^%s%;^%,^%\\%"])%s*'
     self._cookies_parsed = true
     self._cookies = cookies
     if cnt == 0 then
         return
     elseif cnt == 1 then
-        for key, value in cookie_str:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);?") do
+        for key, value in cookie_str:gmatch(rfc6265pat) do
             cookies[escape.unescape(key)] = escape.unescape(value)
         end
     elseif cnt > 1 then
         for i = 1, cnt do
-            for key, value in 
-                cookie_str[i]:gmatch("([%a%c%w%p]+)=([%a%c%w%p]+);?") do
+            for key, value in
+                cookie_str[i]:gmatch(rfc6265pat) do
                 cookies[escape.unescape(key)] = escape.unescape(value)
             end
         end
