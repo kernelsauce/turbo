@@ -341,6 +341,9 @@ function iostream.IOStream:set_maxed_buffer_callback(callback, arg)
 end
 
 function iostream.IOStream:set_max_buffer_size(sz)
+    if type(sz) ~= "number" then
+        return
+    end
     if sz < TURBO_SOCKET_BUFFER_SZ then
         log.warning(
             string.format("Max buffer size could not be set to lower value "..
