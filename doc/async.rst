@@ -71,36 +71,40 @@ Usage inside a ``turbo.web.RequestHandler`` method:
 
 	Available SSL options:
 
-	* "priv_file" (String) - Path to SSL / HTTPS private key file.
-	* "cert_file" (String) - Path to SSL / HTTPS certificate key file.
-	* "ca_path" (String) - Path to SSL / HTTPS CA certificate verify location, if not given builtin is used, which is copied from Ubuntu 12.10.
-	* "verify_ca" (Boolean) SSL / HTTPS verify servers certificate. Default is true.
+	* ``priv_file`` (String) - Path to SSL / HTTPS private key file.
+	* ``cert_file`` (String) - Path to SSL / HTTPS certificate key file.
+	* ``ca_path`` (String) - Path to SSL / HTTPS CA certificate verify location, if not given builtin is used, which is copied from Ubuntu 12.10.
+	* ``verify_ca`` (Boolean) SSL / HTTPS verify servers certificate. Default is true.
 
 .. attribute::	errors
 
 	Numeric error codes set in the HTTPResponse returned by ``HTTPClient:fetch``:
 
-	    INVALID_URL            - URL could not be parsed.
+	    ``INVALID_URL``            - URL could not be parsed.
 
-	    INVALID_SCHEMA         - Invalid URL schema
+	    ``INVALID_SCHEMA``         - Invalid URL schema
 
-	    COULD_NOT_CONNECT      - Could not connect, check message.
+	    ``COULD_NOT_CONNECT``      - Could not connect, check message.
 
-	    PARSE_ERROR_HEADERS    - Could not parse response headers.
+	    ``PARSE_ERROR_HEADERS``    - Could not parse response headers.
 
-	    CONNECT_TIMEOUT        - Connect timed out.
+	    ``CONNECT_TIMEOUT``        - Connect timed out.
 
-	    REQUEST_TIMEOUT        - Request timed out.
+	    ``REQUEST_TIMEOUT``        - Request timed out.
 
-	    NO_HEADERS             - Shouldn't happen.
+	    ``NO_HEADERS``             - Shouldn't happen.
 
-	    REQUIRES_BODY          - Expected a HTTP body, but none set.
+	    ``REQUIRES_BODY``          - Expected a HTTP body, but none set.
 
-	    INVALID_BODY           - Request body is not a string.
+	    ``INVALID_BODY``           - Request body is not a string.
 
-	    SOCKET_ERROR           - Socket error, check message.
+	    ``SOCKET_ERROR``           - Socket error, check message.
 
-	    SSL_ERROR              - SSL error, check message.
+	    ``SSL_ERROR``              - SSL error, check message.
+
+	    ``BUSY``              	   - Operation in progress.
+
+	    ``REDIRECT_MAX``		   - Redirect maximum reached.
 
 .. function:: HTTPClient:fetch(url, kwargs)
 
@@ -112,20 +116,20 @@ Usage inside a ``turbo.web.RequestHandler`` method:
 
 	Available keyword arguments:
 
-	* "method" - The HTTP method to use. Default is "GET"
-	* "params" - Provide parameters as table.
-	* "cookie" - The cookie to use.
-	* "http_version" - Set HTTP version. Default is HTTP1.1
-	* "use_gzip" - Use gzip compression. Default is true.
-	* "allow_redirects" - Allow or disallow redirects. Default is true.
-	* "max_redirects" - Maximum redirections allowed. Default is 4.
-	* "on_headers" - Callback to be called when assembling request HTTPHeaders instance. Called with ``turbo.httputil.HTTPHeaders`` as argument.
-	* "body" - Request HTTP body in plain form.
-	* "request_timeout" - Total timeout in seconds (including connect) for request. Default is 60 seconds.
-	* "connect_timeout" - Timeout in seconds for connect. Default is 20 secs.
-	* "auth_username" - Basic Auth user name.
-	* "auth_password" - Basic Auth password.
-	* "user_agent" - User Agent string used in request headers. Default is "Turbo Client vx.x.x".
+	* ``method`` - The HTTP method to use. Default is ``GET``
+	* ``params`` - Provide parameters as table.
+	* ``cookie`` - The cookie to use.
+	* ``http_version`` - Set HTTP version. Default is HTTP1.1
+	* ``use_gzip`` - Use gzip compression. Default is true.
+	* ``allow_redirects`` - Allow or disallow redirects. Default is true.
+	* ``max_redirects`` - Maximum redirections allowed. Default is 4.
+	* ``on_headers`` - Callback to be called when assembling request HTTPHeaders instance. Called with ``turbo.httputil.HTTPHeaders`` as argument.
+	* ``body`` - Request HTTP body in plain form.
+	* ``request_timeout`` - Total timeout in seconds (including connect) for request. Default is 60 seconds.
+	* ``connect_timeout`` - Timeout in seconds for connect. Default is 20 secs.
+	* ``auth_username`` - Basic Auth user name.
+	* ``auth_password`` - Basic Auth password.
+	* ``user_agent`` - User Agent string used in request headers. Default is ``Turbo Client vx.x.x``.
 
 HTTPResponse class
 ~~~~~~~~~~~~~~~~~~

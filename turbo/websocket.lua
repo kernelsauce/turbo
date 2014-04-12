@@ -165,6 +165,12 @@ function websocket.WebSocketStream:close()
     self.stream:close()
 end
 
+--- Is the WebSocketStream closed?
+-- @return true if closed, otherwise nil.
+function websocket.WebSocketStream:closed()
+    return self._closed
+end
+
 --- Accept a new WebSocket frame.
 function websocket.WebSocketStream:_accept_frame(header)
     local ws_header = ffi.cast("struct ws_header *", header)
@@ -296,7 +302,7 @@ end
 --- Called when a new websocket request is opened.
 function websocket.WebSocketHandler:open() end
 
---- Called when a message the client is recieved.
+--- Called when a message is recieved.
 -- @param msg (String) The recieved message.
 function websocket.WebSocketHandler:on_message(msg) end
 
@@ -539,7 +545,9 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     self.address = address
     self.kwargs = kwargs or {}
     self._connect_time = util.gettimemonotonic()
-    self.http_cli = async.HTTPClient()
+    self.http_cli = async.HTTPClient(self.kwargs, 
+                                     self.kwargs.ioloop, 
+                                     self.kwargs.max_buffer_size)
     local websocket_key = escape.base64_encode(util.rand_str(16))
     -- Reusing async.HTTPClient.
     local _modify_headers_success = true
@@ -621,23 +629,6 @@ function websocket.WebSocketClient:initialize(address, kwargs)
         self.address))
     self:_continue_ws()
 end
-
---- Close the WebSocketClient connection.
--- Can be called at any time, including in "on_headers" callback.
-function websocket.WebSocketClient:close()
-    self._closed = true
-    if self.stream then
-        -- IOStream knows if its closed itself, so don't bother checking.
-        self.stream:close()
-    end
-end
-
---- Is the WebSocketClient closed?
--- @return true if closed, otherwise nil.
-function websocket.WebSocketClient:closed()
-    return self._closed
-end
-
 
 function websocket.WebSocketClient:_protected_call(name, func, arg, data)
     local status, err = pcall(func, arg, data)

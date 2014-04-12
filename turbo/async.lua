@@ -117,11 +117,11 @@ async.HTTPClient = class("HTTPClient")
 -- One instance can serve 1 request at a time. If multiple request should be
 -- sent then create multiple instances.
 -- ssl_options kwargs:
--- "priv_file" SSL / HTTPS private key file.
--- "cert_file" SSL / HTTPS certificate key file.
--- "verify_ca" SSL / HTTPS chain verifification and hostname matching.
+-- ``priv_file`` SSL / HTTPS private key file.
+-- ``cert_file`` SSL / HTTPS certificate key file.
+-- ``verify_ca`` SSL / HTTPS chain verifification and hostname matching.
 --      Verification and matching is on as default.
--- "ca_path" SSL / HTTPS CA certificate verify location
+-- ``ca_path`` SSL / HTTPS CA certificate verify location
 function async.HTTPClient:initialize(ssl_options, io_loop, max_buffer_size)
     self.family = AF_INET
     self.io_loop = io_loop or ioloop.instance()
@@ -151,23 +151,23 @@ async.errors = errors
 -- @param url (String) URL to fetch.
 -- @param kwargs (table) Optional keyword arguments
 -- ** Available options **
--- "method" = The HTTP method to use. Default is "GET"
--- "params" = Provide parameters as table.
--- "cookie" = (Table) The cookies to use.
--- "http_version" = Set HTTP version. Default is HTTP1.1
--- "use_gzip" = Use gzip compression. Default is true.
--- "allow_redirects" = Allow or disallow redirects. Default is true.
--- "max_redirects" = Maximum redirections allowed. Default is 4.
--- "on_headers" = Callback to be called when assembling request headers. Called
+-- ``method`` = The HTTP method to use. Default is ``GET``
+-- ``params`` = Provide parameters as table.
+-- ``cookie`` = (Table or single string) The cookie(s) to use.
+-- ``http_version`` = Set HTTP version. Default is HTTP1.1
+-- ``use_gzip`` = Use gzip compression. Default is true.
+-- ``allow_redirects`` = Allow or disallow redirects. Default is true.
+-- ``max_redirects`` = Maximum redirections allowed. Default is 4.
+-- ``on_headers`` = Callback to be called when assembling request headers. Called
 --  with headers as argument.-- Default to port 80 if not specified in URL.
--- "body" = Request HTTP body in plain form.
--- "request_timeout" = Total timeout in seconds (including connect) for
+-- ``body`` = Request HTTP body in plain form.
+-- ``request_timeout`` = Total timeout in seconds (including connect) for
 -- request. Default is 60 seconds.
--- "connect_timeout" = Timeout in seconds for connect. Default is 20 secs.
--- "auth_username" = Basic Auth user name.
--- "auth_password" = Basic Auth password.
--- "user_agent" = User Agent string used in request headers. Default
--- is "Turbo Client vx.x.x"
+-- ``connect_timeout`` = Timeout in seconds for connect. Default is 20 secs.
+-- ``auth_username`` = Basic Auth user name.
+-- ``auth_password`` = Basic Auth password.
+-- ``user_agent`` = User Agent string used in request headers. Default
+-- is ``Turbo Client vx.x.x``
 function async.HTTPClient:fetch(url, kwargs)
     if self.in_progress then
         self:_throw_error(errors.BUSY, "HTTPClient is busy.")
@@ -183,7 +183,7 @@ function async.HTTPClient:fetch(url, kwargs)
     -- Set sane defaults for kwargs if not present.
     self.redirect_max = self.kwargs.max_redirects or 4
     self.kwargs.method = self.kwargs.method or "GET"
-    self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.0.0"
+    self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v1.1.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
     self.kwargs.request_timeout = self.kwargs.request_timeout or 60
     if self:_set_url(url) == -1 then
@@ -709,6 +709,5 @@ function async.HTTPResponse:initialize()
     self.error = err
     self.request_time = nil
 end
-
 
 return async

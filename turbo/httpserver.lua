@@ -61,7 +61,7 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 --- Create a new HTTPServer class instance.
 -- @param request_callback (Function) Callback when requests are recieved by
 -- the server.
--- @param no_keep_alive (Boolean) If clients request to use Keep-Alive is to be
+-- @param no_keep_alive (Boolean) If clients request use Keep-Alive it is to be
 -- ignored.
 -- @param io_loop (IOLoop instance) The IOLoop instance you want to use.
 -- @param xheaders (Boolean) Care about X-* header fields or not.
@@ -75,11 +75,10 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 -- "max_header_size" = The maximum amount of bytes a header can be. 
 --      If exceeded, request is dropped.
 -- "max_body_size" = The maxium amount of bytes a request body can be.
---      If exceeded, request is dropped. HAS NO EFFECT IF READ BODY IS FALSE.
--- ** SSL Options **
--- To enable SSL remember to set the _G.TURBO_SSL global.
--- "key_file" = SSL key file if a SSL enabled server is wanted.
--- "cert_file" = Certificate file. key_file must also be set.
+--      If exceeded, request is dropped. HAS NO EFFECT IF read_body IS FALSE.
+-- "ssl_options" = 
+--      "key_file" = SSL key file if a SSL enabled server is wanted.
+--      "cert_file" = Certificate file. key_file must also be set.
 function httpserver.HTTPServer:initialize(request_callback, 
                                           no_keep_alive, 
                                           io_loop, 

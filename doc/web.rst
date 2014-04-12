@@ -424,7 +424,7 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	Keyword arguments supported:
 
 	* "default_host" (String) - Redirect to this URL if no matching handler is found.
-	* "cookie_secret" (String) - Sequence of bytes used for to sign cookies.
+	* "cookie_secret" (String) - Sequence of bytes used to sign secure cookies.
 
 .. function:: Application:add_handler(pattern, handler, arg)
 
@@ -443,19 +443,12 @@ A good read on Lua patterns matching can be found here: http://www.wowwiki.com/P
 	by creating a ``turbo.httpserver.HTTPServer`` class instance and assigning the Application instance to its request_callback parameter and calling its listen()
 	method.
 
-	:param port: TCP port to bind server to.
+	:param port: Port to bind server to.
 	:type port: Number
-	:param address: Optional address to bind server to. Use ``turbo.socket.htonl()`` to create address. We use the unsigned integer hostlong format of the IP.
-	:type address: Number
-	:param kwargs: Keyword arguments
+	:param address: Address to bind server to. E.g "127.0.0.1".
+	:type address: String or number.
+	:param kwargs: Keyword arguments passed on to ``turbo.httpserver.HTTPServer``. See documentation for available options. This is used to set SSL certificates amongst other things.
 	:type kwargs: Table
-
-	Available keyword arguments:
-
-	* "key_file" (String) - Path to SSL key file if a SSL enabled server is wanted.
-	* "cert_file" (String) - Path to certificate file. key_file must also be set.
-
-*Note: If you are going to use SSL the global _G.TURBO_SSL must be set to true!*
 
 .. function:: Application:set_server_name(name)
 

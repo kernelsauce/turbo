@@ -12,18 +12,19 @@ HTTPServer class
 ~~~~~~~~~~~~~~~~
 
 HTTPServer based on TCPServer, IOStream and IOLoop classes.
-This class is used by the Application class to serve its RequestHandlers.
+This class is used by the ``turbo.web.Application`` class to serve its RequestHandlers.
 The server itself is only responsible for handling incoming requests, no
 response to the request is produced, that is the purpose of the request
 callback given as argument on initialization. The callback recieves the
 HTTPRequest class instance produced for the incoming request and can 
 by data provided in that instance decide on how it want to respond to 
 the client. The callback must produce a valid HTTP response header and
-optionally a response body and use the HTTPRequest:write method. Only use this
-class if you wish to customize things.
-
+optionally a response body and use the ``turbo.web.HTTPRequest:write`` method. 
 The server supports SSL, HTTP/1.1 Keep-Alive and optionally HTTP/1.0
 Keep-Alive if the header field is specified.
+
+Only use this class if you wish to have full control of things. Otherwise use the
+wrapper ``turbo.web.Application``!
 
 Example usage of HTTPServer:
 
@@ -54,10 +55,20 @@ Example usage of HTTPServer:
 	:type no_keep_alive: Boolean
 	:param io_loop: The IOLoop instance you want to use, if not defined the global instance is used.
 	:type io_loop: ``turbo.ioloop.IOLoop`` class instance.
-	:param xheaders: Care about X-* header fields or not.
+	:param xheaders: Care about X-* header fields or not. If set to true the remote_ip attribute in self
+		reflects the X-Real-Ip or X-Forwarded-For HTTP header value recieved.
 	:type xheaders: Boolean
-	:param kwars: Key word arguments
+	:param kwars: Optional keyword arguments
 	:type kwargs: Table
+
+	Available keyword arguments:
+
+	* ``read_body`` - Automatically read, and parse any request body. Default is true. If set to false, the user must read the body from the connection himself. Not reading a body in the case of a keep-alive request may lead to undefined behaviour. The body should be read or connection closed.
+	* ``max_header_size`` - The maximum amount of bytes a header can be. If exceeded, request is dropped.
+	* ``max_body_size`` - The maxium amount of bytes a request body can be. If exceeded, request is dropped. HAS NO EFFECT IF read_body IS FALSE.
+	* ``ssl_options`` :
+	     ``key_file`` - SSL key file if a SSL enabled server is wanted,
+	     ``cert_file`` - Certificate file.
 
 General note regarding callbacks for all write methods: If you do writes before the previous callback has been called it is replaced with the new callback. If there is no callback defined in consequtive calls, the old callback is simply removed.
 

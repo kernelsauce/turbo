@@ -913,15 +913,17 @@ end
 -- by creating a HTTPServer class instance and assigning the Application to
 -- instance to its request_callback parameter and calling its listen()
 -- method.
--- @param port (Number) The port number to bind to.
--- @param address (Number) The address to bind to in unsigned integer hostlong
--- format. 0 = all addresses available.
+-- @param port (Number) Port to bind server to.
+-- @param address (String) Address to bind server to. E.g "127.0.0.1".
+-- @param kwargs (Table) Keyword arguments passed on to 
+--      ``turbo.httpserver.HTTPServer``. See documentation for that class for 
+--      available options.
 function web.Application:listen(port, address, kwargs)
     -- Key word arguments supported:
     -- ** SSL Options **
     -- To enable SSL remember to set the _G.TURBO_SSL global.
-    -- "key_file" = SSL key file if a SSL enabled server is wanted.
-    -- "cert_file" = Certificate file. key_file must also be set.
+    -- ``key_file`` = SSL key file if a SSL enabled server is wanted.
+    -- ``cert_file`` = Certificate file. key_file must also be set.
     local server = httpserver.HTTPServer:new(self, nil, nil, nil, kwargs)
     server:listen(port, address)
 end
