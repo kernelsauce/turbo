@@ -512,7 +512,7 @@ function async.HTTPClient:_handle_request_timeout()
         "[async.lua] Request to %s timed out.", self.hostname))
     self:_throw_error(errors.REQUEST_TIMEOUT,
         string.format("Request timed out after %d secs",
-            self.kwargs.connect_timeout))
+            self.kwargs.request_timeout))
 end
 
 function async.HTTPClient:_handle_1xx_code(code)
