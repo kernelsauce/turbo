@@ -189,7 +189,7 @@ function httpserver.HTTPConnection:write_zero_copy(buf, callback, arg)
         self:_set_write_callback(callback, arg)
         self.stream:write_zero_copy(buf, self._on_write_complete, self)
     else
-        log.devel("Trying to do zero copy operation on closed stream.")
+        log.devel("[httpserver.lua] Trying to do zero copy operation on closed stream.")
     end
 end
 
@@ -237,7 +237,8 @@ function httpserver.HTTPConnection:_on_headers(data)
                 self.kwargs.max_body_size or content_length)
             if content_length > self.stream.max_buffer_size then
                 log.error(
-                    "Content-Length too long compared to current max body size.")
+                    "[httpserver.lua] Content-Length too long \
+                    compared to current max body size.")
                 self.stream:close()
             end
             if headers:get("Expect") == "100-continue" then
@@ -335,11 +336,11 @@ function httpserver.HTTPConnection:_on_max_buffer()
         -- and body arrive in one chunk.
         if not self._headers_read then
             log.error(
-                string.format("Headers too large for limit %dB.",
+                string.format("[httpserver.lua] Headers too large for limit %dB.",
                               self.kwargs.max_header_size or 1024*18))
         else
             log.error(
-                string.format("Request body too large for limit %dB.",
+                string.format("[httpserver.lua] Request body too large for limit %dB.",
                               self.kwargs.max_header_size or 1024*18))
         end
         self.stream:close()
