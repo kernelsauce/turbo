@@ -164,7 +164,7 @@ else
     -- cryptographic hash function in combination with a secret cryptographic key.
     -- @param key (String) Sequence of bytes used as a key.
     -- @param digest (String) String to digest.
-	-- @param raw (Boolean) Indicates whether the output should be a direct binary equivalent of the message digest, or formatted as a hexadecimal string.
+    -- @param raw (Boolean) Indicates whether the output should be a direct binary equivalent of the message digest, or formatted as a hexadecimal string.
     -- @return (String) Hex representation of digested string.
     function hash.HMAC(key, digest, raw)
         assert(type(key) == "string", "Key is invalid type: "..type(key))
