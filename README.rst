@@ -1,4 +1,5 @@
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
+   :target: http://turbolua.org
 
 Turbo is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
 
