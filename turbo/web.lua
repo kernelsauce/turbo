@@ -36,6 +36,7 @@ require('turbo.3rdparty.middleclass')
 -- LuaJIT compiler. Traces abort in a bad spot if not used.
 local unpack = util.funpack
 local is_in = util.is_in
+local _std_supported_met = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 
 local web = {} -- web namespace
 web.Mustache = require "turbo.mustache" -- include the Mustache templater.
@@ -61,7 +62,7 @@ web.RequestHandler = class("RequestHandler")
 -- of a Application class.
 -- @param options (Table) 3rd argument given in Application class route table.
 function web.RequestHandler:initialize(application, request, url_args, options)
-    self.SUPPORTED_METHODS = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
+    self.SUPPORTED_METHODS = _std_supported_met
     self.application = application
     self.request = request
     self._headers_written = false
