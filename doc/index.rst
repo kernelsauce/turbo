@@ -1,36 +1,39 @@
 
 .. image:: _static/turbo.png
 
-This is the documentation for Turbo.lua version 1.0.0.
+This is the documentation for Turbo.lua version 1.1.0.
 
 Introduction
 ------------
-Turbo.lua is a Lua module / toolkit (whatever) for developing web applications in Lua. It is different from all the other Lua HTTP servers out there in that it's modern, fresh, object oriented and easy to modify. No pun intended!
-It is written in pure Lua, there are no Lua C modules instead it uses the LuaJIT FFI to do socket and event handling. Users of the Tornado web server will recognize the API offered pretty quick.
-If you do not know Lua then do not fear as its probably one of the easiest languages to learn if you know C, Python or Javascript from before.
+Turbo.lua is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
 
-Turbo.lua is non-blocking and a features a extremely fast light weight web server. The framework is good for REST APIs, traditional HTTP requests and open connections like Websockets because of its event driven nature.
+First and foremost the framework is aimed at the HTTP(S) protocol. This means web developers and HTTP API developers are the first class citizens. But the framework contains generic nuts and bolts such as; a I/O loop, IO Stream classes, customizeable TCP (with SSL) server classes giving it value for everyone doing any kind of high performance network application. It will also speak directly to your exising C libraries, and happily also create native C struct's for the ultimate memory and CPU performance.
 
-What sets Turbo.lua apart from the other evented driven servers out there, is that it is the fastest, most scalable and has the smallest footprint of them all. This is thanks to the excellent work done on LuaJIT.
+Keep in mind that running this with LuaJIT provides you with roughly the speed of compiled C code with only a fraction of the development time. Perfect for small devices running cheap CPU's on battery power as well as your pay per use Amazon cluster.
 
-Its main features and design principles are:
+LuaJIT 2 is REQUIRED, PUC-RIO Lua is unsupported.
 
-- Simple and intuitive API (much like Tornado)
+API Documentation is available at http://turbolua.org/doc/
+
+It's main features and design principles are:
+
+- Simple and intuitive API (much like Tornado).
+
+- Low-level operations is possible if the users wishes that.
+
+- Implemented in straight Lua and LuaJIT FFI, so the user can study and modify inner workings without too much effort.
 
 - Good documentation
 
-- No dependencies, except for LuaJIT the Just-In-Time compiler for Lua.
-
 - Event driven, asynchronous and threadless design
-
-- Extremely fast with LuaJIT
-
-- Written completely in pure Lua
-
-- Linux Epoll support
 
 - Small footprint
 
+- SSL support (requires OpenSSL or axTLS)
+
+Supported Architectures
+-----------------------
+x86, x64, ARM, PPC
 
 Installation
 ------------
@@ -66,6 +69,7 @@ Tutorials
     :maxdepth: 3
 
     get_started
+    modules
 
 
 API documentation
@@ -77,6 +81,7 @@ API documentation
    apiref
    web
    async
+   websocket
    ioloop
    iostream
    httputil
@@ -88,3 +93,5 @@ API documentation
    sockutil
    escape
    log
+   turbovisor
+

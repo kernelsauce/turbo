@@ -1,4 +1,4 @@
---- Turbo.lua Static file server example
+--- Turbo.lua Hello WebSocket example
 --
 -- Copyright 2013 John Abrahamsen
 --
@@ -14,17 +14,14 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+_G.TURBO_SSL = true
 local turbo = require "turbo"
 
-local app = turbo.web.Application:new({
-    -- Serve single index.html file on root requests.
-    {"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
-    -- Serve contents of directory.
-    {"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
-})
+local WSExHandler = class("WSExHandler", turbo.websocket.WebSocketHandler)
 
-local srv = turbo.httpserver.HTTPServer(app)
-srv:bind(8888)
-srv:start(2) -- Adjust amount of processes to fork.
+function WSExHandler:on_message(msg)
+    self:write_message("Hello World.")
+end
 
+turbo.web.Application({{"^/ws$", WSExHandler}}):listen(8888)
 turbo.ioloop.instance():start()

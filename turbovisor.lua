@@ -1,6 +1,6 @@
 --- Turbo.lua Turbovisor, auto-reload of application on file changes.
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013 John Abrahamsen, Deyuan Deng
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -17,45 +17,54 @@
 local ffi = require "ffi"
 local bit = require "bit"
 local turbo = require "turbo"
+local fs = require "turbo.fs"
 
 --- Parsing arguments for turbovisor
 -- @param arg All command line input. Note arg[0] is 'turbovisor', arg[1] is
 --    application name; so user-defined argument starts from arg[2]
--- @return a table containing option/value pair, e.g.
---    1. {"watch" = {".", "turbo/examples"}, ......}
+-- @return a table containing option/value pair, options including:
+--    'watch': set of files or directories to watch
+--    'ignore': set of files or directories that turbovisor shouldn't watch
 local function get_param(arg)
+    local arg_opt
     local arg_tbl = {}
-    local arg_shift = false
     for i = 2, #arg, 1 do
-        if arg_shift == false then
-            if arg[i] == '--watch' or arg[i] == '-w' then
-                arg_tbl.watch = arg[i+1]:split(',', nil, nil) -- util.lua
-                arg_shift = true
+        if arg[i] == '--watch' or arg[i] == '-w' then
+            arg_tbl.watch = {}
+            arg_opt = 'watch'
+        elseif arg[i] == '--ignore' or arg[i] == '-i' then
+            arg_tbl.ignore = {}
+            arg_opt = 'ignore'
+        else
+            if string.sub(arg[i], 1, 2) == "./" then
+                arg[i] = string.sub(arg[i], 3) -- pass './'
             end
-        else arg_shift = false end
+            local files = fs.glob(arg[i])
+            -- insert glob expanded result into table
+            if files then
+                for _,v in ipairs(files) do
+                    table.insert(arg_tbl[arg_opt], v)
+                end
+            end
+        end
     end
     -- Deal with default parameters
     if arg_tbl.watch == nil then arg_tbl.watch = {'.'} end
     return arg_tbl;
 end
 
---- Read out file metadata with a given path
-local function stat(path, buf)
-    local stat_t = ffi.typeof("struct stat")
-    if not buf then buf = stat_t() end
-    local ret = ffi.C.syscall(turbo.syscall.SYS_stat, path, buf)
-    if ret == -1 then return error(ffi.string(ffi.C.strerror(ffi.errno()))) end
-    return buf
-end
-
---- Check whether a given path is directory
-local function is_dir(path)
-    buf = stat(path, nil)
-    if bit.band(buf.st_mode, turbo.syscall.S_IFDIR) == turbo.syscall.S_IFDIR then 
-        return true
-    else 
-        return false 
+--- Kill all descendants for a given pid
+local function kill_tree(pid)
+    local status = ffi.new("int[1]")
+    local cpids = io.popen('pgrep -P ' .. pid)
+    for cpid in cpids:lines() do
+        kill_tree(cpid)
+        ffi.C.kill(tonumber(cpid), 9)
+        ffi.C.waitpid(tonumber(cpid), status, 0)
+        assert(status[0] == 9 or bit.band(status[0], 0x7f) == 0,
+               "Child process " .. cpid .. " not killed.")
     end
+    cpids:close()
 end
 
 
@@ -63,40 +72,23 @@ end
 -- and restart supervised application.
 local turbovisor = class("turbovisor", turbo.ioloop.IOLoop)
 
--- Watch given directory as well as all its sub-directories.
-function turbovisor:watch_all(dir)
-    local wd = ffi.C.inotify_add_watch(self.fd, dir, turbo.inotify.IN_MODIFY)
-    if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
-    for filename in io.popen('ls "' .. dir .. '"'):lines() do
-        local full_path = dir .. '/' .. filename
-        if is_dir(full_path) then self:watch_all(full_path) end
-    end
-end
-
 --- Start supervising.
 function turbovisor:supervise()
     -- Get command line parameters
-    local arg_tbl = get_param(arg)
-    self.targets = arg_tbl.watch
-    -- Create inotify descriptor, only one descriptor for now
-    self.fd = ffi.C.inotify_init()
-    if self.fd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+    self.arg_tbl = get_param(arg)
+    -- Create a new inotify
+    self.i_fd = turbo.inotify:new()
     -- Create a buffer for reading event in callback handler
-    -- hardcode size to 1024, a resonable guess for path length
-    self.buf = ffi.gc(ffi.C.malloc(1024), ffi.C.free)
-    -- Initialize ioloop, add inotify handler and watched target
+    self.buf = ffi.gc(ffi.C.malloc(turbo.fs.PATH_MAX), ffi.C.free)
+    -- Initialize ioloop, add inotify handler
     self:initialize()
-    self:add_handler(self.fd, turbo.ioloop.READ, self.restart, self)
-    for i, target in pairs(self.targets) do
-        if is_dir(target) then
-            self:watch_all(target)
+    self:add_handler(self.i_fd, turbo.ioloop.READ, self.restart, self)
+    -- Set watch on target file or directory
+    for i, target in pairs(self.arg_tbl.watch) do
+        if turbo.fs.is_dir(target) then
+            turbo.inotify:watch_all(target, self.arg_tbl.ignore)
         else
-            local wd = ffi.C.inotify_add_watch(self.fd, 
-                                               target, 
-                                               turbo.inotify.IN_MODIFY)
-            if wd == -1 then 
-                error(ffi.string(ffi.C.strerror(ffi.errno()))) 
-            end
+            turbo.inotify:watch_file(target)
         end
     end
     -- Parameters for starting application
@@ -106,9 +98,9 @@ function turbovisor:supervise()
     para[2] = nil
     self.para = ffi.cast("char *const*", para)
     -- Run application and supervisor
-    self.cpid = ffi.C.fork()
-    if self.cpid == 0 then
-        ffi.C.close(self.fd)
+    local cpid = ffi.C.fork()
+    if cpid == 0 then
+        turbo.inotify:close()
         ffi.C.execvp("luajit", self.para)
         error(ffi.string(ffi.C.strerror(ffi.errno())))
     else
@@ -119,17 +111,28 @@ end
 --- Callback handler when files changed
 -- For now, just restart the only one application
 function turbovisor.restart(self, fd, events)
-    turbo.log.notice("[turbovisor.lua] Application restarted!")
-    local status = ffi.new("int[1]")
     -- Read out event
-    ffi.C.read(fd, self.buf, 128);
+    ffi.C.read(fd, self.buf, turbo.fs.PATH_MAX);
+    self.buf = ffi.cast("struct inotify_event*", self.buf)
+    local full_path
+    if self.buf.len == 0 then -- 'len = 0' if we watch on file directly
+        full_path = turbo.inotify:get_watched_file(self.buf.wd)
+    else
+        local path = turbo.inotify:get_watched_file(self.buf.wd)
+        full_path = path .. '/' .. ffi.string(self.buf.name)
+        if path == '.' then full_path = ffi.string(self.buf.name) end
+    end
+    -- Simply return if we need to ignore the file
+    if turbo.util.is_in(full_path, self.arg_tbl.ignore) then
+        return
+    end
+    turbo.log.notice("[turbovisor.lua] File '" .. full_path ..
+                         "' changed, application restarted!")
     -- Restart application
-    ffi.C.kill(self.cpid, 9)
-    ffi.C.waitpid(self.cpid, status, 0)
-    assert(status[0] == 9, "Child process not killed.")
-    self.cpid = ffi.C.fork()
-    if self.cpid == 0 then
-        ffi.C.close(self.fd)
+    kill_tree(ffi.C.getpid())
+    local cpid = ffi.C.fork()
+    if cpid == 0 then
+        turbo.inotify:close()
         ffi.C.execvp("luajit", self.para)
         error(ffi.string(ffi.C.strerror(ffi.errno())))
     end

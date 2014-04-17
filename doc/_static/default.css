@@ -42,9 +42,9 @@
 /* -- page layout ----------------------------------------------------------- */
 
 body {
-    font-family: "aller-light";
+    font-family: 'Open Sans',sans-serif;
     font-size: 100%;
-    background-color: #353535;
+    background-color: #263373;
 	line-height: 18px;
     color: #000;
     margin: 0;
@@ -84,7 +84,7 @@ div.footer a {
 }
 
 div.related {
-    background-color: #353535;
+    background-color: #263373;
     line-height: 30px;
     color: #ffffff;
 }
@@ -172,7 +172,7 @@ div.body h5,
 div.body h6 {
     font-family: 'Trebuchet MS', sans-serif;
     font-weight: normal;
-    color: #353535;
+    color: #263373;
     margin: 20px -20px 10px -20px;
     padding: 3px 0 3px 10px;
 }
@@ -198,7 +198,8 @@ a.headerlink:hover {
 
 div.body p, div.body dd, div.body li {
     text-align: justify;
-    font-size: 13px;
+    font-size: 14px;
+    color: #111;
 }
 
 div.admonition p.admonition-title + p {

@@ -1,5 +1,7 @@
 doc/_build
+*.so.*
 *.so
+*.dSYM
 *.o
 *.swp
 deps/http-parser/libhttp_parser.so.2.1

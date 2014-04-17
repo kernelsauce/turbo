@@ -4,6 +4,8 @@
 ## See LICENSE file for license information.
 ########
 
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+
 CC ?= gcc
 RM= rm -f
 UNINSTALL= rm -rf
@@ -17,7 +19,7 @@ LDCONFIG= ldconfig -n
 PREFIX ?= /usr/local
 
 MAJVER=  1
-MINVER=  0
+MINVER=  1
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
@@ -32,8 +34,19 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
-CFLAGS=
+CFLAGS= -g
 
+ifeq ($(uname_S),Darwin)
+  CFLAGS += -I/usr/include/malloc
+endif
+
+ifeq ($(SSL), axTLS)
+# axTLS only uses axtls lib from luajit
+# Don't link with crypto or ssl if using axTLS
+# C wrapper needs TURBO_NO_SSL set in order
+# to not include any of the OpenSSL wrapper
+	CFLAGS += -DTURBO_NO_SSL=1
+endif
 ifeq ($(SSL), none)
 	# No SSL option.
 	CFLAGS += -DTURBO_NO_SSL=1
@@ -86,7 +99,7 @@ install:
 	$(CP_R) turbovisor.lua $(LUAJIT_MODULEDIR)
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
-	make -C $(HTTP_PARSERDIR) library
+	make -C deps/http-parser library
 	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \

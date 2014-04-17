@@ -36,7 +36,6 @@ pid_t wait(int32_t *status);
 pid_t waitpid(pid_t pid, int *status, int options);
 pid_t getpid();
 int execvp(const char *path, char *const argv[]);
-
 ]]
 
 --- ******* Socket *******
@@ -153,6 +152,57 @@ int32_t epoll_wait(int32_t epfd, struct epoll_event *events, int32_t maxevents, 
 ]]
 
 
+if _G.TURBO_AXTLS then
+    -- axTLS interface functions
+    ffi.cdef [[
+typedef void SSL_CTX;
+typedef void SSL;
+
+SSL_CTX *ssl_ctx_new(uint32_t options, int num_sessions);
+void ssl_ctx_free(SSL_CTX *ssl_ctx);
+SSL *ssl_server_new(SSL_CTX *ssl_ctx, int client_fd);
+SSL *ssl_client_new(SSL_CTX *ssl_ctx, int client_fd, const uint8_t *session_id, uint8_t sess_id_size);
+void ssl_free(SSL *ssl);
+int ssl_read(SSL *ssl, uint8_t **in_data);
+int ssl_write(SSL *ssl, const uint8_t *out_data, int out_len);
+int ssl_handshake_status(const SSL *ssl);
+void ssl_display_error(int error_code);
+const char *ssl_get_cert_dn(const SSL *ssl, int component);
+const char *ssl_get_cert_subject_alt_dnsname(const SSL *ssl, int dnsindex);
+int ssl_obj_load(SSL_CTX *ssl_ctx, int obj_type, const char *filename, const char *password);
+
+
+/* axTLS Hash functions */
+typedef struct
+{
+  uint32_t state[4];        /* state (ABCD) */
+  uint32_t count[2];        /* number of bits, modulo 2^64 (lsb first) */
+  uint8_t buffer[64];       /* input buffer */
+} MD5_CTX;
+typedef struct
+{
+    uint32_t Intermediate_Hash[20/4]; /* Message Digest */
+    uint32_t Length_Low;            /* Message length in bits */
+    uint32_t Length_High;           /* Message length in bits */
+    uint16_t Message_Block_Index;   /* Index into message block array   */
+    uint8_t Message_Block[64];      /* 512-bit message blocks */
+} SHA1_CTX;
+
+void SHA1_Init(SHA1_CTX *ctx);
+void SHA1_Update(SHA1_CTX *ctx, const uint8_t *msg, int len);
+void SHA1_Final(uint8_t *digest, SHA1_CTX *ctx);
+
+void MD5_Init(MD5_CTX *ctx);
+void MD5_Update(MD5_CTX *ctx, const uint8_t * msg, int len);
+void MD5_Final(uint8_t *digest, MD5_CTX *ctx);
+
+/* note: digest length is fixed at 20 bytes (160-bit) */
+void hmac_sha1(const uint8_t *msg, int length, const uint8_t *key,
+               int key_len, uint8_t *digest);
+
+]]
+
+elseif _G.TURBO_SSL then
 --- ******* OpenSSL *******
 -- Note: Typedef SSL structs to void as we never access their members and they are
 -- massive in ifdef's etc and are best left as blackboxes!
@@ -251,8 +301,11 @@ unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md);
 unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
                int key_len, const unsigned char *d, int n,
                unsigned char *md, unsigned int *md_len);
-]]
 
+/* only want validate_hostname for OPENSSL, axTLS does this in lua code */
+int32_t validate_hostname(const char *hostname, const SSL *server);
+]]
+end
 
 --- ******* Signals *******
 ffi.cdef([[
@@ -260,7 +313,40 @@ typedef void (*sighandler_t) (int32_t);
 extern sighandler_t signal (int32_t signum, sighandler_t handler);
 extern int kill(pid_t pid, int sig);
 ]])
-
+-- signalfd
+ffi.cdef(string.format([[
+typedef struct {
+    unsigned long int __val[%d];
+} __sigset_t;
+typedef __sigset_t sigset_t;
+int sigemptyset(sigset_t *set);
+int sigfillset(sigset_t *set);
+int sigaddset(sigset_t *set, int signum);
+int sigdelset(sigset_t *set, int signum);
+int sigismember(const sigset_t *set, int signum);
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+struct signalfd_siginfo
+{
+  uint32_t ssi_signo;
+  int32_t ssi_errno;
+  int32_t ssi_code;
+  uint32_t ssi_pid;
+  uint32_t ssi_uid;
+  int32_t ssi_fd;
+  uint32_t ssi_tid;
+  uint32_t ssi_band;
+  uint32_t ssi_overrun;
+  uint32_t ssi_trapno;
+  int32_t ssi_status;
+  int32_t ssi_int;
+  uint64_t ssi_ptr;
+  uint64_t ssi_utime;
+  uint64_t ssi_stime;
+  uint64_t ssi_addr;
+  uint8_t __pad[48];
+};
+int signalfd(int fd, const sigset_t *mask, int flags);
+]], (1024 / (8 * ffi.sizeof("unsigned long")))))
 
 --- ******* Time *******
 ffi.cdef([[
@@ -304,6 +390,20 @@ extern int gettimeofday (struct timeval *tv, timezone_ptr_t tz);
 
 ]])
 
+--- ******* RealTime (for Monotonic time) *******
+ffi.cdef([[
+struct timespec
+{
+    time_t tv_sec;      /* Seconds.  */
+    long tv_nsec;    /* Nanoseconds.  */
+};
+typedef uint32_t clockid_t;
+enum clock_ids {
+    CLOCK_REALTIME,
+    CLOCK_MONOTONIC
+};
+int clock_gettime(clockid_t clk_id, struct timespec *tp);
+]])
 
 --- ******* Resolv *******
 ffi.cdef [[
@@ -433,15 +533,18 @@ struct turbo_parser_wrapper *turbo_parser_wrapper_init(
         int32_t type);
 
 void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src);
+bool turbo_parser_check(struct turbo_parser_wrapper *s);
 int32_t http_parser_parse_url(const char *buf, size_t buflen, int32_t is_connect, struct http_parser_url *u);
 extern bool url_field_is_set(const struct http_parser_url *url, enum http_parser_url_fields prop);
 extern char *url_field(const char *url_str, const struct http_parser_url *url, enum http_parser_url_fields prop);
 const char *http_errno_name(int32_t err);
 const char *http_errno_description(int32_t err);
-int32_t validate_hostname(const char *hostname, const SSL *server);
+char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz);
+uint64_t turbo_bswap_u64(uint64_t swap);
 ]]
 
 
+--- ******* inotify *******
 ffi.cdef [[
 struct inotify_event
 {
@@ -468,7 +571,7 @@ extern ssize_t read(int __fd, void *__buf, size_t __nbytes) ;
 int syscall(int number, ...);
 ]]
 -- stat structure is architecture dependent in Linux
-if ffi.arch == 'x86' then
+if ffi.arch == "x86" then
     ffi.cdef[[
       struct stat {
         unsigned long  st_dev;
@@ -491,7 +594,7 @@ if ffi.arch == 'x86' then
         unsigned long  __unused5;
       };
     ]]
-elseif ffi.arch == 'x64' then
+elseif ffi.arch =="x64" then
     ffi.cdef [[
       struct stat {
         unsigned long   st_dev;
@@ -514,4 +617,45 @@ elseif ffi.arch == 'x64' then
         long            __unused[3];
       };
     ]]
+elseif ffi.arch == "ppc" then
+    ffi.cdef[[
+      struct stat {
+        uint32_t  st_dev;
+        uint32_t  st_ino;
+        uint32_t st_mode;
+        uint32_t st_nlink;
+        uint32_t st_uid;
+        uint32_t st_gid;
+        uint32_t st_rdev;
+        uint32_t st_size;
+        uint32_t st_blksize;
+        uint32_t  st_blocks;
+        uint32_t  st_atime;
+        uint32_t  st_atime_nsec;
+        uint32_t  st_mtime;
+        uint32_t  st_mtime_nsec;
+        uint32_t  st_ctime;
+        uint32_t  st_ctime_nsec;
+        uint32_t  __unused4;
+        uint32_t  __unused5;
+      };
+    ]]
 end
+
+
+--- ******* glob *******
+ffi.cdef[[
+typedef struct {
+    long unsigned int gl_pathc;
+    char **gl_pathv;
+    long unsigned int gl_offs;
+    int gl_flags;
+    void (*gl_closedir)(void *);
+    void *(*gl_readdir)(void *);
+    void *(*gl_opendir)(const char *);
+    int (*gl_lstat)(const char *restrict, void *restrict);
+    int (*gl_stat)(const char *restrict, void *restrict);
+} glob_t;
+int glob(const char *pattern, int flag, int (*)(const char *, int), glob_t *pglob);
+void globfree(glob_t *pglob);
+]]

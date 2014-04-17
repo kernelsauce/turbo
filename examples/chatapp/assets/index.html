@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.0.3/css/bootstrap.min.css" />
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.0.3/js/bootstrap.min.js"></script>
+        <title>Turbo.lua, Chatapp</title>
+        <style>
+            body {
+                background-color: #000;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="row hidden connected">
+            <div class="col-md-2" style="padding: 30px; color: whitesmoke">
+                <span class="glyphicon glyphicon-user"> Participants</span>
+                <div id="participant-list" style="overflow-y:auto; font-family:monospace;">
+                    <li>
+
+                    </li>
+                </div>
+            </div>
+            <div class="col-md-10" style="padding: 30px; color: whitesmoke">
+                <span class="glyphicon glyphicon-eye-open"> Chatroom</span>
+                
+                <div id="chat-window" 
+                    style=" overflow-y: auto;
+                            font-family: monospace; 
+                            font-size: 10px;
+                            color: whitesmoke;
+                            padding-top: 5px;">
+                    <!-- Chat area -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="row hidden connected" style="position:absolute;bottom:0;padding:50px; width:100%;">
+            <div class="col-md-8">
+                <input type="text" id="chat-input" class="form-control" placeholder="Enter message...">
+            </div>
+            <div class="col-md-4">
+                <button id="chat-submit-msg" class="btn btn-primary">
+                    <span class="glyphicon glyphicon-bullhorn"></span> 
+                    Send
+                </button>
+            </div>
+        </div>
+        
+        <!-- Modal -->
+        <div class="modal fade" id="login" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-body">
+                <img src="https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png">
+                <h4 class="modal-title" id="myModalLabel">WebSocket Chatapp example</h4>
+                <br />
+                <p>Please pick a nickname.</p>
+                <div class="row" style="padding: 5px 50px 50px 50px;">
+                <input type="text" id="chat-login-nick" class="form-control" placeholder="Nickname">
+                <br />
+                <button id="chat-login-btn" class="form-control btn btn-primary" >Send</button>
+                </div>
+              </div>
+            </div><!-- /.modal-content -->
+          </div><!-- /.modal-dialog -->
+        </div><!-- /.modal -->
+        
+    </body>
+    <script src="assets/chatapp.js"></script>
+</html>

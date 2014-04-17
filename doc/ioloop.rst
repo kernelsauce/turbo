@@ -75,13 +75,8 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         
         :param callback: A function to be called on next iteration.
         :type callback: Function
-        :param arg: Optional argument for callback. Callback is called with this as first argument if set.        
-        
-.. function:: IOLoop:list_callbacks()
-
-        Returns all current callbacks in the IO Loop.
-        
-        :rtype: Table
+        :param arg: Optional argument for callback. Callback is called with this as first argument if set.
+        :rtype: IOLoop class. Returns self for convinience.
         
 .. function:: IOLoop:add_timeout(timestamp, func, arg)
 

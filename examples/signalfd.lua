@@ -1,6 +1,6 @@
---- Turbo.lua Static file server example
+--- Turbo.lua signalfd example
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2014 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,17 +14,21 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-local turbo = require "turbo"
 
-local app = turbo.web.Application:new({
-    -- Serve single index.html file on root requests.
-    {"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
-    -- Serve contents of directory.
-    {"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
-})
+local turbo = require("turbo")
+local io = turbo.ioloop.instance()
 
-local srv = turbo.httpserver.HTTPServer(app)
-srv:bind(8888)
-srv:start(2) -- Adjust amount of processes to fork.
+print("Press CTRL-C 3 times to exit")
 
-turbo.ioloop.instance():start()
+io:add_callback(function () 
+    local times = 0
+    io:add_signal_handler(turbo.signal.SIGINT, function (signum, info) 
+        print(string.format("\nRecieved signal SIGINT (%d)", signum))
+        times = times + 1
+        if times == 3 then
+            io:close()
+        end
+    end)
+end)
+io:start()
+

@@ -1,31 +1,25 @@
 --- Turbo.lua I/O Loop module
--- Single threaded I/O event loop implementation. The module handles socket 
+-- Single threaded I/O event loop implementation. The module handles socket
 -- events and timeouts and scheduled intervals with millisecond precision.
 --
--- Supports the following implementations: 
+-- Supports the following implementations:
 -- * epoll
 -- The IOLoop class is written in such a way that adding new poll
 -- implementations is easy.
 --
--- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
+-- Copyright 2011, 2012, 2013 John Abrahamsen
 --
--- "Permission is hereby granted, free of charge, to any person obtaining a copy of
--- this software and associated documentation files (the "Software"), to deal in
--- the Software without restriction, including without limitation the rights to
--- use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
--- of the Software, and to permit persons to whom the Software is furnished to do
--- so, subject to the following conditions:
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
--- The above copyright notice and this permission notice shall be included in all
--- copies or substantial portions of the Software.
+-- http://www.apache.org/licenses/LICENSE-2.0
 --
--- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
--- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
--- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
--- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
--- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
--- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE."
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
 
 local log = require "turbo.log"
 local util = require "turbo.util"
@@ -39,7 +33,7 @@ local unpack = util.funpack
 local ioloop = {} -- ioloop namespace
 
 local epoll_ffi, _poll_implementation
-  
+
 if pcall(require, "turbo.epoll_ffi") then
     -- Epoll FFI module found and loaded.
     _poll_implementation = 'epoll_ffi'
@@ -48,7 +42,7 @@ if pcall(require, "turbo.epoll_ffi") then
     ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
     ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
     ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
-    ioloop.ERROR = bit.bor(epoll_ffi.EPOLL_EVENTS.EPOLLERR, 
+    ioloop.ERROR = bit.bor(epoll_ffi.EPOLL_EVENTS.EPOLLERR,
         epoll_ffi.EPOLL_EVENTS.EPOLLHUP)
 else
     -- No poll modules found. Break execution and give error.
@@ -82,6 +76,7 @@ function ioloop.IOLoop:initialize()
     self._timeouts = {}
     self._intervals = {}
     self._callbacks = {}
+    self._signalfds = {}
     self._running = false
     self._stopped = false
     -- Set the most fitting poll implementation. The API's are all unified.
@@ -97,7 +92,7 @@ end
 -- @param events (Number) Events bit mask. Defined in ioloop namespace. E.g
 -- ioloop.READ and ioloop.WRITE. Multiple bits can be AND'ed together.
 -- @param handler (Function) Handler function.
--- @param arg Optional argument for function handler. Handler is called with 
+-- @param arg Optional argument for function handler. Handler is called with
 -- this as first argument if set.
 -- @return (Boolean) true if successfull else false.
 function ioloop.IOLoop:add_handler(fd, events, handler, arg)
@@ -105,7 +100,7 @@ function ioloop.IOLoop:add_handler(fd, events, handler, arg)
     if rc ~= 0 then
         log.notice(
             string.format(
-                "[ioloop.lua] register() in add_handler() failed: %s", 
+                "[ioloop.lua] register() in add_handler() failed: %s",
                 socket.strerror(errno)))
         return false
     end
@@ -133,7 +128,7 @@ end
 --- Remove a existing handler from the IO Loop.
 -- @param fd (Number) File descriptor to remove handler from.
 -- @return (Boolean) true if successfull else false.
-function ioloop.IOLoop:remove_handler(fd)   
+function ioloop.IOLoop:remove_handler(fd)
     if not self._handlers[fd] then
         return
     end
@@ -141,7 +136,7 @@ function ioloop.IOLoop:remove_handler(fd)
     if rc ~= 0 then
         log.notice(
             string.format(
-                "[ioloop.lua] unregister() in remove_handler() failed: %s", 
+                "[ioloop.lua] unregister() in remove_handler() failed: %s",
                 socket.strerror(errno)))
         return false
     end
@@ -154,15 +149,13 @@ end
 function ioloop.IOLoop:running() return self._running end
 
 --- Add a callback to be run on next iteration of the IOLoop.
--- @param callback (Function) 
+-- @param callback (Function)
 -- @param arg Optional argument to call callback with as first argument.
+-- @return (IOLoop class) Return self for convinience.
 function ioloop.IOLoop:add_callback(callback, arg)
     self._callbacks[#self._callbacks + 1] = {callback, arg}
+    return self
 end
-
---- List all callbacks scheduled.
--- @return table with all callbacks.
-function ioloop.IOLoop:list_callbacks() return self._callbacks end
 
 --- Finalize a coroutine context.
 -- @param coctx A CourtineContext instance.
@@ -174,15 +167,15 @@ function ioloop.IOLoop:finalize_coroutine_context(coctx)
             that there are no reference to.")
         return false
     end
-    self._co_ctxs[coctx] = nil 
+    self._co_ctxs[coctx] = nil
     self:_resume_coroutine(coroutine, coctx:get_coroutine_arguments())
     return true
 end
 
 --- Add a timeout with function to be called in future.
--- @param timestamp (Number) Timestamp when to call function. Based on 
--- Unix epoch time in milliseconds precision. 
--- E.g util.gettimeofday + 3000 will timeout in 3 seconds.
+-- @param timestamp (Number) Timestamp when to call function. Based on
+-- Unix CLOCK_MONOTONIC time in milliseconds precision.
+-- E.g util.gettimemonotonic + 3000 will timeout in 3 seconds.
 -- @param func (Function)
 -- @param Optional argument for func.
 -- @return (Number) Reference to timeout.
@@ -203,10 +196,10 @@ end
 --- Remove timeout.
 -- @param ref (Number) The reference returned by IOLoop:add_timeout.
 -- @return (Boolean) True on success, else false.
-function ioloop.IOLoop:remove_timeout(ref)  
+function ioloop.IOLoop:remove_timeout(ref)
     if self._timeouts[ref] then
         self._timeouts[ref] = nil
-        return true        
+        return true
     else
         return false
     end
@@ -224,7 +217,7 @@ function ioloop.IOLoop:set_interval(msec, func, arg)
         i = i + 1
     end
     self._intervals[i] = _Interval:new(msec, func, arg)
-    return i   
+    return i
 end
 
 --- Clear interval.
@@ -239,13 +232,96 @@ function ioloop.IOLoop:clear_interval(ref)
     end
 end
 
+-- Handle event on a signalfd.
+function ioloop.IOLoop:_handle_signalfd_event(fd, events)
+    local sigfdsi = ffi.new("struct signalfd_siginfo[1]")
+    local sigfdsi_size = ffi.sizeof("struct signalfd_siginfo")
+    ffi.fill(sigfdsi, sigfdsi_size)
+    local r = ffi.C.read(fd, sigfdsi, sigfdsi_size)
+    if r ~= sigfdsi_size then
+        log.notice(string.format(
+            "[ioloop.lua] read() in _handle_signalfd_event failed: %s",
+            socket.strerror(ffi.errno())))
+        return
+    end
+    local fdsi = sigfdsi[0]
+    local siginfo = {
+        signo=fdsi.ssi_signo,       -- Signal number
+        errno=fdsi.ssi_errno,       -- Error number (currently unused)
+        code=fdsi.ssi_code,         -- Signal code
+        pid=fdsi.ssi_pid,           -- pid of sender
+        uid=fdsi.ssi_uid,           -- uid of sender
+        fd=fdsi.ssi_fd,             -- File descriptor (SIGIO)
+        tid=fdsi.ssi_tid,           -- Kernel timer ID (POSIX timers)
+        band=fdsi.ssi_band,         -- Band event (SIGIO)
+        overrun=fdsi.ssi_overrun,   -- POSIX time overrun count
+        trapno=fdsi.ssi_trapno,     -- Trap number that caused signal
+        status=fdsi.ssi_status,     -- Exit status or signal (SIGCHLD)
+        int=fdsi.ssi_int,           -- Integer sent by sigqueue(3)
+        ptr=fdsi.ssi_ptr,           -- Pointer sent by sigqueue(3)
+        utime=fdsi.ssi_utime,       -- User CPU time consumed (SIGCHLD)
+        stime=fdsi.ssi_stime,       -- System CPU time consumed (SIGCHLD)
+        addr=fdsi.ssi_addr          -- Address that generated signal
+                                    -- (for hardware signals)
+    }
+    local signo, handler, arg = unpack(self._signalfds[fd])
+    if arg then
+        handler(arg, siginfo.signo, siginfo, fd)
+    else
+        handler(siginfo.signo, siginfo, fd)
+    end
+end
+
+--- Add signal handler.
+-- @param signos (Number) the signal number(s) to handle
+-- @param handler (Function) Handler function.
+-- @param arg Optional argument for handler. Handler is called with
+--            this as first argument if set.
+function ioloop.IOLoop:add_signal_handler(signo, handler, arg)
+    assert(signo ~= signal.SIGPIPE,
+        "Cannot add handler for SIGPIPE. Reserved by IOLoop.")
+    local mask = ffi.new("sigset_t[1]")
+    ffi.C.sigemptyset(mask)
+    ffi.C.sigaddset(mask, signo)
+    ffi.C.sigprocmask(signal.SIG_BLOCK, mask, nil)
+    local sfd = ffi.C.signalfd(-1, mask, 0)
+    if sfd == -1 then
+        log.notice(string.format(
+            "[ioloop.lua] signalfd() in add_signal_handler() failed: %s",
+            socket.strerror(ffi.errno())))
+        return false
+    end
+    local r = self:add_handler(sfd, ioloop.READ,
+                               self._handle_signalfd_event, self)
+    if not r then
+        log.notice("[ioloop.lua] add_handler() in add_signal_handler() failed.")
+        return false
+    end
+    self:remove_signal_handler(signo) -- remove in case we already have one.
+    self._signalfds[sfd] = {signo, handler, arg}
+end
+
+--- Remove signal handler.
+-- @param signo (Number) the signal number to remove handler for.
+function ioloop.IOLoop:remove_signal_handler(signo)
+    for k, v in pairs(self._signalfds) do
+        if v then
+            if v[1] == signo then
+                self._signalfds[k] = nil
+                self:remove_handler(k)
+                return
+            end
+        end
+    end
+end
+
 --- Start the I/O Loop.
--- The loop will continue running until IOLoop:stop is called via a callback 
+-- The loop will continue running until IOLoop:stop is called via a callback
 -- added.
 function ioloop.IOLoop:start()
     self._running = true
     while true do
-        local poll_timeout = 3600        
+        local poll_timeout = 3600
         local co_cbs_sz = #self._co_cbs
         if co_cbs_sz > 0 then
             local co_cbs = self._co_cbs
@@ -255,7 +331,7 @@ function ioloop.IOLoop:start()
                     -- co_cbs[i][1] = coroutine (Lua thread).
                     -- co_cbs[i][2] = yielded function.
                     if self:_resume_coroutine(
-                        co_cbs[i][1], 
+                        co_cbs[i][1],
                         co_cbs[i][2]) ~= 0 then
                         -- Resumed courotine yielded. Adjust timeout.
                         poll_timeout = 0
@@ -265,25 +341,32 @@ function ioloop.IOLoop:start()
         end
         local callbacks = self._callbacks
         self._callbacks = {}
-        for i = 1, #callbacks, 1 do 
+        for i = 1, #callbacks, 1 do
             if self:_run_callback(callbacks[i]) ~= 0 then
-                -- Function yielded and has been scheduled for next iteration. 
+                -- Function yielded and has been scheduled for next iteration.
                 -- Drop timeout.
                 poll_timeout = 0
             end
         end
         local timeout_sz = #self._timeouts
         if timeout_sz ~= 0 then
-            local current_time = util.gettimeofday()
+            local current_time = util.gettimemonotonic()
             for i = 1, timeout_sz do
                 if self._timeouts[i] ~= nil then
                     local time_until_timeout = self._timeouts[i]:timed_out(current_time)
                     if time_until_timeout == 0 then
                         self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
+                        -- Function may have scheduled work for next iteration
+                        -- must Drop timeout, without this, yielding from a request
+                        -- handler that adds a timeout couroutine task will not wake
+                        -- up the request handler at the end of the timeout until the
+                        -- next poll_timeout occurs which may be as long as the default
+                        -- timeout of 3.6 seconds.
+                        poll_timeout = 0
                     else
                         if poll_timeout > time_until_timeout then
-                           poll_timeout = time_until_timeout 
+                           poll_timeout = time_until_timeout
                         end
                     end
                 end
@@ -291,19 +374,19 @@ function ioloop.IOLoop:start()
         end
         local intervals_sz = #self._intervals
         if intervals_sz ~= 0 then
-            local time_now = util.gettimeofday()
+            local time_now = util.gettimemonotonic()
             for i = 1, intervals_sz do
                 if self._intervals[i] ~= nil then
                     local timed_out = self._intervals[i]:timed_out(time_now)
                     if timed_out == 0 then
                         self:_run_callback({
-                            self._intervals[i].callback, 
+                            self._intervals[i].callback,
                             self._intervals[i].arg
                             })
-                        -- Get current time to protect against building 
+                        -- Get current time to protect against building
                         -- diminishing interval time on heavy functions.
                         -- It is debatable wether this feature is wanted or not.
-                        time_now = util.gettimeofday() 
+                        time_now = util.gettimemonotonic()
                         local next_call = self._intervals[i]:set_last_call(
                             time_now)
                         if next_call < poll_timeout then
@@ -318,13 +401,13 @@ function ioloop.IOLoop:start()
                 end
             end
         end
-        if self._stopped == true then 
+        if self._stopped == true then
             self._running = false
             self._stopped = false
             break
         end
         if #self._callbacks > 0 then
-            -- New callback has been scheduled for next iteration. Drop 
+            -- New callback has been scheduled for next iteration. Drop
             -- timeout.
             poll_timeout = 0
         end
@@ -335,15 +418,15 @@ function ioloop.IOLoop:start()
                 self:_run_handler(events[i].data.fd, events[i].events)
             end
         elseif rc == -1 then
-            log.notice(string.format("[ioloop.lua] poll() returned errno %d", 
+            log.notice(string.format("[ioloop.lua] poll() returned errno %d",
                 ffi.errno()))
         end
     end
 end
 
---- Close the I/O loop. 
--- This call must be made from within the running I/O loop via a 
--- callback, timeout, or interval. Notice: All pending callbacks and handlers 
+--- Close the I/O loop.
+-- This call must be made from within the running I/O loop via a
+-- callback, timeout, or interval. Notice: All pending callbacks and handlers
 -- are cleared upon close.
 function ioloop.IOLoop:close()
     self._running = false
@@ -363,7 +446,7 @@ function ioloop.IOLoop:wait(timeout)
     local timedout
     if timeout then
         local io = self
-        self:add_timeout(util.gettimeofday() + (timeout*1000), function() 
+        self:add_timeout(util.gettimemonotonic() + (timeout*1000), function()
             timedout = true
             io:close()
         end)
@@ -388,25 +471,25 @@ function ioloop.IOLoop:_run_handler(fd, events)
     -- handler[1] = function.
     -- handler[2] = optional first argument for function.
     -- If there is no optional argument, do not add it as parameter to the
-    -- function as that create a big nuisance for consumers of the API.
+    -- function as that creates a big nuisance for consumers of the API.
     if handler[2] then
         ok = xpcall(
             handler[1],
-            _run_handler_error_handler, 
-            handler[2], 
-            fd, 
+            _run_handler_error_handler,
+            handler[2],
+            fd,
             events)
     else
         ok = xpcall(
             handler[1],
             _run_handler_error_handler,
-            fd, 
+            fd,
             events)
     end
     if ok == false then
         -- Error in handler caught by _run_handler_error_handler.
         -- Remove the handler for the fd as its most likely broken.
-        self:remove_handler(fd) 
+        self:remove_handler(fd)
     end
 end
 
@@ -458,14 +541,14 @@ function ioloop.IOLoop:_resume_coroutine(co, arg)
             self._co_cbs[#self._co_cbs + 1] = {co, 0}
             return 3
         else
-            -- Invalid yielded value. Schedule resume of courotine on next 
+            -- Invalid yielded value. Schedule resume of coroutine on next
             -- iteration with -1 as result of yield (to represent error).
             self._co_cbs[#self._co_cbs + 1] = {co, function() return -1 end}
             log.warning(string.format(
                 "[ioloop.lua] Callback yielded with unsupported value, %s.",
                 yield_t))
             return 3
-        end 
+        end
     end
     return 0
 end
@@ -475,7 +558,7 @@ function _Interval:initialize(msec, callback, arg)
     self.interval_msec = msec
     self.callback = callback
     self.arg = arg
-    self.next_call = util.gettimeofday() + self.interval_msec
+    self.next_call = util.gettimemonotonic() + self.interval_msec
 end
 
 function _Interval:timed_out(time_now)
@@ -495,9 +578,9 @@ end
 
 _Timeout = class('_Timeout')
 function _Timeout:initialize(timestamp, callback, arg)
-    self._timestamp = timestamp or 
+    self._timestamp = timestamp or
         error('No timestamp given to _Timeout class')
-    self._callback = callback or 
+    self._callback = callback or
         error('No callback given to _Timeout class')
     self._arg = arg
 end
@@ -505,7 +588,7 @@ end
 function _Timeout:timed_out(time)
     if self._timestamp - time <= 0 then
         return 0
-    else 
+    else
         return self._timestamp - time
     end
 end
@@ -519,7 +602,11 @@ _EPoll_FFI = class('_EPoll_FFI')
 
 --- Internal class for epoll-based event loop using the epoll_ffi module.
 function _EPoll_FFI:initialize()
-    self._epoll_fd = epoll_ffi.epoll_create() -- New epoll, store its fd.
+    local errno
+    self._epoll_fd, errno = epoll_ffi.epoll_create() -- New epoll, store its fd.
+    if self._epoll_fd == -1 then
+        error("epoll_create failed with errno = " .. errno)
+    end
 end
 
 function _EPoll_FFI:fileno()
@@ -527,18 +614,18 @@ function _EPoll_FFI:fileno()
 end
 
 function _EPoll_FFI:register(fd, events)
-    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD, 
+    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD,
         fd, events)
 end
 
 function _EPoll_FFI:modify(fd, events)
-    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD, 
+    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD,
         fd, events)
 end
 
 function _EPoll_FFI:unregister(fd)
-    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL, 
-        fd, 0)  
+    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL,
+        fd, 0)
 end
 
 function _EPoll_FFI:poll(timeout)
