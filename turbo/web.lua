@@ -292,6 +292,21 @@ function web.RequestHandler:redirect(url, permanent)
     self:finish()
 end
 
+--- Raises an HTTPError with the provided status code and optional message.
+-- @param status_code The status code to set. Must be number or a error is
+-- raised.
+-- @param msg An optional custom message for the error.
+function web.RequestHandler:send_error(status_code, msg)
+    if type(status_code) ~= "number" then
+        error("status code must be a number")
+    end
+    if msg then
+        error(web.HTTPError(status_code, msg))
+    else
+        error(web.HTTPError(status_code))
+    end
+end
+
 --- Get cookie value from incoming request.
 -- @param name The name of the cookie to get.
 -- @param default A default value if no cookie is found.

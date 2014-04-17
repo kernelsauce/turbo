@@ -164,8 +164,9 @@ else
     -- cryptographic hash function in combination with a secret cryptographic key.
     -- @param key (String) Sequence of bytes used as a key.
     -- @param digest (String) String to digest.
+    -- @param raw (Boolean) Indicates whether the output should be a direct binary equivalent of the message digest, or formatted as a hexadecimal string.
     -- @return (String) Hex representation of digested string.
-    function hash.HMAC(key, digest)
+    function hash.HMAC(key, digest, raw)
         assert(type(key) == "string", "Key is invalid type: "..type(key))
         assert(type(digest) == "string", "Can not hash: "..type(digest))
         local digest =
@@ -177,7 +178,11 @@ else
                       nil)
         hexstr:clear()
         for i=0, hash.SHA_DIGEST_LENGTH-1 do
-            hexstr:append_right(string.format("%02x", digest[i]), 2)
+            if (raw) then
+                hexstr:append_char_right(digest[i])
+            else
+                hexstr:append_right(string.format("%02x", digest[i]), 2)
+            end
         end
         local str = hexstr:__tostring()
         hexstr:clear(true)
