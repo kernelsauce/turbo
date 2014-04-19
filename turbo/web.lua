@@ -26,6 +26,7 @@ local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
 local httpserver =      require "turbo.httpserver"
 local buffer =          require "turbo.structs.buffer"
+local bufferptr =       require "turbo.structs.bufferptr"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
@@ -673,13 +674,13 @@ end
 -- @param path (String) Path to file.
 -- @return 0 + buffer (String) on success, else -1.
 function web._StaticWebCache:read_file(path)
-    local fd = io.open(path, "r")
+    local fd, err = io.open(path, "r")
     if not fd then
-        return -1, nil
+        return -1, err
     end
     local file = fd:read("*all")
     if not file then
-        return -1, nil
+        return -1, err
     end
     local sz = file:len()
     local buf = buffer(sz)
@@ -703,7 +704,14 @@ function web._StaticWebCache:get_file(path)
         if cf[1] == SWCT_CACHE then
             return SWCRC_CACHE, cf[2], cf[3], cf[4]
         elseif cf[1] == SWCT_FILE then
-            return SWCRC_TOO_BIG, cf[2], io.open(path, "r"), cf[4]
+            local file = io.open(path, "r")
+            if not file then
+                log.error(string.format(
+                    "[web.lua] Could not open file for reading; %s.",
+                    err))
+                return SWCRC_NOT_FOUND    
+            end
+            return SWCRC_TOO_BIG, cf[2], file, cf[4]
         elseif cf[1] == SWCT_NOFILE then
             return SWCRC_NOT_FOUND
         end
@@ -724,7 +732,14 @@ function web._StaticWebCache:get_file(path)
         else
             self.files[path] = {SWCT_FILE, stat}
         end
-        return SWCRC_TOO_BIG, stat, io.open(path, "r"), mime
+        local file, err = io.open(path, "r")
+        if not file then
+            log.error(string.format(
+                "[web.lua] Could not open file for reading; %s.",
+                err))
+            return SWCRC_NOT_FOUND
+        end
+        return SWCRC_TOO_BIG, stat, file, mime
     end
     -- Small size, relative to STATICWEBCACHE_MAX, load file to
     -- a buffer.
@@ -742,6 +757,9 @@ function web._StaticWebCache:get_file(path)
             tonumber(buf:len())))
         return SWCRC_CACHE, stat, buf, mime
     else
+        log.error(string.format(
+            "[web.lua] Could not read file; %s.",
+            buf))
         return SWCRC_NOT_FOUND
     end
 
@@ -804,7 +822,21 @@ function web.StaticFileHandler:_send_next_chunk()
     local sz = math.min(1024*32, -- 32KB chunks.
                         tonumber(self._file_stat.st_size - self._file_offset))
     self._file_offset = self._file_offset + sz
-    self.request:write(self._file:read(sz), self._send_next_chunk, self)
+    local data, err = self._file:read(sz)
+    if not data then
+        log.error(string.format(
+            "[web.lua] Could not read file; %s.",
+            err))
+        self:finish()
+    end
+    if not data:len() == sz then
+        log.error("[web.lua] Read size mismatch.")
+        self:finish()
+    end
+    self.request:write_zero_copy(
+        bufferptr(ffi.cast("const char *", data), data:len()),
+        self._send_next_chunk, 
+        self)
 end
 
 function web.StaticFileHandler:_send_from_file(stat, file)
