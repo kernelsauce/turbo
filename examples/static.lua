@@ -25,6 +25,6 @@ local app = turbo.web.Application:new({
 
 local srv = turbo.httpserver.HTTPServer(app)
 srv:bind(8888)
-srv:start(2) -- Adjust amount of processes to fork.
+srv:start(1) -- Adjust amount of processes to fork.
 
 turbo.ioloop.instance():start()

@@ -569,7 +569,14 @@ typedef long int __ssize_t;
 typedef __ssize_t ssize_t;
 extern ssize_t read(int __fd, void *__buf, size_t __nbytes) ;
 int syscall(int number, ...);
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, long offset);
+int munmap(void *addr, size_t length);
+int open(const char *pathname, int flags);
+int close(int fd);
+
+int fstat(int fd, struct stat *buf);
 ]]
+
 -- stat structure is architecture dependent in Linux
 if ffi.arch == "x86" then
     ffi.cdef[[
