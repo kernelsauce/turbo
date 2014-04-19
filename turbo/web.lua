@@ -616,7 +616,7 @@ function web.RequestHandler:_parse_cookies()
 end
 
 function web.RequestHandler:_finish()
-    if self._status_code == 200 then
+    if self._status_code == 200 or self._status_code == 304 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]],
             self._status_code,
             response_codes[self._status_code],
@@ -686,7 +686,13 @@ function web._StaticWebCache:read_file(path)
     local sz = file:len()
     local buf = buffer(sz)
     buf:append_right(file, sz)
-    return 0, buf
+    local sha1sum = nil
+    if _ssl_enabled then
+        local digest = hash.SHA1(file)
+        digest:finalize()
+        sha1sum = digest:hex()
+    end
+    return 0, buf, sha1sum
 end
 
 --- Get file. If not in cache, it is read and put in the global _StaticWebCache
@@ -745,13 +751,7 @@ function web._StaticWebCache:get_file(path)
     end
     -- Small size, relative to STATICWEBCACHE_MAX, load file to
     -- a buffer.
-    local rc, buf = self:read_file(path)
-    local sha1sum = nil
-    if _ssl_enabled then
-        local digest = hash.SHA1(buf)
-        digest:finalize()
-        sha1sum = digest:hex()
-    end
+    local rc, buf, sha1sum = self:read_file(path)
     if rc == 0 then
         local rc, mime = self:get_mime(path)
         if rc == 0 then
@@ -763,7 +763,7 @@ function web._StaticWebCache:get_file(path)
             "[web.lua] Added %s (%d bytes) to static file cache. ",
             path,
             tonumber(buf:len())))
-        return SWCRC_CACHE, stat, buf, mime
+        return SWCRC_CACHE, stat, buf, mime, sha1sum
     else
         log.error(string.format(
             "[web.lua] Could not read file; %s.",
@@ -880,6 +880,16 @@ function web.StaticFileHandler:get(path)
     local rc, stat, buf, mime, sha1 = STATIC_CACHE:get_file(full_path)
     if mime then
         self:add_header("Content-Type", mime)
+    end
+    if sha1 then
+        -- Etag check.
+        if self.request.headers:get("If-None-Match") == sha1 then
+            -- Client has the most recent file. Do not send :).
+            self:set_status(304)
+            self:add_header("Etag", sha1)
+            self:finish()            
+            return
+        end
     end
     if rc == SWCRC_CACHE then
         self._static_buffer = buf
