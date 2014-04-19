@@ -43,6 +43,7 @@ require "turbo.cdef"
 local unpack = util.funpack
 local is_in = util.is_in
 local _std_supported_met = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
+local _ssl_enabled = _G.TURBO_SSL
 
 local web = {} -- web namespace
 web.Mustache = require "turbo.mustache" -- include the Mustache templater.
@@ -700,9 +701,10 @@ function web._StaticWebCache:get_file(path)
         -- index 1 = type
         -- index 2 = stat_t
         -- index 3 = buf or file
-        -- index 4 = mime string
+        -- index 4 = mime string (optional)
+        -- index 5 = sha1 checksum
         if cf[1] == SWCT_CACHE then
-            return SWCRC_CACHE, cf[2], cf[3], cf[4]
+            return SWCRC_CACHE, cf[2], cf[3], cf[4], cf[5]
         elseif cf[1] == SWCT_FILE then
             local file = io.open(path, "r")
             if not file then
@@ -744,12 +746,18 @@ function web._StaticWebCache:get_file(path)
     -- Small size, relative to STATICWEBCACHE_MAX, load file to
     -- a buffer.
     local rc, buf = self:read_file(path)
+    local sha1sum = nil
+    if _ssl_enabled then
+        local digest = hash.SHA1(buf)
+        digest:finalize()
+        sha1sum = digest:hex()
+    end
     if rc == 0 then
         local rc, mime = self:get_mime(path)
         if rc == 0 then
-            self.files[path] = {SWCT_CACHE, stat, buf, mime}
+            self.files[path] = {SWCT_CACHE, stat, buf, mime, sha1sum}
         else
-            self.files[path] = {SWCT_CACHE, stat, buf}
+            self.files[path] = {SWCT_CACHE, stat, buf, nil, sha1sum}
         end
         log.notice(string.format(
             "[web.lua] Added %s (%d bytes) to static file cache. ",
@@ -819,7 +827,7 @@ function web.StaticFileHandler:_send_next_chunk()
         self:finish()
         return
     end
-    local sz = math.min(1024*32, -- 32KB chunks.
+    local sz = math.min(1024*32, -- 32KB chunks seems like a good value?
                         tonumber(self._file_stat.st_size - self._file_offset))
     self._file_offset = self._file_offset + sz
     local data, err = self._file:read(sz)
@@ -828,11 +836,14 @@ function web.StaticFileHandler:_send_next_chunk()
             "[web.lua] Could not read file; %s.",
             err))
         self:finish()
+        return
     end
     if not data:len() == sz then
         log.error("[web.lua] Read size mismatch.")
         self:finish()
+        return
     end
+    self.__file_data_ref = data -- Make sure a reference to string is kept.
     self.request:write_zero_copy(
         bufferptr(ffi.cast("const char *", data), data:len()),
         self._send_next_chunk, 
@@ -866,7 +877,7 @@ function web.StaticFileHandler:get(path)
         full_path = self.path
     end
 
-    local rc, stat, buf, mime = STATIC_CACHE:get_file(full_path)
+    local rc, stat, buf, mime, sha1 = STATIC_CACHE:get_file(full_path)
     if mime then
         self:add_header("Content-Type", mime)
     end
@@ -875,6 +886,9 @@ function web.StaticFileHandler:get(path)
         self.headers:set_status_code(200)
         self.headers:set_version("HTTP/1.1")
         self:add_header("Content-Length", tonumber(buf:len()))
+        if sha1 then
+            self:add_header("Etag", sha1)
+        end
         self:flush(web.StaticFileHandler._headers_flushed_cb, self)
     elseif rc == SWCRC_TOO_BIG then
         self.headers:set_status_code(200)
