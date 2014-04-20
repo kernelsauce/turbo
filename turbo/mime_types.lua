@@ -179,4 +179,5 @@ return {
     avi = "video/x-msvideo",
     movie = "video/x-sgi-movie",
     ice = "x-conference/x-cooltalk",
+    woff = "font/woff"
 }
