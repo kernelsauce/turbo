@@ -49,7 +49,7 @@ local async = {} -- async namespace
 -- call the callback is put in the left-side result.
 function async.task(func, ...)
     local io = ioloop.instance()
-    local coctx = coctx.CoroutineContext:new(io)
+    local coctx = coctx.CoroutineContext(io)
     coctx:set_state(coctx.WORKING)
     local args = {...}
     args[#args+1] = async._wrap_task
@@ -85,7 +85,7 @@ end
 --
 -- Simple usage:
 -- local res = coroutine.yield(
---    turbo.async.HTTPClient:new():fetch("http://search.twitter.com/search.json",
+--    turbo.async.HTTPClient():fetch("http://search.twitter.com/search.json",
 --    {params = {q="Turbo.lua", result_type="mixed"}
 -- }))
 --
@@ -153,7 +153,7 @@ async.errors = errors
 -- ** Available options **
 -- ``method`` = The HTTP method to use. Default is ``GET``
 -- ``params`` = Provide parameters as table.
--- ``cookie`` = (Table or single string) The cookie(s) to use.
+-- ``cookie`` = (Table) The cookie(s) to use.
 -- ``http_version`` = Set HTTP version. Default is HTTP1.1
 -- ``use_gzip`` = Use gzip compression. Default is true.
 -- ``allow_redirects`` = Allow or disallow redirects. Default is true.
@@ -173,9 +173,9 @@ function async.HTTPClient:fetch(url, kwargs)
         self:_throw_error(errors.BUSY, "HTTPClient is busy.")
         -- This client is busy with another request.
         -- Do not overwrite the already existing co ctx, return a temp one.
-        return coctx.CoroutineContext:new(self.io_loop):set_state(coctx.DEAD)
+        return coctx.CoroutineContext(self.io_loop):set_state(coctx.DEAD)
     end
-    self.coctx = coctx.CoroutineContext:new(self.io_loop)
+    self.coctx = coctx.CoroutineContext(self.io_loop)
     self.coctx:set_state(coctx.states.WORKING)
     self.in_progress = true
     self.start_time = util.gettimemonotonic()
@@ -251,11 +251,12 @@ function async.HTTPClient:_connect()
             -- Default to port 80 if not specified in URL.
             self.port = 80
         end
-        self.iostream = iostream.IOStream:new(
+        self.iostream = iostream.IOStream(
             self.sock,
             self.io_loop,
             self.max_buffer_size)
-        local rc, msg = self.iostream:connect(self.hostname,
+        local rc, msg = self.iostream:connect(
+            self.hostname,
             self.port,
             self.family,
             self._handle_connect,
@@ -298,7 +299,7 @@ function async.HTTPClient:_connect()
             -- Default to port 443 if not specified in URL.
             self.port = 443
         end
-        self.iostream = iostream.SSLIOStream:new(
+        self.iostream = iostream.SSLIOStream(
             self.sock,
             self.ssl_options,
             self.io_loop,
@@ -323,7 +324,7 @@ function async.HTTPClient:_connect()
             if not self.port then
                 self.port = 80
             end
-            self.iostream = iostream.IOStream:new(
+            self.iostream = iostream.IOStream(
                 self.sock,
                 self.io_loop,
                 self.max_buffer_size)
@@ -356,10 +357,10 @@ function async.HTTPClient:_connect()
                 self.ssl_options._ssl_ctx = ctx_or_err
                 self.ssl_options._type = 1
             end
-            if not self.port then
+            if not self.poron_headerst then
                 self.port = 443
             end
-            self.iostream = iostream.SSLIOStream:new(
+            self.iostream = iostream.SSLIOStream(
                 self.sock,
                 self.ssl_options,
                 self.io_loop,
@@ -414,7 +415,16 @@ function async.HTTPClient:_prepare_http_request()
     self.headers:add("Host", self.hostname)
     self.headers:add("User-Agent", self.kwargs.user_agent)
     self.headers:set_method(self.kwargs.method:upper())
-    self.headers:set_version("HTTP/1.1")
+    self.headers:set_version(self.kwargs.http_version or "HTTP/1.1")
+    if self.kwargs.cookie then
+        if type(self.kwargs.cookie) == "table" then
+            local cookie_str = ""
+            for k,v in pairs(self.kwargs.cookie) do
+                cookie_str = cookie_str .. string.format("%s=\"%s\"; ", k, v)
+            end
+            self.headers:add("Cookie", cookie_str)
+        end
+    end
     if type(self.kwargs.on_headers) == "function" then
         -- Call on header callback. Allow the user to modify the
         -- headers class instance on their own.
@@ -444,7 +454,7 @@ function async.HTTPClient:_prepare_http_request()
             self.kwargs.method == "DELETE" then
             self.headers:add("Content-Type",
                 "application/x-www-form-urlencoded")
-            local post_data = deque:new()
+            local post_data = deque()
             local n = 0
             for k, v in pairs(self.kwargs.params) do
                 if (n ~= 0) then
@@ -459,7 +469,7 @@ function async.HTTPClient:_prepare_http_request()
             write_buf = write_buf .. post_data
             self.headers:add("Content-Length", write_buf:len())
         elseif self.kwargs.method == "GET" and not self.query then
-            local get_url_params = deque:new()
+            local get_url_params = deque()
             local n = 0
             get_url_params:append("?")
             for k, v in pairs(self.kwargs.params) do
@@ -677,7 +687,7 @@ function async.HTTPClient:_finalize_request()
         self.iostream:close()
         self.iostream = nil
     end
-    local res = async.HTTPResponse:new()
+    local res = async.HTTPResponse()
     if self.s_error == true then
         log.error(string.format("[async.lua] Error code %d. %s",
             self.error_code,

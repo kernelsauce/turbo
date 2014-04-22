@@ -80,7 +80,9 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     -- Set standard headers by calling the clear method.
     self:clear()
     if self.request.headers:get("Connection") then
-        self.request.connection.stream:set_close_callback(self.on_connection_close, self)
+        self.request.connection.stream:set_close_callback(
+            self.on_connection_close, 
+            self)
     end
     self.options = options
     self:on_create(self.options)
@@ -356,7 +358,10 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
         assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
     end
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
-                               string.format("%d|%s|%s", len, tostring(timestamp), value))
+                               string.format("%d|%s|%s", 
+                                             len, 
+                                             tostring(timestamp), 
+                                             value))
     assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
                               Either the cookie is forged or the cookie secret \
                               has been changed")

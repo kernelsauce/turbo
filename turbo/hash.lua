@@ -131,7 +131,7 @@ else
             lssl.SHA1(str, str:len(), self.md)
             self.final = true
         else
-            self.ctx = ffi.new("SHA_CTX")
+            self.ctx = ffi.new("struct SHA_CTX")
             assert(lssl.SHA1_Init(self.ctx) == 0, "Could not init SHA_CTX.")
         end
     end
