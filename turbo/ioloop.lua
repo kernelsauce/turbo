@@ -316,7 +316,7 @@ function ioloop.IOLoop:remove_signal_handler(signo)
 end
 
 --- Start the I/O Loop.
--- The loop will continue running until IOLoop:stop is called via a callback
+-- The loop will continue running until IOLoop.close is called via a callback
 -- added.
 function ioloop.IOLoop:start()
     self._running = true

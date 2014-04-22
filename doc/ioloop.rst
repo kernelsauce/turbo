@@ -118,7 +118,7 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         
 .. function:: IOLoop:start()
 
-        Start the IO Loop. The loop will continue running until ``IOLoop:stop`` is called via a callback added.
+        Start the IO Loop. The loop will continue running until ``IOLoop.close`` is called via a callback added.
         
 .. function:: IOLoop:close()
         
