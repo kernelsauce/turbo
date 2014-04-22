@@ -431,12 +431,6 @@ end
 function ioloop.IOLoop:close()
     self._running = false
     self._stopped = true
-    self._callbacks = {}
-    self._handlers = {}
-    self._co_cbs = {}
-    self._co_ctxs = {}
-    self._timeouts = {}
-    self._intervals = {}
 end
 
 --- Run IOLoop for specified amount of time. Used in Turbo.lua tests.
