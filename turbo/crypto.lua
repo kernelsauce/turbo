@@ -597,7 +597,6 @@ else
         -- or equaivalent on prior calls. The OpenSSL documentation states that
         -- SSL_do_handshake should be called again when its needs are satisfied.
         rc = crypto.lib.SSL_do_handshake(ssl)
-        print(SSLIOStream._ssl_verify)
         if rc <= 0 then
             if client and SSLIOStream._ssl_verify then
                 local verify_err = crypto.lib.SSL_get_verify_result(ssl)
