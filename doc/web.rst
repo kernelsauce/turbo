@@ -358,10 +358,10 @@ the body of the request. The request is always finished on error.
 
 StaticFileHandler class
 ~~~~~~~~~~~~~~~~~~~~~~~
-A simple static file handler. All files are cached in memory after initial request.
-If you are planning to serve big files, then it is recommended to use a
-proper static file web server instead. For small files that can be kept
-in memory it is ok.
+A static file handler for files on the local file system. 
+All files below user defined ``_G.TURBO_STATIC_MAX`` or default 1MB in size
+are stored in memory after initial request. Files larger than this are read 
+from disk on demand.
 
 Usage:
 

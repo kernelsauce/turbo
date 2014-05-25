@@ -1,6 +1,6 @@
---- Turbo.lua Static file server example
+-- Turbo.lua Buffer pointer implementation
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2014 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,18 +14,19 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-_G.TURBO_SSL = true
-local turbo = require "turbo"
+require 'turbo.3rdparty.middleclass'
+local ffi = require "ffi"
 
-local app = turbo.web.Application:new({
-    -- Serve single index.html file on root requests.
-    {"^/$", turbo.web.StaticFileHandler, "/var/www/index.html"},
-    -- Serve contents of directory.
-    {"^/(.*)$", turbo.web.StaticFileHandler, "/var/www/"}
-})
+local BufferPtr = class('BufferPtr')
 
-local srv = turbo.httpserver.HTTPServer(app)
-srv:bind(8888)
-srv:start(1) -- Adjust amount of processes to fork.
+function BufferPtr:initialize(ptr, size)
+	assert(ptr ~= nil, "Null ptr given.")
+	self.ptr = ptr
+	self.size = size
+end
 
-turbo.ioloop.instance():start()
+function BufferPtr:len() return self.size end
+
+function BufferPtr:get() return self.ptr, self.size end
+
+return BufferPtr

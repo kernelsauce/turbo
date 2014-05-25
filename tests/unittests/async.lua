@@ -40,4 +40,30 @@ describe("turbo.async Namespace", function()
         end)
         io:wait(2)
     end)
+
+    it("Cookie support", function()
+    local port = math.random(10000,40000)
+    local io = turbo.ioloop.instance()
+    local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+    function ExampleHandler:get()
+        assert.equal("testvalue", self:get_cookie("testcookie"))
+        assert.equal("secondvalue", self:get_cookie("testcookie2"))
+        self:write("Hello World!")
+    end
+    turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
+
+    io:add_callback(function()
+        local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+            "http://127.0.0.1:"..tostring(port).."/", {
+            cookie = {
+                testcookie="testvalue",
+                testcookie2="secondvalue"
+            }}))
+        assert.falsy(res.error)
+        assert.equal(res.body, "Hello World!")
+        io:close()
+    end)
+
+    io:wait(5)
+end)
 end)

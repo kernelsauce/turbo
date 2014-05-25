@@ -21,22 +21,29 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+local ffi =             require "ffi"
 local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
 local httpserver =      require "turbo.httpserver"
 local buffer =          require "turbo.structs.buffer"
+local bufferptr =       require "turbo.structs.bufferptr"
 local escape =          require "turbo.escape"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
 local util =            require "turbo.util"
 local hash =            require "turbo.hash"
-require('turbo.3rdparty.middleclass')
+local fs =              require "turbo.fs"
+local socket =          require "turbo.socket_ffi"
+local syscall =         require "turbo.syscall"
+require "turbo.3rdparty.middleclass"
+require "turbo.cdef"
 
 -- Use funpack instead of native as the native is not implemented in the
 -- LuaJIT compiler. Traces abort in a bad spot if not used.
 local unpack = util.funpack
 local is_in = util.is_in
 local _std_supported_met = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
+local _ssl_enabled = _G.TURBO_SSL
 
 local web = {} -- web namespace
 web.Mustache = require "turbo.mustache" -- include the Mustache templater.
@@ -73,7 +80,9 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     -- Set standard headers by calling the clear method.
     self:clear()
     if self.request.headers:get("Connection") then
-        self.request.connection.stream:set_close_callback(self.on_connection_close, self)
+        self.request.connection.stream:set_close_callback(
+            self.on_connection_close, 
+            self)
     end
     self.options = options
     self:on_create(self.options)
@@ -349,7 +358,10 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
         assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
     end
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
-                               string.format("%d|%s|%s", len, tostring(timestamp), value))
+                               string.format("%d|%s|%s", 
+                                             len, 
+                                             tostring(timestamp), 
+                                             value))
     assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
                               Either the cookie is forged or the cookie secret \
                               has been changed")
@@ -609,7 +621,7 @@ function web.RequestHandler:_parse_cookies()
 end
 
 function web.RequestHandler:_finish()
-    if self._status_code == 200 then
+    if self._status_code == 200 or self._status_code == 304 then
         log.success(string.format([[[web.lua] %d %s %s %s (%s) %dms]],
             self._status_code,
             response_codes[self._status_code],
@@ -650,6 +662,13 @@ function web.RequestHandler:_execute()
     end
 end
 
+local STATICWEBCACHE_MAX = _G.TURBO_STATIC_MAX or 1024*1024*1
+local SWCRC_CACHE = 0
+local SWCRC_TOO_BIG = 1
+local SWCRC_NOT_FOUND = -1
+local SWCT_CACHE = 0
+local SWCT_FILE = 1
+local SWCT_NOFILE = -1
 --- Static files cache class.
 -- Files that does not exist in cache are added to cache on first read.
 web._StaticWebCache = class("_StaticWebCache")
@@ -661,18 +680,24 @@ end
 -- @param path (String) Path to file.
 -- @return 0 + buffer (String) on success, else -1.
 function web._StaticWebCache:read_file(path)
-    local fd = io.open(path, "r")
+    local fd, err = io.open(path, "r")
     if not fd then
-        return -1, nil
+        return -1, err
     end
     local file = fd:read("*all")
     if not file then
-        return -1, nil
+        return -1, err
     end
     local sz = file:len()
     local buf = buffer(sz)
     buf:append_right(file, sz)
-    return 0, buf
+    local sha1sum = nil
+    if _ssl_enabled then
+        local digest = hash.SHA1(file)
+        digest:finalize()
+        sha1sum = digest:hex()
+    end
+    return 0, buf, sha1sum
 end
 
 --- Get file. If not in cache, it is read and put in the global _StaticWebCache
@@ -680,28 +705,75 @@ end
 -- @path (String) Path to file.
 -- @return 0 + buffer (String) on success, else -1.
 function web._StaticWebCache:get_file(path)
-    local cached_file = self.files[path]
-    if cached_file then
-        -- index 1 = buf
-        -- index 2 = mime string
-        return 0, cached_file[1], cached_file[2]
+    local cf = self.files[path]
+
+    -- Full path hash lookup.
+    if cf then
+        -- index 1 = type
+        -- index 2 = stat_t
+        -- index 3 = buf or file
+        -- index 4 = mime string (optional)
+        -- index 5 = sha1 checksum
+        if cf[1] == SWCT_CACHE then
+            return SWCRC_CACHE, cf[2], cf[3], cf[4], cf[5]
+        elseif cf[1] == SWCT_FILE then
+            local file = io.open(path, "r")
+            if not file then
+                log.error(string.format(
+                    "[web.lua] Could not open file for reading; %s.",
+                    err))
+                return SWCRC_NOT_FOUND    
+            end
+            return SWCRC_TOO_BIG, cf[2], file, cf[4]
+        elseif cf[1] == SWCT_NOFILE then
+            return SWCRC_NOT_FOUND
+        end
     end
-    -- Fallthrough, read from disk.
-    local rc, buf = self:read_file(path)
+
+    -- Not in cache, or opened before.
+    local stat, err = fs.stat(path)
+
+    if stat == -1 then
+        self.files[path] = {SWCT_NOFILE}
+        return SWCRC_NOT_FOUND -- File not found.
+    elseif stat.st_size > STATICWEBCACHE_MAX then
+        -- File will not be cached because of size.
+        -- Open file ptr instead.
+        local rc, mime = self:get_mime(path)
+        if rc == 0 then
+            self.files[path] = {SWCT_FILE, stat, nil, mime}
+        else
+            self.files[path] = {SWCT_FILE, stat}
+        end
+        local file, err = io.open(path, "r")
+        if not file then
+            log.error(string.format(
+                "[web.lua] Could not open file for reading; %s.",
+                err))
+            return SWCRC_NOT_FOUND
+        end
+        return SWCRC_TOO_BIG, stat, file, mime
+    end
+    -- Small size, relative to STATICWEBCACHE_MAX, load file to
+    -- a buffer.
+    local rc, buf, sha1sum = self:read_file(path)
     if rc == 0 then
         local rc, mime = self:get_mime(path)
         if rc == 0 then
-            self.files[path] = {buf, mime}
+            self.files[path] = {SWCT_CACHE, stat, buf, mime, sha1sum}
         else
-            self.files[path] = {buf}
+            self.files[path] = {SWCT_CACHE, stat, buf, nil, sha1sum}
         end
         log.notice(string.format(
             "[web.lua] Added %s (%d bytes) to static file cache. ",
             path,
             tonumber(buf:len())))
-        return 0, buf, mime
+        return SWCRC_CACHE, stat, buf, mime, sha1sum
     else
-        return -1, nil
+        log.error(string.format(
+            "[web.lua] Could not read file; %s.",
+            buf))
+        return SWCRC_NOT_FOUND
     end
 
 end
@@ -735,37 +807,15 @@ web.STATIC_CACHE = STATIC_CACHE
 -- proper static file web server instead. For small files that can be kept
 -- in memory it is ok.
 web.StaticFileHandler = class("StaticFileHandler", web.RequestHandler)
-function web.StaticFileHandler:initialize(app, request, args, options)
-    web.RequestHandler.initialize(self, app, request, args)
-    if not options or type(options) ~= "string" then
+function web.StaticFileHandler:prepare()
+    if not self.options or type(self.options) ~= "string" then
         error("StaticFileHandler not initialized with correct parameters.")
     end
-    self.path = options
+    self.path = self.options
     -- Check if this is a single file or directory.
     local last_char = self.path:sub(self.path:len())
     if last_char ~= "/" then
         self.file = true
-    end
-end
-
---- Determine MIME type according to file exstension.
--- @error If no filename is set, a error is raised.
--- @return 0 + MIME (String) on success, else -1.
-function web.StaticFileHandler:get_mime()
-    local filename = self._url_args[1]
-    if not filename then
-        error("No filename suplied to get_mime()")
-    end
-    local parts = filename:split(".")
-    if #parts == 0 then
-        return -1
-    end
-    local file_ending = parts[#parts]
-    local mime_type = mime_types[file_ending]
-    if mime_type then
-        return 0, mime_type
-    else
-        return -1
     end
 end
 
@@ -776,10 +826,49 @@ function web.StaticFileHandler:_headers_flushed_cb()
         self)
 end
 
+function web.StaticFileHandler:_send_next_chunk()
+    if self._file_offset == self._file_stat.st_size then
+        self._file:close()
+        self:finish()
+        return
+    end
+    local sz = math.min(1024*32, -- 32KB chunks seems like a good value?
+                        tonumber(self._file_stat.st_size - self._file_offset))
+    self._file_offset = self._file_offset + sz
+    local data, err = self._file:read(sz)
+    if not data then
+        log.error(string.format(
+            "[web.lua] Could not read file; %s.",
+            err))
+        self:finish()
+        return
+    end
+    if not data:len() == sz then
+        log.error("[web.lua] Read size mismatch.")
+        self:finish()
+        return
+    end
+    self.__file_data_ref = data -- Make sure a reference to string is kept.
+    self.request:write_zero_copy(
+        bufferptr(ffi.cast("const char *", data), data:len()),
+        self._send_next_chunk, 
+        self)
+end
+
+function web.StaticFileHandler:_send_from_file(stat, file)
+    file:seek("set")
+    self._file = file
+    self._file_offset = 0
+    self._file_stat = stat
+    self:flush(self._send_next_chunk, self)
+end
+
 --- GET method for static file handling.
 -- @param path The path captured from request.
 function web.StaticFileHandler:get(path)
     local full_path
+
+    self:set_async(true)
     if not self.file then
         if #self._url_args == 0 or self._url_args[1]:len() == 0 then
             error(web.HTTPError(404))
@@ -793,21 +882,35 @@ function web.StaticFileHandler:get(path)
         full_path = self.path
     end
 
-    local rc, buf, mime = STATIC_CACHE:get_file(full_path)
-    if rc == 0 then
-        self:set_async(true)
-        self._static_buffer = buf
-        if mime then
-            self:add_header("Content-Type", mime)
+    local rc, stat, buf, mime, sha1 = STATIC_CACHE:get_file(full_path)
+    if mime then
+        self:add_header("Content-Type", mime)
+    end
+    if sha1 then
+        -- Etag check.
+        if self.request.headers:get("If-None-Match") == sha1 then
+            -- Client has the most recent file. Do not send :).
+            self:set_status(304)
+            self:add_header("Etag", sha1)
+            self:finish()            
+            return
         end
+    end
+    if rc == SWCRC_CACHE then
+        self._static_buffer = buf
         self.headers:set_status_code(200)
         self.headers:set_version("HTTP/1.1")
         self:add_header("Content-Length", tonumber(buf:len()))
-        self:add_header("Cache-Control", "max-age=604800")
-        self:add_header("Expires", os.date("!%a, %d %b %Y %X GMT",
-            (self.request._start_time / 1000) + 60*60*24*7))
+        if sha1 then
+            self:add_header("Etag", sha1)
+        end
         self:flush(web.StaticFileHandler._headers_flushed_cb, self)
-    else
+    elseif rc == SWCRC_TOO_BIG then
+        self.headers:set_status_code(200)
+        self.headers:set_version("HTTP/1.1")
+        self:add_header("Content-Length", tonumber(stat.st_size))
+        self:_send_from_file(stat, buf)
+    elseif rc == SWCRC_NOT_FOUND then
         error(web.HTTPError(404)) -- Not found
     end
 end

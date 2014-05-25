@@ -30,7 +30,7 @@ function fs.stat(path, buf)
     if not buf then buf = stat_t() end
     local ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
     if ret == -1 then
-        return error(ffi.string(ffi.C.strerror(ffi.errno())))
+        return -1, ffi.string(ffi.C.strerror(ffi.errno()))
     end
     return buf
 end
