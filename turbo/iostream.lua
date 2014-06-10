@@ -797,6 +797,9 @@ function iostream.IOStream:_handle_write_const()
 end
 
 function iostream.IOStream:_handle_write()
+    if not self.socket then
+        return
+    end
     if self._const_write_buffer then
         self:_handle_write_const()
     else
@@ -882,10 +885,12 @@ function iostream.IOStream:_handle_connect()
                 else
                     self._connect_fail_callback(sockerr, strerror)
                 end
+            else
+                error(string.format(
+                    "[iostream.lua] Connect failed: %s, for fd %d",
+                    socket.strerror(sockerr), fd))
             end
-            error(string.format(
-                "[iostream.lua] Connect failed: %s, for fd %d",
-                socket.strerror(sockerr), fd))
+            return
         end
     end
     if self._connect_callback then
@@ -1015,11 +1020,13 @@ function iostream.SSLIOStream:_handle_connect()
                     self._ssl_connect_callback_arg = nil
                     self._ssl_connect_callback = nil
                     errhandler(arg, sockerr, strerror)
+                else
+                    error(string.format(
+                        "[iostream.lua] Connect failed: %s, for fd %d",
+                        socket.strerror(sockerr),
+                        fd))
                 end
-                error(string.format(
-                    "[iostream.lua] Connect failed: %s, for fd %d",
-                    socket.strerror(sockerr),
-                    fd))
+                return
             end
         end
         self._connecting = false
