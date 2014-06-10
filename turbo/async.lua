@@ -46,7 +46,7 @@ local async = {} -- async namespace
 --      stream.read_until, stream, "\r\n"))
 --
 -- No callbacks required, the arguments that would normally be used to
--- call the callback is put in the left-side result.
+-- call the callback is put in the left-side result (return values).
 function async.task(func, ...)
     local io = ioloop.instance()
     local coctx = coctx.CoroutineContext(io)
