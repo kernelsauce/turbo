@@ -105,6 +105,15 @@ httputil.hdr_t = {
     HTTP_BOTH       = 2
 }
 
+local javascript_types = {
+    ["application/javascript"] = true,
+    ["application/json"] = true,
+    ["application/x-javascript"] = true,
+    ["text/x-javascript"] = true,
+    ["text/x-json"] = true
+}
+
+
 --- HTTPParser Class
 -- Class for creation and parsing of HTTP headers.
 httputil.HTTPParser = class("HTTPParser")
@@ -426,16 +435,9 @@ local function find_line_start(str,pos, inc)
     return pos, skipped
 end
 
-local javascript_types =
- {["application/javascript"]=true,
-  ["application/json"]=true,
-  ["application/x-javascript"]=true,
-  ["text/x-javascript"]=true,
-  ["text/x-json"]=true}
-
 -- @return end position of token, token string
 local function getRFC822Atom(str,pos)
-    local fpos, lpos, token = str:find('([^%c%s()<>@,;:\\"/[%]?=]+)',pos)
+    local fpos, lpos, token = str:find('([^%c%s()<>@,;:\\"/[%]?=]+)', pos)
     return lpos, token
 end
 
@@ -443,62 +445,40 @@ end
 function httputil.parse_multipart_data(data, boundary)
     local arguments = {}
     local data = escape.unescape(data)
-    local p1, p2, b1, b2 -- pos_start, pos_end, boundary_start, boundary_end
+    local p1, p2, b1, b2
 
-    -- must prefix the boundary with double dash
     boundary = "--" .. boundary
-
-    -- print("boundary="..boundary)
-    -- print("multipart data is:\n" .. data)
-
-    -- plain search match the first boundary
     p1, p2 = data:find(boundary, 1, true)
     b1 = find_line_start(data,p2+1)
-    -- for each matching boundary
     repeat
         p1, p2 = data:find(boundary, p2, true)
         if p1 == nil then break end
-        -- find the previous line start to be the end
         b2 = find_line_start(data,p1-1,-1)
         do
             local boundary_headers
-            --local bounded = string.sub(data,b1,b2)
-            --print( "----------------------\n".. bounded)
-
-            -- process a boundary
-            local h1, h2, v1, skipped -- boundary header start, header end, value start, characters skipped on line
-            -- find the end of the boundary headers by finding
-            -- the start of the line after the empty line
+            local h1, h2, v1, skipped
             v1 = b1
-            -- determine the start of the headers (skip any leading new lines before headers)
             repeat
                 h1 = v1
                 v1 = find_line_start(data,v1)
                 if v1 == nil then goto next_boundary end
             until skipped ~= 0
-
-            -- determine the end of the headers
             repeat
                 h2 = v1-1
                 v1, skipped = find_line_start(data,v1)
                 if v1 == nil then goto next_boundary end
             until skipped == 0
-
-            -- boundary headers are from the boundary start to header end
             boundary_headers = data:sub(h1,h2)
-
-            -- make headers keys lower case, the alternative
-            -- would be to match them in a case insensitive way below
             boundary_headers = boundary_headers:gsub("([^%c%s:]-):",
-                      function(s) return string.gsub(s,"%u",function(c) return string.lower(c) end) .. ":" end)
-            if not boundary_headers then goto next_boundary end
-
+                      function(s) return string.gsub(s,"%u", function(c) 
+                            return string.lower(c) end) .. ":" 
+                      end)
+            if not boundary_headers then 
+                goto next_boundary 
+            end
             do
                 local name, ctype
                 local argument = { }
-                -- parse the Content-Disposition name, value arguments in between and set the
-                -- content-type, charset, and content-transfer-encoding
-                -- fields
                 for fname, fvalue, content_kvs in
                    boundary_headers:gmatch("([^%c%s:]+):%s*([^;]*);?([^\n\r]*)") do
                     if fvalue == "form-data" and fname=="content-disposition" then
@@ -507,58 +487,42 @@ function httputil.parse_multipart_data(data, boundary)
                         repeat
                             p, key = getRFC822Atom(content_kvs,p)
                             if p == nil then break end
-                            if content_kvs:byte(p+1) ~= string.byte('=') then break end
+                            if content_kvs:byte(p+1) ~= string.byte('=') then 
+                                break
+                            end
                             p=p+2
-                            -- try to get the quoted parameter
-                            print(string.sub(content_kvs,p))
                             local _, p2, val = content_kvs:find('^"([^"]+)"',p)
-                            -- if not a quoted paramter, get paramter token
                             if not p2 then
                                 p2, val = getRFC822Atom(content_kvs,p)
                                 if not p2 then break end
                             end
                             p = p2+1
                             if key=="name" then
-                                -- name is the primary key in the arguments table
-                                -- for storing the content
                                 name=val
                             end
-                            -- store any key values associated with content-disposition
                             argument[fname][key] = val
                         until false
                     else
-                        -- content-type, charset, and content-transfer-encoding
-                        -- field values are all case insensitive, though some
-                        -- field values may be case sensitive according to standards
-                        -- so only convert those 3 to lowercase
                         if fname=="content-type" then
                             ctype = fvalue
                             fvalue = fvalue:lower()
-                        elseif fname=="charset" or fname=="content-transfer-encoding" then
+                        elseif fname=="charset" or 
+                                fname=="content-transfer-encoding" then
                             fvalue = fvalue:lower()
                         end
-                        -- store the boundary field names and values for the form-data
-                        -- in the argument key, values
                         argument[fname] = fvalue
                     end
                 end
-                -- if we didn't have a name with the content-disposition it is invalid...
-                if not name then goto next_boundary end
-
-                -- from the start of the value to the end of the boundary
-                -- makes up the value data
+                if not name then 
+                    goto next_boundary
+                end
                 argument[1] = data:sub(v1, b2)
                 if argument["content-transfer-encoding"] == "base64" then
-                    -- decode the base64 data
                     argument[1] = escape.base64_decode(argument[1])
                 end
-
-                -- we can unescape application/javascript, application/json, application/x-javascript, text/x-javascript, text/x-json
                 if javascript_types[argument["content-type"]] then
                     argument[1] = escape.unescape(argument[1])
                 end
-
-                --print("name:value = " .. name .. ":" .. argument[1])
                 if arguments[name] then
                     arguments[name][#arguments[name] +1] = argument
                 else
@@ -568,9 +532,8 @@ function httputil.parse_multipart_data(data, boundary)
         end
 ::next_boundary::
         b1 = find_line_start(data,p2+1)
-    -- end when we run out of data or the boundary has trailing --
-    until (b1+1 > #data) or (data:byte(p2+1) == DASH and data:byte(p2+2) == DASH)
-
+    until (b1+1 > #data) or 
+        (data:byte(p2+1) == DASH and data:byte(p2+2) == DASH)
     return arguments
 end
 
