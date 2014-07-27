@@ -79,7 +79,7 @@ end
 
 --- Create a random string.
 function util.rand_str(len)
-    math.randomseed(util.gettimeofday()+math.random(0x0,0xffffffffff))
+    math.randomseed(util.gettimeofday()+math.random(0x0,0xffffffff))
     len = len or 64
     local bytes = buffer(len)
     for i = 1, len do
