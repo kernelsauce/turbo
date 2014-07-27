@@ -1013,15 +1013,18 @@ web.Application = class("Application")
 --- Initialize a new Application class instance.
 -- @param handlers (Table) As described above.
 
--- @param kwargs (Table) Key word arguments.
--- Key word arguments supported:
+-- @param settings (Table) Application settings.
+-- Settings used by the Application:
 -- "default_host" = Redirect to this URL if no matching handler is found.
 -- "cookie_secret" = Sequence of bytes used for to sign cookies.
-function web.Application:initialize(handlers, kwargs)
+-- "application_name" = The name used for the server header.
+-- Other settings are user defined and can be accessed by calling
+-- self:settings() in request handlers.
+function web.Application:initialize(handlers, settings)
     self.handlers = handlers or {}
-    self.kwargs = kwargs or {}
-    self.default_host = self.kwargs.default_host
-    self.application_name = self.kwargs.application_name or "Turbo.lua v1.1"
+    self.settings = settings or {}
+    self.default_host = self.settings.default_host
+    self.application_name = self.settings.application_name or "Turbo.lua v1.1"
 end
 
 --- Sets the server name.
