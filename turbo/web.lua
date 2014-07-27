@@ -1017,9 +1017,12 @@ web.Application = class("Application")
 -- Key word arguments supported:
 -- "default_host" = Redirect to this URL if no matching handler is found.
 -- "cookie_secret" = Sequence of bytes used for to sign cookies.
+-- "settings" = Global user settings that can be accessed in 
+--     RequestHandler's through self.application.settings
 function web.Application:initialize(handlers, kwargs)
     self.handlers = handlers or {}
     self.kwargs = kwargs or {}
+    self.settings = self.kwargs.settings
     self.default_host = self.kwargs.default_host
     self.application_name = self.kwargs.application_name or "Turbo.lua v1.1"
 end
