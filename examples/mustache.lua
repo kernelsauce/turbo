@@ -28,5 +28,5 @@ function MustacheHandler:get()
     )
 end
 
-turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888)
+turbo.web.Application({{"^/$", MustacheHandler}}):listen(8888)
 turbo.ioloop.instance():start()
