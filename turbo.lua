@@ -80,10 +80,10 @@ else
         turbo.MINOR_VERSION)
 end
 turbo.platform =		require "turbo.platform"
-assert(not turbo.platform.__WINDOWS__, "Windows is not supported.")
+assert(not turbo.platform.__WINDOWS__, "Windows OS is not supported.")
 assert(
 	(turbo.platform.__UNIX__ and turbo.platform.__LINUX__),
-	"Linux is the only support *NIX.")
+	"Linux is the only supported *NIX OS.")
 turbo.log =             require "turbo.log"
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
