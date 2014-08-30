@@ -673,7 +673,6 @@ elseif ffi.arch == "arm" then
 end
 
 
-
 --- ******* glob *******
 ffi.cdef[[
 typedef struct {
