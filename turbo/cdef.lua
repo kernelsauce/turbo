@@ -282,7 +282,11 @@ if p.__LINUX__ then
         typedef struct epoll_event epoll_event;
 
         int epoll_create(int size);
-        int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
+        int epoll_ctl(
+            int epfd,
+            int op, 
+            int fd,
+            struct epoll_event *event);
         int epoll_wait(
             int epfd,
             struct epoll_event *events,
@@ -301,11 +305,9 @@ if p.__LINUX__ then
             char name [];
         };
 
-        int inotify_init (void) __attribute__ ((__nothrow__ , __leaf__));
-        int inotify_add_watch (int __fd, const char *__name, unsigned int __mask)
-            __attribute__ ((__nothrow__ , __leaf__));
-        int inotify_rm_watch (int __fd, int __wd)
-            __attribute__ ((__nothrow__ , __leaf__));
+        int inotify_init(void);
+        int inotify_add_watch(int fd, const char *name, unsigned int mask);
+        int inotify_rm_watch (int fd, int wd);
     ]]
 
 
@@ -704,6 +706,9 @@ ffi.cdef[[
         enum http_parser_url_fields prop);
     const char *http_errno_name(int err);
     const char *http_errno_description(int err);
-    char* turbo_websocket_mask(const char *mask32, const char *in, size_t sz);
+    char* turbo_websocket_mask(
+        const char *mask32,
+        const char *in,
+        size_t sz);
     uint64_t turbo_bswap_u64(uint64_t swap);
 ]]

@@ -79,6 +79,8 @@ else
         turbo.MAJOR_VERSION,
         turbo.MINOR_VERSION)
 end
+
+assert(jit, "PUC-Lua not supported. Use LuaJIT2.")
 turbo.platform =		require "turbo.platform"
 assert(not turbo.platform.__WINDOWS__, "Windows OS is not supported.")
 assert(
