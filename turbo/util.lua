@@ -31,6 +31,7 @@ local g_timeval = ffi.new("struct timeval")
 
 local util = {}
 
+
 --*************** String library extensions ***************
 
 --- Extends the standard string library with a split method.
@@ -89,6 +90,7 @@ function util.rand_str(len)
     return bytes
 end
 
+
 --*************** Table utilites ***************
 
 --- Merge two tables to one.
@@ -139,6 +141,7 @@ function util.funpack(t, i)
     end
 end
 
+
 --*************** Time and date ***************
 
 --- Current msecs since epoch. Better granularity than Lua builtin.
@@ -187,6 +190,7 @@ function util.time_format_http_header(time_t)
     return ffi.string(g_time_str_buf, sz)
 end
 
+
 --*************** File ***************
 
 --- Check if file exists on local filesystem.
@@ -202,124 +206,6 @@ function util.file_exists(path)
     end
 end
 
---******** Low-level buffer search *********
-
-local function suffixes(x, m, suff)
-    local f, g, i
-
-    suff[m - 1] = m
-    g = m - 1
-    i = m - 2
-    while i >= 0 do
-        if i > g and suff[i + m - 1 - f] < i - g then
-            suff[i] = suff[i + m - 1 - f]
-        else
-            if i < g then
-                g = i
-            end
-            f = i
-            while g >= 0 and x[g] == x[g + m - 1 - f] do
-                g = g - 1
-            end
-            suff[i] = f - g
-        end
-        i = i -1
-    end
-end
-
-local function preBmGs(x, m, bmGs)
-    local i, j
-    local suff = {}
-
-    suffixes(x, m, suff);
-    i = 0
-    while i < m do
-        bmGs[i] = m
-        i = i + 1
-    end
-    j = 0
-    i = m - 1
-    while i >= 0 do
-        if suff[i] == i + 1 then
-            while j < m - 1 - i do
-                if bmGs[j] == m then
-                    bmGs[j] = m - 1 - i;
-                end
-            j = j + 1
-            end
-        end
-        i = i -1
-    end
-    i = 0
-    while i <= m - 2 do
-        bmGs[m - 1 - suff[i]] = m - 1 - i;
-        i = i +1
-    end
-end
-
-local function preBmBc(x, m, bmBc)
-    local i
-    for i = 0, UCHAR_MAX - 1 do
-        bmBc[i] = m
-    end
-    i = 0
-    while i < m - 1 do
-        bmBc[x[i]] = m - i - 1;
-        i = i + 1
-    end
-end
-
-local NEEDLE_MAX = 1024
---- Turbo Booyer-Moore memory search algorithm.
--- Search through arbitrary memory and find first occurence of given byte sequence.
--- @param x char* Needle memory pointer
--- @param m int Needle size
--- @param y char* Haystack memory pointer
--- @param n int Haystack size.
-function util.TBM(x, m, y, n)
-    local bmGs = ffi.new("int[?]", NEEDLE_MAX)
-    local bmBc = ffi.new("int[?]", NEEDLE_MAX)
-    if m == 0 or n == 0 then
-        return
-    elseif m > NEEDLE_MAX then
-        error("Needle exceeds NEEDLE_MAX defined in util.lua. \
-            Can not do memory search.")
-    end
-    local bcShift, i, j, shift, u, v, turboShift
-    preBmGs(x, m, bmGs);
-    preBmBc(x, m, bmBc);
-    j = 0
-    u = 0
-    shift = m
-    while j <= n - m do
-        i = m -1
-        while i >= 0 and x[i] == y[i + j] do
-            i = i - 1
-            if u ~= 0 and i == m - 1 - shift then
-                i = i - u
-            end
-        end
-        if i < 0 then
-            return j
-        else
-            v = m - 1 - i;
-            turboShift = u - v;
-            bcShift = bmBc[y[i + j]] - m + 1 + i;
-            shift = math.max(turboShift, bcShift);
-            shift = math.max(shift, bmGs[i]);
-            if shift == bmGs[i] then
-                u = math.min(m - shift, v)
-            else
-                if turboShift < bcShift then
-                    shift = math.max(shift, u + 1);
-                    u = 0
-                end
-            end
-        end
-        j = j + shift
-    end
-end
-
 function util.read_all(file)
     local f = io.open(file, "rb")
     assert(f, "Could not open file " .. file .. " for reading.")
@@ -327,6 +213,9 @@ function util.read_all(file)
     f:close()
     return content
 end
+
+
+--******** Low-level buffer search *********
 
 -- Fast string case agnostic comparison
 function util.strcasecmp(str1, str2)
@@ -359,6 +248,17 @@ function util.str_find(s, p, slen, plen)
             end
         end
     end
+end
+
+--- Turbo Booyer-Moore memory search algorithm.
+-- DEPRECATED as of v.1.1.
+-- @param x char* Needle memory pointer
+-- @param m int Needle size
+-- @param y char* Haystack memory pointer
+-- @param n int Haystack size.
+function util.TBM(x, m, y, n)
+    log.warning("turbo.util.TBM is deprecated.")
+    return util.str_find(y, x, n, m)
 end
 
 --- Convert number value to hexadecimal string format.
