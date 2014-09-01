@@ -147,14 +147,20 @@ function util.gettimeofday()
 end
 
 do
-    local rt = ffi.load("rt")
-    local ts = ffi.new("struct timespec")
-    -- Current msecs since arbitrary start point, doesn't jump due to
-    -- time changes
-    -- @return Number
-    function util.gettimemonotonic()
-        rt.clock_gettime(rt.CLOCK_MONOTONIC, ts)
-        return (tonumber((ts.tv_sec*1000)+(ts.tv_nsec/1000000)))
+    local rt_support, rt = pcall(ffi.load, "rt")
+    if not rt_support then
+        util.gettimemonotonic = util.gettimeofday
+        print(
+            "Warning: Could not load rt.so, falling back to gettimeofday.")
+    else
+        local ts = ffi.new("struct timespec")
+        -- Current msecs since arbitrary start point, doesn't jump due to
+        -- time changes
+        -- @return Number
+        function util.gettimemonotonic()
+            rt.clock_gettime(rt.CLOCK_MONOTONIC, ts)
+            return (tonumber((ts.tv_sec*1000)+(ts.tv_nsec/1000000)))
+        end
     end
 end
 
