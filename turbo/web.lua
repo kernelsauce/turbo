@@ -1042,7 +1042,7 @@ function web.Application:get_server_name() return self.application_name end
 -- @param handler (RequestHandler class)
 -- @param arg Argument for handler.
 function web.Application:add_handler(pattern, handler, arg)
-    self.handler[#self.handler + 1] = {pattern, handler, arg}
+    self.handlers[#self.handlers + 1] = {pattern, handler, arg}
 end
 
 --- Starts an HTTP server for this application on the given port.
