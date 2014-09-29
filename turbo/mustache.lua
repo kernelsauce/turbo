@@ -348,7 +348,7 @@ local function _render_section(vmtbl, obj, i, safe, partials, obj_parents)
                         buf:append_luastr_right(obj[y][arg](arg) or "")
                     end
                 else
-                    in_parent = _find_in_obj_parents(arg, obj_parents)
+                    local in_parent = _find_in_obj_parents(arg, obj_parents)
                     if in_parent then
                         if type(in_parent) == "string" then
                             buf:append_luastr_right(in_parent)
