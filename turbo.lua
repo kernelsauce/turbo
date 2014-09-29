@@ -17,7 +17,10 @@
 -- is that it is the fastest, most scalable and has the smallest footprint of
 -- them all. This is thanks to the excellent work done on LuaJIT.
 --
--- Its main features and design principles are:
+-- Please visist http://turbolua.org to report issues or ask questions.
+--
+--
+-- Main features and design principles:
 --
 -- * Simple and intuitive API (much like Tornado)
 --
@@ -35,7 +38,8 @@
 --
 -- * Small footprint
 --
--- Copyright John Abrahamsen 2011, 2012, 2013
+--
+-- Copyright John Abrahamsen 2011, 2012, 2013, 2014
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -75,6 +79,13 @@ else
         turbo.MAJOR_VERSION,
         turbo.MINOR_VERSION)
 end
+
+assert(jit, "PUC-Lua not supported. Use LuaJIT2.")
+turbo.platform =		require "turbo.platform"
+assert(not turbo.platform.__WINDOWS__, "Windows OS is not supported.")
+assert(
+	(turbo.platform.__UNIX__ and turbo.platform.__LINUX__),
+	"Linux is the only supported *NIX OS.")
 turbo.log =             require "turbo.log"
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
