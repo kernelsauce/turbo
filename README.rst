@@ -1,6 +1,8 @@
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
    :target: http://turbolua.org
 
+``luarocks install turbo``
+
 Turbo is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
 
 First and foremost the framework is aimed at the HTTP(S) protocol. This means web developers and HTTP API developers are the first class citizens. But the framework contains generic nuts and bolts such as; a I/O loop, IO Stream classes, customizeable TCP (with SSL) server classes giving it value for everyone doing any kind of high performance network application. It will also speak directly to your exising C libraries, and happily also create native C struct's for the ultimate memory and CPU performance.
@@ -36,10 +38,19 @@ x86, x64, ARM, PPC
 
 Installation
 ------------
+
+You can use LuaRocks to install Turbo.
+
+``luarocks install turbo``
+
+If installation fails make sure that you have these required pacakages:
+
+``apt-get install git build-essential libssl-dev``
+
 Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
 Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
 
-Installing Turbo.lua is easy. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
+Turbo.lua can also be installed by the included Makefile. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
 
 You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
 
