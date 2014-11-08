@@ -188,6 +188,8 @@ char *url_field(const char *url_str,
                 enum http_parser_url_fields prop)
 {
     char * urlstr = malloc(url->field_data[prop].len + 1);
+    if (!urlstr)
+        return NULL;
     memcpy(urlstr, url_str + url->field_data[prop].off, url->field_data[prop].len);
     urlstr[url->field_data[prop].len] = '\0';
     return urlstr;
