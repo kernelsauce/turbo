@@ -43,7 +43,7 @@ You can use LuaRocks to install Turbo.
 
 If installation fails make sure that you have these required pacakages:
 
-``apt-get install git build-essential libssl-dev``
+``apt-get install git build-essential libssl-dev luajit``
 
 Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
 Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.

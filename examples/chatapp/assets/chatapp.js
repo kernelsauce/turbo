@@ -42,7 +42,7 @@ function update_participants (t) {
 function connect_to_chatcom () {
     $(".connected").removeClass("hidden");
     $("#chat-input").click();
-    var ws = new WebSocket("ws://127.0.0.1:8888/chatcom");
+    var ws = new WebSocket("ws://" + document.location.host + "/chatcom");
     ws.onmessage = function(evt) {
         var msg = JSON.parse(evt.data);
         var pack = msg.package;
