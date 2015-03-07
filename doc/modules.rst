@@ -144,3 +144,127 @@ return as they yield. The I/O Loop supports these returns:
 * Nil, a empty yield that will simply resume the coroutine thread on next iteration.
 * A CoroutineContext class, which acts as a reference to the I/O loop which allow the coroutine thread to be 
   managed manually and resumed on demand.
+
+Example module
+~~~~~~~~~~~~~~
+
+
+So bearing this in mind let us create a CouchDB module.
+
+We will create this one with a API that supports the business as usual programming style where the programmer does
+not yield or control this flow by himself. Note that this is in no way a complete and stable module, it is only
+meant to give some pointers:
+
+.. code-block:: lua
+   :linenos:
+
+    local turbo = require "turbo"
+
+    -- Create a namespace to return.
+    local couch = {}
+
+    -- CouchDB class, it is obviously optional if you want to use object orientation or not.
+    couch.CouchDB = class("CouchDB")
+
+
+    -- Init function to setup connection to CouchDB and more.
+    function couch.CouchDB:initialize(addr, ioloop)
+        assert(type(addr) == "string", "addr argument is not a valid address.")
+        self.ioloop = ioloop
+        local sock, msg = turbo.socket.new_nonblock_socket(
+            turbo.socket.AF_INET,
+            turbo.socket.SOCK_STREAM,
+            0)
+        if sock == -1 then
+            error("Could not create socket.")
+        end
+        self.sock = sock
+        
+        self.iostream = turbo.iostream.IOStream(
+            self.sock,
+            self.io_loop,
+            1024*1024)
+        
+        local hostname, port = unpack(addr:split(":"))
+        self.hostname = hostname
+        self.port = tonumber(port)
+        self.connected = false
+        self.busy = false
+        local _self = self
+
+        local rc, msg = self.iostream:connect(
+            self.hostname,
+            self.port,
+            turbo.socket.AF_INET,
+            function()
+                -- Set a connected flag, so that we know we can process requests.
+                _self.connected = true
+                turbo.log.success("Couch Connected!") end,
+            function() turbo.log.error("Could not connect to CouchDB!") end)
+        if rc ~= 0 then
+            error("Host not reachable. " .. msg or "")
+        end
+        self.iostream:set_close_callback(function()
+            _self.connected = false
+            turbo.log.error("CouchDB disconnected!")
+            -- Add reconnect code here.
+        end)
+    end
+
+    function couch.CouchDB:get(resource)
+        assert(self.connected, "No connection to CouchDB, can not process request.")
+        assert(not self.busy, "Connection is busy, try again later.")
+        self.busy = true
+
+        self.headers = turbo.httputil.HTTPHeaders()
+        self.headers:add("Host", self.hostname)
+        self.headers:add("User-Agent", "Turbo Couch")
+        self.headers:set_method("GET")
+        self.headers:set_version("HTTP/1.1")
+        self.headers:set_uri(resource)
+        local buf = self.headers:stringify_as_request()
+        
+        -- Write request HTTP header to stream and wait for finish using the simple way with turbo.async.task wrapper
+        -- function.
+        coroutine.yield (turbo.async.task(self.iostream.write, self.iostream, buf))
+
+        -- Wait until end of HTTP response header has been read.
+        local res = coroutine.yield (turbo.async.task(self.iostream.read_until_pattern, self.iostream, "\r?\n\r?\n"))
+
+        -- Decode response header.
+        local response_headers = turbo.httputil.HTTPParser(res, turbo.httputil.hdr_t["HTTP_RESPONSE"])
+        
+        -- Read the actual body now that we know the size of body.
+        local body = coroutine.yield (turbo.async.task(
+                self.iostream.read_bytes,
+                self.iostream,
+                tonumber((response_headers:get("Content-Length")))))
+
+        -- Decode JSON response body and return it to caller.
+        local json_dec = turbo.escape.json_decode(body)
+        return json_dec
+    end
+
+    --- Add more methods :)
+
+    return couch
+
+Usage from a turbo.web.RequestHandler:
+
+.. code-block:: lua
+   :linenos:
+
+    local turbo = require "turbo"
+    local couch = require "turbo-couch"
+
+    -- Create a instance.
+    local cdb = couch.CouchDB("localhost:5984")
+
+    local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+    function ExampleHandler:get()
+        -- Write response directly through.
+        self:write(cdb:get("/test/toms_resource"))
+    end
+
+    turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888)
+    turbo.ioloop.instance():start()
