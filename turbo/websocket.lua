@@ -27,7 +27,7 @@
 -- limitations under the License.
 
 local math =            require "math"
-local bit =             require "bit"
+local bit =             jit and require "bit" or require "bit32"
 local ffi =             require "ffi"
 local log =             require "turbo.log"
 local httputil =        require "turbo.httputil"
@@ -55,12 +55,12 @@ local strf = string.format
 local bor = bit.bor
 math.randomseed(util.gettimeofday())
 
-if jit.version_num >= 20100 then
+if jit and jit.version_num >= 20100 then
     function ENDIAN_SWAP_U64(val)
         return bit.bswap(val)
     end
 else
-    -- Only v2.1 support 64bit bit swap.
+    -- Only LuaJIT v2.1 support 64bit bit swap.
     -- Use a native C function instead for v2.0.
     function ENDIAN_SWAP_U64(val)
         return libturbo_parser.turbo_bswap_u64(val)

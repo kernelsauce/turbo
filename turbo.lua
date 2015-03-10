@@ -80,13 +80,26 @@ else
         turbo.MINOR_VERSION)
 end
 
-assert(jit, "PUC-Lua not supported. Use LuaJIT2.")
+if not jit then
+	_G.__TURBO_NO_JIT = true
+end
+assert(pcall(require, "ffi"), "No FFI or compatible library available.")
+assert(pcall(require, "bit") or pcall(require, "bit32"),
+	"No bit or compatible library available")
 turbo.platform =		require "turbo.platform"
-assert(not turbo.platform.__WINDOWS__, "Windows OS is not supported.")
+turbo.log =             require "turbo.log"
+if not turbo.platform.__LINUX__ then
+	turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
+	if not pcall(require, "socket") then
+		turbo.log.error("Could not load LuaSocket. Aborting.")
+	end
+	_G.__TURBO_USE_LUASOCKET = true
+elseif _G.__TURBO_USE_LUASOCKET__ then
+	turbo.log.warning("_G.__TURBO_USE_LUASOCKET__ set, using LuaSocket (degraded performance).")
+end
 assert(
 	(turbo.platform.__UNIX__ and turbo.platform.__LINUX__),
 	"Linux is the only supported *NIX OS.")
-turbo.log =             require "turbo.log"
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
 turbo.httputil =        require "turbo.httputil"

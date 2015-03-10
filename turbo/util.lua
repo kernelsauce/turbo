@@ -14,8 +14,13 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-local ffi = require "ffi"
-local buffer = require "turbo.structs.buffer"
+local ffi =         require "ffi"
+local buffer =      require "turbo.structs.buffer"
+local platform =    require "turbo.platform"
+local luasocket
+if not platform.__LINUX__ or _G.__TURBO_USE_LUASOCKET__ then
+    luasocket = require "socket"
+end
 require "turbo.cdef"
 local C = ffi.C
 local UCHAR_MAX = tonumber(ffi.new("uint8_t", -1))
@@ -140,18 +145,23 @@ end
 
 --- Current msecs since epoch. Better granularity than Lua builtin.
 -- @return Number
-function util.gettimeofday()
-    C.gettimeofday(g_timeval, nil)
-    return (tonumber((g_timeval.tv_sec * 1000)+
-                     (g_timeval.tv_usec / 1000)))
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    function util.gettimeofday()
+        C.gettimeofday(g_timeval, nil)
+        return (tonumber((g_timeval.tv_sec * 1000)+
+                         (g_timeval.tv_usec / 1000)))
+    end
+else
+    function util.gettimeofday()
+        return luasocket.gettime() * 1000
+    end    
 end
-
 do
     local rt_support, rt = pcall(ffi.load, "rt")
-    if not rt_support then
+    if not rt_support or _G.__TURBO_USE_LUASOCKET__ then
         util.gettimemonotonic = util.gettimeofday
-        print(
-            "Warning: Could not load rt.so, falling back to gettimeofday.")
+        io.stderr:write(
+            "[util.lua] Could not load rt.so, falling back to gettimeofday.\n")
     else
         local ts = ffi.new("struct timespec")
         -- Current msecs since arbitrary start point, doesn't jump due to

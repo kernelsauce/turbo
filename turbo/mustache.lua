@@ -26,7 +26,7 @@ local escape = require "turbo.escape"
 local buffer = require "turbo.structs.buffer"
 local log = require "turbo.log"
 local ffi = require "ffi"
-local bit = require "bit"
+local bit = jit and require "bit" or require "bit32"
 require "turbo.3rdparty.middleclass"
 
 local b = string.byte

@@ -18,7 +18,12 @@ local socket =      require "turbo.socket_ffi"
 local ioloop =      require "turbo.ioloop"
 local log =         require "turbo.log"
 local ffi =         require "ffi"
-local bit =         require "bit"
+local bit =         jit and require "bit" or require "bit32"
+local platform =    require "turbo.platform"
+local luasocket
+if not platform.__LINUX__ or _G.__TURBO_USE_LUASOCKET__ then
+    luasocket = require "socket"
+end
 local SOL_SOCKET =  socket.SOL_SOCKET
 local SO_RESUSEADDR = socket.SO_REUSEADDR
 local O_NONBLOCK =  socket.O_NONBLOCK
@@ -124,7 +129,6 @@ function sockutils.connect_addrinfo(sock, ai)
 end
 
 
-
 --- Binds sockets to port and address.
 -- If not address is defined then * will be used.
 -- If no backlog size is given then 128 connections will be used.
@@ -137,109 +141,138 @@ end
 -- defined then 128 is used as default.
 -- @param family (Number) Optional socket family. Defined in Socket module. If 
 -- not defined AF_INET is used as default.
-function sockutils.bind_sockets(port, address, backlog, family)
-    local serv_addr
-    local errno
-    local rc, msg
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    function sockutils.bind_sockets(port, address, backlog, family)
+        local serv_addr
+        local errno
+        local rc, msg
 
-    backlog = backlog or 128
+        backlog = backlog or 128
 
-    if not family then
-        if type(address) == "string" then
-            if address:find(":") then
-                family = AF_INET6
+        if not family then
+            if type(address) == "string" then
+                if address:find(":") then
+                    family = AF_INET6
+                else
+                    family = AF_INET
+                end
             else
                 family = AF_INET
             end
-        else
-            family = AF_INET
         end
-    end
 
-    serv_addr = sockutils.create_server_address(port, address, family)
-    
-    local fd = C.socket(family, SOCK_STREAM, 0)
-    if fd == -1 then
-        errno = ffi.errno()
-        error(string.format("[tcpserver.lua Errno %d] Could not create socket. %s", 
-            errno, 
-            socket.strerror(errno)))        
-    end    
-    rc, msg = socket.set_nonblock_flag(fd)
-    if rc ~= 0 then
-       error("[iostream.lua] " .. msg)
-    end    
-    rc, msg = socket.set_reuseaddr_opt(fd)
-    if rc ~= 0 then
-       error("[tcpserver.lua] " .. msg)
-    end
-    if C.bind(fd, ffi.cast("struct sockaddr *", serv_addr), 
-        ffi.sizeof(serv_addr)) ~= 0 then
-        errno = ffi.errno()
-        error(string.format(
-            "[tcpserver.lua Errno %d] Could not bind to address. %s", 
-            errno, 
-            socket.strerror(errno)))        
-    end
-    if C.listen(fd, backlog) ~= 0 then 
-        errno = ffi.errno()
-        error(string.format(
-            "[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s", 
-            errno, 
-            fd, 
-            socket.strerror(errno)))
-    end    
-    --log.devel(string.format("[tcpserver.lua] Listening to socket fd %d", fd))
-    return fd
-end
-
-local client_addr = ffi.new("struct sockaddr_storage")
-local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
-
-local function _add_accept_hander_cb(arg, fd, events)
-   while true do 
-        local errno
-        local address
-        --log.devel(string.format(
-            --"[tcpserver.lua] Accepting connection on socket fd %d", fd))
-
-        local client_fd = C.accept(fd, ffi.cast("struct sockaddr *", client_addr), client_addr_sz)        
-        local family = client_addr.ss_family
-        if client_fd == -1 then
+        serv_addr = sockutils.create_server_address(port, address, family)
+        
+        local fd = C.socket(family, SOCK_STREAM, 0)
+        if fd == -1 then
             errno = ffi.errno()
-            if (errno == EWOULDBLOCK or errno == EAGAIN) then
-                break
+            error(string.format(
+                "[tcpserver.lua Errno %d] Could not create socket. %s",
+                errno, 
+                socket.strerror(errno)))        
+        end    
+        rc, msg = socket.set_nonblock_flag(fd)
+        if rc ~= 0 then
+           error("[iostream.lua] " .. msg)
+        end    
+        rc, msg = socket.set_reuseaddr_opt(fd)
+        if rc ~= 0 then
+           error("[tcpserver.lua] " .. msg)
+        end
+        if C.bind(fd, ffi.cast("struct sockaddr *", serv_addr), 
+            ffi.sizeof(serv_addr)) ~= 0 then
+            errno = ffi.errno()
+            error(string.format(
+                "[tcpserver.lua Errno %d] Could not bind to address. %s", 
+                errno, 
+                socket.strerror(errno)))        
+        end
+        if C.listen(fd, backlog) ~= 0 then 
+            errno = ffi.errno()
+            error(string.format(
+                "[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s",
+                errno, 
+                fd, 
+                socket.strerror(errno)))
+        end    
+        --log.devel(string.format("[tcpserver.lua] Listening to socket fd %d", fd))
+        return fd
+    end
+
+    local client_addr = ffi.new("struct sockaddr_storage")
+    local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
+
+    function _add_accept_hander_cb(arg, fd, events)
+       while true do 
+            local errno
+            local address
+            --log.devel(string.format(
+                --"[tcpserver.lua] Accepting connection on socket fd %d", fd))
+
+            local client_fd = 
+                C.accept(fd, ffi.cast("struct sockaddr *", client_addr), 
+                         client_addr_sz)
+            local family = client_addr.ss_family
+            if client_fd == -1 then
+                errno = ffi.errno()
+                if (errno == EWOULDBLOCK or errno == EAGAIN) then
+                    break
+                else
+                    log.error(string.format(
+                        "[tcpserver.lua Errno %d] Could not accept connection. %s", 
+                        errno, 
+                        socket.strerror(errno)))
+                    break
+                end
+            end
+
+            if family == AF_INET then
+                local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
+                local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
+                address = string.format("%d.%d.%d.%d",
+                      s_addr_ptr[0],
+                      s_addr_ptr[1],
+                      s_addr_ptr[2],
+                      s_addr_ptr[3])
             else
-                log.error(string.format(
-                    "[tcpserver.lua Errno %d] Could not accept connection. %s", 
-                    errno, 
-                    socket.strerror(errno)))
-                break
+                local client_sa = ffi.cast("struct sockaddr_in6 *", client_addr)
+                local addrbuf = ffi.new("char[?]", INET6_ADDRSTRLEN)
+                C.inet_ntop(AF_INET6, client_sa.sin6_addr, addrbuf, INET6_ADDRSTRLEN)
+                address = ffi.string(addrbuf, INET6_ADDRSTRLEN)
+            end
+
+            if arg[2] then
+                arg[1](arg[2], client_fd, address)
+            else
+                arg[1](client_fd, address)
             end
         end
+    end
+else
+    -- LuaSocket version.
+    function sockutils.bind_sockets(port, address, backlog, family)
+        local sock = luasocket.bind(address or "localhost", port, backlog)
+        sock:settimeout(0)
+        return sock
+    end
 
-        if family == AF_INET then
-            local sockaddr_in = ffi.cast("struct sockaddr_in *", client_addr)
-            local s_addr_ptr = ffi.cast("unsigned char *", sockaddr_in.sin_addr)
-            address = string.format("%d.%d.%d.%d",
-                  s_addr_ptr[0],
-                  s_addr_ptr[1],
-                  s_addr_ptr[2],
-                  s_addr_ptr[3])
-        else
-            local client_sa = ffi.cast("struct sockaddr_in6 *", client_addr)
-            local addrbuf = ffi.new("char[?]", INET6_ADDRSTRLEN)
-            C.inet_ntop(AF_INET6, client_sa.sin6_addr, addrbuf, INET6_ADDRSTRLEN)
-            address = ffi.string(addrbuf, INET6_ADDRSTRLEN)
-        end
-
-        if arg[2] then
-            arg[1](arg[2], client_fd, address)
-        else
-            arg[1](client_fd, address)
+    function _add_accept_hander_cb(arg, fd, events)
+        while true do 
+            local client_fd = fd:accept()
+            if not client_fd then
+                break
+            end
+            client_fd:settimeout(0)
+            client_fd:setoption("keepalive", true)
+            if arg[2] then
+                arg[1](arg[2], client_fd, client_fd:getpeername())
+            else
+                arg[1](client_fd, client_fd:getpeername())
+            end
         end
     end
 end
+
 
 --- Add accept handler for socket with given callback. 
 -- Either supply a IOLoop object, or the global instance will be used... 

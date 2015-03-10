@@ -15,112 +15,111 @@
 -- limitations under the License.
 
 local ffi = require "ffi"
-local p = require "turbo.platform"
+local platform = require "turbo.platform"
 
 
-if p.__UNIX__ then
-  --- ******* stdlib UNIX *******
+--- ******* stdlib UNIX *******
+ffi.cdef [[
+    typedef int pid_t;
+
+    void *malloc(size_t sz);
+    void *realloc(void*ptr, size_t size);
+    void free(void *ptr);
+    int sprintf(char *str, const char *format, ...);
+    int printf(const char *format, ...);
+    void *memmove(void *destination, const void *source, size_t num);
+    int memcmp(const void *ptr1, const void *ptr2, size_t num);
+    void *memchr(void *ptr, int value, size_t num);
+    int strncasecmp(const char *s1, const char *s2, size_t n);
+    int strcasecmp(const char *s1, const char *s2);
+    int snprintf(char *s, size_t n, const char *format, ...);
+    pid_t fork();
+    pid_t wait(int *status);
+    pid_t waitpid(pid_t pid, int *status, int options);
+    pid_t getpid();
+    int execvp(const char *path, char *const argv[]);
+    int fcntl(int fd, int cmd, int opt);
+]]
+
+
+--- ******* Berkeley Socket UNIX *******
+ffi.cdef [[
+    typedef int socklen_t;
+    struct sockaddr{
+        unsigned short sa_family;
+        char sa_data[14];
+    };
+    struct sockaddr_storage{
+        unsigned short int ss_family;
+        unsigned long int __ss_align;
+        char __ss_padding[128 - (2 *sizeof(unsigned long int))];
+    };
+    struct in_addr{
+        unsigned long s_addr;
+    };
+    struct in6_addr{
+        unsigned char s6_addr[16];
+    };
+    struct sockaddr_in{
+        short sin_family;
+        unsigned short sin_port;
+        struct in_addr sin_addr;
+        char sin_zero[8];
+    } __attribute__ ((__packed__));
+    struct sockaddr_in6{
+        unsigned short sin6_family;
+        unsigned short sin6_port;
+        unsigned int sin6_flowinfo;
+        struct in6_addr sin6_addr;
+        unsigned int sin6_scope_id;
+    };
+
+    char *strerror(int errnum);
+    int socket(int domain, int type, int protocol);
+    int bind(int fd, const struct sockaddr *addr, socklen_t len);
+    int listen(int fd, int backlog);
+    int dup(int oldfd);
+    int close(int fd);
+    int connect(int fd, const struct sockaddr *addr, socklen_t len);
+    int setsockopt(
+        int fd, 
+        int level,
+        int optname,
+        const void *optval,
+        socklen_t optlen);
+    int getsockopt(
+        int fd,
+        int level,
+        int optname,
+        void *optval,
+        socklen_t *optlen);
+    int accept(int fd, struct sockaddr *addr, socklen_t *addr_len);
+    unsigned int ntohl(unsigned int netlong);
+    unsigned int htonl(unsigned int hostlong);
+    unsigned short ntohs(unsigned int netshort);
+    unsigned short htons(unsigned int hostshort);
+    int inet_pton(int af, const char *cp, void *buf);
+    const char *inet_ntop(
+        int af,
+        const void *cp,
+        char *buf,
+        socklen_t len);
+    char *inet_ntoa(struct in_addr in);
+]]
+
+if platform.__ABI32__ then
     ffi.cdef [[
-        typedef int pid_t;
-
-        void *malloc(size_t sz);
-        void *realloc(void*ptr, size_t size);
-        void free(void *ptr);
-        int sprintf(char *str, const char *format, ...);
-        int printf(const char *format, ...);
-        void *memmove(void *destination, const void *source, size_t num);
-        int memcmp(const void *ptr1, const void *ptr2, size_t num);
-        void *memchr(void *ptr, int value, size_t num);
-        int strncasecmp(const char *s1, const char *s2, size_t n);
-        int strcasecmp(const char *s1, const char *s2);
-        int snprintf(char *s, size_t n, const char *format, ...);
-        pid_t fork();
-        pid_t wait(int *status);
-        pid_t waitpid(pid_t pid, int *status, int options);
-        pid_t getpid();
-        int execvp(const char *path, char *const argv[]);
-        int fcntl(int fd, int cmd, int opt);
+        int send(int fd, const void *buf, size_t n, int flags);
+        int recv(int fd, void *buf, size_t n, int flags);
     ]]
-
-
-    --- ******* Berkeley Socket UNIX *******
+elseif platform.__ABI64__ then
     ffi.cdef [[
-        typedef int socklen_t;
-        struct sockaddr{
-            unsigned short sa_family;
-            char sa_data[14];
-        };
-        struct sockaddr_storage{
-            unsigned short int ss_family;
-            unsigned long int __ss_align;
-            char __ss_padding[128 - (2 *sizeof(unsigned long int))];
-        };
-        struct in_addr{
-            unsigned long s_addr;
-        };
-        struct in6_addr{
-            unsigned char s6_addr[16];
-        };
-        struct sockaddr_in{
-            short sin_family;
-            unsigned short sin_port;
-            struct in_addr sin_addr;
-            char sin_zero[8];
-        } __attribute__ ((__packed__));
-        struct sockaddr_in6{
-            unsigned short sin6_family;
-            unsigned short sin6_port;
-            unsigned int sin6_flowinfo;
-            struct in6_addr sin6_addr;
-            unsigned int sin6_scope_id;
-        };
-
-        char *strerror(int errnum);
-        int socket(int domain, int type, int protocol);
-        int bind(int fd, const struct sockaddr *addr, socklen_t len);
-        int listen(int fd, int backlog);
-        int dup(int oldfd);
-        int close(int fd);
-        int connect(int fd, const struct sockaddr *addr, socklen_t len);
-        int setsockopt(
-            int fd, 
-            int level,
-            int optname,
-            const void *optval,
-            socklen_t optlen);
-        int getsockopt(
-            int fd,
-            int level,
-            int optname,
-            void *optval,
-            socklen_t *optlen);
-        int accept(int fd, struct sockaddr *addr, socklen_t *addr_len);
-        unsigned int ntohl(unsigned int netlong);
-        unsigned int htonl(unsigned int hostlong);
-        unsigned short ntohs(unsigned int netshort);
-        unsigned short htons(unsigned int hostshort);
-        int inet_pton(int af, const char *cp, void *buf);
-        const char *inet_ntop(
-            int af,
-            const void *cp,
-            char *buf,
-            socklen_t len);
-        char *inet_ntoa(struct in_addr in);
+        int64_t send(int fd, const void *buf, size_t n, int flags);
+        int64_t recv(int fd, void *buf, size_t n, int flags);
     ]]
+end
 
-    if p.__ABI32__ then
-        ffi.cdef [[
-            int send(int fd, const void *buf, size_t n, int flags);
-            int recv(int fd, void *buf, size_t n, int flags);
-        ]]
-    elseif p.__ABI64__ then
-        ffi.cdef [[
-            int64_t send(int fd, const void *buf, size_t n, int flags);
-            int64_t recv(int fd, void *buf, size_t n, int flags);
-        ]]
-    end
-
-
+if platform.__UNIX__ then
     --- ******* Resolv *******
     ffi.cdef[[
         struct hostent{
@@ -253,7 +252,7 @@ if p.__UNIX__ then
 end
 
 
-if p.__LINUX__ then
+if platform.__LINUX__ then
     --- ******* Epoll *******
     ffi.cdef[[
         typedef union epoll_data{
@@ -263,14 +262,14 @@ if p.__LINUX__ then
             uint64_t u64;
         } epoll_data_t;
     ]]
-    if p.__ABI32__ then
+    if platform.__ABI32__ then
         ffi.cdef[[
             struct epoll_event{
                 unsigned int events;
                 epoll_data_t data;
             };
         ]]
-    elseif p.__ABI64__ then
+    elseif platform.__ABI64__ then
         ffi.cdef[[
             struct epoll_event{
                 unsigned int events;
@@ -332,7 +331,7 @@ if p.__LINUX__ then
     ]]
 
     -- stat structure is architecture dependent in Linux
-    if p.__X86__ then
+    if platform.__X86__ then
         ffi.cdef[[
           struct stat {
             unsigned long  st_dev;
@@ -355,7 +354,7 @@ if p.__LINUX__ then
             unsigned long  __unused5;
           };
         ]]
-    elseif p.__X64__ then
+    elseif platform.__X64__ then
         ffi.cdef [[
           struct stat {
             unsigned long   st_dev;
@@ -378,7 +377,7 @@ if p.__LINUX__ then
             long            __unused[3];
           };
         ]]
-    elseif p.__PPC__ then
+    elseif platform.__PPC__ then
         ffi.cdef[[
           struct stat {
             unsigned int st_dev;
@@ -401,7 +400,7 @@ if p.__LINUX__ then
             unsigned int __unused5;
           };
         ]]
-    elseif p.__ARM__ then
+    elseif platform.__ARM__ then
         ffi.cdef[[
           struct stat {
             unsigned short  st_dev;
@@ -450,7 +449,8 @@ if p.__LINUX__ then
 end
 
 
-if _G.TURBO_AXTLS then
+if _G.TURBO_AXTLS and platform.__LINUX__  and
+    not _G.__TURBO_USE_LUASOCKET__ then
     ffi.cdef[[
         typedef void SSL_CTX;
         typedef void SSL;
@@ -504,7 +504,8 @@ if _G.TURBO_AXTLS then
     ]]
 
 
-elseif _G.TURBO_SSL then
+elseif _G.TURBO_SSL and platform.__LINUX__  and
+    not _G.__TURBO_USE_LUASOCKET__ then
     --- *******OpenSSL *******
     -- Note: Typedef SSL structs to void as we never access their members and 
     -- they are massive in ifdef's etc and are best left as blackboxes!

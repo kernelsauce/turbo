@@ -74,7 +74,7 @@ function epoll.epoll_ctl(epfd, op, fd, epoll_events)
     _event.data.fd = fd
     _event.events = epoll_events
     rc = ffi.C.epoll_ctl(epfd, op, fd, _event)
-    if (rc == -1) then
+    if rc == -1 then
         return -1, ffi.errno()
     end
     return rc
