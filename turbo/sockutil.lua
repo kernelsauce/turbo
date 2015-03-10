@@ -24,124 +24,126 @@ local luasocket
 if not platform.__LINUX__ or _G.__TURBO_USE_LUASOCKET__ then
     luasocket = require "socket"
 end
-local SOL_SOCKET =  socket.SOL_SOCKET
-local SO_RESUSEADDR = socket.SO_REUSEADDR
-local O_NONBLOCK =  socket.O_NONBLOCK
-local F_SETFL =     socket.F_SETFL
-local F_GETFL =     socket.F_GETFL
-local SOCK_STREAM = socket.SOCK_STREAM
-local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET =     socket.AF_INET
-local AF_INET6 =    socket.AF_INET6
-local EINPROGRESS = socket.EINPROGRESS
-local EWOULDBLOCK = socket.EWOULDBLOCK
-local EAGAIN =      socket.EAGAIN
-local INET_ADDRSTRLEN = 16
-local INET6_ADDRSTRLEN = 46
+
 local C = ffi.C
 
 local sockutils = {} -- sockutils namespace
 
---- Creates the sockaddr_in or sockaddr_in6 struct
--- If not address is defined '0.0.0.0'/'::' will be used.
--- If not family is defined then AF_INET(ipv4) will be used
--- @param address (Number or String) The address to bind to in unsigned 
--- integer hostlong or a string like "127.0.0.1".
--- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
--- binding to all addresses.
--- @param port (Number) The port number to bind to.
--- @param family (Number) Optional socket family. Defined in Socket module. If 
--- not defined AF_INET is used as default.
-function sockutils.create_server_address(port, address, family)
-    local serv_addr
-    local rc
-    local errno
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    local SOL_SOCKET =  socket.SOL_SOCKET
+    local SO_RESUSEADDR = socket.SO_REUSEADDR
+    local O_NONBLOCK =  socket.O_NONBLOCK
+    local F_SETFL =     socket.F_SETFL
+    local F_GETFL =     socket.F_GETFL
+    local SOCK_STREAM = socket.SOCK_STREAM
+    local INADDRY_ANY = socket.INADDR_ANY
+    local AF_INET =     socket.AF_INET
+    local AF_INET6 =    socket.AF_INET6
+    local EINPROGRESS = socket.EINPROGRESS
+    local EWOULDBLOCK = socket.EWOULDBLOCK
+    local EAGAIN =      socket.EAGAIN
+    local INET_ADDRSTRLEN = 16
+    local INET6_ADDRSTRLEN = 46
 
-    family = family or AF_INET
+    --- Creates the sockaddr_in or sockaddr_in6 struct
+    -- If not address is defined '0.0.0.0'/'::' will be used.
+    -- If not family is defined then AF_INET(ipv4) will be used
+    -- @param address (Number or String) The address to bind to in unsigned 
+    -- integer hostlong or a string like "127.0.0.1".
+    -- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
+    -- binding to all addresses.
+    -- @param port (Number) The port number to bind to.
+    -- @param family (Number) Optional socket family. Defined in Socket module. If 
+    -- not defined AF_INET is used as default.
+    function sockutils.create_server_address(port, address, family)
+        local serv_addr
+        local rc
+        local errno
 
-    if family ~= AF_INET and family ~= AF_INET6 then
-        error("[sockutil.lua] Only AF_INET and AF_INET6 is supported")
-    end
+        family = family or AF_INET
 
-    if family == AF_INET then
-        address = address or "0.0.0.0"
-        serv_addr = ffi.new("struct sockaddr_in")
-        serv_addr.sin_family = AF_INET
-        serv_addr.sin_port = C.htons(port)
-    else
-        address = address or "::"
-        serv_addr = ffi.new("struct sockaddr_in6")
-        serv_addr.sin6_family = family
-        serv_addr.sin6_port = C.htons(port)
-    end
-
-    if type(address) == "string" then
-        rc = ffi.C.inet_pton(family, address, 
-            family == AF_INET and serv_addr.sin_addr or serv_addr.sin6_addr)
-        if rc == 0 then
-            error(string.format("[sockutil.lua] Invalid address %s",
-                address))
-        elseif r == -1 then
-            errno = ffi.errno()
-            error(string.format(
-                "[sockutil.lua Errno %d] Could not parse address. %s",
-                errno,
-                socket.strerror(errno)))
+        if family ~= AF_INET and family ~= AF_INET6 then
+            error("[sockutil.lua] Only AF_INET and AF_INET6 is supported")
         end
-    elseif type(address) == "number" and family == AF_INET then
+
         if family == AF_INET then
-            serv_addr.sin_addr.s_addr = C.htonl(address);
+            address = address or "0.0.0.0"
+            serv_addr = ffi.new("struct sockaddr_in")
+            serv_addr.sin_family = AF_INET
+            serv_addr.sin_port = C.htons(port)
+        else
+            address = address or "::"
+            serv_addr = ffi.new("struct sockaddr_in6")
+            serv_addr.sin6_family = family
+            serv_addr.sin6_port = C.htons(port)
         end
-    else
-        error("[sockutil.lua] Invalid input address must be a valid \
-                ipv4(string/int) or ipv6(string) address.")
-    end
 
-    return serv_addr
-end
-
---- Connect to a remote host using an addrinfo struct
--- Returns the addrinfo struct that was used on success, or nil and
--- an error message on failure.
--- @param sock A socket descriptor
--- @param ai a struct addrinfo
-function sockutils.connect_addrinfo(sock, ai)
-    local p = ffi.new("struct addrinfo *[1]")
-    local r = 0
-    local errno = 0
-    p = ai
-    while 1 do
-        if p == nil then
-            return nil, "Could not connect"
-        end
-        r = C.connect(sock, p[0].ai_addr, p[0].ai_addrlen)
-        if r ~= 0 then
-            errno = ffi.errno()
-            if errno == EINPROGRESS then
-                break
+        if type(address) == "string" then
+            rc = ffi.C.inet_pton(family, address, 
+                family == AF_INET and serv_addr.sin_addr or serv_addr.sin6_addr)
+            if rc == 0 then
+                error(string.format("[sockutil.lua] Invalid address %s",
+                    address))
+            elseif r == -1 then
+                errno = ffi.errno()
+                error(string.format(
+                    "[sockutil.lua Errno %d] Could not parse address. %s",
+                    errno,
+                    socket.strerror(errno)))
+            end
+        elseif type(address) == "number" and family == AF_INET then
+            if family == AF_INET then
+                serv_addr.sin_addr.s_addr = C.htonl(address);
             end
         else
-            break
+            error("[sockutil.lua] Invalid input address must be a valid \
+                    ipv4(string/int) or ipv6(string) address.")
         end
-        p = p[0].ai_next
+
+        return serv_addr
     end
-    return p
-end
+
+    --- Connect to a remote host using an addrinfo struct
+    -- Returns the addrinfo struct that was used on success, or nil and
+    -- an error message on failure.
+    -- @param sock A socket descriptor
+    -- @param ai a struct addrinfo
+    function sockutils.connect_addrinfo(sock, ai)
+        local p = ffi.new("struct addrinfo *[1]")
+        local r = 0
+        local errno = 0
+        p = ai
+        while 1 do
+            if p == nil then
+                return nil, "Could not connect"
+            end
+            r = C.connect(sock, p[0].ai_addr, p[0].ai_addrlen)
+            if r ~= 0 then
+                errno = ffi.errno()
+                if errno == EINPROGRESS then
+                    break
+                end
+            else
+                break
+            end
+            p = p[0].ai_next
+        end
+        return p
+    end
 
 
---- Binds sockets to port and address.
--- If not address is defined then * will be used.
--- If no backlog size is given then 128 connections will be used.
--- @param address (Number or String) The address to bind to in unsigned 
--- integer hostlong or a string like "127.0.0.1".
--- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
--- binding to all addresses.
--- @param port (Number) The port number to bind to.
--- @param backlog (Number) Maximum backlogged client connects to allow. If not
--- defined then 128 is used as default.
--- @param family (Number) Optional socket family. Defined in Socket module. If 
--- not defined AF_INET is used as default.
-if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    --- Binds sockets to port and address.
+    -- If not address is defined then * will be used.
+    -- If no backlog size is given then 128 connections will be used.
+    -- @param address (Number or String) The address to bind to in unsigned 
+    -- integer hostlong or a string like "127.0.0.1".
+    -- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
+    -- binding to all addresses.
+    -- @param port (Number) The port number to bind to.
+    -- @param backlog (Number) Maximum backlogged client connects to allow. If not
+    -- defined then 128 is used as default.
+    -- @param family (Number) Optional socket family. Defined in Socket module. If 
+    -- not defined AF_INET is used as default.
     function sockutils.bind_sockets(port, address, backlog, family)
         local serv_addr
         local errno

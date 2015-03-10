@@ -93,13 +93,10 @@ if not turbo.platform.__LINUX__ then
 	if not pcall(require, "socket") then
 		turbo.log.error("Could not load LuaSocket. Aborting.")
 	end
-	_G.__TURBO_USE_LUASOCKET = true
+	_G.__TURBO_USE_LUASOCKET__ = true
 elseif _G.__TURBO_USE_LUASOCKET__ then
 	turbo.log.warning("_G.__TURBO_USE_LUASOCKET__ set, using LuaSocket (degraded performance).")
 end
-assert(
-	(turbo.platform.__UNIX__ and turbo.platform.__LINUX__),
-	"Linux is the only supported *NIX OS.")
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
 turbo.httputil =        require "turbo.httputil"

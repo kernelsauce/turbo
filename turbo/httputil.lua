@@ -32,7 +32,7 @@ local buffer =      require "turbo.structs.buffer"
 local escape =      require "turbo.escape"
 local util =        require "turbo.util"
 local ffi =         require "ffi"
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "libtffi_wrap.dll")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
     ltp_loaded, libturbo_parser =
@@ -740,7 +740,7 @@ end
 function httputil.HTTPHeaders:stringify_as_response()
     local buf = buffer:new()
     if not self:get("Date") then
-        self:add("Date", util.time_format_http_header(ffi.C.time(nil)))
+        self:add("Date", util.time_format_http_header(util.gettimeofday()))
     end
     for i = 1 , #self._fields do
         if self._fields[i] then

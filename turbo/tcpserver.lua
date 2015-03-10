@@ -30,16 +30,6 @@ require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
 local C = ffi.C
-local SOL_SOCKET =  socket.SOL_SOCKET
-local SO_RESUSEADDR = socket.SO_REUSEADDR
-local O_NONBLOCK =  socket.O_NONBLOCK
-local F_SETFL =     socket.F_SETFL
-local F_GETFL =     socket.F_GETFL
-local SOCK_STREAM = socket.SOCK_STREAM
-local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET =     socket.AF_INET
-local EWOULDBLOCK = socket.EWOULDBLOCK
-local EAGAIN =      socket.EAGAIN
 
 local tcpserver = {}  -- tcpserver namespace
 

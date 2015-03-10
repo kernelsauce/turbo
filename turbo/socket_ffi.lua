@@ -14,10 +14,13 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.          
 
-local log =     require "turbo.log"
-local util =    require "turbo.util"
-local ffi =     require "ffi"
+local log = require "turbo.log"
+local util = require "turbo.util"
+local ffi = require "ffi"
+local platform = require "turbo.platform"
 require "turbo.cdef"
+
+if platform.__LINUX__ then
 
 local octal = function (s) return tonumber(s, 8) end
 
@@ -310,3 +313,5 @@ return util.tablemerge({
     INADDR_BROADCAST = 0xffffffff,
     INADDR_NONE =   0xffffffff,
 }, export)
+
+end

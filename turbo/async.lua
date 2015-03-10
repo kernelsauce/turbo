@@ -17,6 +17,7 @@
 -- limitations under the License.
 
 local iostream =            require "turbo.iostream"
+local platform =            require "turbo.platform"
 local ioloop =              require "turbo.ioloop"
 local httputil =            require "turbo.httputil"
 local util =                require "turbo.util"
@@ -31,7 +32,11 @@ local crypto =              require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
 local unpack = util.funpack
-local AF_INET = socket.AF_INET
+local AF_INET
+if platform.__LINUX__ then
+    AF_INET = socket.AF_INET
+end
+
 
 local async = {} -- async namespace
 

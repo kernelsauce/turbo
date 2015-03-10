@@ -21,7 +21,7 @@
 PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 SONAME ?= libhttp_parser.so.2.1
 
-CC?=gcc
+CC=gcc
 AR?=ar
 
 CPPFLAGS += -I.
@@ -33,7 +33,7 @@ CPPFLAGS_FAST += $(CPPFLAGS_FAST_EXTRA)
 CFLAGS += -Wall -Wextra -Werror
 CFLAGS_DEBUG = $(CFLAGS) -O0 -g $(CFLAGS_DEBUG_EXTRA)
 CFLAGS_FAST = $(CFLAGS) -O3 $(CFLAGS_FAST_EXTRA)
-CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
+CFLAGS_LIB = $(CFLAGS_FAST) 
 
 LDFLAGS_LIB = $(LDFLAGS) -shared
 

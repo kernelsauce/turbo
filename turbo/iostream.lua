@@ -36,21 +36,19 @@ local bit =         jit and require "bit" or require "bit32"
 local ffi =         require "ffi"
 require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
-local SOL_SOCKET =  socket.SOL_SOCKET
-local SO_RESUSEADDR =   socket.SO_REUSEADDR
-local O_NONBLOCK =  socket.O_NONBLOCK
-local F_SETFL =     socket.F_SETFL
-local F_GETFL =     socket.F_GETFL
-local SOCK_STREAM = socket.SOCK_STREAM
-local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET =     socket.AF_INET
-local AF_INET6 =    socket.AF_INET6
-local AF_UNSPEC =   socket.AF_UNSPEC
-local EWOULDBLOCK = socket.EWOULDBLOCK
-local EINPROGRESS = socket.EINPROGRESS
-local ECONNRESET =  socket.ECONNRESET
-local EPIPE =       socket.EPIPE
-local EAGAIN =      socket.EAGAIN
+
+local SOCK_STREAM, AF_UNSPEC, EWOULDBLOCK, EINPROGRESS, ECONNRESET, EPIPE,
+    EAGAIN
+
+if platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
+    SOCK_STREAM = socket.SOCK_STREAM
+    AF_UNSPEC =   socket.AF_UNSPEC
+    EWOULDBLOCK = socket.EWOULDBLOCK
+    EINPROGRESS = socket.EINPROGRESS
+    ECONNRESET =  socket.ECONNRESET
+    EPIPE =       socket.EPIPE
+    EAGAIN =      socket.EAGAIN
+end
 
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
 local C = ffi.C

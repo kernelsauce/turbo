@@ -119,7 +119,7 @@ elseif platform.__ABI64__ then
     ]]
 end
 
-if platform.__UNIX__ then
+
     --- ******* Resolv *******
     ffi.cdef[[
         struct hostent{
@@ -233,6 +233,7 @@ if platform.__UNIX__ then
         int gettimeofday(struct timeval *tv, timezone_ptr_t tz);
     ]])
 
+if platform.__UNIX__ then
 
     --- ******* RealTime (for Monotonic time) *******
     ffi.cdef[[

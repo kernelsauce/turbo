@@ -40,7 +40,7 @@ local web =             require "turbo.web"
 local async =           require "turbo.async"
 local buffer =          require "turbo.structs.buffer"
 require('turbo.3rdparty.middleclass')
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+local ltp_loaded, libturbo_parser = pcall(ffi.load, "libtffi_wrap.dll")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
     ltp_loaded, libturbo_parser =

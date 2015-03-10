@@ -92,10 +92,8 @@ function ioloop.IOLoop:initialize()
         -- do nothing
     end
     -- Must be set to avoid stopping execution when SIGPIPE is recieved.
-    -- TODO: hmmmm
-    if jit then
-        signal.signal(signal.SIGPIPE, signal.SIG_IGN)
-    end
+    -- TODO find a module for this.
+    --signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
 --- Add handler function for given event mask on fd.
