@@ -209,8 +209,9 @@ if le then
     function websocket.WebSocketStream:_frame_len_16(data)
         -- Network byte order for multi-byte length values.
         -- What were they thinking!
-        self._payload_len = tonumber(
-            ffi.C.htons(ffi.cast("uint16_t", data)))
+        local tmp = ffi.new("uint16_t[1]")
+        ffi.copy(tmp, data, 2)
+        self._payload_len = tonumber(ffi.C.ntohs(tmp[0]))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
