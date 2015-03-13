@@ -100,7 +100,7 @@ install:
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C deps/http-parser library
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \

@@ -93,7 +93,7 @@ function ioloop.IOLoop:initialize()
     end
     -- Must be set to avoid stopping execution when SIGPIPE is recieved.
     -- TODO find a module for this.
-    --signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+    -- signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
 --- Add handler function for given event mask on fd.
@@ -438,7 +438,7 @@ if _poll_implementation == "epoll_ffi" then
                 ffi.errno()))
         end
     end
-else
+elseif _poll_implementation == "luasocket" then
     -- Everyone else version, based on LuaSocket which everyone has.
     function ioloop.IOLoop:_event_poll(poll_timeout)
         local recvt, sendt, err = self._poll:poll(poll_timeout/1000)
@@ -663,16 +663,28 @@ if _G.__TURBO_USE_LUASOCKET__ then
     end
 
     function _LuaSocketPoll:register(fd, events)
+        local write = bit.band(events, ioloop.WRITE) ~= 0
+        local read = bit.band(events, ioloop.READ) ~= 0
+        print("_LuaSocketPoll:register", fd, write and "WRITE" or "", read and "READ" or "")
         if bit.band(events, ioloop.WRITE) ~= 0 then
+            if #self.sendt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
             table.insert(self.sendt, fd)
         end
         if bit.band(events, ioloop.READ) ~= 0 then
+            if #self.recvt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
             table.insert(self.recvt, fd)
         end
         return 0, nil
     end
 
     function _LuaSocketPoll:unregister(fd)
+        print("_LuaSocketPoll:unregister", fd)
         for i=1, #self.sendt, 1 do
             if self.sendt[i] == fd then
                 table.remove(self.sendt, i)
@@ -687,12 +699,39 @@ if _G.__TURBO_USE_LUASOCKET__ then
     end
 
     function _LuaSocketPoll:modify(fd, events)
-        self:unregister(fd)
-        self:register(fd, events)
+        local write = bit.band(events, ioloop.WRITE) ~= 0
+        local read = bit.band(events, ioloop.READ) ~= 0
+        print("_LuaSocketPoll:modify", fd, write and "WRITE" or "", read and "READ" or "")
+
+        for i=1, #self.sendt, 1 do
+            if self.sendt[i] == fd then
+                table.remove(self.sendt, i)
+            end
+        end
+        for i=1, #self.recvt, 1 do
+            if self.recvt[i] == fd then
+                table.remove(self.recvt, i)
+            end
+        end
+        if bit.band(events, ioloop.WRITE) ~= 0 then
+            if #self.sendt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
+            table.insert(self.sendt, fd)
+        end
+        if bit.band(events, ioloop.READ) ~= 0 then
+            if #self.recvt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
+            table.insert(self.recvt, fd)
+        end
         return 0, nil
     end
 
     function _LuaSocketPoll:poll(timeout)
+        print("_LuaSocketPoll:poll", timeout)
         return luasocket.select(self.recvt, self.sendt, timeout)
     end
 end

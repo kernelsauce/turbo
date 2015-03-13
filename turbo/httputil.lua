@@ -31,6 +31,7 @@ local deque =       require "turbo.structs.deque"
 local buffer =      require "turbo.structs.buffer"
 local escape =      require "turbo.escape"
 local util =        require "turbo.util"
+local platform =    require "turbo.platform"
 local ffi =         require "ffi"
 local ltp_loaded, libturbo_parser = pcall(ffi.load, "libtffi_wrap.dll")
 if not ltp_loaded then
@@ -290,6 +291,12 @@ end
 -- regard for case sensitivity.
 -- @return The value of the key, or nil if not existing. May return a table if
 -- multiple keys are set.
+local strncasecmp
+if platform.__LINUX__ or platform.__UNIX__ then
+    strncasecmp = ffi.C.strncasecmp
+elseif platform.__WINDOWS__ then
+    strncasecmp = ffi.C._strnicmp
+end
 function httputil.HTTPParser:get(key, caseinsensitive)
     local value
     local c = 0
@@ -304,7 +311,7 @@ function httputil.HTTPParser:get(key, caseinsensitive)
             local field = self.tpw.hkv[i]
             local key_sz = key:len()
             if field.key_sz == key_sz then
-                if ffi.C.strncasecmp(
+                if strncasecmp(
                     field.key,
                     key,
                     field.key_sz) == 0 then

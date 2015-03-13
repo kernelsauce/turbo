@@ -40,6 +40,15 @@ ffi.cdef [[
     int execvp(const char *path, char *const argv[]);
     int fcntl(int fd, int cmd, int opt);
 ]]
+if platform.__WINDOWS__ then
+    -- Windows version of UNIX strncasecmp.
+    ffi.cdef[[
+        int _strnicmp(
+            const char *string1,
+            const char *string2,
+            size_t count);
+    ]]
+end
 
 
 --- ******* Berkeley Socket UNIX *******

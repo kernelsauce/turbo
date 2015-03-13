@@ -128,6 +128,8 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         local servinfo = ffi.new("struct addrinfo *[1]")
         local rc
 
+        self.address = address
+        self.port = port
         self._connect_fail_callback = errhandler
         self._connecting = true
         ffi.fill(hints[0], ffi.sizeof(hints[0]))
@@ -152,11 +154,22 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
 else
     function iostream.IOStream:connect(address, port, family,
         callback, errhandler, arg)
-        error("NYI for LuaSocket")
-        --self._connect_callback = callback
-        --self._connect_callback_arg = arg
-        --self:_add_io_state(ioloop.WRITE)
-        ---return 0
+        local _, err = self.socket:connect(address, port)
+        if err ~= "Operation already in progress" and err ~= "timeout" then
+            log.error(string.format(
+                "[iostream.lua] Could not connect to %s:%d. %s",
+                address, port, err))
+            return -1, err
+        end
+
+        self.address = address
+        self.port = port
+        self._connecting = true
+        self._connect_fail_callback = errhandler
+        self._connect_callback = callback
+        self._connect_callback_arg = arg
+        self:_add_io_state(ioloop.WRITE)
+        return 0
     end
 end
 --- Read until delimiter, then call callback with recieved data. The callback
@@ -435,23 +448,17 @@ end
 
 --- Initial inline read for read methods.
 -- If read is not possible at this time, it is added to IOLoop.
-if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
-    function iostream.IOStream:_initial_read()
-        while true do
-            if self:_read_from_buffer() == true then
-                return
-            end
-            self:_check_closed()
-            if self:_read_to_buffer() == 0 then
-                break
-            end
+function iostream.IOStream:_initial_read()
+    while true do
+        if self:_read_from_buffer() == true then
+            return
         end
-        self:_add_io_state(ioloop.READ)
+        self:_check_closed()
+        if self:_read_to_buffer() == 0 then
+            break
+        end
     end
-else
-    function iostream.IOStream:_initial_read()
-        self:_add_io_state(ioloop.READ)
-    end
+    self:_add_io_state(ioloop.READ)
 end
 
 --- Main event handler for the IOStream.
@@ -638,7 +645,8 @@ else
             return
         end
         -- Put buf in self, to keep reference for ptr after end of function.
-        self._luasocket_buf = buffer(1024)
+        self._luasocket_buf = buffer(
+            math.min(TURBO_SOCKET_BUFFER_SZ, tonumber(buffer_left)))
         while true do
             -- Ok, so LuaSocket is not really suited for this stuff,
             -- do consecutive calls to exhaust socket and fill up a buffer...
@@ -647,10 +655,11 @@ else
                 math.min(TURBO_SOCKET_BUFFER_SZ, tonumber(buffer_left)))
             if data then
                 self._luasocket_buf:append_luastr_right(partial)
+            elseif err == "timeout" and partial:len() == 0 then
+                break
             elseif err == "timeout" then
                 -- Add partial data.
                 self._luasocket_buf:append_luastr_right(partial)
-                break
             elseif err then
                 local fd = self.socket
                 self:close()
@@ -1004,41 +1013,74 @@ function iostream.IOStream:_maybe_add_error_listener()
     end
 end
 
-function iostream.IOStream:_handle_connect()
-    local rc, sockerr = socket.get_socket_error(self.socket)
-    if rc == -1 then
-        error("[iostream.lua] Could not get socket errors, for fd " ..
-            self.socket)
-    else
-        if sockerr ~= 0 then
+if platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
+    function iostream.IOStream:_handle_connect()
+        local rc, sockerr = socket.get_socket_error(self.socket)
+        if rc == -1 then
+            error("[iostream.lua] Could not get socket errors, for fd " ..
+                self.socket)
+        else
+            if sockerr ~= 0 then
+                local fd = self.socket
+                self:close()
+                local strerror = socket.strerror(sockerr)
+                if self._connect_fail_callback then
+                    if self._connect_callback_arg then
+                        self._connect_fail_callback(
+                            self._connect_callback_arg,
+                            sockerr,
+                            strerror)
+                    else
+                        self._connect_fail_callback(sockerr, strerror)
+                    end
+                else
+                    error(string.format(
+                        "[iostream.lua] Connect failed: %s, for fd %d",
+                        socket.strerror(sockerr), fd))
+                end
+                return
+            end
+        end
+        if self._connect_callback then
+            local callback = self._connect_callback
+            local arg = self._connect_callback_arg
+            self._connect_callback = nil
+            self._connect_callback_arg = nil
+            self:_run_callback(callback, arg)
+        end
+        self._connecting = false
+    end
+else
+    function iostream.IOStream:_handle_connect()
+        local _, err = self.socket:connect(self.address, self.port)
+        if err ~= "already connected" then
             local fd = self.socket
             self:close()
-            local strerror = socket.strerror(sockerr)
             if self._connect_fail_callback then
                 if self._connect_callback_arg then
                     self._connect_fail_callback(
                         self._connect_callback_arg,
-                        sockerr,
-                        strerror)
+                        -1, -- Kind of bad rc. What to do?
+                        err)
                 else
                     self._connect_fail_callback(sockerr, strerror)
                 end
             else
                 error(string.format(
-                    "[iostream.lua] Connect failed: %s, for fd %d",
-                    socket.strerror(sockerr), fd))
+                    "[iostream.lua] Connect failed: %s, for fd %s",
+                    err, fd))
             end
             return
         end
+        if self._connect_callback then
+            local callback = self._connect_callback
+            local arg = self._connect_callback_arg
+            self._connect_callback = nil
+            self._connect_callback_arg = nil
+            self:_run_callback(callback, arg)
+        end
+        self._connecting = false
     end
-    if self._connect_callback then
-        local callback = self._connect_callback
-        local arg = self._connect_callback_arg
-        self._connect_callback = nil
-        self._connect_callback_arg = nil
-        self:_run_callback(callback, arg)
-    end
-    self._connecting = false
 end
 
 if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then

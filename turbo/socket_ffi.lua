@@ -20,8 +20,6 @@ local ffi = require "ffi"
 local platform = require "turbo.platform"
 require "turbo.cdef"
 
-if platform.__LINUX__ then
-
 local octal = function (s) return tonumber(s, 8) end
 
 local F = {}
@@ -208,110 +206,147 @@ local E = {
     EPIPE =             32
 }
 
-local function strerror(errno)
-    local cstr = ffi.C.strerror(errno);
-    return ffi.string(cstr);
-end
 
-local function resolv_hostname(str)
-    local in_addr_arr = {}
-    local hostent = ffi.C.gethostbyname(str)
-    if hostent == nil then
-       return -1
-    end
-    local inaddr = ffi.cast("struct in_addr **", hostent.h_addr_list) 
-    local i = 0
-    while inaddr[i] ~= nil do
-       in_addr_arr[#in_addr_arr + 1] = inaddr[i][0]
-       i = i + 1
-    end
-    return {
-        in_addr = in_addr_arr,
-        addrtype = tonumber(hostent.h_addrtype),
-        name = ffi.string(hostent.h_name)
-    }
+if platform.__LINUX__ then
 
-end
-
-local function set_nonblock_flag(fd)
-    local flags = ffi.C.fcntl(fd, F.F_GETFL, 0);
-    if flags == -1 then
-       return -1, "fcntl GETFL failed."
+    local function strerror(errno)
+        local cstr = ffi.C.strerror(errno);
+        return ffi.string(cstr);
     end
-    if (bit.band(flags, O.O_NONBLOCK) ~= 0) then
-       return 0
-    end
-    flags = bit.bor(flags, O.O_NONBLOCK)
-    rc = ffi.C.fcntl(fd, F.F_SETFL, flags)
-    if rc == -1 then
-       return -1, "fcntl set O_NONBLOCK failed."
-    end
-    return 0
-end
 
-local setopt = ffi.new("int32_t[1]")
-local function set_reuseaddr_opt(fd)
-    setopt[0] = 1
-    local rc = ffi.C.setsockopt(fd,
-        SOL.SOL_SOCKET,
-        SO.SO_REUSEADDR,
-        setopt,
-        ffi.sizeof("int32_t"))
-    if rc ~= 0 then
-       errno = ffi.errno()
-       return -1, string.format("setsockopt SO_REUSEADDR failed. %s", strerror(errno))
+    local function resolv_hostname(str)
+        local in_addr_arr = {}
+        local hostent = ffi.C.gethostbyname(str)
+        if hostent == nil then
+           return -1
+        end
+        local inaddr = ffi.cast("struct in_addr **", hostent.h_addr_list) 
+        local i = 0
+        while inaddr[i] ~= nil do
+           in_addr_arr[#in_addr_arr + 1] = inaddr[i][0]
+           i = i + 1
+        end
+        return {
+            in_addr = in_addr_arr,
+            addrtype = tonumber(hostent.h_addrtype),
+            name = ffi.string(hostent.h_name)
+        }
+
     end
-    return 0
-end
 
-local function new_nonblock_socket(family, stype, protocol)
-    local fd = ffi.C.socket(family, stype, protocol)
-    
-    if fd == -1 then
-       errno = ffi.errno()
-       return -1, string.format("Could not create socket. %s", strerror(errno))
+    local function set_nonblock_flag(fd)
+        local flags = ffi.C.fcntl(fd, F.F_GETFL, 0);
+        if flags == -1 then
+           return -1, "fcntl GETFL failed."
+        end
+        if (bit.band(flags, O.O_NONBLOCK) ~= 0) then
+           return 0
+        end
+        flags = bit.bor(flags, O.O_NONBLOCK)
+        rc = ffi.C.fcntl(fd, F.F_SETFL, flags)
+        if rc == -1 then
+           return -1, "fcntl set O_NONBLOCK failed."
+        end
+        return 0
     end
-    local rc, msg = set_nonblock_flag(fd)
-    if (rc ~= 0) then
-       return rc, msg
+
+    local setopt = ffi.new("int32_t[1]")
+    local function set_reuseaddr_opt(fd)
+        setopt[0] = 1
+        local rc = ffi.C.setsockopt(fd,
+            SOL.SOL_SOCKET,
+            SO.SO_REUSEADDR,
+            setopt,
+            ffi.sizeof("int32_t"))
+        if rc ~= 0 then
+           errno = ffi.errno()
+           return -1, string.format("setsockopt SO_REUSEADDR failed. %s",
+                                    strerror(errno))
+        end
+        return 0
     end
-    return fd
-end
 
-local value = ffi.new("int32_t[1]")
-local socklen = ffi.new("socklen_t[1]", ffi.sizeof("int32_t"))
-local function get_socket_error(fd)
-    local rc = ffi.C.getsockopt(fd,
-        SOL.SOL_SOCKET,
-        SO.SO_ERROR,
-        ffi.cast("void *", value),
-        socklen)
-    if rc ~= 0 then
-       return -1
-    else
-       return 0, tonumber(value[0])
-    end    
-end
+    local function new_nonblock_socket(family, stype, protocol)
+        local fd = ffi.C.socket(family, stype, protocol)
+        
+        if fd == -1 then
+           errno = ffi.errno()
+           return -1, string.format("Could not create socket. %s", strerror(errno))
+        end
+        local rc, msg = set_nonblock_flag(fd)
+        if (rc ~= 0) then
+           return rc, msg
+        end
+        return fd
+    end
 
-local export = util.tablemerge(SOCK,
-    util.tablemerge(F,
-    util.tablemerge(O,
-    util.tablemerge(AF,
-    util.tablemerge(PF,
-    util.tablemerge(SOL,
-    util.tablemerge(SO, E)))))))
-    
-return util.tablemerge({
-    strerror = strerror,
-    resolv_hostname = resolv_hostname,
-    getaddrinfo = ffi.C.getaddrinfo,
-    set_nonblock_flag = set_nonblock_flag,
-    set_reuseaddr_opt = set_reuseaddr_opt,
-    new_nonblock_socket = new_nonblock_socket,
-    get_socket_error = get_socket_error,
-    INADDR_ANY = 0x00000000,
-    INADDR_BROADCAST = 0xffffffff,
-    INADDR_NONE =   0xffffffff,
-}, export)
+    local value = ffi.new("int32_t[1]")
+    local socklen = ffi.new("socklen_t[1]", ffi.sizeof("int32_t"))
+    local function get_socket_error(fd)
+        local rc = ffi.C.getsockopt(fd,
+            SOL.SOL_SOCKET,
+            SO.SO_ERROR,
+            ffi.cast("void *", value),
+            socklen)
+        if rc ~= 0 then
+           return -1
+        else
+           return 0, tonumber(value[0])
+        end    
+    end
 
+    local export = util.tablemerge(SOCK,
+        util.tablemerge(F,
+        util.tablemerge(O,
+        util.tablemerge(AF,
+        util.tablemerge(PF,
+        util.tablemerge(SOL,
+        util.tablemerge(SO, E)))))))
+        
+    return util.tablemerge({
+        strerror = strerror,
+        resolv_hostname = resolv_hostname,
+        getaddrinfo = ffi.C.getaddrinfo,
+        set_nonblock_flag = set_nonblock_flag,
+        set_reuseaddr_opt = set_reuseaddr_opt,
+        new_nonblock_socket = new_nonblock_socket,
+        get_socket_error = get_socket_error,
+        INADDR_ANY = 0x00000000,
+        INADDR_BROADCAST = 0xffffffff,
+        INADDR_NONE =   0xffffffff,
+    }, export)
+
+else
+
+    local luasocket = require "socket"
+
+    local function new_nonblock_socket(family, stype, protocol)
+        assert(family == AF.AF_INET or AF.AF_INET6,
+            "LuaSocket only support AF_INET or AF_INET6")
+        assert(stype == SOCK.SOCK_DGRAM or SOCK.SOCK_STREAM,
+            "LuaSocket only support SOCK_DGRAM and SOCK_STREAM.")
+        local sock
+        if stype == SOCK.SOCK_DGRAM then
+            sock = socket.udp()
+        elseif stype == SOCK.SOCK_STREAM then
+            sock = socket.tcp()
+        end
+        sock:settimeout(0)
+        sock:setoption("keepalive", true)
+        return sock
+    end
+
+    local export = util.tablemerge(SOCK,
+        util.tablemerge(F,
+        util.tablemerge(O,
+        util.tablemerge(AF,
+        util.tablemerge(PF,
+        util.tablemerge(SOL,
+        util.tablemerge(SO, E)))))))
+    return util.tablemerge({
+        new_nonblock_socket = new_nonblock_socket,
+        INADDR_ANY = 0x00000000,
+        INADDR_BROADCAST = 0xffffffff,
+        INADDR_NONE =   0xffffffff,
+    }, export)
 end
