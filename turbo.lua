@@ -81,7 +81,7 @@ else
 end
 
 if not jit then
-	_G.__TURBO_NO_JIT = true
+	_G.__TURBO_NO_JIT__ = true
 end
 assert(pcall(require, "ffi"), "No FFI or compatible library available.")
 assert(pcall(require, "bit") or pcall(require, "bit32"),
