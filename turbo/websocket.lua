@@ -206,11 +206,12 @@ function websocket.WebSocketStream:_accept_frame(header)
 end
 
 if le then
+    local _tmp_convert_16 = ffi.new("uint16_t[1]")
     function websocket.WebSocketStream:_frame_len_16(data)
         -- Network byte order for multi-byte length values.
         -- What were they thinking!
-        self._payload_len = tonumber(
-            ffi.C.htons(ffi.cast("uint16_t", data)))
+        ffi.copy(_tmp_convert_16, data, 2)
+        self._payload_len = tonumber(ffi.C.ntohs(_tmp_convert_16[0]))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
@@ -220,9 +221,11 @@ if le then
         end
     end
 
+    local _tmp_convert_64 = ffi.new("uint64_t[1]")
     function websocket.WebSocketStream:_frame_len_64(data)
+        ffi.copy(_tmp_convert_64, data, 2)
         self._payload_len = tonumber(
-            ENDIAN_SWAP_U64(ffi.cast("uint64_t", data)))
+            ENDIAN_SWAP_U64(_tmp_convert_64))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
