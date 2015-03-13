@@ -207,7 +207,7 @@ local E = {
 }
 
 
-if platform.__LINUX__ then
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
 
     local function strerror(errno)
         local cstr = ffi.C.strerror(errno);

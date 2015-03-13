@@ -654,12 +654,21 @@ else
             local data, err, partial = self.socket:receive(
                 math.min(TURBO_SOCKET_BUFFER_SZ, tonumber(buffer_left)))
             if data then
-                self._luasocket_buf:append_luastr_right(partial)
+                self._luasocket_buf:append_luastr_right(data)
             elseif err == "timeout" and partial:len() == 0 then
                 break
             elseif err == "timeout" then
                 -- Add partial data.
                 self._luasocket_buf:append_luastr_right(partial)
+            elseif err == "closed" then
+                -- So this defers somewhat from the FFI version where
+                -- a disconnect would be detected by polling instead of
+                -- on a read event, so we should run the callback as usual
+                -- without reporting error, but rather not accept further
+                -- reads or writes
+                self._luasocket_buf:append_luastr_right(partial)
+                self:close()
+                break
             elseif err then
                 local fd = self.socket
                 self:close()
@@ -1053,7 +1062,11 @@ if platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
 else
     function iostream.IOStream:_handle_connect()
         local _, err = self.socket:connect(self.address, self.port)
-        if err ~= "already connected" then
+        -- It seems the "LuaSocket way" is to not run get_socket_error, but
+        -- call connect once again and check for "already connected" return.
+        -- If returns a different error than this string then it has failed,
+        -- to connect.
+        if err and err ~= "already connected" then
             local fd = self.socket
             self:close()
             if self._connect_fail_callback then

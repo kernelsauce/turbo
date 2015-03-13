@@ -15,7 +15,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.  
 
-TURBO_SSL = true -- Enable SSL
+--TURBO_SSL = true -- Enable SSL
+_G.__TURBO_USE_LUASOCKET__ = true
 local turbo = require "turbo"
 turbo.log.categories.success = false
 
