@@ -445,8 +445,20 @@ elseif _poll_implementation == "luasocket" then
         if err and err ~= "timeout" then
             log.error("[ioloop.lua] LuaSocket select() returned: " .. err)
         end
-        for _, v in ipairs(recvt) do
-            self:_run_handler(v, ioloop.READ)
+        for _, r in ipairs(recvt) do
+            local handler_run = false
+            for i=1, #sendt, 1 do
+                -- Run through send table too so that we combine multiple
+                -- events into instead of running handler multiple times.
+                s = sendt[i]
+                if s == r then
+                    handler_run = true
+                    self:_run_handler(r, bit.band(ioloop.READ, ioloop.WRITE))
+                    table.remove(sendt, i)
+                    break
+                end
+            end
+            self:_run_handler(r, ioloop.READ)
         end
         for _, v in ipairs(sendt) do
             self:_run_handler(v, ioloop.WRITE)
@@ -663,9 +675,6 @@ if _G.__TURBO_USE_LUASOCKET__ then
     end
 
     function _LuaSocketPoll:register(fd, events)
-        local write = bit.band(events, ioloop.WRITE) ~= 0
-        local read = bit.band(events, ioloop.READ) ~= 0
-        print("_LuaSocketPoll:register", fd, write and "WRITE" or "", read and "READ" or "")
         if bit.band(events, ioloop.WRITE) ~= 0 then
             if #self.sendt >= 64 then
                 return -1,
@@ -684,7 +693,6 @@ if _G.__TURBO_USE_LUASOCKET__ then
     end
 
     function _LuaSocketPoll:unregister(fd)
-        print("_LuaSocketPoll:unregister", fd)
         for i=1, #self.sendt, 1 do
             if self.sendt[i] == fd then
                 table.remove(self.sendt, i)
@@ -699,10 +707,6 @@ if _G.__TURBO_USE_LUASOCKET__ then
     end
 
     function _LuaSocketPoll:modify(fd, events)
-        local write = bit.band(events, ioloop.WRITE) ~= 0
-        local read = bit.band(events, ioloop.READ) ~= 0
-        print("_LuaSocketPoll:modify", fd, write and "WRITE" or "", read and "READ" or "")
-
         for i=1, #self.sendt, 1 do
             if self.sendt[i] == fd then
                 table.remove(self.sendt, i)
@@ -731,7 +735,6 @@ if _G.__TURBO_USE_LUASOCKET__ then
     end
 
     function _LuaSocketPoll:poll(timeout)
-        print("_LuaSocketPoll:poll", timeout)
         return luasocket.select(self.recvt, self.sendt, timeout)
     end
 end
