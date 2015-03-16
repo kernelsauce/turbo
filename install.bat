@@ -15,7 +15,7 @@ cd C:\turbo.lua\src\turbo
 git checkout luasocket
 mingw32-make SSL=none
 mv libtffi_wrap.so libtffi_wrap.dll
-setx TURBO_LIB_TFFI "C:\turbo.lua\src\turbo\libtffi_wrap.dll" /M
+setx TURBO_LIBTFFI "C:\turbo.lua\src\turbo\libtffi_wrap.dll" /M
 SET TURBO_LIBTFFI=C:\turbo.lua\src\turbo\libtffi_wrap.dll
 
 cd C:\turbo.lua\src
@@ -31,9 +31,14 @@ git clone https://github.com/keplerproject/luarocks.git
 cd C:\turbo.lua\src\luarocks
 SET LUA_PATH=C:\turbo.lua\rocks\share\lua\5.1\?.lua;C:\turbo.lua\rocks\share\lua\5.1\?\init.lua;C:\turbo.lua\src\turbo\?.lua;C:\turbo.lua\src\turbo\turbo\?.lua
 SET LUA_CPATH=C:\turbo.lua\rocks\lib\lua\5.1\?.dll
+setx LUA_PATH "%LUA_PATH%" /M
+setx LUA_CPATH "%LUA_CPATH%" /M
 call install.bat /TREE C:\turbo.lua\rocks\ /P C:\turbo.lua\luarocks\ /INC C:\turbo.lua\src\luajit-2.0\src /LIB C:\turbo.lua\src\luajit-2.0\src /LUA C:\turbo.lua /Q
-luarocks install luasocket
+call luarocks install luasocket
 
 cd %CURRENT_PATH_PREINSTALL%
-
+echo ===========================
+echo Turbo is now installed. Try it by running 'luajit C:\turbo.lua\src\turbo\examples\helloworld.lua' and point your browser to http://localhost:8888.
+echo Have a nice day!
+echo ===========================
 
