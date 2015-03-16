@@ -380,7 +380,8 @@ if _G.TURBO_AXTLS then
     end
 else
     lssl = ffi.load("ssl")
-    local libtffi_loaded, libtffi = pcall(ffi.load, "tffi_wrap")
+    local ltp_loaded, libturbo_parser = pcall(
+        ffi.load, os.getenv("TURBO_LIBTFFI") or "tffi_wrap")
     if not libtffi_loaded then
         libtffi_loaded, libtffi =
             pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
