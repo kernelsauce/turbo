@@ -2,8 +2,8 @@
 -- It is different from all the other Lua HTTP servers out there in that it's
 -- modern, fresh, object oriented and easy to modify.
 -- It is written in pure Lua, there are no Lua C modules instead it uses the
--- LuaJIT FFI to do socket and event handling. Users of the Tornado web
--- server will recognize the API offered pretty quick.
+-- LuaJIT FFI to do socket and event handling (only applies for Linux). 
+-- Users of the Tornado web server will recognize the API offered pretty quick.
 --
 -- If you do not know Lua then do not fear as its probably one of the easiest
 -- languages to learn if you know C, Python or Javascript from before.
@@ -95,7 +95,9 @@ if not turbo.platform.__LINUX__ then
 	end
 	_G.__TURBO_USE_LUASOCKET__ = true
 elseif _G.__TURBO_USE_LUASOCKET__ then
-	turbo.log.warning("_G.__TURBO_USE_LUASOCKET__ set, using LuaSocket (degraded performance).")
+	turbo.log.warning(
+		"_G.__TURBO_USE_LUASOCKET__ set,"..
+		" using LuaSocket (degraded performance).")
 end
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
@@ -109,13 +111,15 @@ turbo.web =             require "turbo.web"
 turbo.util =            require "turbo.util"
 turbo.coctx =           require "turbo.coctx"
 turbo.websocket =       require "turbo.websocket"
-turbo.signal =          require "turbo.signal"
 turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash =            require "turbo.hash"
-turbo.syscall =         require "turbo.syscall"
-turbo.inotify =         require "turbo.inotify"
-turbo.fs =              require "turbo.fs"
+if turbo.platform.__LINUX__ then
+	turbo.inotify =         require "turbo.inotify"
+	turbo.fs =              require "turbo.fs"
+	turbo.signal =          require "turbo.signal"
+	turbo.syscall =         require "turbo.syscall"
+end
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
 turbo.structs.buffer =  require "turbo.structs.buffer"
