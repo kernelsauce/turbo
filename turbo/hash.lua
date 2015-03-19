@@ -15,7 +15,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-if not _G.TURBO_SSL and not _G.TURBO_AXTLS then
+if not _G.TURBO_SSL then
     return setmetatable({},
     {
     __index = function(t, k)
@@ -31,12 +31,7 @@ local ffi = require "ffi"
 local buffer = require "turbo.structs.buffer"
 require "turbo.cdef"
 
-local lssl
-if _G.TURBO_AXTLS then
-lssl = ffi.load"axtls"
-else
-lssl = ffi.load"ssl"
-end
+local lssl = ffi.load(os.getenv("TURBO_LIBSSL") or "ssl")
 
 -- Buffers
 local hexstr = buffer()
@@ -46,148 +41,72 @@ hash.SHA_DIGEST_LENGTH = 20
 
 hash.SHA1 = class("SHA1")
 
-if _G.TURBO_AXTLS then
-    --- Create a SHA1 object. Pass a Lua string with the initializer to digest
-    -- it.
-    -- @param str (String)
-    function hash.SHA1:initialize(str)
-        local sha1ctx = ffi.new("SHA1_CTX")
-        lssl.SHA1_Init(sha1ctx)
-
-        if type(str) == "string" then
-            self.md =  ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-            lssl.SHA1_Update(sha1ctx, str, str:len())
-            lssl.SHA1_Final(self.md, sha1ctx)
-            self.final = true
-        else
-            self.ctx = sha1ctx
-        end
-    end
-
-    --- Update SHA1 context with more data.
-    -- @param str (String)
-    function hash.SHA1:update(str)
-        assert(self.ctx, "No SHA_CTX in object.")
-        assert(not self.final,
-               "SHA_CTX already finaled. Please create a new context.")
-        lssl.SHA1_Update(self.ctx, str, str:len())
-    end
-
-    --- Finalize SHA1 context.
-    -- @return (char*) Message digest.
-    function hash.SHA1:finalize()
-        if self.final == true then
-            return self.md
-        end
+--- Create a SHA1 object. Pass a Lua string with the initializer to digest
+-- it.
+-- @param str (String)
+function hash.SHA1:initialize(str)
+    if type(str) == "string" then
+        self.md =  ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
+        lssl.SHA1(str, str:len(), self.md)
         self.final = true
-        assert(self.ctx, "No SHA_CTX in object.")
-        self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-        lssl.SHA1_Final(self.md, self.ctx)
+    else
+        self.ctx = ffi.new("struct SHA_CTX")
+        assert(lssl.SHA1_Init(self.ctx) == 0, "Could not init SHA_CTX.")
+    end
+end
+
+--- Update SHA1 context with more data.
+-- @param str (String)
+function hash.SHA1:update(str)
+    assert(self.ctx, "No SHA_CTX in object.")
+    assert(not self.final,
+           "SHA_CTX already finaled. Please create a new context.")
+    assert(lssl.SHA1_Update(self.ctx, str, str:len()) == 0,
+           "Could not update SHA_CTX")
+end
+
+--- Finalize SHA1 context.
+-- @return (char*) Message digest.
+function hash.SHA1:finalize()
+    if self.final == true then
         return self.md
     end
+    self.final = true
+    assert(self.ctx, "No SHA_CTX in object.")
+    self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
+    assert(lssl.SHA1_Final(self.md, self.ctx) == 0, "Could not final SHA_CTX.")
+    return self.md
+end
 
-    --- Convert message digest to Lua hex string.
-    -- @return (String)
-    function hash.SHA1:hex()
-        assert(self.final, "SHA_CTX not final.")
-        hexstr:clear()
-        for i=0, hash.SHA_DIGEST_LENGTH-1 do
-            hexstr:append_right(string.format("%02x", self.md[i]), 2)
-        end
-        local str = hexstr:__tostring()
-        hexstr:clear(true)
-        return str
-    end
-
-    --- Keyed-hash message authentication code (HMAC) is a specific construction
-    -- for calculating a message authentication code (MAC) involving a
-    -- cryptographic hash function in combination with a secret cryptographic key.
-    -- @param key (String) Sequence of bytes used as a key.
-    -- @param digest (String) String to digest.
-    -- @return (String) Hex representation of digested string.
-    function hash.HMAC(key, digest)
-        local md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-        assert(type(key) == "string", "Key is invalid type: "..type(key))
-        assert(type(digest) == "string", "Can not hash: "..type(digest))
-
-        lssl.hmac_sha1(digest, digest:len(), key, key:len(), md)
-
-        hexstr:clear()
-        for i=0, hash.SHA_DIGEST_LENGTH-1 do
-            hexstr:append_right(string.format("%02x", md[i]), 2)
-        end
-        local str = hexstr:__tostring()
-        hexstr:clear(true)
-        return str
-    end
-else
-
-    --- Create a SHA1 object. Pass a Lua string with the initializer to digest
-    -- it.
-    -- @param str (String)
-    function hash.SHA1:initialize(str)
-        if type(str) == "string" then
-            self.md =  ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-            lssl.SHA1(str, str:len(), self.md)
-            self.final = true
+--- Keyed-hash message authentication code (HMAC) is a specific construction
+-- for calculating a message authentication code (MAC) involving a
+-- cryptographic hash function in combination with a secret cryptographic key.
+-- @param key (String) Sequence of bytes used as a key.
+-- @param digest (String) String to digest.
+-- @param raw (Boolean) Indicates whether the output should be a direct binary
+--    equivalent of the message digest, or formatted as a hexadecimal string.
+-- @return (String) Hex representation of digested string.
+function hash.HMAC(key, digest, raw)
+    assert(type(key) == "string", "Key is invalid type: "..type(key))
+    assert(type(digest) == "string", "Can not hash: "..type(digest))
+    local digest =
+        lssl.HMAC(lssl.EVP_sha1(),
+                  key, key:len(),
+                  digest,
+                  digest:len(),
+                  nil,
+                  nil)
+    hexstr:clear()
+    for i=0, hash.SHA_DIGEST_LENGTH-1 do
+        if (raw) then
+            hexstr:append_char_right(digest[i])
         else
-            self.ctx = ffi.new("struct SHA_CTX")
-            assert(lssl.SHA1_Init(self.ctx) == 0, "Could not init SHA_CTX.")
+            hexstr:append_right(string.format("%02x", digest[i]), 2)
         end
     end
-
-    --- Update SHA1 context with more data.
-    -- @param str (String)
-    function hash.SHA1:update(str)
-        assert(self.ctx, "No SHA_CTX in object.")
-        assert(not self.final,
-               "SHA_CTX already finaled. Please create a new context.")
-        assert(lssl.SHA1_Update(self.ctx, str, str:len()) == 0,
-               "Could not update SHA_CTX")
-    end
-
-    --- Finalize SHA1 context.
-    -- @return (char*) Message digest.
-    function hash.SHA1:finalize()
-        if self.final == true then
-            return self.md
-        end
-        self.final = true
-        assert(self.ctx, "No SHA_CTX in object.")
-        self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-        assert(lssl.SHA1_Final(self.md, self.ctx) == 0, "Could not final SHA_CTX.")
-        return self.md
-    end
-
-    --- Keyed-hash message authentication code (HMAC) is a specific construction
-    -- for calculating a message authentication code (MAC) involving a
-    -- cryptographic hash function in combination with a secret cryptographic key.
-    -- @param key (String) Sequence of bytes used as a key.
-    -- @param digest (String) String to digest.
-    -- @param raw (Boolean) Indicates whether the output should be a direct binary equivalent of the message digest, or formatted as a hexadecimal string.
-    -- @return (String) Hex representation of digested string.
-    function hash.HMAC(key, digest, raw)
-        assert(type(key) == "string", "Key is invalid type: "..type(key))
-        assert(type(digest) == "string", "Can not hash: "..type(digest))
-        local digest =
-            lssl.HMAC(lssl.EVP_sha1(),
-                      key, key:len(),
-                      digest,
-                      digest:len(),
-                      nil,
-                      nil)
-        hexstr:clear()
-        for i=0, hash.SHA_DIGEST_LENGTH-1 do
-            if (raw) then
-                hexstr:append_char_right(digest[i])
-            else
-                hexstr:append_right(string.format("%02x", digest[i]), 2)
-            end
-        end
-        local str = hexstr:__tostring()
-        hexstr:clear(true)
-        return str
-    end
+    local str = hexstr:__tostring()
+    hexstr:clear(true)
+    return str
 end
 
 --- Compare two SHA1 contexts with the equality operator ==.

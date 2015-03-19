@@ -36,6 +36,7 @@ local buffer =          require "turbo.structs.buffer"
 local escape =          require "turbo.escape"
 local util =            require "turbo.util"
 local hash =            require "turbo.hash"
+local platform =        require "turbo.platform"
 local web =             require "turbo.web"
 local async =           require "turbo.async"
 local buffer =          require "turbo.structs.buffer"
@@ -81,15 +82,36 @@ ffi.cdef [[
 local _ws_header = ffi.new("struct ws_header")
 local _ws_mask = ffi.new("int32_t[1]")
 
-local function _unmask_payload(mask, data)
-    local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
-    if ptr ~= nil then
-        local str = ffi.string(ptr, data:len())
-        ffi.C.free(ptr)
+if platform.__WINDOWS__ then
+    function _unmask_payload(mask32, data)
+        local i = ffi.new("size_t", 0)
+        local sz = data:len()
+        local buf = ffi.cast("char*", ffi.C.malloc(data:len()))
+        if buf == nil then
+            error("Could not allocate memory for WebSocket frame masking.\
+                  Catastrophic failure.")
+        end
+        data = ffi.cast("char*", data)
+        mask = ffi.cast("char*", mask32)
+        while i < sz do
+            buf[i] = bit.bxor(data[i],  mask[i % 4])
+            i = i + 1
+        end
+        local str = ffi.string(buf, sz)
+        ffi.C.free(buf)
         return str
-    else
-        error("Could not allocate memory for WebSocket frame masking.\
-              Catastrophic failure.")
+    end
+else
+    function _unmask_payload(mask, data)
+        local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
+        if ptr ~= nil then
+            local str = ffi.string(ptr, data:len())
+            ffi.C.free(ptr)
+            return str
+        else
+            error("Could not allocate memory for WebSocket frame masking.\
+                  Catastrophic failure.")
+        end
     end
 end
 
@@ -244,7 +266,8 @@ function websocket.WebSocketStream:_frame_mask_key(data)
 end
 
 function websocket.WebSocketStream:_masked_frame_payload(data)
-    self:_frame_payload(_unmask_payload(self._frame_mask, data))
+    local unmasked = _unmask_payload(self._frame_mask, data)
+    self:_frame_payload(unmasked)
 end
 
 if le then

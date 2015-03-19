@@ -156,7 +156,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     end
 else
     function util.gettimeofday()
-        return luasocket.gettime() * 1000
+        return math.ceil(luasocket.gettime() * 1000)
     end    
 end
 do
@@ -179,15 +179,23 @@ end
 
 --- Create a time string used in HTTP cookies.
 -- "Sun, 04-Sep-2033 16:49:21 GMT"
-function util.time_format_cookie(epoch)
-    g_time_t[0] = epoch
-    local tm = C.gmtime(g_time_t)
-    local sz = C.strftime(
-        g_time_str_buf,
-        1024,
-        "%a, %d-%b-%Y %H:%M:%S GMT",
-        tm)
-    return ffi.string(g_time_str_buf, sz)
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    function util.time_format_cookie(epoch)
+        g_time_t[0] = epoch
+        local tm = C.gmtime(g_time_t)
+        local sz = C.strftime(
+            g_time_str_buf,
+            1024,
+            "%a, %d-%b-%Y %H:%M:%S GMT",
+            tm)
+        return ffi.string(g_time_str_buf, sz)
+    end
+else
+    function util.time_format_cookie(time)
+        return os.date(
+            "%a, %d-%b-%Y %H:%M:%S GMT",
+            time)
+    end
 end
 
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
@@ -207,8 +215,7 @@ else
     function util.time_format_http_header(time)
         return os.date(
             "%a, %d %b %Y %H:%M:%S GMT",
-            time/1000)
-        
+            time / 1000)
     end
 end
 
