@@ -276,9 +276,14 @@ if le then
         end
         
         if self.mask_outgoing == true then
-            _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
-            self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
-            self.stream:write(_unmask_payload(_ws_mask, data))
+            -- Create a random mask.
+            ws_mask = ffi.new("unsigned char[4]")
+            ws_mask[0] = math.random(0x0, 0xff)
+            ws_mask[1] = math.random(0x0, 0xff)
+            ws_mask[2] = math.random(0x0, 0xff)
+            ws_mask[3] = math.random(0x0, 0xff)
+            self.stream:write(ffi.string(ws_mask, 4))
+            self.stream:write(_unmask_payload(ws_mask, data))
             return
         end
         
