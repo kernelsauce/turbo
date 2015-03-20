@@ -630,6 +630,7 @@ function async.HTTPClient:_handle_redirect(location)
         end
         self.sock = sock
         self:_connect()
+        return
     end
     self:_send_http_request()
 end
