@@ -51,7 +51,6 @@ elseif _G.__TURBO_USE_LUASOCKET__ then
     _poll_implementation = "luasocket"
     ioloop.READ = 0x001
     ioloop.WRITE = 0x004
-    ioloop.EPOLLERR = 0x008
     ioloop.ERROR = bit.bor(0x008, 0x0010)
 end
 
