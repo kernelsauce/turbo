@@ -239,7 +239,7 @@ local function set_nonblock_flag(fd)
        return 0
     end
     flags = bit.bor(flags, O.O_NONBLOCK)
-    rc = ffi.C.fcntl(fd, F.F_SETFL, flags)
+    local rc = ffi.C.fcntl(fd, F.F_SETFL, flags)
     if rc == -1 then
        return -1, "fcntl set O_NONBLOCK failed."
     end

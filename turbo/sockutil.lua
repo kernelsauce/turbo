@@ -71,12 +71,12 @@ function sockutils.create_server_address(port, address, family)
     end
 
     if type(address) == "string" then
-        rc = ffi.C.inet_pton(family, address, 
+        local rc = ffi.C.inet_pton(family, address, 
             family == AF_INET and serv_addr.sin_addr or serv_addr.sin6_addr)
         if rc == 0 then
             error(string.format("[sockutil.lua] Invalid address %s",
                 address))
-        elseif r == -1 then
+        elseif rc == -1 then
             errno = ffi.errno()
             error(string.format(
                 "[sockutil.lua Errno %d] Could not parse address. %s",
