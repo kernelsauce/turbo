@@ -208,6 +208,7 @@ local E = {
 
 
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    -- Linux FFI functions.
 
     local function strerror(errno)
         local cstr = ffi.C.strerror(errno);
@@ -266,8 +267,12 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         return 0
     end
 
+    --- Create new non blocking socket for use in IOStream.
+    -- If family or stream type is not set AF_INET and SOCK_STREAM is used.
     local function new_nonblock_socket(family, stype, protocol)
-        local fd = ffi.C.socket(family, stype, protocol)
+        local fd = ffi.C.socket(family or AF.AF_INET,
+                                stype or SOCK.SOCK_STREAM,
+                                protocol or 0)
         
         if fd == -1 then
            errno = ffi.errno()
@@ -317,10 +322,15 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     }, export)
 
 else
+    -- LuaSocket version.
 
     local luasocket = require "socket"
 
+    --- Create new non blocking socket for use in IOStream.
+    -- If family or stream type is not set AF_INET and SOCK_STREAM is used.
     local function new_nonblock_socket(family, stype, protocol)
+        family = family or AF.AF_INET
+        stype = stype or SOCK.SOCK_STREAM
         assert(family == AF.AF_INET or AF.AF_INET6,
             "LuaSocket only support AF_INET or AF_INET6")
         assert(stype == SOCK.SOCK_DGRAM or SOCK.SOCK_STREAM,
@@ -347,6 +357,6 @@ else
         new_nonblock_socket = new_nonblock_socket,
         INADDR_ANY = 0x00000000,
         INADDR_BROADCAST = 0xffffffff,
-        INADDR_NONE =   0xffffffff,
+        INADDR_NONE = 0xffffffff,
     }, export)
 end

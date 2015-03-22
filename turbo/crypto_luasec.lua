@@ -30,7 +30,7 @@ local ssl = require "ssl"
 -- wide in /etc/ssl/certs/ca-certificates.crt will be used.
 -- @param verify (optional) Verify the hosts certificate with CA.
 -- @param sslv (optional) SSL version to use.
--- @return Return code. 0 if successfull, else a OpenSSL error code and a
+-- @return Return code. 0 if successfull, else a error code and a
 -- SSL error string, or -1 and a error string.
 -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
 function crypto.ssl_create_client_context(
@@ -38,8 +38,22 @@ function crypto.ssl_create_client_context(
         prv_file,
         ca_cert_path,
         verify, sslv)
+    local params = {
+        mode = "client",
+        protocol = "sslv23",
+        key = prv_file,
+        certificate = cert_file,
+        cafile = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt",
+        verify = verify and {"peer", "fail_if_no_peer_cert"} or nil,
+        options = {"all"},
+    }
 
-    error("NYI")
+    local ctx, err = ssl.newcontext(params)
+    if not ctx then
+        return -1, "Could not create SSL server context."
+    else
+        return 0, ctx
+    end
 end
 
 --- Create a server type SSL context.

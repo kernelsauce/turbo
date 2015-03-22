@@ -1506,30 +1506,24 @@ elseif _G.TURBO_SSL then
 
     function iostream.SSLIOStream:_handle_connect()
         if self._connecting == true then
-            local rc, sockerr = socket.get_socket_error(self.socket)
-            if rc == -1 then
-                error("[iostream.lua] Could not get socket errors, for fd " ..
-                    self.socket)
-            else
-                if sockerr ~= 0 then
-                    local fd = self.socket
-                    self:close()
-                    local strerror = socket.strerror(sockerr)
-                    if self._ssl_connect_errhandler then
-                        local errhandler = self._ssl_connect_errhandler
-                        local arg = self._ssl_connect_callback_arg
-                        self._ssl_connect_errhandler = nil
-                        self._ssl_connect_callback_arg = nil
-                        self._ssl_connect_callback = nil
-                        errhandler(arg, sockerr, strerror)
-                    else
-                        error(string.format(
-                            "[iostream.lua] Connect failed: %s, for fd %d",
-                            socket.strerror(sockerr),
-                            fd))
-                    end
-                    return
+            local _, err = self.socket:connect(self.address, self.port)
+            if err and err ~= "already connected" then
+                local fd = self.socket
+                self:close()
+                if self._ssl_connect_errhandler then
+                    local errhandler = self._ssl_connect_errhandler
+                    local arg = self._ssl_connect_callback_arg
+                    self._ssl_connect_errhandler = nil
+                    self._ssl_connect_callback_arg = nil
+                    self._ssl_connect_callback = nil
+                    errhandler(arg, -1, err)
+                else
+                    error(string.format(
+                        "[iostream.lua] Connect failed: %s, for fd %s",
+                        err,
+                        fd))
                 end
+                return
             end
             self._connecting = false
         end

@@ -281,7 +281,6 @@ function async.HTTPClient:_connect()
             -- It is a available optimizations if the user wants to avoid
             -- recreating new SSL contexts for every fetch.
             self.ssl_options = self.ssl_options or {}
-            crypto.ssl_init()
             local rc, ctx_or_err = crypto.ssl_create_client_context(
                 self.ssl_options.priv_key,
                 self.ssl_options.cert_key,

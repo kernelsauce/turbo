@@ -17,12 +17,13 @@
 
 local ffi = require "ffi"
 local platform = require "turbo.platform"
+local socket = require "turbo.socket_ffi"
 require "turbo.cdef"
 
 local crypto = {} -- crypto namespace
 
 local lssl = ffi.load(os.getenv("TURBO_LIBSSL") or "ssl")
-local libtffi_loaded, libturbo_parser = pcall(
+local libtffi_loaded, libtffi = pcall(
     ffi.load, os.getenv("TURBO_LIBTFFI") or "tffi_wrap")
 if not libtffi_loaded then
     libtffi_loaded, libtffi =
@@ -274,8 +275,8 @@ function crypto.ssl_do_handshake(SSLIOStream)
                 local fd = SSLIOStream.socket
                 SSLIOStream:close()
                 error(
-                    string.format("Error when reading from fd %d. \
-                        Errno: %d. %s",
+                    string.format("Error when reading from fd %d. "..
+                        "Errno: %d. %s",
                         fd,
                         errno,
                         socket.strerror(errno)))
