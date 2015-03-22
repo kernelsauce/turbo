@@ -7,7 +7,7 @@
 -- * IOStream, non-blocking sockets.
 -- * SSLIOStream, non-blocking SSL sockets using OpenSSL.
 --
--- Copyright 2011, 2012, 2013 John Abrahamsen
+-- Copyright 2011 - 2015 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -34,6 +34,13 @@ local crypto =      require "turbo.crypto"
 local platform =    require "turbo.platform"
 local bit =         jit and require "bit" or require "bit32"
 local ffi =         require "ffi"
+local ssl
+if (not platform.__LINUX__ or _G.__TURBO_USE_LUASOCKET__) and _G.TURBO_SSL then
+    -- Non Linux OS uses LuaSec instead of OpenSSL library directly.
+    -- As that is made to work with the LuaSocket module.
+    -- https://github.com/brunoos/luasec
+    ssl = require "ssl"
+end
 require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
@@ -655,11 +662,12 @@ else
                 math.min(TURBO_SOCKET_BUFFER_SZ, tonumber(buffer_left)))
             if data then
                 self._luasocket_buf:append_luastr_right(data)
-            elseif err == "timeout" and partial:len() == 0 then
-                break
-            elseif err == "timeout" then
-                -- Add partial data.
-                self._luasocket_buf:append_luastr_right(partial)
+            elseif err == "timeout" or err == "wantread" then
+                if partial:len() == 0 then
+                    break
+                else
+                    self._luasocket_buf:append_luastr_right(partial)
+                end
             elseif err == "closed" then
                 -- So this defers somewhat from the FFI version where
                 -- a disconnect would be detected by polling instead of
@@ -680,7 +688,8 @@ else
             
         end
         if self._luasocket_buf:len() > 0 then
-            return self._luasocket_buf:get()
+            local ptr, sz = self._luasocket_buf:get()
+            return ptr, sz
         else
             return
         end
@@ -1097,289 +1106,435 @@ else
 end
 
 if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
---- SSLIOStream, non-blocking SSL sockets using OpenSSL
--- The class is a extention of the IOStream class and uses
--- OpenSSL for its implementation. Obviously a SSL tunnel
--- software is a more optimal approach than this, as there
--- is quite a bit of overhead in handling SSL connections.
--- For this class to be available, the global _G.TURBO_SSL
--- must be set.
-iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
+    --- SSLIOStream, non-blocking SSL sockets using OpenSSL
+    -- The class is a extention of the IOStream class and uses
+    -- OpenSSL for its implementation. Obviously a SSL tunnel
+    -- software is a more optimal approach than this, as there
+    -- is quite a bit of overhead in handling SSL connections.
+    -- For this class to be available, the global _G.TURBO_SSL
+    -- must be set.
+    iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
 
---- Initialize a new SSLIOStream class instance.
--- @param fd (Number) File descriptor, either open or closed. If closed then,
--- the IOStream:connect() method can be used to connect.
--- @param ssl_options (Table) SSL options table contains, public and private
--- keys and a SSL_context pointer.
--- @param io_loop (IOLoop object) IOLoop class instance to use for event
--- processing. If none is set then the global instance is used, see the
--- ioloop.instance() function.
--- @param max_buffer_size (Number) The maximum number of bytes that can be
--- held in internal buffer before flushing must occur.
--- If none is set, 104857600 are used as default.
-function iostream.SSLIOStream:initialize(fd, ssl_options, io_loop,
-    max_buffer_size)
-    self._ssl_options = ssl_options
-    -- ssl_options should contain keys with values:
-    -- "_ssl_ctx" = SSL_CTX pointer created with context functions in
-    -- crypto.lua.
-    -- "_type" = Optional number, 0 or 1. 0 indicates that the context
-    -- is a server context, and 1 indicates a client context.
-    -- Other keys may be stored in the table, but are simply ignored.
-    self._ssl = nil
-    iostream.IOStream.initialize(self, fd, io_loop, max_buffer_size)
-    self._ssl_accepting = true
-    self._ssl_connect_callback = nil
-    self._ssl_connect_callback_arg = arg
-    self._server_hostname = nil
-end
-
-function iostream.SSLIOStream:connect(address, port, family, verify, callback,
-    errhandler, arg)
-    -- We steal the on_connect callback from the caller. And make sure that we
-    -- do handshaking before anything else.
-    self._ssl_connect_callback = callback
-    self._ssl_connect_errhandler = errhandler
-    self._ssl_connect_callback_arg = arg
-    self._ssl_hostname = address
-    self._ssl_verify = verify
-    return iostream.IOStream.connect(self,
-        address,
-        port,
-        family,
-        self._handle_connect,
-        self._connect_errhandler,
-        self)
-end
-
-function iostream.SSLIOStream:_connect_errhandler()
-    if self._ssl_connect_errhandler then
-        local errhandler = self._ssl_connect_errhandler
-        local arg = self._ssl_connect_callback_arg
-        self._ssl_connect_errhandler = nil
-        self._ssl_connect_callback_arg = nil
+    --- Initialize a new SSLIOStream class instance.
+    -- @param fd (Number) File descriptor, either open or closed. If closed then,
+    -- the IOStream:connect() method can be used to connect.
+    -- @param ssl_options (Table) SSL options table contains, public and private
+    -- keys and a SSL_context pointer.
+    -- @param io_loop (IOLoop object) IOLoop class instance to use for event
+    -- processing. If none is set then the global instance is used, see the
+    -- ioloop.instance() function.
+    -- @param max_buffer_size (Number) The maximum number of bytes that can be
+    -- held in internal buffer before flushing must occur.
+    -- If none is set, 104857600 are used as default.
+    function iostream.SSLIOStream:initialize(fd, ssl_options, io_loop,
+        max_buffer_size)
+        self._ssl_options = ssl_options
+        -- ssl_options should contain keys with values:
+        -- "_ssl_ctx" = SSL_CTX pointer created with context functions in
+        -- crypto.lua.
+        -- "_type" = Optional number, 0 or 1. 0 indicates that the context
+        -- is a server context, and 1 indicates a client context.
+        -- Other keys may be stored in the table, but are simply ignored.
+        self._ssl = nil
+        iostream.IOStream.initialize(self, fd, io_loop, max_buffer_size)
+        self._ssl_accepting = true
         self._ssl_connect_callback = nil
-        errhandler(arg)
+        self._ssl_connect_callback_arg = arg
+        self._server_hostname = nil
     end
-end
 
-function iostream.SSLIOStream:_do_ssl_handshake()
-    local ssl = self._ssl
-    local client = self._ssl_options._type == 1
-
-    -- create new SSL connection only once
-    if not ssl then
-        ssl = crypto.ssl_new(self._ssl_options._ssl_ctx, self.socket, client)
-        self._ssl = ssl
+    function iostream.SSLIOStream:connect(address, port, family, verify, callback,
+        errhandler, arg)
+        -- We steal the on_connect callback from the caller. And make sure that we
+        -- do handshaking before anything else.
+        self._ssl_connect_callback = callback
+        self._ssl_connect_errhandler = errhandler
+        self._ssl_connect_callback_arg = arg
+        self._ssl_hostname = address
+        self._ssl_verify = verify
+        return iostream.IOStream.connect(self,
+            address,
+            port,
+            family,
+            self._handle_connect,
+            self._connect_errhandler,
+            self)
     end
-    -- do the SSL handshaking, returns true when connected, otherwise false
-    if crypto.ssl_do_handshake(self) then
-        -- Connection established. Set accepting flag to false and thereby
-        -- allow writes and reads over the socket.
-        self._ssl_accepting = false
-        if self._ssl_connect_callback then
-            local _ssl_connect_callback = self._ssl_connect_callback
-            local _ssl_connect_callback_arg = self._ssl_connect_callback_arg
-            self._ssl_connect_callback = nil
+
+    function iostream.SSLIOStream:_connect_errhandler()
+        if self._ssl_connect_errhandler then
+            local errhandler = self._ssl_connect_errhandler
+            local arg = self._ssl_connect_callback_arg
+            self._ssl_connect_errhandler = nil
             self._ssl_connect_callback_arg = nil
-            _ssl_connect_callback(_ssl_connect_callback_arg)
+            self._ssl_connect_callback = nil
+            errhandler(arg)
         end
     end
-end
 
-function iostream.SSLIOStream:_handle_read()
-    if self._ssl_accepting == true then
-        self:_do_ssl_handshake()
-        return
+    function iostream.SSLIOStream:_do_ssl_handshake()
+        local ssl = self._ssl
+        local client = self._ssl_options._type == 1
+
+        -- create new SSL connection only once
+        if not ssl then
+            ssl = crypto.ssl_new(self._ssl_options._ssl_ctx, self.socket, client)
+            self._ssl = ssl
+        end
+        -- do the SSL handshaking, returns true when connected, otherwise false
+        if crypto.ssl_do_handshake(self) then
+            -- Connection established. Set accepting flag to false and thereby
+            -- allow writes and reads over the socket.
+            self._ssl_accepting = false
+            if self._ssl_connect_callback then
+                local _ssl_connect_callback = self._ssl_connect_callback
+                local _ssl_connect_callback_arg = self._ssl_connect_callback_arg
+                self._ssl_connect_callback = nil
+                self._ssl_connect_callback_arg = nil
+                _ssl_connect_callback(_ssl_connect_callback_arg)
+            end
+        end
     end
-    iostream.IOStream._handle_read(self)
-end
 
-function iostream.SSLIOStream:_handle_connect()
-    if self._connecting == true then
-        local rc, sockerr = socket.get_socket_error(self.socket)
-        if rc == -1 then
-            error("[iostream.lua] Could not get socket errors, for fd " ..
-                self.socket)
-        else
-            if sockerr ~= 0 then
-                local fd = self.socket
-                self:close()
-                local strerror = socket.strerror(sockerr)
-                if self._ssl_connect_errhandler then
-                    local errhandler = self._ssl_connect_errhandler
-                    local arg = self._ssl_connect_callback_arg
-                    self._ssl_connect_errhandler = nil
-                    self._ssl_connect_callback_arg = nil
-                    self._ssl_connect_callback = nil
-                    errhandler(arg, sockerr, strerror)
-                else
-                    error(string.format(
-                        "[iostream.lua] Connect failed: %s, for fd %d",
-                        socket.strerror(sockerr),
-                        fd))
+    function iostream.SSLIOStream:_handle_read()
+        if self._ssl_accepting == true then
+            self:_do_ssl_handshake()
+            return
+        end
+        iostream.IOStream._handle_read(self)
+    end
+
+    function iostream.SSLIOStream:_handle_connect()
+        if self._connecting == true then
+            local rc, sockerr = socket.get_socket_error(self.socket)
+            if rc == -1 then
+                error("[iostream.lua] Could not get socket errors, for fd " ..
+                    self.socket)
+            else
+                if sockerr ~= 0 then
+                    local fd = self.socket
+                    self:close()
+                    local strerror = socket.strerror(sockerr)
+                    if self._ssl_connect_errhandler then
+                        local errhandler = self._ssl_connect_errhandler
+                        local arg = self._ssl_connect_callback_arg
+                        self._ssl_connect_errhandler = nil
+                        self._ssl_connect_callback_arg = nil
+                        self._ssl_connect_callback = nil
+                        errhandler(arg, sockerr, strerror)
+                    else
+                        error(string.format(
+                            "[iostream.lua] Connect failed: %s, for fd %d",
+                            socket.strerror(sockerr),
+                            fd))
+                    end
+                    return
                 end
-                return
             end
+            self._connecting = false
         end
-        self._connecting = false
+        self:_do_ssl_handshake()
     end
-    self:_do_ssl_handshake()
-end
 
-function iostream.SSLIOStream:_read_from_socket()
-    if self._ssl_accepting == true then
-        -- If the handshake has not been completed do not allow
-        -- any reads to be done...
-        return
-    end
-    local errno
-    local err
+    function iostream.SSLIOStream:_read_from_socket()
+        if self._ssl_accepting == true then
+            -- If the handshake has not been completed do not allow
+            -- any reads to be done...
+            return
+        end
+        local errno
+        local err
 
-    local sz = crypto.SSL_read(self._ssl, buf, _G.TURBO_SOCKET_BUFFER_SZ)
-    if sz == -1 then
-        err = crypto.SSL_get_error(self._ssl, sz)
-        if err == crypto.SSL_ERROR_SYSCALL then
-            errno = ffi.errno()
-            if errno == EWOULDBLOCK or errno == EAGAIN then
+        local sz = crypto.SSL_read(self._ssl, buf, _G.TURBO_SOCKET_BUFFER_SZ)
+        if sz == -1 then
+            err = crypto.SSL_get_error(self._ssl, sz)
+            if err == crypto.SSL_ERROR_SYSCALL then
+                errno = ffi.errno()
+                if errno == EWOULDBLOCK or errno == EAGAIN then
+                    return
+                else
+                    local fd = self.socket
+                    self:close()
+                    error(string.format(
+                        "Error when reading from socket %d. Errno: %d. %s",
+                        fd,
+                        errno,
+                        socket.strerror(errno)))
+                end
+            elseif err == crypto.SSL_ERROR_WANT_READ then
                 return
             else
-                local fd = self.socket
+                -- local fd = self.socket
+                local ssl_err = crypto.ERR_get_error()
+                local ssl_str_err = crypto.ERR_error_string(ssl_err)
                 self:close()
-                error(string.format(
-                    "Error when reading from socket %d. Errno: %d. %s",
-                    fd,
-                    errno,
-                    socket.strerror(errno)))
+                error(string.format("SSL error. %s",
+                    ssl_str_err))
             end
-        elseif err == crypto.SSL_ERROR_WANT_READ then
-            return
-        else
-            -- local fd = self.socket
-            local ssl_err = crypto.ERR_get_error()
-            local ssl_str_err = crypto.ERR_error_string(ssl_err)
-            self:close()
-            error(string.format("SSL error. %s",
-                ssl_str_err))
         end
-    end
-    if sz == 0 then
-        self:close()
-        return
-    end
-    return buf, sz
-end
-
-function iostream.SSLIOStream:_handle_write_nonconst()
-    if self._ssl_accepting == true then
-        -- If the handshake has not been completed do not allow any writes to
-        -- be done.
-        return nil
+        if sz == 0 then
+            self:close()
+            return
+        end
+        return buf, sz
     end
 
-    local ptr = self._write_buffer:get()
-    ptr = ptr + self._write_buffer_offset
-    local n = crypto.SSL_write(self._ssl, ptr, self._write_buffer_size)
-    if n == -1 then
-        local err = crypto.SSL_get_error(self._ssl, n)
-        if err == crypto.SSL_ERROR_SYSCALL then
-            local errno = ffi.errno()
-            if errno == EWOULDBLOCK or errno == EAGAIN then
+    function iostream.SSLIOStream:_handle_write_nonconst()
+        if self._ssl_accepting == true then
+            -- If the handshake has not been completed do not allow any writes to
+            -- be done.
+            return nil
+        end
+
+        local ptr = self._write_buffer:get()
+        ptr = ptr + self._write_buffer_offset
+        local n = crypto.SSL_write(self._ssl, ptr, self._write_buffer_size)
+        if n == -1 then
+            local err = crypto.SSL_get_error(self._ssl, n)
+            if err == crypto.SSL_ERROR_SYSCALL then
+                local errno = ffi.errno()
+                if errno == EWOULDBLOCK or errno == EAGAIN then
+                    return
+                else
+                    local fd = self.socket
+                    self:close()
+                    error(string.format(
+                        "Error when writing to socket %d. Errno: %d. %s",
+                        fd,
+                        errno,
+                        socket.strerror(errno)))
+                end
+            elseif err == crypto.SSL_ERROR_WANT_WRITE then
                 return
             else
-                local fd = self.socket
+                -- local fd = self.socket
+                local ssl_err = crypto.ERR_get_error()
+                local ssl_str_err = crypto.ERR_error_string(ssl_err)
                 self:close()
-                error(string.format(
-                    "Error when writing to socket %d. Errno: %d. %s",
-                    fd,
-                    errno,
-                    socket.strerror(errno)))
+                error(string.format("SSL error. %s",
+                    ssl_str_err))
             end
-        elseif err == crypto.SSL_ERROR_WANT_WRITE then
+        end
+        if n == 0 then
             return
-        else
-            -- local fd = self.socket
-            local ssl_err = crypto.ERR_get_error()
-            local ssl_str_err = crypto.ERR_error_string(ssl_err)
-            self:close()
-            error(string.format("SSL error. %s",
-                ssl_str_err))
+        end
+        self._write_buffer_offset = self._write_buffer_offset + n
+        self._write_buffer_size = self._write_buffer_size - n
+        if self._write_buffer_size == 0 then
+            -- Buffer reached end. Reset offset and size.
+            self._write_buffer:clear()
+            self._write_buffer_offset = 0
+            if self._write_callback then
+                -- Current buffer completely flushed.
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
         end
     end
-    if n == 0 then
-        return
-    end
-    self._write_buffer_offset = self._write_buffer_offset + n
-    self._write_buffer_size = self._write_buffer_size - n
-    if self._write_buffer_size == 0 then
-        -- Buffer reached end. Reset offset and size.
-        self._write_buffer:clear()
-        self._write_buffer_offset = 0
-        if self._write_callback then
-            -- Current buffer completely flushed.
-            local callback = self._write_callback
-            local arg = self._write_callback_arg
-            self._write_callback = nil
-            self._write_callback_arg = nil
-            self:_run_callback(callback, arg)
+
+    function iostream.SSLIOStream:_handle_write_const()
+        if self._ssl_accepting == true then
+            -- If the handshake has not been completed do not allow any writes to
+            -- be done.
+            return nil
         end
-    end
-end
 
-function iostream.SSLIOStream:_handle_write_const()
-    if self._ssl_accepting == true then
-        -- If the handshake has not been completed do not allow any writes to
-        -- be done.
-        return nil
-    end
-
-    local buf, sz = self._const_write_buffer:get()
-    buf = buf + self._write_buffer_offset
-    sz = sz - self._write_buffer_offset
-    local n = crypto.SSL_write(self._ssl, buf, sz)
-    if n == -1 then
-        local err = crypto.SSL_get_error(self._ssl, n)
-        if err == crypto.SSL_ERROR_SYSCALL then
-            local errno = ffi.errno()
-            if errno == EWOULDBLOCK or errno == EAGAIN then
+        local buf, sz = self._const_write_buffer:get()
+        buf = buf + self._write_buffer_offset
+        sz = sz - self._write_buffer_offset
+        local n = crypto.SSL_write(self._ssl, buf, sz)
+        if n == -1 then
+            local err = crypto.SSL_get_error(self._ssl, n)
+            if err == crypto.SSL_ERROR_SYSCALL then
+                local errno = ffi.errno()
+                if errno == EWOULDBLOCK or errno == EAGAIN then
+                    return
+                else
+                    local fd = self.socket
+                    self:close()
+                    error(string.format(
+                        "Error when writing to socket %d. Errno: %d. %s",
+                        fd,
+                        errno,
+                        socket.strerror(errno)))
+                end
+            elseif err == crypto.SSL_ERROR_WANT_WRITE then
                 return
             else
-                local fd = self.socket
+                -- local fd = self.socket
+                local ssl_err = crypto.ERR_get_error()
+                local ssl_str_err = crypto.ERR_error_string(ssl_err)
                 self:close()
-                error(string.format(
-                    "Error when writing to socket %d. Errno: %d. %s",
-                    fd,
-                    errno,
-                    socket.strerror(errno)))
+                error(string.format("SSL error. %s",
+                    ssl_str_err))
             end
-        elseif err == crypto.SSL_ERROR_WANT_WRITE then
+        end
+        if n == 0 then
             return
-        else
-            -- local fd = self.socket
-            local ssl_err = crypto.ERR_get_error()
-            local ssl_str_err = crypto.ERR_error_string(ssl_err)
-            self:close()
-            error(string.format("SSL error. %s",
-                ssl_str_err))
+        end
+        self._write_buffer_offset = self._write_buffer_offset + n
+        if sz == self._write_buffer_offset then
+            -- Buffer reached end. Remove reference to const write buffer.
+            self._write_buffer_offset = 0
+            self._const_write_buffer = nil
+            if self._write_callback then
+                -- Current buffer completely flushed.
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
         end
     end
-    if n == 0 then
-        return
+elseif _G.TURBO_SSL then
+    iostream.SSLIOStream = class('SSLIOStream', iostream.IOStream)
+
+    function iostream.SSLIOStream:initialize(fd, ssl_options, io_loop,
+        max_buffer_size)
+        self._ssl_options = ssl_options
+        -- ssl_options should contain keys with values:
+        -- "_ssl_ctx" = SSL_CTX pointer created with context functions in
+        -- crypto.lua.
+        -- "_type" = Optional number, 0 or 1. 0 indicates that the context
+        -- is a server context, and 1 indicates a client context.
+        -- Other keys may be stored in the table, but are simply ignored.
+        self._ssl = nil
+        iostream.IOStream.initialize(self, fd, io_loop, max_buffer_size)
+        self._ssl_accepting = true
+        self._ssl_connect_callback = nil
+        self._ssl_connect_callback_arg = arg
+        self._server_hostname = nil
     end
-    self._write_buffer_offset = self._write_buffer_offset + n
-    if sz == self._write_buffer_offset then
-        -- Buffer reached end. Remove reference to const write buffer.
-        self._write_buffer_offset = 0
-        self._const_write_buffer = nil
-        if self._write_callback then
-            -- Current buffer completely flushed.
-            local callback = self._write_callback
-            local arg = self._write_callback_arg
-            self._write_callback = nil
-            self._write_callback_arg = nil
-            self:_run_callback(callback, arg)
+
+    function iostream.SSLIOStream:connect(address, port, family, verify, callback,
+        errhandler, arg)
+        -- We steal the on_connect callback from the caller. And make sure that we
+        -- do handshaking before anything else.
+        self._ssl_connect_callback = callback
+        self._ssl_connect_errhandler = errhandler
+        self._ssl_connect_callback_arg = arg
+        self._ssl_hostname = address
+        self._ssl_verify = verify
+        return iostream.IOStream.connect(self,
+            address,
+            port,
+            family,
+            self._handle_connect,
+            self._connect_errhandler,
+            self)
+    end
+
+    function iostream.SSLIOStream:_connect_errhandler()
+        if self._ssl_connect_errhandler then
+            local errhandler = self._ssl_connect_errhandler
+            local arg = self._ssl_connect_callback_arg
+            self._ssl_connect_errhandler = nil
+            self._ssl_connect_callback_arg = nil
+            self._ssl_connect_callback = nil
+            errhandler(arg)
         end
     end
-end
+
+    function iostream.SSLIOStream:_do_ssl_handshake()
+        local ssl = self._ssl
+        local client = self._ssl_options._type == 1
+        -- create new SSL connection only once
+        if not ssl then
+            ssl = crypto.ssl_new(self._ssl_options._ssl_ctx, self.socket, client)
+            self._ssl = ssl
+            -- Replace LuaSocket object with wrapped one...
+            self.io_loop:remove_handler(self.socket)
+            self.socket = ssl
+            self.io_loop:add_handler(self.socket, ioloop.READ, self._handle_events, self)
+        end
+        -- do the SSL handshaking, returns true when connected, otherwise false
+        local res, err = crypto.ssl_do_handshake(self)
+        if res then
+            -- Connection established. Set accepting flag to false and thereby
+            -- allow writes and reads over the socket.
+            self._ssl_accepting = false
+            if self._ssl_connect_callback then
+                local _ssl_connect_callback = self._ssl_connect_callback
+                local _ssl_connect_callback_arg = self._ssl_connect_callback_arg
+                self._ssl_connect_callback = nil
+                self._ssl_connect_callback_arg = nil
+                _ssl_connect_callback(_ssl_connect_callback_arg)
+            end
+        elseif err == "wantread" then
+            self:_add_io_state(ioloop.READ)
+        end
+    end
+
+    function iostream.SSLIOStream:_handle_read()
+        if self._ssl_accepting == true then
+            self:_do_ssl_handshake()
+            return
+        end
+        return iostream.IOStream._handle_read(self)
+    end
+
+    function iostream.SSLIOStream:_read_from_socket()
+        if self._ssl_accepting == true then
+            -- If the handshake has not been completed do not allow
+            -- any reads to be done...
+            return
+        end
+        return iostream.IOStream._read_from_socket(self)
+    end
+
+    function iostream.SSLIOStream:_handle_write_nonconst()
+        if self._ssl_accepting == true then
+            -- If the handshake has not been completed do not allow any writes to
+            -- be done.
+            return nil
+        end
+        return iostream.IOStream._handle_write_nonconst(self)
+    end
+
+    function iostream.SSLIOStream:_handle_write_const()
+        if self._ssl_accepting == true then
+            -- If the handshake has not been completed do not allow any writes to
+            -- be done.
+            return nil
+        end
+        return iostream.IOStream._handle_write_const(self)
+    end
+
+    function iostream.SSLIOStream:_handle_connect()
+        if self._connecting == true then
+            local rc, sockerr = socket.get_socket_error(self.socket)
+            if rc == -1 then
+                error("[iostream.lua] Could not get socket errors, for fd " ..
+                    self.socket)
+            else
+                if sockerr ~= 0 then
+                    local fd = self.socket
+                    self:close()
+                    local strerror = socket.strerror(sockerr)
+                    if self._ssl_connect_errhandler then
+                        local errhandler = self._ssl_connect_errhandler
+                        local arg = self._ssl_connect_callback_arg
+                        self._ssl_connect_errhandler = nil
+                        self._ssl_connect_callback_arg = nil
+                        self._ssl_connect_callback = nil
+                        errhandler(arg, sockerr, strerror)
+                    else
+                        error(string.format(
+                            "[iostream.lua] Connect failed: %s, for fd %d",
+                            socket.strerror(sockerr),
+                            fd))
+                    end
+                    return
+                end
+            end
+            self._connecting = false
+        end
+        self:_do_ssl_handshake()
+    end
+ 
 end
 return iostream
