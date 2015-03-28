@@ -34,10 +34,14 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
-CFLAGS= -g
+CFLAGS = -g
+
+ifeq ($(uname_S),Linux)
+	CFLAGS += -fPIC
+endif
 
 ifeq ($(uname_S),Darwin)
-  CFLAGS += -I/usr/include/malloc
+	CFLAGS += -I/usr/include/malloc
 endif
 
 ifeq ($(SSL), axTLS)
