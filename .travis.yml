@@ -7,10 +7,10 @@ env:
 
 before_install:
   - if [ $LUA = "luajit20" ]; then
-        git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && sudo make install && sudo ln -sf luajit-2.0.3 /usr/local/bin/luajit && cd ..
+      git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && sudo make install && sudo ln -sf luajit-2.0.3 /usr/local/bin/luajit && cd ..
     fi
   - if [ $LUA = "luajit21" ]; then
-        git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && git checkout v2.1 && sudo make install && sudo ln -sf luajit-2.1.0-alpha /usr/local/bin/luajit && cd ..
+      git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && git checkout v2.1 && sudo make install && sudo ln -sf luajit-2.1.0-alpha /usr/local/bin/luajit && cd ..
     fi
   - luajit -v
   - git clone https://github.com/keplerproject/luarocks.git
