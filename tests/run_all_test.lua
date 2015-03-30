@@ -1,4 +1,5 @@
 TURBO_SSL = true
+require "busted"
 require "unittests.structs"
 require "unittests.httputil"
 require "unittests.iostream"
