@@ -81,23 +81,23 @@ else
 end
 
 if not jit then
-	_G.__TURBO_NO_JIT__ = true
+    _G.__TURBO_NO_JIT__ = true
 end
 assert(pcall(require, "ffi"), "No FFI or compatible library available.")
 assert(pcall(require, "bit") or pcall(require, "bit32"),
-	"No bit or compatible library available")
-turbo.platform =		require "turbo.platform"
+    "No bit or compatible library available")
+turbo.platform =        require "turbo.platform"
 turbo.log =             require "turbo.log"
 if not turbo.platform.__LINUX__ then
-	turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
-	if not pcall(require, "socket") then
-		turbo.log.error("Could not load LuaSocket. Aborting.")
-	end
-	_G.__TURBO_USE_LUASOCKET__ = true
+    turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
+    if not pcall(require, "socket") then
+        turbo.log.error("Could not load LuaSocket. Aborting.")
+    end
+    _G.__TURBO_USE_LUASOCKET__ = true
 elseif _G.__TURBO_USE_LUASOCKET__ then
-	turbo.log.warning(
-		"_G.__TURBO_USE_LUASOCKET__ set,"..
-		" using LuaSocket (degraded performance).")
+    turbo.log.warning(
+        "_G.__TURBO_USE_LUASOCKET__ set,"..
+        " using LuaSocket (degraded performance).")
 end
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
@@ -115,10 +115,10 @@ turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash =            require "turbo.hash"
 if turbo.platform.__LINUX__ then
-	turbo.inotify =         require "turbo.inotify"
-	turbo.fs =              require "turbo.fs"
-	turbo.signal =          require "turbo.signal"
-	turbo.syscall =         require "turbo.syscall"
+    turbo.inotify =         require "turbo.inotify"
+    turbo.fs =              require "turbo.fs"
+    turbo.signal =          require "turbo.signal"
+    turbo.syscall =         require "turbo.syscall"
 end
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
