@@ -39,15 +39,15 @@ SOFTWARE."			*/
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
-#define ENDIAN_SWAP_U64(val) ((u_int64_t) ( \
-    (((u_int64_t) (val) & (u_int64_t) 0x00000000000000ff) << 56) | \
-    (((u_int64_t) (val) & (u_int64_t) 0x000000000000ff00) << 40) | \
-    (((u_int64_t) (val) & (u_int64_t) 0x0000000000ff0000) << 24) | \
-    (((u_int64_t) (val) & (u_int64_t) 0x00000000ff000000) <<  8) | \
-    (((u_int64_t) (val) & (u_int64_t) 0x000000ff00000000) >>  8) | \
-    (((u_int64_t) (val) & (u_int64_t) 0x0000ff0000000000) >> 24) | \
-    (((u_int64_t) (val) & (u_int64_t) 0x00ff000000000000) >> 40) | \
-    (((u_int64_t) (val) & (u_int64_t) 0xff00000000000000) >> 56)))
+#define ENDIAN_SWAP_U64(val) ((uint64_t) ( \
+    (((uint64_t) (val) & (uint64_t) 0x00000000000000ff) << 56) | \
+    (((uint64_t) (val) & (uint64_t) 0x000000000000ff00) << 40) | \
+    (((uint64_t) (val) & (uint64_t) 0x0000000000ff0000) << 24) | \
+    (((uint64_t) (val) & (uint64_t) 0x00000000ff000000) <<  8) | \
+    (((uint64_t) (val) & (uint64_t) 0x000000ff00000000) >>  8) | \
+    (((uint64_t) (val) & (uint64_t) 0x0000ff0000000000) >> 24) | \
+    (((uint64_t) (val) & (uint64_t) 0x00ff000000000000) >> 40) | \
+    (((uint64_t) (val) & (uint64_t) 0xff00000000000000) >> 56)))
 
 #ifndef TURBO_NO_SSL
 
@@ -332,9 +332,9 @@ char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
     return buf;
  }
 
-u_int64_t turbo_bswap_u64(u_int64_t swap)
+uint64_t turbo_bswap_u64(uint64_t swap)
 {
-    u_int64_t swapped;
+    uint64_t swapped;
 
     swapped = ENDIAN_SWAP_U64(swap);
     return swapped;

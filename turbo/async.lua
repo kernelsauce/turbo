@@ -17,6 +17,7 @@
 -- limitations under the License.
 
 local iostream =            require "turbo.iostream"
+local platform =            require "turbo.platform"
 local ioloop =              require "turbo.ioloop"
 local httputil =            require "turbo.httputil"
 local util =                require "turbo.util"
@@ -31,7 +32,11 @@ local crypto =              require "turbo.crypto"
 require "turbo.3rdparty.middleclass"
 
 local unpack = util.funpack
-local AF_INET = socket.AF_INET
+local AF_INET
+if platform.__LINUX__ then
+    AF_INET = socket.AF_INET
+end
+
 
 local async = {} -- async namespace
 
@@ -276,7 +281,6 @@ function async.HTTPClient:_connect()
             -- It is a available optimizations if the user wants to avoid
             -- recreating new SSL contexts for every fetch.
             self.ssl_options = self.ssl_options or {}
-            crypto.ssl_init()
             local rc, ctx_or_err = crypto.ssl_create_client_context(
                 self.ssl_options.priv_key,
                 self.ssl_options.cert_key,

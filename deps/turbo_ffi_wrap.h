@@ -92,7 +92,7 @@ char *url_field(
 bool turbo_parser_check(struct turbo_parser_wrapper *s);
 
 char* turbo_websocket_mask(const char *mask32, const char* in, size_t sz);
-u_int64_t turbo_bswap_u64(u_int64_t swap);
+uint64_t turbo_bswap_u64(uint64_t swap);
 
 // OpenSSL wrapper functions.
 #ifndef TURBO_NO_SSL

@@ -105,6 +105,9 @@ end
 --- Append Lua string to right side of buffer.
 -- @param str Lua string
 function Buffer:append_luastr_right(str)
+    if not str then
+        error("Appending a nil value, not possible.")
+    end
     self:append_right(str, str:len())
     return self
 end
@@ -145,6 +148,9 @@ end
 --- Prepend Lua string to the buffer
 -- @param str Lua string
 function Buffer:append_luastr_left(str)
+    if not str then
+        error("Appending a nil value, not possible.")
+    end
     return self:append_left(str, str:len())
 end
 

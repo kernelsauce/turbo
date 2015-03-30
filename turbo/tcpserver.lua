@@ -23,22 +23,13 @@ local ioloop =      require "turbo.ioloop"
 local socket =      require "turbo.socket_ffi"
 local sockutil =    require "turbo.sockutil"
 local crypto =      require "turbo.crypto"
+local platform =    require "turbo.platform"
 local ffi =         require "ffi"
-local bit =         require "bit"
+local bit =         jit and require "bit" or require "bit32"
 require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
 local C = ffi.C
-local SOL_SOCKET =  socket.SOL_SOCKET
-local SO_RESUSEADDR = socket.SO_REUSEADDR
-local O_NONBLOCK =  socket.O_NONBLOCK
-local F_SETFL =     socket.F_SETFL
-local F_GETFL =     socket.F_GETFL
-local SOCK_STREAM = socket.SOCK_STREAM
-local INADDRY_ANY = socket.INADDR_ANY
-local AF_INET =     socket.AF_INET
-local EWOULDBLOCK = socket.EWOULDBLOCK
-local EAGAIN =      socket.EAGAIN
 
 local tcpserver = {}  -- tcpserver namespace
 
@@ -62,7 +53,7 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
     self._pending_sockets = {}
     self._started = false
     -- Validate SSL options if set.
-    if self.ssl_options then
+    if self.ssl_options and platform.__LINUX__ then
         if not type(ssl_options.cert_file) == "string" then
             error("ssl_options argument is set, but cert_file argument is \
                 missing or not a string.")
@@ -166,7 +157,7 @@ end
 function tcpserver.TCPServer:start(procs)
     assert((not self._started), "Already started TCPServer.")
     self._started = true
-    if procs and procs > 1 then
+    if procs and procs > 1 and platform.__LINUX__ then
         for _ = 1, procs - 1 do 
             local pid = ffi.C.fork()
             if pid ~= 0 then 
@@ -195,14 +186,16 @@ end
 -- @param connection (Number) Client socket fd.
 -- @param address (String) IP address of newly connected client.
 function tcpserver.TCPServer:_handle_connection(connection, address)
-    if self.ssl_options ~= nil then
-        local stream = iostream.SSLIOStream:new(connection, 
+    if self.ssl_options ~= nil and platform.__LINUX__ then
+        local stream = iostream.SSLIOStream(
+            connection, 
             self.ssl_options, 
             self.io_loop, 
             self.max_buffer_size)
         self:handle_stream(stream, address)
     else
-        local stream = iostream.IOStream:new(connection, 
+        local stream = iostream.IOStream(
+            connection, 
             self.io_loop, 
             self.max_buffer_size)
         self:handle_stream(stream, address)

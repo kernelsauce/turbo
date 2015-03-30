@@ -26,7 +26,9 @@ local util = require "turbo.util"
 local signal = require "turbo.signal"
 local socket = require "turbo.socket_ffi"
 local coctx = require "turbo.coctx"
+local platform = require "turbo.platform"
 local ffi = require "ffi"
+local bit = jit and require "bit" or require "bit32"
 require "turbo.3rdparty.middleclass"
 
 local unpack = util.funpack
@@ -34,20 +36,22 @@ local ioloop = {} -- ioloop namespace
 
 local epoll_ffi, _poll_implementation
 
-if pcall(require, "turbo.epoll_ffi") then
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     -- Epoll FFI module found and loaded.
-    _poll_implementation = 'epoll_ffi'
-    epoll_ffi = require 'turbo.epoll_ffi'
-    -- Populate global with Epoll module constants
+    _poll_implementation = "epoll_ffi"
+    epoll_ffi = require "turbo.epoll_ffi"
     ioloop.READ = epoll_ffi.EPOLL_EVENTS.EPOLLIN
     ioloop.WRITE = epoll_ffi.EPOLL_EVENTS.EPOLLOUT
     ioloop.PRI = epoll_ffi.EPOLL_EVENTS.EPOLLPRI
     ioloop.ERROR = bit.bor(epoll_ffi.EPOLL_EVENTS.EPOLLERR,
         epoll_ffi.EPOLL_EVENTS.EPOLLHUP)
-else
-    -- No poll modules found. Break execution and give error.
-    error("Could not load a poll module. Make sure you are running this with \
-        LuaJIT. Standard Lua is not supported.")
+elseif _G.__TURBO_USE_LUASOCKET__ then
+    -- Load luasocket as a option.
+    luasocket = require "socket"
+    _poll_implementation = "luasocket"
+    ioloop.READ = 0x001
+    ioloop.WRITE = 0x004
+    ioloop.ERROR = bit.bor(0x008, 0x0010)
 end
 
 --- Create or get the global IOLoop instance.
@@ -80,11 +84,15 @@ function ioloop.IOLoop:initialize()
     self._running = false
     self._stopped = false
     -- Set the most fitting poll implementation. The API's are all unified.
-    if _poll_implementation == 'epoll_ffi' then
-        self._poll = _EPoll_FFI:new()
+    if _poll_implementation == "epoll_ffi" then
+        self._poll = _EPoll_FFI()
+    elseif _poll_implementation == "luasocket" then
+        self._poll = _LuaSocketPoll()
+        -- do nothing
     end
     -- Must be set to avoid stopping execution when SIGPIPE is recieved.
-    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+    -- TODO find a module for this.
+    -- signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
 --- Add handler function for given event mask on fd.
@@ -411,6 +419,13 @@ function ioloop.IOLoop:start()
             -- timeout.
             poll_timeout = 0
         end
+        self:_event_poll(poll_timeout)
+    end
+end
+
+if _poll_implementation == "epoll_ffi" then
+    -- Linux version.
+    function ioloop.IOLoop:_event_poll(poll_timeout)
         local rc, num, events = self._poll:poll(poll_timeout)
         if rc == 0  then
             num = num - 1 -- Base 0 loop
@@ -420,6 +435,32 @@ function ioloop.IOLoop:start()
         elseif rc == -1 then
             log.notice(string.format("[ioloop.lua] poll() returned errno %d",
                 ffi.errno()))
+        end
+    end
+elseif _poll_implementation == "luasocket" then
+    -- Everyone else version, based on LuaSocket which everyone has.
+    function ioloop.IOLoop:_event_poll(poll_timeout)
+        local recvt, sendt, err = self._poll:poll(poll_timeout/1000)
+        if err and err ~= "timeout" then
+            log.error("[ioloop.lua] LuaSocket select() returned: " .. err)
+        end
+        for _, r in ipairs(recvt) do
+            local handler_run = false
+            for i=1, #sendt, 1 do
+                -- Run through send table too so that we combine multiple
+                -- events into instead of running handler multiple times.
+                s = sendt[i]
+                if s == r then
+                    handler_run = true
+                    self:_run_handler(r, bit.band(ioloop.READ, ioloop.WRITE))
+                    table.remove(sendt, i)
+                    break
+                end
+            end
+            self:_run_handler(r, ioloop.READ)
+        end
+        for _, v in ipairs(sendt) do
+            self:_run_handler(v, ioloop.WRITE)
         end
     end
 end
@@ -592,38 +633,109 @@ function _Timeout:callback()
 end
 
 
-_EPoll_FFI = class('_EPoll_FFI')
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    _EPoll_FFI = class('_EPoll_FFI')
 
---- Internal class for epoll-based event loop using the epoll_ffi module.
-function _EPoll_FFI:initialize()
-    local errno
-    self._epoll_fd, errno = epoll_ffi.epoll_create() -- New epoll, store its fd.
-    if self._epoll_fd == -1 then
-        error("epoll_create failed with errno = " .. errno)
+    --- Internal class for epoll-based event loop using the epoll_ffi module.
+    function _EPoll_FFI:initialize()
+        local errno
+        self._epoll_fd, errno = epoll_ffi.epoll_create()
+        if self._epoll_fd == -1 then
+            error("epoll_create failed with errno = " .. errno)
+        end
+    end
+
+    function _EPoll_FFI:register(fd, events)
+        return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD,
+            fd, events)
+    end
+
+    function _EPoll_FFI:modify(fd, events)
+        return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD,
+            fd, events)
+    end
+
+    function _EPoll_FFI:unregister(fd)
+        return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL,
+            fd, 0)
+    end
+
+    function _EPoll_FFI:poll(timeout)
+        return epoll_ffi.epoll_wait(self._epoll_fd, timeout)
     end
 end
 
-function _EPoll_FFI:fileno()
-    return self._epoll_fd
-end
+if _G.__TURBO_USE_LUASOCKET__ then
+    _LuaSocketPoll = class("_LuaSocketPoll")
 
-function _EPoll_FFI:register(fd, events)
-    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_ADD,
-        fd, events)
-end
+    function _LuaSocketPoll:initialize()
+        self.sendt = {}
+        self.recvt = {}
+    end
 
-function _EPoll_FFI:modify(fd, events)
-    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_MOD,
-        fd, events)
-end
+    function _LuaSocketPoll:register(fd, events)
+        if bit.band(events, ioloop.WRITE) ~= 0 then
+            if #self.sendt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
+            table.insert(self.sendt, fd)
+        end
+        if bit.band(events, ioloop.READ) ~= 0 then
+            if #self.recvt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
+            table.insert(self.recvt, fd)
+        end
+        return 0, nil
+    end
 
-function _EPoll_FFI:unregister(fd)
-    return epoll_ffi.epoll_ctl(self._epoll_fd, epoll_ffi.EPOLL_CTL_DEL,
-        fd, 0)
-end
+    function _LuaSocketPoll:unregister(fd)
+        for i=1, #self.sendt, 1 do
+            if self.sendt[i] == fd then
+                table.remove(self.sendt, i)
+            end
+        end
+        for i=1, #self.recvt, 1 do
+            if self.recvt[i] == fd then
+                table.remove(self.recvt, i)
+            end
+        end
+        return 0, nil
+    end
 
-function _EPoll_FFI:poll(timeout)
-    return epoll_ffi.epoll_wait(self._epoll_fd, timeout)
+    function _LuaSocketPoll:modify(fd, events)
+        for i=1, #self.sendt, 1 do
+            if self.sendt[i] == fd then
+                table.remove(self.sendt, i)
+            end
+        end
+        for i=1, #self.recvt, 1 do
+            if self.recvt[i] == fd then
+                table.remove(self.recvt, i)
+            end
+        end
+        if bit.band(events, ioloop.WRITE) ~= 0 then
+            if #self.sendt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
+            table.insert(self.sendt, fd)
+        end
+        if bit.band(events, ioloop.READ) ~= 0 then
+            if #self.recvt >= 64 then
+                return -1,
+                    "More than 64 sockets in select() table. Can not complete."
+            end
+            table.insert(self.recvt, fd)
+        end
+        return 0, nil
+    end
+
+    function _LuaSocketPoll:poll(timeout)
+        return luasocket.select(self.recvt, self.sendt, timeout)
+    end
 end
 
 return ioloop

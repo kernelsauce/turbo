@@ -2,8 +2,8 @@
 -- It is different from all the other Lua HTTP servers out there in that it's
 -- modern, fresh, object oriented and easy to modify.
 -- It is written in pure Lua, there are no Lua C modules instead it uses the
--- LuaJIT FFI to do socket and event handling. Users of the Tornado web
--- server will recognize the API offered pretty quick.
+-- LuaJIT FFI to do socket and event handling (only applies for Linux). 
+-- Users of the Tornado web server will recognize the API offered pretty quick.
 --
 -- If you do not know Lua then do not fear as its probably one of the easiest
 -- languages to learn if you know C, Python or Javascript from before.
@@ -80,13 +80,25 @@ else
         turbo.MINOR_VERSION)
 end
 
-assert(jit, "PUC-Lua not supported. Use LuaJIT2.")
+if not jit then
+	_G.__TURBO_NO_JIT__ = true
+end
+assert(pcall(require, "ffi"), "No FFI or compatible library available.")
+assert(pcall(require, "bit") or pcall(require, "bit32"),
+	"No bit or compatible library available")
 turbo.platform =		require "turbo.platform"
-assert(not turbo.platform.__WINDOWS__, "Windows OS is not supported.")
-assert(
-	(turbo.platform.__UNIX__ and turbo.platform.__LINUX__),
-	"Linux is the only supported *NIX OS.")
 turbo.log =             require "turbo.log"
+if not turbo.platform.__LINUX__ then
+	turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
+	if not pcall(require, "socket") then
+		turbo.log.error("Could not load LuaSocket. Aborting.")
+	end
+	_G.__TURBO_USE_LUASOCKET__ = true
+elseif _G.__TURBO_USE_LUASOCKET__ then
+	turbo.log.warning(
+		"_G.__TURBO_USE_LUASOCKET__ set,"..
+		" using LuaSocket (degraded performance).")
+end
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
 turbo.httputil =        require "turbo.httputil"
@@ -99,13 +111,15 @@ turbo.web =             require "turbo.web"
 turbo.util =            require "turbo.util"
 turbo.coctx =           require "turbo.coctx"
 turbo.websocket =       require "turbo.websocket"
-turbo.signal =          require "turbo.signal"
 turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash =            require "turbo.hash"
-turbo.syscall =         require "turbo.syscall"
-turbo.inotify =         require "turbo.inotify"
-turbo.fs =              require "turbo.fs"
+if turbo.platform.__LINUX__ then
+	turbo.inotify =         require "turbo.inotify"
+	turbo.fs =              require "turbo.fs"
+	turbo.signal =          require "turbo.signal"
+	turbo.syscall =         require "turbo.syscall"
+end
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
 turbo.structs.buffer =  require "turbo.structs.buffer"

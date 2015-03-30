@@ -80,7 +80,7 @@ end
 --------------- authored by Jeff Solinsky
 do
     local ffi = require'ffi'
-    local bit = require'bit'
+    local bit = jit and require "bit" or require "bit32"
     local rshift = bit.rshift
     local lshift = bit.lshift
     local bor = bit.bor

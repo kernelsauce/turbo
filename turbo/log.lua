@@ -32,6 +32,7 @@
 -- SOFTWARE."
 
 local util = require "turbo.util"
+local platform = require "turbo.platform"
 local ffi = require "ffi"
 
 local log = {
@@ -64,47 +65,71 @@ function log.disable_all()
     }
 end
 
---- Log to stdout. Success category.
--- Use for successfull events etc.
--- @note Messages are printed with green color.
--- @param str (String) Message to output.
-function log.success(str)
-    if log.categories.success == false then
-        return
+if platform.__LINUX__ then
+    --- Log to stdout. Success category.
+    -- Use for successfull events etc.
+    -- @note Messages are printed with green color.
+    -- @param str (String) Message to output.
+    function log.success(str)
+        if log.categories.success == false then
+            return
+        end
+        ffi.C.time(time_t)
+        local tm = ffi.C.localtime(time_t)
+        local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
+        local offset
+        if sz + str:len() < 4094 then
+            -- Use static buffer.
+            ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
+            ffi.C.fputs(buf, io.stdout)
+        else
+            -- Use Lua string.
+            io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+        end
     end
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[32m[S %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+else
+    function log.success(str)
+        if log.categories.warning == false then
+            return
+        end
+        io.stdout:write(
+            string.format("%s %s \r\n",
+                os.date("[S %Y/%m/%d %H:%M:%S]", os.time()),
+                str))
     end
 end
 
---- Log to stdout. Notice category.
--- Use for notices, typically non-critical messages to give a hint.
--- @note Messages are printed with white color.
--- @param str (String) Message to output.
-function log.notice(str)
-    if log.categories.notice == false then
-        return
+if platform.__LINUX__ then
+    --- Log to stdout. Notice category.
+    -- Use for notices, typically non-critical messages to give a hint.
+    -- @note Messages are printed with white color.
+    -- @param str (String) Message to output.
+    function log.notice(str)
+        if log.categories.notice == false then
+            return
+        end
+        ffi.C.time(time_t)
+        local tm = ffi.C.localtime(time_t)
+        local sz = ffi.C.strftime(buf, 4096, "[I %Y/%m/%d %H:%M:%S] ", tm)
+        local offset
+        if sz + str:len() < 4094 then
+            -- Use static buffer.
+            ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+            ffi.C.fputs(buf, io.stdout)
+        else
+            -- Use Lua string.
+            io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+        end
     end
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "[I %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+else
+    function log.notice(str)
+        if log.categories.warning == false then
+            return
+        end
+        io.stdout:write(
+            string.format("%s %s \r\n",
+                os.date("[I %Y/%m/%d %H:%M:%S]", os.time()),
+                str))
     end
 end
 
@@ -112,21 +137,37 @@ end
 -- Use for warnings.
 -- @note Messages are printed with yellow color.
 -- @param str (String) Message to output.
-function log.warning(str)
-    if log.categories.warning == false then
-        return
-    end    
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[33m[W %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stderr)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+if platform.__LINUX__ then
+    function log.warning(str)
+        if log.categories.warning == false then
+            return
+        end
+        ffi.C.time(time_t)
+        local tm = ffi.C.localtime(time_t)
+        local sz = ffi.C.strftime(
+            buf,
+            4096,
+            "\x1b[33m[W %Y/%m/%d %H:%M:%S] ",
+            tm)
+        local offset
+        if sz + str:len() < 4094 then
+            -- Use static buffer.
+            ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
+            ffi.C.fputs(buf, io.stderr)
+        else
+            -- Use Lua string.
+            io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+        end
+    end
+else
+    function log.warning(str)
+        if log.categories.warning == false then
+            return
+        end
+        io.stdout:write(
+            string.format("%s %s \r\n",
+                os.date("[W %Y/%m/%d %H:%M:%S]", os.time()),
+                str))
     end
 end
 
@@ -134,65 +175,101 @@ end
 -- Use for critical errors, when something is clearly wrong.
 -- @note Messages are printed with red color.
 -- @param str (String) Message to output.
-function log.error(str) 
-    if log.categories.error == false then
-        return
-    end    
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[31m[E %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stderr)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+if platform.__LINUX__ then
+    function log.error(str) 
+        if log.categories.error == false then
+            return
+        end    
+        ffi.C.time(time_t)
+        local tm = ffi.C.localtime(time_t)
+        local sz = ffi.C.strftime(buf, 4096, "\x1b[31m[E %Y/%m/%d %H:%M:%S] ", tm)
+        local offset
+        if sz + str:len() < 4094 then
+            -- Use static buffer.
+            ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
+            ffi.C.fputs(buf, io.stderr)
+        else
+            -- Use Lua string.
+            io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+        end
+    end
+else
+    function log.error(str)
+        if log.categories.warning == false then
+            return
+        end
+        io.stdout:write(
+            string.format("%s %s \r\n",
+                os.date("[E %Y/%m/%d %H:%M:%S]", os.time()),
+                str))
     end
 end
 
---- Log to stdout. Debug category.
--- Use for debug messages not critical for releases.
--- @note Messages are printed with white color.
--- @param str (String) Message to output.
-function log.debug(str)
-    if log.categories.debug == false then
-        return
-    end    
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "[D %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+if platform.__LINUX__ then
+    --- Log to stdout. Debug category.
+    -- Use for debug messages not critical for releases.
+    -- @note Messages are printed with white color.
+    -- @param str (String) Message to output.
+    function log.debug(str)
+        if log.categories.debug == false then
+            return
+        end    
+        ffi.C.time(time_t)
+        local tm = ffi.C.localtime(time_t)
+        local sz = ffi.C.strftime(buf, 4096, "[D %Y/%m/%d %H:%M:%S] ", tm)
+        local offset
+        if sz + str:len() < 4094 then
+            -- Use static buffer.
+            ffi.C.sprintf(buf + sz, "%s\n", ffi.cast("const char*", str))
+            ffi.C.fputs(buf, io.stdout)
+        else
+            -- Use Lua string.
+            io.stdout:write(ffi.string(buf, sz) .. str .. "\n")
+        end
+    end
+else
+    function log.debug(str)
+        if log.categories.warning == false then
+            return
+        end
+        io.stdout:write(
+            string.format("%s %s \r\n",
+                os.date("[D %Y/%m/%d %H:%M:%S]", os.time()),
+                str))
     end
 end
 
---- Log to stdout. Development category.
--- Use for development purpose messages.
--- @note Messages are printed with cyan color.
--- @param str (String) Message to output.
-function log.devel(str)
-    if log.categories.development == false then
-        return
-    end    
-    ffi.C.time(time_t)
-    local tm = ffi.C.localtime(time_t)
-    local sz = ffi.C.strftime(buf, 4096, "\x1b[36m[d %Y/%m/%d %H:%M:%S] ", tm)
-    local offset
-    if sz + str:len() < 4094 then
-        -- Use static buffer.
-        ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
-        ffi.C.fputs(buf, io.stdout)
-    else
-        -- Use Lua string.
-        io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+if platform.__LINUX__ then
+    --- Log to stdout. Development category.
+    -- Use for development purpose messages.
+    -- @note Messages are printed with cyan color.
+    -- @param str (String) Message to output.
+    function log.devel(str)
+        if log.categories.development == false then
+            return
+        end    
+        ffi.C.time(time_t)
+        local tm = ffi.C.localtime(time_t)
+        local sz = ffi.C.strftime(buf, 4096, "\x1b[36m[d %Y/%m/%d %H:%M:%S] ", tm)
+        local offset
+        if sz + str:len() < 4094 then
+            -- Use static buffer.
+            ffi.C.sprintf(buf + sz, "%s\x1b[0m\n", ffi.cast("const char*", str))
+            ffi.C.fputs(buf, io.stdout)
+        else
+            -- Use Lua string.
+            io.stdout:write(ffi.string(buf, sz) .. str .. "\x1b[0m\n")
+        end
+    end
+else
+    function log.devel(str)
+        if log.categories.warning == false then
+            return
+        end
+        io.stdout:write(
+            string.format("%s %s \r\n",
+                os.date("[d %Y/%m/%d %H:%M:%S]", os.time()),
+                str))
     end
 end
 

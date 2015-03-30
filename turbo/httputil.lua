@@ -31,8 +31,10 @@ local deque =       require "turbo.structs.deque"
 local buffer =      require "turbo.structs.buffer"
 local escape =      require "turbo.escape"
 local util =        require "turbo.util"
+local platform =    require "turbo.platform"
 local ffi =         require "ffi"
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "tffi_wrap")
+local ltp_loaded, libturbo_parser = pcall(
+    ffi.load, os.getenv("TURBO_LIBTFFI") or "tffi_wrap")
 if not ltp_loaded then
     -- Check /usr/local/lib explicitly also.
     ltp_loaded, libturbo_parser =
@@ -290,6 +292,12 @@ end
 -- regard for case sensitivity.
 -- @return The value of the key, or nil if not existing. May return a table if
 -- multiple keys are set.
+local strncasecmp
+if platform.__LINUX__ or platform.__UNIX__ then
+    strncasecmp = ffi.C.strncasecmp
+elseif platform.__WINDOWS__ then
+    strncasecmp = ffi.C._strnicmp
+end
 function httputil.HTTPParser:get(key, caseinsensitive)
     local value
     local c = 0
@@ -304,7 +312,7 @@ function httputil.HTTPParser:get(key, caseinsensitive)
             local field = self.tpw.hkv[i]
             local key_sz = key:len()
             if field.key_sz == key_sz then
-                if ffi.C.strncasecmp(
+                if strncasecmp(
                     field.key,
                     key,
                     field.key_sz) == 0 then
@@ -740,7 +748,7 @@ end
 function httputil.HTTPHeaders:stringify_as_response()
     local buf = buffer:new()
     if not self:get("Date") then
-        self:add("Date", util.time_format_http_header(ffi.C.time(nil)))
+        self:add("Date", util.time_format_http_header(util.gettimeofday()))
     end
     for i = 1 , #self._fields do
         if self._fields[i] then

@@ -15,7 +15,7 @@
 -- limitations under the License.
 
 local ffi = require "ffi"
-local bit = require "bit"
+local bit = jit and require "bit" or require "bit32"
 local fs  = require "turbo.fs"
 local log = require "turbo.log"
 local util = require "turbo.util"

@@ -21,7 +21,6 @@ local ffi = require "ffi"
 
 --- Double ended queue class.
 local deque = class('Deque')
-_G.deque_no = 0
 
 function deque:initialize()
     self.head = nil

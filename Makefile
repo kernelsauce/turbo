@@ -6,7 +6,7 @@
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
-CC ?= gcc
+CC = gcc
 RM= rm -f
 UNINSTALL= rm -rf
 MKDIR= mkdir -p
@@ -34,10 +34,14 @@ TEST_DIR = tests
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 INC = -I$(HTTP_PARSERDIR)/
-CFLAGS= -g
+CFLAGS = -g
+
+ifeq ($(uname_S),Linux)
+	CFLAGS += -fPIC
+endif
 
 ifeq ($(uname_S),Darwin)
-  CFLAGS += -I/usr/include/malloc
+	CFLAGS += -I/usr/include/malloc
 endif
 
 ifeq ($(SSL), axTLS)
@@ -66,7 +70,7 @@ LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
 	make -C deps/http-parser library
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
 	make -C deps/http-parser clean
@@ -100,7 +104,7 @@ install:
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C deps/http-parser library
-	$(CC) $(INC) -shared -fPIC -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \

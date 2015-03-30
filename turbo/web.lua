@@ -28,13 +28,20 @@ local httpserver =      require "turbo.httpserver"
 local buffer =          require "turbo.structs.buffer"
 local bufferptr =       require "turbo.structs.bufferptr"
 local escape =          require "turbo.escape"
+local platform =        require "turbo.platform"
 local response_codes =  require "turbo.http_response_codes"
 local mime_types =      require "turbo.mime_types"
 local util =            require "turbo.util"
 local hash =            require "turbo.hash"
-local fs =              require "turbo.fs"
 local socket =          require "turbo.socket_ffi"
 local syscall =         require "turbo.syscall"
+local fs
+if platform.__WINDOWS__ then
+    -- Support for stat'ing in StaticFileHandler on Windows OS.
+    fs = require "lfs"
+else
+    fs = require "turbo.fs"
+end
 require "turbo.3rdparty.middleclass"
 require "turbo.cdef"
 
@@ -348,7 +355,6 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
     if not cookie then
         return default
     end
-
     local hmac, len, timestamp, value = cookie:match("(%w*)|(%d*)|(%d*)|(.*)")
     assert(tonumber(len) == value:len(), "Cookie value length has changed!")
     assert(hmac:len() == 40, "Could not get secure cookie. Hash to short.")
@@ -598,24 +604,93 @@ end
 --                       ; US-ASCII characters excluding CTLs,
 --                       ; whitespace DQUOTE, comma, semicolon,
 --                       ; and backslash
+
+local EQUAL         = string.byte("=")
+local SEMICOLON     = string.byte(";")
+local SPACE         = string.byte(" ")
+local HTAB          = string.byte("\t")
+
+local function get_cookie_table(text_cookie)
+    if type(text_cookie) ~= "string" then
+        error(string.format("Expect text_cookie to be \"string\" but found %s",
+            type(text_cookie)))
+    end
+
+    local EXPECT_KEY    = 1
+    local EXPECT_VALUE  = 2
+    local EXPECT_SP     = 3
+
+    local n = 0
+    local len = #text_cookie
+
+    for i = 1, len do
+        if string.byte(text_cookie, i) == SEMICOLON then
+            n = n + 1
+        end
+    end
+
+    local cookie_table  = {}
+
+    local state = EXPECT_SP
+    local i = 1
+    local j = 1
+    local key, value
+
+    while j <= len do
+        if state == EXPECT_KEY then
+            if string.byte(text_cookie, j) == EQUAL then
+                key = string.sub(text_cookie, i, j - 1)
+                state = EXPECT_VALUE
+                i = j + 1
+            end
+        elseif state == EXPECT_VALUE then
+            if string.byte(text_cookie, j) == SEMICOLON
+                    or string.byte(text_cookie, j) == SPACE
+                    or string.byte(text_cookie, j) == HTAB
+            then
+                value = string.sub(text_cookie, i, j - 1)
+                cookie_table[escape.unescape(key)] = escape.unescape(value)
+
+                key, value = nil, nil
+                state = EXPECT_SP
+                i = j + 1
+            end
+        elseif state == EXPECT_SP then
+            if string.byte(text_cookie, j) ~= SPACE
+                and string.byte(text_cookie, j) ~= HTAB
+            then
+                state = EXPECT_KEY
+                i = j
+                j = j - 1
+            end
+        end
+        j = j + 1
+    end
+
+    if key ~= nil and value == nil then
+        cookie_table[escape.unescape(key)] = escape.unescape(
+            string.sub(text_cookie, i))
+    end
+
+    return cookie_table
+end
+
 function web.RequestHandler:_parse_cookies()
-    local cookies = {}
     local cookie_str, cnt = self.request.headers:get("Cookie")
     local rfc6265pat = '%s*([%w]+)="*([%w%p]+[^%s%;^%,^%\\%"])%s*'
     self._cookies_parsed = true
-    self._cookies = cookies
     if cnt == 0 then
+        self._cookies = {}
         return
     elseif cnt == 1 then
-        for key, value in cookie_str:gmatch(rfc6265pat) do
-            cookies[escape.unescape(key)] = escape.unescape(value)
-        end
+        self._cookies = get_cookie_table(cookie_str)
     elseif cnt > 1 then
+        self._cookies = {}
         for i = 1, cnt do
-            for key, value in
-                cookie_str[i]:gmatch(rfc6265pat) do
-                cookies[escape.unescape(key)] = escape.unescape(value)
-            end
+            self._cookies = util.tablemerge(
+                self._cookies,
+                get_cookie_table(cookie_str[i])
+            )
         end
     end
 end
@@ -680,7 +755,7 @@ end
 -- @param path (String) Path to file.
 -- @return 0 + buffer (String) on success, else -1.
 function web._StaticWebCache:read_file(path)
-    local fd, err = io.open(path, "r")
+    local fd, err = io.open(path, "rb")
     if not fd then
         return -1, err
     end
@@ -717,7 +792,7 @@ function web._StaticWebCache:get_file(path)
         if cf[1] == SWCT_CACHE then
             return SWCRC_CACHE, cf[2], cf[3], cf[4], cf[5]
         elseif cf[1] == SWCT_FILE then
-            local file = io.open(path, "r")
+            local file = io.open(path, "rb")
             if not file then
                 log.error(string.format(
                     "[web.lua] Could not open file for reading; %s.",
@@ -731,12 +806,24 @@ function web._StaticWebCache:get_file(path)
     end
 
     -- Not in cache, or opened before.
-    local stat, err = fs.stat(path)
+    local stat, err
+    if not platform.__WINDOWS__ then
+        stat, err = fs.stat(path)
+        if stat == -1 then
+            self.files[path] = {SWCT_NOFILE}
+            return SWCRC_NOT_FOUND -- File not found.
+        end
+    else
+        stat, err = fs.attributes(path)
+        if stat == nil then
+            self.files[path] = {SWCT_NOFILE}
+            return SWCRC_NOT_FOUND -- File not found.
+        end
+        -- Small rewrite of table to make it compatible with Linux stat.
+        stat.st_size = stat.size
+    end
 
-    if stat == -1 then
-        self.files[path] = {SWCT_NOFILE}
-        return SWCRC_NOT_FOUND -- File not found.
-    elseif stat.st_size > STATICWEBCACHE_MAX then
+    if stat.st_size > STATICWEBCACHE_MAX then
         -- File will not be cached because of size.
         -- Open file ptr instead.
         local rc, mime = self:get_mime(path)
@@ -745,7 +832,7 @@ function web._StaticWebCache:get_file(path)
         else
             self.files[path] = {SWCT_FILE, stat}
         end
-        local file, err = io.open(path, "r")
+        local file, err = io.open(path, "rb")
         if not file then
             log.error(string.format(
                 "[web.lua] Could not open file for reading; %s.",
