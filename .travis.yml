@@ -1,30 +1,29 @@
 language: erlang
 
 env:
-  global:
-    - LUAROCKS_BASE=luarocks-2.0.12.tar.gz
   matrix:
-    - LUA=luajit LUA_DEV=libluajit-5.1-dev LUA_VER=5.1 LUA_SFX=jit LUA_INCDIR=/usr/include/luajit-2.0
+    - LUA=luajit20 LUA_DEV=libluajit-5.1-dev LUA_VER=5.1 LUA_SFX=jit LUA_INCDIR=/usr/local/include/luajit-2.1
+    - LUA=luajit21 LUA_DEV=libluajit-5.1-dev LUA_VER=5.1 LUA_SFX=jit LUA_INCDIR=/usr/local/include/luajit-2.1
 
 before_install:
-  - if [ $LUA = "luajit" ]; then
-      sudo add-apt-repository ppa:mwild1/ppa -y && sudo apt-get update -y;
+  - if [ $LUA = "luajit20" ]; then
+        git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && sudo make install && sudo ln -sf luajit-2.0.3 /usr/local/bin/luajit && cd ..
     fi
-  - sudo apt-get install $LUA
-  - sudo apt-get install $LUA_DEV
-  - lua$LUA_SFX -v
-  - wget http://luarocks.org/releases/$LUAROCKS_BASE.tar.gz
-  - tar zxvpf $LUAROCKS_BASE.tar.gz
-  - cd $LUAROCKS_BASE
-  - ./configure
-    --lua-version=$LUA_VER --lua-suffix=$LUA_SFX --with-lua-include="$LUA_INCDIR"
+  - if [ $LUA = "luajit21" ]; then
+        git clone http://luajit.org/git/luajit-2.0.git && cd luajit-2.0 && git checkout v2.1 && sudo make install && sudo ln -sf luajit-2.1.0-alpha /usr/local/bin/luajit && cd ..
+    fi
+  - luajit -v
+  - git clone https://github.com/keplerproject/luarocks.git
+  - cd luarocks
+  - ./configure --lua-version=$LUA_VER --lua-suffix=$LUA_SFX --with-lua-include="$LUA_INCDIR"
   - sudo make
   - sudo make install
   - cd $TRAVIS_BUILD_DIR
 
 install:
-  - sudo -E luarocks install busted
-  - sudo -E make install
+  - sudo luarocks install luafilesystem
+  - sudo luarocks install busted
+  - sudo make install
 
 script:
   - make test
