@@ -56,14 +56,15 @@ local strf = string.format
 local bor = bit.bor
 math.randomseed(util.gettimeofday())
 
+local ENDIAN_SWAP_U64
 if jit and jit.version_num >= 20100 then
-    function ENDIAN_SWAP_U64(val)
+    ENDIAN_SWAP_U64 = function(val)
         return bit.bswap(val)
     end
 else
     -- Only LuaJIT v2.1 support 64bit bit swap.
     -- Use a native C function instead for v2.0.
-    function ENDIAN_SWAP_U64(val)
+    ENDIAN_SWAP_U64 = function(val)
         return libturbo_parser.turbo_bswap_u64(val)
     end
 end
@@ -82,8 +83,9 @@ ffi.cdef [[
 local _ws_header = ffi.new("struct ws_header")
 local _ws_mask = ffi.new("int32_t[1]")
 
+local _unmask_payload
 if platform.__WINDOWS__ then
-    function _unmask_payload(mask32, data)
+    _unmask_payload = function(mask32, data)
         local i = ffi.new("size_t", 0)
         local sz = data:len()
         local buf = ffi.cast("char*", ffi.C.malloc(data:len()))
@@ -102,7 +104,7 @@ if platform.__WINDOWS__ then
         return str
     end
 else
-    function _unmask_payload(mask, data)
+    _unmask_payload = function(mask, data)
         local ptr = libturbo_parser.turbo_websocket_mask(mask, data, data:len())
         if ptr ~= nil then
             local str = ffi.string(ptr, data:len())

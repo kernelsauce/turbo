@@ -28,6 +28,7 @@ end
 local C = ffi.C
 
 local sockutils = {} -- sockutils namespace
+local _add_accept_hander_cb
 
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     local SOL_SOCKET =  socket.SOL_SOCKET
@@ -204,7 +205,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     local client_addr = ffi.new("struct sockaddr_storage")
     local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
 
-    function _add_accept_hander_cb(arg, fd, events)
+    _add_accept_hander_cb = function(arg, fd, events)
        while true do 
             local errno
             local address
@@ -258,7 +259,7 @@ else
         return sock
     end
 
-    function _add_accept_hander_cb(arg, fd, events)
+    _add_accept_hander_cb = function(arg, fd, events)
         while true do 
             local client_fd = fd:accept()
             if not client_fd then

@@ -226,7 +226,7 @@ function httputil.HTTPParser:get_status_code()
     return self.tpw.parser.status_code, status_codes[self.status_code]
 end
 
-function _unescape(s) return string.char(tonumber(s,16)) end
+local function _unescape(s) return string.char(tonumber(s,16)) end
 --- Internal function to parse ? and & separated key value fields.
 -- @param uri (String)
 local function _parse_arguments(uri)
