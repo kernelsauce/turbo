@@ -53,6 +53,16 @@ For Windows use the included install.bat file or one line downloader:
 
 ``powershell -command "& { iwr https://raw.githubusercontent.com/kernelsauce/turbo/luasocket/install.bat OutFile t.bat }" && t.bat``
 
+This will install all dependencies: Visual Studio, git, mingw, gnuwin, openssl using Chocolatey. LuaJIT, the LuaRocks package manager and Turbo will be installed at C:\turbo.lua. It will also install LuaSocket and LuaFileSystem with LuaRocks. The Windows environment will be ready to use upon success. Try: ``luaijt C:\turbo.lua\src\turbo\examples\helloworld.lua``
+
+If any of the .dll or. so's are placed at non-default location then use environment variables to point to the correct place:
+
+E.g:
+``
+SET TURBO_LIBTFFI=C:\turbo.lua\src\turbo\libtffi_wrap.dll
+SET TURBO_LIBSSL=C:\Program Files\OpenSSL\libeay32.dll
+``
+
 Applies for Linux only:
 
 Turbo.lua can also be installed by the included Makefile. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
