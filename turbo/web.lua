@@ -598,24 +598,93 @@ end
 --                       ; US-ASCII characters excluding CTLs,
 --                       ; whitespace DQUOTE, comma, semicolon,
 --                       ; and backslash
+
+local EQUAL         = string.byte("=")
+local SEMICOLON     = string.byte(";")
+local SPACE         = string.byte(" ")
+local HTAB          = string.byte("\t")
+
+local function get_cookie_table(text_cookie)
+    if type(text_cookie) ~= "string" then
+        error(string.format("Expect text_cookie to be \"string\" but found %s",
+            type(text_cookie)))
+    end
+
+    local EXPECT_KEY    = 1
+    local EXPECT_VALUE  = 2
+    local EXPECT_SP     = 3
+
+    local n = 0
+    local len = #text_cookie
+
+    for i = 1, len do
+        if string.byte(text_cookie, i) == SEMICOLON then
+            n = n + 1
+        end
+    end
+
+    local cookie_table  = {}
+
+    local state = EXPECT_SP
+    local i = 1
+    local j = 1
+    local key, value
+
+    while j <= len do
+        if state == EXPECT_KEY then
+            if string.byte(text_cookie, j) == EQUAL then
+                key = string.sub(text_cookie, i, j - 1)
+                state = EXPECT_VALUE
+                i = j + 1
+            end
+        elseif state == EXPECT_VALUE then
+            if string.byte(text_cookie, j) == SEMICOLON
+                    or string.byte(text_cookie, j) == SPACE
+                    or string.byte(text_cookie, j) == HTAB
+            then
+                value = string.sub(text_cookie, i, j - 1)
+                cookie_table[escape.unescape(key)] = escape.unescape(value)
+
+                key, value = nil, nil
+                state = EXPECT_SP
+                i = j + 1
+            end
+        elseif state == EXPECT_SP then
+            if string.byte(text_cookie, j) ~= SPACE
+                and string.byte(text_cookie, j) ~= HTAB
+            then
+                state = EXPECT_KEY
+                i = j
+                j = j - 1
+            end
+        end
+        j = j + 1
+    end
+
+    if key ~= nil and value == nil then
+        cookie_table[escape.unescape(key)] = escape.unescape(
+            string.sub(text_cookie, i))
+    end
+
+    return cookie_table
+end
+
 function web.RequestHandler:_parse_cookies()
-    local cookies = {}
     local cookie_str, cnt = self.request.headers:get("Cookie")
     local rfc6265pat = '%s*([%w]+)="*([%w%p]+[^%s%;^%,^%\\%"])%s*'
     self._cookies_parsed = true
-    self._cookies = cookies
     if cnt == 0 then
+        self._cookies = {}
         return
     elseif cnt == 1 then
-        for key, value in cookie_str:gmatch(rfc6265pat) do
-            cookies[escape.unescape(key)] = escape.unescape(value)
-        end
+        self._cookies = get_cookie_table(cookie_str)
     elseif cnt > 1 then
+        self._cookies = {}
         for i = 1, cnt do
-            for key, value in
-                cookie_str[i]:gmatch(rfc6265pat) do
-                cookies[escape.unescape(key)] = escape.unescape(value)
-            end
+            self._cookies = util.tablemerge(
+                self._cookies,
+                get_cookie_table(cookie_str[i])
+            )
         end
     end
 end
