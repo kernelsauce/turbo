@@ -114,7 +114,7 @@ install:
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	cd $(TEST_DIR) && busted run_all_test.lua
+	busted
 	luajit examples/helloworld.lua &
 	sleep 1
 	wget http://127.0.0.1:8888/
