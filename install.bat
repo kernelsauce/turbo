@@ -12,7 +12,6 @@ cd src
 
 git clone https://github.com/kernelsauce/turbo.git
 cd C:\turbo.lua\src\turbo
-git checkout luasocket
 mingw32-make SSL=none
 mv libtffi_wrap.so libtffi_wrap.dll
 setx TURBO_LIBTFFI "C:\turbo.lua\src\turbo\libtffi_wrap.dll" /M
