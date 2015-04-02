@@ -18,8 +18,8 @@ CP_R= cp -r
 LDCONFIG= ldconfig -n
 PREFIX ?= /usr/local
 
-MAJVER=  1
-MINVER=  1
+MAJVER=  2
+MINVER=  0
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
