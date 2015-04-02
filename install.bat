@@ -36,7 +36,8 @@ SET LUA_CPATH=C:\turbo.lua\rocks\lib\lua\5.1\?.dll
 setx LUA_PATH "%LUA_PATH%" /M
 setx LUA_CPATH "%LUA_CPATH%" /M
 call install.bat /TREE C:\turbo.lua\rocks\ /P C:\turbo.lua\luarocks\ /INC C:\turbo.lua\src\luajit-2.0\src /LIB C:\turbo.lua\src\luajit-2.0\src /LUA C:\turbo.lua /Q
-call luarocks install luasocket luafilesystem
+call luarocks install luasocket
+call luarocks install luafilesystem
 
 cd %CURRENT_PATH_PREINSTALL%
 echo ===========================
