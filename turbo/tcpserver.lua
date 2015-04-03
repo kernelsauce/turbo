@@ -19,6 +19,7 @@
 local log =         require "turbo.log"
 local util =        require "turbo.util"
 local iostream =    require "turbo.iostream"
+local platform =    require "turbo.platform"
 local ioloop =      require "turbo.ioloop"
 local socket =      require "turbo.socket_ffi"
 local sockutil =    require "turbo.sockutil"
@@ -177,10 +178,21 @@ end
 function tcpserver.TCPServer:stop()
     for _, fd in ipairs(self._sockets) do
        self.io_loop:remove_handler(fd)
-       assert(C.close(fd) == 0, "Failed to close socket.")
+       self:_close(fd)
     end
     self._sockets = {}
 end
+
+if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+    function tcpserver.TCPServer:_close(fd)
+        assert(C.close(fd) == 0, "Failed to close socket.")
+    end
+else
+    function tcpserver.TCPServer:_close(fd)
+        assert(fd:close())
+    end
+end
+
 
 --- Internal function for wrapping new raw sockets in a IOStream class instance.
 -- @param connection (Number) Client socket fd.

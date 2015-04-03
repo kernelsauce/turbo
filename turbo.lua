@@ -63,12 +63,12 @@ local turbo = {}  -- turbo main namespace.
 -- added in a backwards compatible way, the minor version is incremented and
 -- the micro version is set to zero. When there are backwards incompatible
 -- changes, the major version is incremented and others are set to zero.
-turbo.MAJOR_VERSION = 1
-turbo.MINOR_VERSION = 1
+turbo.MAJOR_VERSION = 2
+turbo.MINOR_VERSION = 0
 turbo.MICRO_VERSION = 0
 -- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for
 -- version 1.2.1 and 0x010300 for version 1.3.
-turbo.VERSION_HEX = 0x010100
+turbo.VERSION_HEX = 0x020000
 if turbo.MICRO_VERSION then
     turbo.VERSION = string.format("%d.%d.%d",
         turbo.MAJOR_VERSION,
@@ -81,23 +81,23 @@ else
 end
 
 if not jit then
-	_G.__TURBO_NO_JIT__ = true
+    _G.__TURBO_NO_JIT__ = true
 end
 assert(pcall(require, "ffi"), "No FFI or compatible library available.")
 assert(pcall(require, "bit") or pcall(require, "bit32"),
-	"No bit or compatible library available")
-turbo.platform =		require "turbo.platform"
+    "No bit or compatible library available")
+turbo.platform =        require "turbo.platform"
 turbo.log =             require "turbo.log"
 if not turbo.platform.__LINUX__ then
-	turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
-	if not pcall(require, "socket") then
-		turbo.log.error("Could not load LuaSocket. Aborting.")
-	end
-	_G.__TURBO_USE_LUASOCKET__ = true
+    turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
+    if not pcall(require, "socket") then
+        turbo.log.error("Could not load LuaSocket. Aborting.")
+    end
+    _G.__TURBO_USE_LUASOCKET__ = true
 elseif _G.__TURBO_USE_LUASOCKET__ then
-	turbo.log.warning(
-		"_G.__TURBO_USE_LUASOCKET__ set,"..
-		" using LuaSocket (degraded performance).")
+    turbo.log.warning(
+        "_G.__TURBO_USE_LUASOCKET__ set,"..
+        " using LuaSocket (degraded performance).")
 end
 turbo.ioloop =          require "turbo.ioloop"
 turbo.escape =          require "turbo.escape"
@@ -116,10 +116,10 @@ turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash =            require "turbo.hash"
 if turbo.platform.__LINUX__ then
-	turbo.inotify =         require "turbo.inotify"
-	turbo.fs =              require "turbo.fs"
-	turbo.signal =          require "turbo.signal"
-	turbo.syscall =         require "turbo.syscall"
+    turbo.inotify =         require "turbo.inotify"
+    turbo.fs =              require "turbo.fs"
+    turbo.signal =          require "turbo.signal"
+    turbo.syscall =         require "turbo.syscall"
 end
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"

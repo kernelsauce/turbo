@@ -14,6 +14,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+_G.__TURBO_USE_LUASOCKET__ = os.getenv("TURBO_USE_LUASOCKET") and true or false
 _G.TURBO_SSL = true
 local turbo = require "turbo"
 math.randomseed(turbo.util.gettimeofday())
@@ -350,6 +351,7 @@ describe("turbo.web Namespace", function()
                 io:close()
             end)
             io:wait(5)
+        end)
 
         it("Should not accept big headers.", function() 
             local port = math.random(10000,40000)
@@ -381,8 +383,6 @@ describe("turbo.web Namespace", function()
             end)
             io:start()
             assert.equal(true, timedout)
-
-        end)
 
         end)
 

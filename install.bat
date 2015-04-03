@@ -12,7 +12,6 @@ cd src
 
 git clone https://github.com/kernelsauce/turbo.git
 cd C:\turbo.lua\src\turbo
-git checkout luasocket
 mingw32-make SSL=none
 mv libtffi_wrap.so libtffi_wrap.dll
 setx TURBO_LIBTFFI "C:\turbo.lua\src\turbo\libtffi_wrap.dll" /M
@@ -37,7 +36,8 @@ SET LUA_CPATH=C:\turbo.lua\rocks\lib\lua\5.1\?.dll
 setx LUA_PATH "%LUA_PATH%" /M
 setx LUA_CPATH "%LUA_CPATH%" /M
 call install.bat /TREE C:\turbo.lua\rocks\ /P C:\turbo.lua\luarocks\ /INC C:\turbo.lua\src\luajit-2.0\src /LIB C:\turbo.lua\src\luajit-2.0\src /LUA C:\turbo.lua /Q
-call luarocks install luasocket luafilesystem
+call luarocks install luasocket
+call luarocks install luafilesystem
 
 cd %CURRENT_PATH_PREINSTALL%
 echo ===========================

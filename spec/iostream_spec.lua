@@ -14,6 +14,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.   
 
+_G.__TURBO_USE_LUASOCKET__ = os.getenv("TURBO_USE_LUASOCKET") and true or false
 local turbo = require 'turbo'
 math.randomseed(turbo.util.gettimeofday())
 
@@ -192,7 +193,7 @@ describe("turbo.iostream Namespace", function()
             local data = false
             local bytes = turbo.structs.buffer()
 
-            for i = 1, 1024*1024*80 do
+            for i = 1, 1024*1024*8 do
                 bytes:append_luastr_right(string.char(math.random(1, 128)))
             end
             bytes:append_luastr_right(delim)
@@ -238,7 +239,7 @@ describe("turbo.iostream Namespace", function()
                     end), 0)
             end)
             
-            io:wait(30)
+            io:wait(60)
             srv:stop()
             assert.falsy(failed)
             assert.truthy(connected)

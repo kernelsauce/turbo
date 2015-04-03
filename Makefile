@@ -18,8 +18,8 @@ CP_R= cp -r
 LDCONFIG= ldconfig -n
 PREFIX ?= /usr/local
 
-MAJVER=  1
-MINVER=  1
+MAJVER=  2
+MINVER=  0
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
@@ -114,7 +114,7 @@ install:
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	cd $(TEST_DIR) && busted run_all_test.lua
+	busted
 	luajit examples/helloworld.lua &
 	sleep 1
 	wget http://127.0.0.1:8888/
