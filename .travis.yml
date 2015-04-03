@@ -28,9 +28,7 @@ install:
   - sudo -E make install
 
 script:
-  - if [ $USE_LUASOCKET = "yes" ]; then
-      export TURBO_USE_LUASOCKET=1
-    fi
+  - if [[ $USE_LUASOCKET == "yes" ]]; then export TURBO_USE_LUASOCKET=1; fi
   - make test
 
 notifications:
