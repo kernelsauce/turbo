@@ -93,8 +93,9 @@ end
 
 function iosimple.IOSimple:_wake_yield_close(...)
     if self.coctx then
-        ctx:set_arguments({nil, "disconnected"})
-        ctx:finalize_context()  
+        self.coctx:set_arguments({nil, "disconnected"})
+        self.coctx:finalize_context()
+        self.coctx = nil
     end
 end
 
