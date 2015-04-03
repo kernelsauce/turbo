@@ -25,16 +25,19 @@ local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
 local iostream =	require "turbo.iostream"
 local platform =    require "turbo.platform"
+local async =		require "turbo.async"
 local bit =         jit and require "bit" or require "bit32"
 local ffi =         require "ffi"
 
 local iosimple = {} -- iosimple namespace
 
-function iosimple.dial(address)
+function iosimple.dial(address, io)
 	assert(type(address) == "string", "No address in call to dial.")
 	local protocol, host, port = address:match("^(%a+)://(.+)")
-	print(protocol,host,port)
-	assert(protocol and host, "Invalid address. Use e.g \"tcp://turbolua.org:8080\".")
+
+	assert(
+		protocol and host,
+		"Invalid address. Use e.g \"tcp://turbolua.org:8080\".")
 
 	local sock_t
 	local address_family
@@ -59,6 +62,65 @@ function iosimple.dial(address)
         error("Could not create socket.")
     end
     local stream = iostream.IOStream(host)
+    local ctx = coctx.CoroutineContext(io)
+    
+    stream:connect(host, port, address_family, 
+    	function()
+    		ctx:set_argument({1})
+    		ctx:finalize_context()
+		end,
+		function(err)
+			ctx:set_argument({0, sockerr, strerr})
+			ctx:finalize_context()
+    	end
+    )
+    local rc, sockerr, strerr = coroutine.yield(ctx)
+    if rc ~= 0 then
+    	error(string.format("Could not connect to %s, %s", address, strerr))
+    end
+    return iosimple.IOSimple(stream)
+end
+
+iosimple.IOSimple = class("IOSimple")
+
+function iosimple.IOSimple:initialize(stream, io)
+	self.stream = stream
+	self.io = io
+end
+
+function iosimple.IOSimple:_wake_yield(...)
+	local ctx = self.coctx
+	self.coctx = nil
+	ctx:set_argument({...})
+	ctx:finalize_context()
+end
+
+function iosimple.IOSimple:write(str)
+	assert(not self.coctx, "IOSimple is already working.")
+	self.coctx = coctx.CoroutineContext(self.io)
+	self.iostream:write(str, self._wake_yield, self)
+	return coroutine.yield(self.coctx)
+end
+
+function iosimple.IOSimple:read_until(delimiter)
+	assert(not self.coctx, "IOSimple is already working.")
+	self.coctx = coctx.CoroutineContext(self.io)
+	self.iostream:read_until(delimiter, self._wake_yield, self)
+	return coroutine.yield(self.coctx)
+end
+
+function iosimple.IOSimple:read_until_pattern(pattern)
+	assert(not self.coctx, "IOSimple is already working.")
+	self.coctx = coctx.CoroutineContext(self.io)
+	self.iostream:read_until_pattern(pattern, self._wake_yield, self)
+	return coroutine.yield(self.coctx)
+end
+
+function iosimple.IOSimple:read_until_close(pattern)
+	assert(not self.coctx, "IOSimple is already working.")
+	self.coctx = coctx.CoroutineContext(self.io)
+	self.iostream:read_until_close(self._wake_yield, self)
+	return coroutine.yield(self.coctx)
 end
 
 return iosimple
