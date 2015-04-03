@@ -37,7 +37,7 @@ end
 
 --- Check whether a given path is directory
 function fs.is_file(path)
-    buf = fs.stat(path, nil)
+    local buf = fs.stat(path, nil)
     if bit.band(buf.st_mode, syscall.S_IFREG) == syscall.S_IFREG then
         return true
     else
@@ -47,7 +47,7 @@ end
 
 --- Check whether a given path is directory
 function fs.is_dir(path)
-    buf = fs.stat(path, nil)
+    local buf = fs.stat(path, nil)
     if bit.band(buf.st_mode, syscall.S_IFDIR) == syscall.S_IFDIR then
         return true
     else
