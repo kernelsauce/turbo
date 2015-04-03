@@ -24,39 +24,39 @@ local coctx =       require "turbo.coctx"
 local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
-local iostream =	require "turbo.iostream"
+local iostream =    require "turbo.iostream"
 local platform =    require "turbo.platform"
-local async =		require "turbo.async"
+local async =       require "turbo.async"
 local bit =         jit and require "bit" or require "bit32"
 local ffi =         require "ffi"
 
 local iosimple = {} -- iosimple namespace
 
 function iosimple.dial(address, io)
-	assert(type(address) == "string", "No address in call to dial.")
-	local protocol, host, port = address:match("^(%a+)://(.+):(%d+)")
-	port = tonumber(port)
-	assert(
-		protocol and host,
-		"Invalid address. Use e.g \"tcp://turbolua.org:8080\".")
+    assert(type(address) == "string", "No address in call to dial.")
+    local protocol, host, port = address:match("^(%a+)://(.+):(%d+)")
+    port = tonumber(port)
+    assert(
+        protocol and host,
+        "Invalid address. Use e.g \"tcp://turbolua.org:8080\".")
 
-	io = io or ioloop.instance()
-	local sock_t
-	local address_family
-	if protocol == "tcp" then
-		sock_t = socket.SOCK_STREAM
-		address_family = socket.AF_INET
-	elseif protocol == "udp" then
-		sock_t = socket.SOCK_DGRAM
-		address_family = socket.AF_INET
-	elseif protocol == "unix" then
-		sock_t = socket.SOCK_STREAM
-		address_family = socket.AF_UNIX
-	else
-		error("Unknown schema: " .. protocol)
-	end
+    io = io or ioloop.instance()
+    local sock_t
+    local address_family
+    if protocol == "tcp" then
+        sock_t = socket.SOCK_STREAM
+        address_family = socket.AF_INET
+    elseif protocol == "udp" then
+        sock_t = socket.SOCK_DGRAM
+        address_family = socket.AF_INET
+    elseif protocol == "unix" then
+        sock_t = socket.SOCK_STREAM
+        address_family = socket.AF_UNIX
+    else
+        error("Unknown schema: " .. protocol)
+    end
 
-	local sock, msg = socket.new_nonblock_socket(
+    local sock, msg = socket.new_nonblock_socket(
          address_family,
          sock_t,
          0)
@@ -67,18 +67,18 @@ function iosimple.dial(address, io)
     local ctx = coctx.CoroutineContext(io)
     
     stream:connect(host, port, address_family, 
-    	function()
-    		ctx:set_arguments({true})
-    		ctx:finalize_context()
-		end,
-		function(err)
-			ctx:set_arguments({false, sockerr, strerr})
-			ctx:finalize_context()
-    	end
+        function()
+            ctx:set_arguments({true})
+            ctx:finalize_context()
+        end,
+        function(err)
+            ctx:set_arguments({false, sockerr, strerr})
+            ctx:finalize_context()
+        end
     )
     local rc, sockerr, strerr = coroutine.yield(ctx)
     if rc ~= true then
-    	error(string.format("Could not connect to %s, %s", address, strerr))
+        error(string.format("Could not connect to %s, %s", address, strerr))
     end
     return iosimple.IOSimple(stream, io)
 end
@@ -86,62 +86,62 @@ end
 iosimple.IOSimple = class("IOSimple")
 
 function iosimple.IOSimple:initialize(stream, io)
-	self.stream = stream
-	self.io = io
-	self.stream:set_close_callback(self._wake_yield_close, self)
+    self.stream = stream
+    self.io = io
+    self.stream:set_close_callback(self._wake_yield_close, self)
 end
 
 function iosimple.IOSimple:_wake_yield_close(...)
-	if self.coctx then
-		ctx:set_arguments({nil, "disconnected"})
-		ctx:finalize_context()	
-	end
+    if self.coctx then
+        ctx:set_arguments({nil, "disconnected"})
+        ctx:finalize_context()  
+    end
 end
 
 function iosimple.IOSimple:_wake_yield(...)
-	local ctx = self.coctx
-	self.coctx = nil
-	ctx:set_arguments({...})
-	ctx:finalize_context()
+    local ctx = self.coctx
+    self.coctx = nil
+    ctx:set_arguments({...})
+    ctx:finalize_context()
 end
 
 function iosimple.IOSimple:close(str)
-	self.stream:close()
+    self.stream:close()
 end
 
 function iosimple.IOSimple:write(str)
-	assert(not self.coctx, "IOSimple is already working.")
-	self.coctx = coctx.CoroutineContext(self.io)
-	self.stream:write(str, self._wake_yield, self)
-	return coroutine.yield(self.coctx)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:write(str, self._wake_yield, self)
+    return coroutine.yield(self.coctx)
 end
 
 function iosimple.IOSimple:read_until(delimiter)
-	assert(not self.coctx, "IOSimple is already working.")
-	self.coctx = coctx.CoroutineContext(self.io)
-	self.stream:read_until(delimiter, self._wake_yield, self)
-	return coroutine.yield(self.coctx)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_until(delimiter, self._wake_yield, self)
+    return coroutine.yield(self.coctx)
 end
 
 function iosimple.IOSimple:read_bytes(bytes)
-	assert(not self.coctx, "IOSimple is already working.")
-	self.coctx = coctx.CoroutineContext(self.io)
-	self.stream:read_bytes(bytes, self._wake_yield, self)
-	return coroutine.yield(self.coctx)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_bytes(bytes, self._wake_yield, self)
+    return coroutine.yield(self.coctx)
 end
 
 function iosimple.IOSimple:read_until_pattern(pattern)
-	assert(not self.coctx, "IOSimple is already working.")
-	self.coctx = coctx.CoroutineContext(self.io)
-	self.stream:read_until_pattern(pattern, self._wake_yield, self)
-	return coroutine.yield(self.coctx)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_until_pattern(pattern, self._wake_yield, self)
+    return coroutine.yield(self.coctx)
 end
 
 function iosimple.IOSimple:read_until_close()
-	assert(not self.coctx, "IOSimple is already working.")
-	self.coctx = coctx.CoroutineContext(self.io)
-	self.stream:read_until_close(self._wake_yield, self)
-	return coroutine.yield(self.coctx)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_until_close(self._wake_yield, self)
+    return coroutine.yield(self.coctx)
 end
 
 return iosimple
