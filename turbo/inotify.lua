@@ -44,6 +44,15 @@ inotify.IN_DELETE        = 0x00000200     -- Subfile was deleted.
 inotify.IN_DELETE_SELF   = 0x00000400     -- Self was deleted.
 inotify.IN_MOVE_SELF     = 0x00000800     -- Self was moved.
 
+--- Provide human readable error description in case of failure
+local function check_error(ret, path)
+    if ret == -1 then
+        local ern = ffi.errno()
+        local err = ffi.string(ffi.C.strerror(ern))
+        error(string.format("%s (%d) on %s", err, ern, path))
+    end
+end
+
 --- Create a new inotify instance
 function inotify:new()
     self.fd = ffi.C.inotify_init()
@@ -60,7 +69,7 @@ end
 function inotify:watch_file(file_path)
     if fs.is_file(file_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
-        if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        check_error(wd, file_path)
         self.wd2name[wd] = file_path
         return true
     else
@@ -74,7 +83,7 @@ end
 function inotify:watch_dir(dir_path)
     if fs.is_dir(dir_path) then
         local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
-        if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+        check_error(wd, file_path)
         self.wd2name[wd] = dir_path
         return true
     else
@@ -90,7 +99,7 @@ function inotify:watch_all(path, ignore)
     if not ignore or not util.is_in(path, ignore) then
         if fs.is_dir(path) then
             local wd = ffi.C.inotify_add_watch(self.fd, path, self.IN_MODIFY)
-            if wd == -1 then error(ffi.string(ffi.C.strerror(ffi.errno()))) end
+            check_error(wd, path)
             self.wd2name[wd] = path
         end
         local ls = io.popen('ls "' .. path .. '"')
