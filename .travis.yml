@@ -29,7 +29,7 @@ install:
 
 script:
   - if [ $USE_LUASOCKET = "yes" ]; then
-      TURBO_USE_LUASOCKET=1
+      export TURBO_USE_LUASOCKET=1
     fi
   - make test
 
