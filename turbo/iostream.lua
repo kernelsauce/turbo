@@ -640,7 +640,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     end
 else
     function iostream.IOStream:_read_from_socket()
-        local errno
+        local errno, closed
         local buffer_left = self.max_buffer_size - self._read_buffer_size - 1
         if buffer_left == 0 then
             log.devel("Maximum read buffer size reached. Throttling read.")
@@ -675,7 +675,7 @@ else
                 -- without reporting error, but rather not accept further
                 -- reads or writes
                 self._luasocket_buf:append_luastr_right(partial)
-                self:close()
+                closed = true
                 break
             elseif err then
                 local fd = self.socket
@@ -689,7 +689,7 @@ else
         end
         if self._luasocket_buf:len() > 0 then
             local ptr, sz = self._luasocket_buf:get()
-            return ptr, sz
+            return ptr, sz, closed
         else
             return
         end
@@ -699,12 +699,15 @@ end
 --- Read from the socket and append to the read buffer.
 --  @return Amount of bytes appended to self._read_buffer.
 function iostream.IOStream:_read_to_buffer()
-    local ptr, sz = self:_read_from_socket()
+    local ptr, sz, closed = self:_read_from_socket()
     if not ptr then
         return 0
     end
     self._read_buffer:append_right(ptr, sz)
     self._read_buffer_size = self._read_buffer_size + sz
+    if closed then
+        self:close()
+    end
     if self._read_buffer_size >= self.max_buffer_size then
         log.error('Reached maximum read buffer size')
         self:close()
