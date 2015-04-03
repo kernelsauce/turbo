@@ -25,7 +25,8 @@ before_install:
 
 install:
   - sudo -E luarocks install busted
-  - if [[ $USE_LUASOCKET == "yes" ]]; then sudo -E luarocks install luasocket luafilesystem; fi
+  - if [[ $USE_LUASOCKET == "yes" ]]; then sudo -E luarocks install luasocket; fi
+  - if [[ $USE_LUASOCKET == "yes" ]]; then sudo -E luarocks install luafilesystem; fi
   - sudo -E make install
 
 script:
