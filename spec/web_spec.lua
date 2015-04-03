@@ -350,6 +350,7 @@ describe("turbo.web Namespace", function()
                 io:close()
             end)
             io:wait(5)
+        end)
 
         it("Should not accept big headers.", function() 
             local port = math.random(10000,40000)
@@ -381,8 +382,6 @@ describe("turbo.web Namespace", function()
             end)
             io:start()
             assert.equal(true, timedout)
-
-        end)
 
         end)
 

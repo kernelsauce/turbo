@@ -1186,7 +1186,7 @@ function web.Application:__call(request)
                     request,
                     err.code,
                     err.message)
-            else
+            elseif type(err) == "string" then
                 local trace = debug.traceback()
                 log.error("[web.lua] " .. err)
                 log.stacktrace(trace)
@@ -1194,6 +1194,11 @@ function web.Application:__call(request)
                     request,
                     500,
                     string.format("<pre>%s\n%s\n</pre>", err, trace))
+            else
+                local trace = debug.traceback()
+                log.error("[web.lua] Unknown error.")
+                log.dump(err)
+                log.stacktrace(trace)
             end
         end
     elseif not handlers and self.default_host then

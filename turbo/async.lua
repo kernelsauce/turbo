@@ -424,7 +424,7 @@ function async.HTTPClient:_prepare_http_request()
         if type(self.kwargs.cookie) == "table" then
             local cookie_str = ""
             for k,v in pairs(self.kwargs.cookie) do
-                cookie_str = cookie_str .. string.format("%s=\"%s\"; ", k, v)
+                cookie_str = cookie_str .. string.format("%s=%s; ", k, v)
             end
             self.headers:add("Cookie", cookie_str)
         end
