@@ -18,21 +18,13 @@
 local ffi = require "ffi"
 local platform = require "turbo.platform"
 local socket = require "turbo.socket_ffi"
+local util = require "turbo.util"
 require "turbo.cdef"
 
 local crypto = {} -- crypto namespace
 
 local lssl = ffi.load(os.getenv("TURBO_LIBSSL") or "ssl")
-local libtffi_loaded, libtffi = pcall(
-    ffi.load, os.getenv("TURBO_LIBTFFI") or "tffi_wrap")
-if not libtffi_loaded then
-    libtffi_loaded, libtffi =
-        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not libtffi_loaded then
-        error("Could not load libtffi_wrap.so. \
-        Please run makefile and ensure that installation is done correct.")
-    end
-end
+local libtffi = util.load_libtffi()
 
 crypto.X509_FILETYPE_PEM =          1
 crypto.X509_FILETYPE_ASN1 =         2
