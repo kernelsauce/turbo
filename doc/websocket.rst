@@ -62,6 +62,13 @@ in ``turbo.websocket.WebSocketHandler`` and ``turbo.websocket.WebSocketClient``.
 	:type callback: Function
 	:param callback_arg: Argument for callback function.
 
+.. function:: WebSocketStream:pong(data)
+
+	Send a pong to the connected server.
+
+	:param data: Data to pong back.
+	:type data: String
+
 .. function:: WebSocketStream:close()
 
 	Close the connection.
@@ -308,3 +315,13 @@ Description of the callback functions
 	:type code: Number
 	:param reason: String representation of error.
 	:type reason: String
+
+.. function:: on_ping(self, data)
+
+	Called when a ping request is recieved.
+
+	:param self: The WebSocketClient instance calling the callback.
+	:type self: turbo.websocket.WebSocketClient
+	:param data: The ping payload data.
+	:type data: String
+
