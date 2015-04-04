@@ -104,3 +104,9 @@ Misc
 	
 	:rtype: Number
 
+.. function:: gettimemonotonic()
+
+	Returns milliseconds since arbitraty start point, doesn't jump due to time changes.
+	
+	:rtype: Number
+
