@@ -285,8 +285,7 @@ function async.HTTPClient:_connect()
                 self.ssl_options.priv_key,
                 self.ssl_options.cert_key,
                 self.ssl_options.ca_path,
-                self.ssl_options.verify_ca ~= nil and
-                    self.ssl_options.verify_ca or true)
+                self.ssl_options.verify_ca)
             if rc ~= 0 then
                 self:_throw_error(errors.SSL_ERROR,
                     string.format("Could not create SSL context. %s",
@@ -312,8 +311,7 @@ function async.HTTPClient:_connect()
             self.hostname,
             self.port,
             self.family,
-            self.ssl_options.verify_ca ~= nil and
-                    self.ssl_options.verify_ca or true,
+            self.ssl_options.verify_ca,
             self._handle_connect,
             self._handle_connect_fail,
             self)
@@ -350,8 +348,7 @@ function async.HTTPClient:_connect()
                     self.ssl_options.priv_key,
                     self.ssl_options.cert_key,
                     self.ssl_options.ca_path,
-                    self.ssl_options.verify_ca ~= nil and
-                        self.ssl_options.verify_ca or true)
+                    self.ssl_options.verify_ca)
                 if rc ~= 0 then
                     self:_throw_error(errors.SSL_ERROR,
                         string.format("Could not create SSL context. %s",
@@ -373,8 +370,7 @@ function async.HTTPClient:_connect()
                 self.hostname,
                 self.port,
                 self.family,
-                self.ssl_options.verify_ca ~= nil and
-                        self.ssl_options.verify_ca or true,
+                self.ssl_options.verify_ca,
                 self._handle_connect,
                 self._handle_connect_fail,
                 self)
