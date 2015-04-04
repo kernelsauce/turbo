@@ -175,6 +175,11 @@ function websocket.WebSocketStream:write_message(msg, binary)
                      msg)
 end
 
+--- Send a pong reply to the server.
+function websocket.WebSocketStream:pong(data)
+    self:_send_frame(true, websocket.opcode.PONG, data)
+end
+
 --- Send a ping to the connected client.
 function websocket.WebSocketStream:ping(data, callback, callback_arg)
     self._ping_callback = callback
@@ -564,6 +569,7 @@ end
 --      on_headers =         function(self, header) end,
 --      on_connect =         function(self) end,
 --      on_close =           function(self) end,
+--      on_ping =            function(self, data) end,
 --      modify_headers =     function(header) end,
 --      request_timeout =    10,
 --      connect_timeout =    10,
@@ -764,7 +770,14 @@ function websocket.WebSocketClient:_handle_opcode(opcode, data)
     elseif opcode == websocket.opcode.CLOSE then
         self:close()
     elseif opcode == websocket.opcode.PING then
-        self:_send_frame(true, websocket.opcode.PONG, data)
+        if self.kwargs.on_ping then
+            self:_protected_call("on_ping", 
+                                 self.kwargs.on_ping, 
+                                 self, 
+                                 data)
+        else
+            self:pong(data)
+        end
     elseif opcode == websocket.opcode.PONG then
         if self._ping_callback then
             local callback = self._ping_callback
