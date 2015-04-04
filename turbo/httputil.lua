@@ -33,17 +33,7 @@ local escape =      require "turbo.escape"
 local util =        require "turbo.util"
 local platform =    require "turbo.platform"
 local ffi =         require "ffi"
-local ltp_loaded, libturbo_parser = pcall(
-    ffi.load, os.getenv("TURBO_LIBTFFI") or "tffi_wrap")
-if not ltp_loaded then
-    -- Check /usr/local/lib explicitly also.
-    ltp_loaded, libturbo_parser =
-        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not ltp_loaded then
-        error("Could not load libtffi_wrap.so. \
-            Please run makefile and ensure that installation is done correct.")
-    end
-end
+local libturbo_parser = util.load_libtffi()
 
 require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
