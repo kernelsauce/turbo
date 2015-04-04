@@ -361,7 +361,7 @@ function async.HTTPClient:_connect()
                 self.ssl_options._ssl_ctx = ctx_or_err
                 self.ssl_options._type = 1
             end
-            if not self.poron_headerst then
+            if not self.port then
                 self.port = 443
             end
             self.iostream = iostream.SSLIOStream(
