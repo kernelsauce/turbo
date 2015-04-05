@@ -45,6 +45,7 @@ build_script:
   - mingw32-make SSL=none
   - cp %APPVEYOR_BUILD_FOLDER%\libtffi_wrap.so %APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
+  - dir
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%
