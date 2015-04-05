@@ -48,10 +48,16 @@ build_script:
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
   - dir
 
+after_build:
+  - 7z a %APPVEYOR_BUILD_FOLDER%\turbolua.zip %TURBO_ROOT%
+
 artifacts:
   - path: libtffi_wrap.dll
     name: libtffi_wrap.dll
+    
+  - path: turbolua.zip
+    name: turbolua.zip
 
-test_script:
-  - cd %APPVEYOR_BUILD_FOLDER%
-  - busted
+#test_script:
+#  - cd %APPVEYOR_BUILD_FOLDER%
+#  - busted
