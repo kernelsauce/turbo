@@ -122,6 +122,9 @@ function turbovisor.restart(self, fd, events)
         full_path = path .. '/' .. ffi.string(self.buf.name)
         if path == '.' then full_path = ffi.string(self.buf.name) end
     end
+
+    turbo.inotify:rewatch_if_ignored(self.buf, full_path)
+
     -- Simply return if we need to ignore the file
     if turbo.util.is_in(full_path, self.arg_tbl.ignore) then
         return
