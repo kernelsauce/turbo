@@ -49,4 +49,4 @@ build_script:
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%
-  #- busted
+  - busted
