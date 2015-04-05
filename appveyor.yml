@@ -27,7 +27,7 @@ install:
   - call msvcbuild
   - cp luajit.exe %TURBO_ROOT%
   - cp lua51.dll %TURBO_ROOT%
-  - SET LUA_PATH=%TURBO_ROOT%\rocks\share\lua\5.1\?.lua;%TURBO_ROOT%\rocks\share\lua\5.1\?\init.lua;%TURBO_ROOT%\src\turbo\?.lua;%TURBO_ROOT%\src\turbo\turbo\?.lua
+  - SET LUA_PATH=%TURBO_ROOT%\rocks\share\lua\5.1\?.lua;%TURBO_ROOT%\rocks\share\lua\5.1\?\init.lua;%APPVEYOR_BUILD_FOLDER%\?.lua;%APPVEYOR_BUILD_FOLDER%\turbo\?.lua
   - SET LUA_CPATH=%TURBO_ROOT%\rocks\lib\lua\5.1\?.dll
   # Install LuaRocks from github head.
   - cd C:\turbo.lua\src
