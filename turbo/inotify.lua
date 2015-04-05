@@ -82,8 +82,8 @@ end
 -- @return true if watch successfully, false otherwise
 function inotify:watch_dir(dir_path)
     if fs.is_dir(dir_path) then
-        local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
-        check_error(wd, file_path)
+        local wd = ffi.C.inotify_add_watch(self.fd, dir_path, self.IN_MODIFY)
+        check_error(wd, dir_path)
         self.wd2name[wd] = dir_path
         return true
     else
