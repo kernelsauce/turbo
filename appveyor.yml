@@ -52,6 +52,6 @@ artifacts:
   - path: libtffi_wrap.dll
     name: libtffi_wrap.dll
 
-#test_script:
-#  - cd %APPVEYOR_BUILD_FOLDER%
-#  - busted
+test_script:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - busted
