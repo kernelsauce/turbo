@@ -114,6 +114,23 @@ function inotify:watch_all(path, ignore)
     end
 end
 
+--- Remove watch previously added using watch_* functions.
+-- @param path_or_wd valid relative path, absolute path or wd (watch descriptor)
+function inotify:watch_remove(path_or_wd)
+    local typ = type(path_or_wd)
+    if typ == 'number' then
+        ffi.C.inotify_rm_watch(self.fd, path_or_wd)
+        self.wd2name[path_or_wd] = nil
+    elseif typ == 'string' then
+        for wd, name in pairs(self.wd2name) do
+            if name == path_or_wd then
+                ffi.C.inotify_rm_watch(self.fd, wd)
+                self.wd2name[wd] = nil
+            end
+        end
+    end
+end
+
 --- Return file name from corresponding file descriptor, for
 -- currently watched file
 -- @param wd file descriptor
