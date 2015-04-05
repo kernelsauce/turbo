@@ -13,8 +13,9 @@ environment:
 #cache:
 
 init:
+  - choco install mingw
   - '"C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" %platform%'
-  - SET PATH=%PATH%;C:\MinGW\bin;%TURBO_ROOT%;%TURBO_ROOT%\luarocks\2.2;%TURBO_ROOT%\rocks\bin;
+  - SET PATH=%PATH%;C:\tools\mingw64\bin;%TURBO_ROOT%;%TURBO_ROOT%\luarocks\2.2;%TURBO_ROOT%\rocks\bin;
 
 install:
   - cd %APPVEYOR_BUILD_FOLDER%
