@@ -25,7 +25,7 @@ local GithubFeed = class("GithubFeed", turbo.web.RequestHandler)
 
 function GithubFeed:get(search)
     local res = yield(
-        turbo.async.HTTPClient():fetch("https://api.github.com/repos/kernelsauce/turbo"), {verify=true})
+        turbo.async.HTTPClient():fetch("https://api.github.com/repos/kernelsauce/turbo"))
     
     if res.error or res.headers:get_status_code() ~= 200 then
         -- Check for errors.

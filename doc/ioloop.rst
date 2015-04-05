@@ -83,7 +83,7 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         Add a timeout with function to be called in future. There is given no gurantees that the function will be called
         on time. See the note at beginning of this section.
         
-        :param timestamp: A timestamp in msec granularity. See ``turbo.util.gettimeofday()``.
+        :param timestamp: Timestamp when to call function, based on Unix CLOCK_MONOTONIC time in milliseconds precision. E.g util.gettimemonotonic() + 3000 will timeout in 3 seconds. See ``turbo.util.gettimemonotonic()``.
         :type timestamp: Number
         :param func: A function to be called after timestamp is reached.
         :type func: Function

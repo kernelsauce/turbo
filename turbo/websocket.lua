@@ -41,15 +41,7 @@ local web =             require "turbo.web"
 local async =           require "turbo.async"
 local buffer =          require "turbo.structs.buffer"
 require('turbo.3rdparty.middleclass')
-local ltp_loaded, libturbo_parser = pcall(ffi.load, "libtffi_wrap.dll")
-if not ltp_loaded then
-    -- Check /usr/local/lib explicitly also.
-    ltp_loaded, libturbo_parser =
-        pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
-    if not ltp_loaded then
-        error("Could not load libtffi_wrap.so.")
-    end
-end
+local libturbo_parser = util.load_libtffi()
 local le = ffi.abi("le")
 local be = not le
 local strf = string.format
@@ -173,6 +165,11 @@ function websocket.WebSocketStream:write_message(msg, binary)
                      binary and
                         websocket.opcode.BINARY or websocket.opcode.TEXT,
                      msg)
+end
+
+--- Send a pong reply to the server.
+function websocket.WebSocketStream:pong(data)
+    self:_send_frame(true, websocket.opcode.PONG, data)
 end
 
 --- Send a ping to the connected client.
@@ -564,6 +561,7 @@ end
 --      on_headers =         function(self, header) end,
 --      on_connect =         function(self) end,
 --      on_close =           function(self) end,
+--      on_ping =            function(self, data) end,
 --      modify_headers =     function(header) end,
 --      request_timeout =    10,
 --      connect_timeout =    10,
@@ -764,7 +762,14 @@ function websocket.WebSocketClient:_handle_opcode(opcode, data)
     elseif opcode == websocket.opcode.CLOSE then
         self:close()
     elseif opcode == websocket.opcode.PING then
-        self:_send_frame(true, websocket.opcode.PONG, data)
+        if self.kwargs.on_ping then
+            self:_protected_call("on_ping", 
+                                 self.kwargs.on_ping, 
+                                 self, 
+                                 data)
+        else
+            self:pong(data)
+        end
     elseif opcode == websocket.opcode.PONG then
         if self._ping_callback then
             local callback = self._ping_callback

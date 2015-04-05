@@ -1154,7 +1154,7 @@ if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
         self._ssl_connect_errhandler = errhandler
         self._ssl_connect_callback_arg = arg
         self._ssl_hostname = address
-        self._ssl_verify = verify
+        self._ssl_verify = verify == nil and true or verify
         return iostream.IOStream.connect(self,
             address,
             port,
@@ -1421,7 +1421,7 @@ elseif _G.TURBO_SSL then
         self._ssl_connect_errhandler = errhandler
         self._ssl_connect_callback_arg = arg
         self._ssl_hostname = address
-        self._ssl_verify = verify
+        self._ssl_verify = verify == nil and true or verify
         return iostream.IOStream.connect(self,
             address,
             port,
