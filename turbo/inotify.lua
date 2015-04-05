@@ -44,6 +44,9 @@ inotify.IN_DELETE        = 0x00000200     -- Subfile was deleted.
 inotify.IN_DELETE_SELF   = 0x00000400     -- Self was deleted.
 inotify.IN_MOVE_SELF     = 0x00000800     -- Self was moved.
 
+--- The following bits may be set in the mask field returned by read(2)
+inotify.IN_IGNORED       = 0x00008000     -- Watch was removed
+
 --- Provide human readable error description in case of failure
 local function check_error(ret, path)
     if ret == -1 then
@@ -128,6 +131,17 @@ function inotify:watch_remove(path_or_wd)
                 self.wd2name[wd] = nil
             end
         end
+    end
+end
+
+--- This helper function should add path to watch list again in case kernel
+-- starts ignoring it.
+-- @param event struct inotify_event*
+-- @param path must be a valid relative path or absolute path
+function inotify:rewatch_if_ignored(event, path)
+    if bit.band(event.mask, inotify.IN_IGNORED) == inotify.IN_IGNORED then
+        inotify:watch_remove(event.wd)
+        inotify:watch_file(path)
     end
 end
 
