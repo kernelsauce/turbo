@@ -47,6 +47,10 @@ build_script:
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
   - dir
 
-test_script:
-  - cd %APPVEYOR_BUILD_FOLDER%
-  - busted
+artifacts:
+  - path: libtffi_wrap.dll
+    name: libtffi_wrap.dll
+
+#test_script:
+#  - cd %APPVEYOR_BUILD_FOLDER%
+#  - busted
