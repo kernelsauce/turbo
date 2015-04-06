@@ -15,7 +15,11 @@
 -- limitations under the License.
 
 _G.__TURBO_USE_LUASOCKET__ = os.getenv("TURBO_USE_LUASOCKET") and true or false
-_G.TURBO_SSL = true
+local TEST_WITH_SSL = os.getenv("TURBO_TEST_SSL")
+if TEST_WITH_SSL then
+    _G.TURBO_SSL = true
+end
+
 local turbo = require "turbo"
 math.randomseed(turbo.util.gettimeofday())
 turbo.log.disable_all()
@@ -215,7 +219,9 @@ describe("turbo.web Namespace", function()
             end)
 
             io:wait(5)
-            assert.equal(closed, true)
+            if not _G.__TURBO_USE_LUASOCKET__ then
+                assert.equal(closed, true)
+            end
             turbo.log.categories.error = true
             turbo.log.categories.stacktrace = true
         end)
@@ -307,7 +313,8 @@ describe("turbo.web Namespace", function()
             io:wait(5)
 
         end)
-
+        
+        if TEST_WITH_SSL then
         it("Support multiple secure cookies.", function() 
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
@@ -352,6 +359,7 @@ describe("turbo.web Namespace", function()
             end)
             io:wait(5)
         end)
+        end
 
         it("Should not accept big headers.", function() 
             local port = math.random(10000,40000)

@@ -301,6 +301,7 @@ describe("turbo.iostream Namespace", function()
             assert.truthy(data)
         end)
 
+        if turbo.platform.__LINUX__ then
         it("IOStream:set_close_callback", function()
             local io = turbo.ioloop.IOLoop()
             local port = math.random(10000,40000)
@@ -360,7 +361,7 @@ describe("turbo.iostream Namespace", function()
                 closed = true
             end
             local srv = Server(io)
-            srv:listen(port)
+            srv:listen(port, "127.0.0.1")
 
             io:add_callback(function() 
                 -- Client
@@ -391,6 +392,7 @@ describe("turbo.iostream Namespace", function()
             assert.falsy(failed)
             assert.truthy(closed)
         end)
+        end
 
         it("IOStream:writing", function()
             local io = turbo.ioloop.instance()

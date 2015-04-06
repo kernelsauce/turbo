@@ -14,12 +14,15 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-_G.TURBO_SSL = true
-local turbo = require "turbo"
+local ffi = require "ffi"
+if pcall(ffi.load, "ssl") then
+	_G.TURBO_SSL = true
+	local turbo = require "turbo"
 
-describe("turbo.hash Namespace", function()
-    it("SHA1 class", function()
-    	local hash = turbo.hash.SHA1("lol")	
-    	assert.equal(hash:hex(), "403926033d001b5279df37cbbe5287b7c7c267fa")
-    end)
-end)
+	describe("turbo.hash Namespace", function()
+	    it("SHA1 class", function()
+	    	local hash = turbo.hash.SHA1("lol")	
+	    	assert.equal(hash:hex(), "403926033d001b5279df37cbbe5287b7c7c267fa")
+	    end)
+	end)
+end
