@@ -44,6 +44,9 @@ inotify.IN_DELETE        = 0x00000200     -- Subfile was deleted.
 inotify.IN_DELETE_SELF   = 0x00000400     -- Self was deleted.
 inotify.IN_MOVE_SELF     = 0x00000800     -- Self was moved.
 
+--- The following bits may be set in the mask field returned by read(2)
+inotify.IN_IGNORED       = 0x00008000     -- Watch was removed
+
 --- Provide human readable error description in case of failure
 local function check_error(ret, path)
     if ret == -1 then
@@ -82,8 +85,8 @@ end
 -- @return true if watch successfully, false otherwise
 function inotify:watch_dir(dir_path)
     if fs.is_dir(dir_path) then
-        local wd = ffi.C.inotify_add_watch(self.fd, file_path, self.IN_MODIFY)
-        check_error(wd, file_path)
+        local wd = ffi.C.inotify_add_watch(self.fd, dir_path, self.IN_MODIFY)
+        check_error(wd, dir_path)
         self.wd2name[wd] = dir_path
         return true
     else
@@ -111,6 +114,34 @@ function inotify:watch_all(path, ignore)
             end
         end
         ls:close()
+    end
+end
+
+--- Remove watch previously added using watch_* functions.
+-- @param path_or_wd valid relative path, absolute path or wd (watch descriptor)
+function inotify:watch_remove(path_or_wd)
+    local typ = type(path_or_wd)
+    if typ == 'number' then
+        ffi.C.inotify_rm_watch(self.fd, path_or_wd)
+        self.wd2name[path_or_wd] = nil
+    elseif typ == 'string' then
+        for wd, name in pairs(self.wd2name) do
+            if name == path_or_wd then
+                ffi.C.inotify_rm_watch(self.fd, wd)
+                self.wd2name[wd] = nil
+            end
+        end
+    end
+end
+
+--- This helper function should add path to watch list again in case kernel
+-- starts ignoring it.
+-- @param event struct inotify_event*
+-- @param path must be a valid relative path or absolute path
+function inotify:rewatch_if_ignored(event, path)
+    if bit.band(event.mask, inotify.IN_IGNORED) == inotify.IN_IGNORED then
+        inotify:watch_remove(event.wd)
+        inotify:watch_file(path)
     end
 end
 

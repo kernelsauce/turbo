@@ -69,11 +69,11 @@ LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
-	make -C deps/http-parser library
+	$(MAKE) -C deps/http-parser library
 	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
-	make -C deps/http-parser clean
+	$(MAKE) -C deps/http-parser clean
 	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
 
 uninstall:
