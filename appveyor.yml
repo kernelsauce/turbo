@@ -60,5 +60,9 @@ artifacts:
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%
-  - start luajit examples\helloworld.lua
+  - busted spec\web_spec.lua
+  - busted spec\httputil_spec.lua
+  - busted spec\async_spec.lua
+  - busted spec\structs_spec.lua
+  - busted spec\util_spec.lua
   - wget http://127.0.0.1:8888
