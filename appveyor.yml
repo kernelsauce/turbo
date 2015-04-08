@@ -60,4 +60,5 @@ artifacts:
 
 test_script:
   - cd %APPVEYOR_BUILD_FOLDER%
-  - busted
+  - luajit examples\helloworld.lua
+  - wget http://127.0.0.1:8888
