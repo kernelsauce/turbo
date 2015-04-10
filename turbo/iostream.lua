@@ -413,7 +413,7 @@ end
 -- Call close callback if set.
 function iostream.IOStream:close()
     if self.socket then
-        --log.devel("[iostream.lua] Closing socket " .. self.socket)
+        --log.devel("[iostream.lua] Closing socket " .. tostring(self.socket))
         if self._read_until_close then
             local callback = self._read_callback
             local arg = self._read_callback_arg
@@ -923,7 +923,7 @@ else
         local buf = ptr + self._write_buffer_offset
         -- Not very optimal to create a new string for LuaSocket.
         local num_bytes, err = self.socket:send(
-            ffi.string(buf, self._write_buffer_size))
+            ffi.string(buf, math.min(self._write_buffer_size, 1024*128)))
         if err then
             if err == "closed" then
                 log.warning(string.format(

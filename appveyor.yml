@@ -58,6 +58,10 @@ artifacts:
   - path: turbolua.zip
     name: turbolua.zip
 
-#test_script:
-#  - cd %APPVEYOR_BUILD_FOLDER%
-#  - busted
+test_script:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - busted spec\web_spec.lua
+  - busted spec\httputil_spec.lua
+  - busted spec\async_spec.lua
+  - busted spec\structs_spec.lua
+  - busted spec\util_spec.lua

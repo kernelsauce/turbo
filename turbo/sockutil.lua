@@ -254,7 +254,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
 else
     -- LuaSocket version.
     function sockutils.bind_sockets(port, address, backlog, family)
-        local sock = luasocket.bind(address or "localhost", port, backlog)
+        local sock = luasocket.bind(address or "127.0.0.1", port, backlog)
         sock:settimeout(0)
         return sock
     end
