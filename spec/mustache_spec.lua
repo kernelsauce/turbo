@@ -71,6 +71,6 @@ describe("turbo.web.Mustache Namespace", function()
                 {item="Milk"},
                 {item="Sugar"}
             }
-            }, false)
+            }, {disclaimer=[[Disclaimer for {{heading}}.]]})
     end)
 end)
