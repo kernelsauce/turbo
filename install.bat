@@ -1,7 +1,7 @@
 SET CURRENT_PATH_PREINSTALL=%CD%
 setx PATH "%PATH%;C:\turbo.lua;C:\turbo.lua\luarocks\2.2" /M
 @powershell -NoProfile -ExecutionPolicy unrestricted -Command "iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))" && SET PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin
-choco install visualstudio2013professional git mingw openssl.light gnuwin
+choco install -y visualstudio2013professional git mingw openssl.light gnuwin
 SET PATH=%PATH%;C:\Program Files (x86)\Git\cmd;C:\GnuWin\bin;C:\tools\mingw64\bin;C:\Program Files (x86)\Windows Kits\8.1\bin\x64;C:\turbo.lua;C:\turbo.lua\luarocks\2.2
 SET VS120COMNTOOLS=C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\Tools\
 rm -rf C:\turbo.lua
