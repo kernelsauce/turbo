@@ -65,3 +65,4 @@ test_script:
   - busted spec\async_spec.lua
   - busted spec\structs_spec.lua
   - busted spec\util_spec.lua
+  - busted spec\mustache_spec.lua
