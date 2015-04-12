@@ -170,7 +170,7 @@ function Mustache.compile(template)
         goto ret
     end
     while consumed < tsz do
-        if IS_WHITESPACE(temp[0]) then 
+        if IS_WHITESPACE(temp[0]) then
             if state == PTABLEKEY then
                 -- End of table key if whitespace directly after tablekey.
                 TABLE_KEY(vmtbl, mark, (temp - mark))
@@ -182,8 +182,8 @@ function Mustache.compile(template)
                 -- Check if section end is actually opened somewhere.
                 if not CHECK_TABLE_SEC(vmtbl, mark + 1, (temp - mark - 1)) then
                     error(string.format(
-                        "Trying to end section '%s', but it was never opened."),
-                    ffi.string(mark + 1, (temp - mark - 1)))
+                        "Trying to end section '%s', but it was never opened.",
+                    ffi.string(mark + 1, (temp - mark - 1))))
                 end
                 SECTION_END(vmtbl, mark + 1, (temp - mark - 1))
                 state = PNONE
@@ -194,8 +194,12 @@ function Mustache.compile(template)
                 SECTION_INVERTED(vmtbl, mark + 1, (temp - mark - 1))
                 state = PNONE
             elseif state == PPARTIAL then
-                PARTIAL_NAME(vmtbl, mark + 1, (temp - mark - 1))
-                state = PNONE
+                if mark + 1 == temp then
+                    mark = mark + 1
+                else
+                    PARTIAL_NAME(vmtbl, mark + 1, (temp - mark - 1))
+                    state = PNONE
+                end
             elseif state == PCOMMENT then
                 state = PNONE
             end
