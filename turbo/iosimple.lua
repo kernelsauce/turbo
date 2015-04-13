@@ -21,8 +21,8 @@
 --     local stream = turbo.iosimple.dial("tcp://turbolua.org:80")
 --     stream:write("GET / HTTP/1.0\r\n\r\n")
 --
---     local data, err = stream:read_until_close()
---     if not data then print(err) else print(data) end
+--     local data = stream:read_until_close()
+--     print(data)
 --
 --     turbo.ioloop.instance():close() 
 -- end):start()
