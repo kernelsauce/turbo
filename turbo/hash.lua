@@ -50,8 +50,8 @@ function hash.SHA1:initialize(str)
         lssl.SHA1(str, str:len(), self.md)
         self.final = true
     else
-        self.ctx = ffi.new("struct SHA_CTX")
-        assert(lssl.SHA1_Init(self.ctx) == 0, "Could not init SHA_CTX.")
+        self.ctx = ffi.new("SHA_CTX")
+        assert(lssl.SHA1_Init(self.ctx) == 1, "Could not init SHA_CTX.")
     end
 end
 
@@ -60,8 +60,8 @@ end
 function hash.SHA1:update(str)
     assert(self.ctx, "No SHA_CTX in object.")
     assert(not self.final,
-           "SHA_CTX already finaled. Please create a new context.")
-    assert(lssl.SHA1_Update(self.ctx, str, str:len()) == 0,
+           "SHA_CTX already finalized. Please create a new context.")
+    assert(lssl.SHA1_Update(self.ctx, str, str:len()) == 1,
            "Could not update SHA_CTX")
 end
 
@@ -74,7 +74,7 @@ function hash.SHA1:finalize()
     self.final = true
     assert(self.ctx, "No SHA_CTX in object.")
     self.md = ffi.new("unsigned char[?]", hash.SHA_DIGEST_LENGTH)
-    assert(lssl.SHA1_Final(self.md, self.ctx) == 0, "Could not final SHA_CTX.")
+    assert(lssl.SHA1_Final(self.md, self.ctx) == 1, "Could not final SHA_CTX.")
     return self.md
 end
 

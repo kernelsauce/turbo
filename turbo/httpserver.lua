@@ -234,7 +234,7 @@ function httpserver.HTTPConnection:_on_headers(data)
             content_length = tonumber(content_length)
             -- Set max buffer size to 128MB.
             self.stream:set_max_buffer_size(
-                self.kwargs.max_body_size or content_length)
+                self.kwargs.max_body_size or math.max(content_length, 1024*18))
             if content_length > self.stream.max_buffer_size then
                 log.error(
                     "[httpserver.lua] Content-Length too long \

@@ -71,6 +71,39 @@ describe("turbo.web.Mustache Namespace", function()
                 {item="Milk"},
                 {item="Sugar"}
             }
-            }, false)
+            }, {disclaimer=[[Disclaimer for {{heading}}.]]})
+    end)
+
+    it("Support no whitespace in partial operator.", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{>disclaimer}}",
+            {heading="My website"},
+            {disclaimer=[[Disclaimer for {{{heading}}}.]]}), "Disclaimer for My website.")
+    end)
+
+    it("Support whitespace in partial operator.", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{> disclaimer}}{{! Whitespace between operator and name.}}",
+            {heading="My website"},
+            {disclaimer=[[Disclaimer for {{{heading}}}.]]}), "Disclaimer for My website.")
+    end)
+
+    it("Support whitespace before middle and after partial operator.", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{  >   disclaimer   }}",
+            {heading="My website"},
+            {disclaimer=[[Disclaimer for {{{heading}}}.]]}), "Disclaimer for My website.")
+    end)
+
+    it("Support whitespace before middle after key operator.", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{{  whitespacer        }}}",
+            {whitespacer="My website"}), "My website")
+    end)
+
+    it("Support whitespace before middle after section operator.", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{  #test  }}Klein{{  /test     }}",
+            {test="My website"}), "Klein")
     end)
 end)

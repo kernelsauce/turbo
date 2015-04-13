@@ -273,6 +273,10 @@ if le then
     -- Multi-byte lengths must be sent in network byte order, aka
     -- big-endian. Ugh...
     function websocket.WebSocketStream:_send_frame(finflag, opcode, data)
+        if self.stream:closed() then
+            return
+        end
+
         local data_sz = data:len()
         _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
 

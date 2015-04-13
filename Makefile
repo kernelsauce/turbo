@@ -69,11 +69,11 @@ LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
 LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 
 all:
-	make -C deps/http-parser library
+	$(MAKE) -C deps/http-parser library
 	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
 
 clean:
-	make -C deps/http-parser clean
+	$(MAKE) -C deps/http-parser clean
 	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
 
 uninstall:
@@ -114,7 +114,7 @@ install:
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	export LD_LIBRARY_PATH=$(INSTALL_LIB); busted
+	export LD_LIBRARY_PATH=$(INSTALL_LIB); export TURBO_TEST_SSL=1; busted
 	export LD_LIBRARY_PATH=$(INSTALL_LIB); luajit examples/helloworld.lua &
 	sleep 1
 	wget http://127.0.0.1:8888/
