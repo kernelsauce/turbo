@@ -12,18 +12,18 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.  
+-- limitations under the License.
 
 local turbo = require "turbo"
 
 local CookieHandler = class("CookieHandler", turbo.web.RequestHandler)
 
 function CookieHandler:get()
-    local counter = self:get_cookie("counter") 
+    local counter = self:get_cookie("counter")
     local new_count = counter and tonumber(counter) + 1 or 0
     self:set_cookie("counter", new_count)
     self:write("Cookie counter is at: " .. new_count)
 end
- 
+
 turbo.web.Application({{"^/$", CookieHandler}}):listen(8888)
 turbo.ioloop.instance():start()

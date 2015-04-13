@@ -15,7 +15,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
-  
+
 local log =         require "turbo.log"
 local util =        require "turbo.util"
 local iostream =    require "turbo.iostream"
@@ -43,7 +43,7 @@ tcpserver.TCPServer = class('TCPServer')
 --- Create a new TCPServer class instance.
 -- @param io_loop (IOLoop instance)
 -- @param ssl_options (Table) Optional SSL parameters.
--- @param max_buffer_size (Number) The maximum buffer size of the server. If 
+-- @param max_buffer_size (Number) The maximum buffer size of the server. If
 -- the limit is hit, the connection is closed.
 -- @note If the SSL certificates can not be loaded, a error is raised.
 function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
@@ -64,22 +64,22 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
                 missing or not a string.")
         end
         -- So the only check that is done is that the cert and key file are
-        -- readable. However the validity of the keys are not checked until 
+        -- readable. However the validity of the keys are not checked until
         -- we create the SSL context.
         if not util.file_exists(ssl_options.cert_file) then
-            error(string.format("SSL cert_file, %s, does not exist.", 
+            error(string.format("SSL cert_file, %s, does not exist.",
                 ssl_options.cert_file))
         end
         if not util.file_exists(ssl_options.key_file) then
-            error(string.format("SSL key_file, %s, does not exist.", 
+            error(string.format("SSL key_file, %s, does not exist.",
                 ssl_options.key_file))
         end
-        -- The ssl_create_context function will raise error and exit by its 
+        -- The ssl_create_context function will raise error and exit by its
         -- own, so there is no need to catch errors.
         local rc, ctx_or_err = crypto.ssl_create_server_context(
             self.ssl_options.cert_file, self.ssl_options.key_file)
         if rc ~= 0 then
-            error(string.format("Could not create SSL context. %s", 
+            error(string.format("Could not create SSL context. %s",
                 ctx_or_err))
         end
         self._ssl_ctx = ctx_or_err
@@ -90,7 +90,7 @@ end
 --- Implement this method to handle new connections.
 -- @param stream (IOStream instance) Stream for the newly connected client.
 -- @param address (String) IP address of newly connected client.
-function tcpserver.TCPServer:handle_stream(stream, address) 
+function tcpserver.TCPServer:handle_stream(stream, address)
     error('handle_stream method not implemented in this object')
 end
 
@@ -104,7 +104,7 @@ end
 -- addresses.
 -- @param backlog (Number) Maximum backlogged client connects to allow. If not
 -- defined then 128 is used as default.
--- @param family (Number) Optional socket family. Defined in Socket module. If 
+-- @param family (Number) Optional socket family. Defined in Socket module. If
 -- not defined AF_INET is used as default.
 function tcpserver.TCPServer:listen(port, address, backlog, family)
     assert(port, [[Please specify port for listen() method]])
@@ -114,7 +114,7 @@ end
 
 --- Add multiple sockets in a table that should be bound on calling start.
 -- @param sockets (Table) 1 or more socket fd's.
--- @note Use the sockutil.bind_sockets function to create sockets easily and 
+-- @note Use the sockutil.bind_sockets function to create sockets easily and
 -- add them to the sockets table.
 function tcpserver.TCPServer:add_sockets(sockets)
     if not self.io_loop then
@@ -122,9 +122,9 @@ function tcpserver.TCPServer:add_sockets(sockets)
     end
     for _, sock in ipairs(sockets) do
         self._sockets[#self._sockets + 1] = sock
-        sockutil.add_accept_handler(sock, 
-            self._handle_connection, 
-            self.io_loop, 
+        sockutil.add_accept_handler(sock,
+            self._handle_connection,
+            self.io_loop,
             self)
     end
 end
@@ -143,7 +143,7 @@ function tcpserver.TCPServer:add_socket(socket) self:add_sockets({socket}) end
 -- addresses.
 -- @param backlog (Number) Maximum backlogged client connects to allow. If not
 -- defined then 128 is used as default.
--- @param family (Number) Optional socket family. Defined in Socket module. If 
+-- @param family (Number) Optional socket family. Defined in Socket module. If
 -- not defined AF_INET is used as default.
 function tcpserver.TCPServer:bind(port, address, backlog, family)
     local sockets = sockutil.bind_sockets(port, address, backlog, family)
@@ -159,11 +159,11 @@ function tcpserver.TCPServer:start(procs)
     assert((not self._started), "Already started TCPServer.")
     self._started = true
     if procs and procs > 1 and platform.__LINUX__ then
-        for _ = 1, procs - 1 do 
+        for _ = 1, procs - 1 do
             local pid = ffi.C.fork()
-            if pid ~= 0 then 
+            if pid ~= 0 then
                 log.devel(string.format(
-                    "[tcpserver.lua] Created extra worker process: %d", 
+                    "[tcpserver.lua] Created extra worker process: %d",
                     tonumber(pid)))
                 break
             end
@@ -200,15 +200,15 @@ end
 function tcpserver.TCPServer:_handle_connection(connection, address)
     if self.ssl_options ~= nil and platform.__LINUX__ then
         local stream = iostream.SSLIOStream(
-            connection, 
-            self.ssl_options, 
-            self.io_loop, 
+            connection,
+            self.ssl_options,
+            self.io_loop,
             self.max_buffer_size)
         self:handle_stream(stream, address)
     else
         local stream = iostream.IOStream(
-            connection, 
-            self.io_loop, 
+            connection,
+            self.io_loop,
             self.max_buffer_size)
         self:handle_stream(stream, address)
     end

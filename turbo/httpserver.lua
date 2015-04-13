@@ -67,22 +67,22 @@ httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 -- @param xheaders (Boolean) Care about X-* header fields or not.
 -- @param kwargs (Table) Key word arguments.
 -- Key word arguments supported:
--- "read_body" = Automatically read, and parse any request body. Default is 
+-- "read_body" = Automatically read, and parse any request body. Default is
 --      true. If set to false, the user must read the body from the connection
---      himself. Not reading a body in the case of a keep-alive request may 
---      lead to undefined behaviour. The body should be read or connection 
+--      himself. Not reading a body in the case of a keep-alive request may
+--      lead to undefined behaviour. The body should be read or connection
 --      closed.
--- "max_header_size" = The maximum amount of bytes a header can be. 
+-- "max_header_size" = The maximum amount of bytes a header can be.
 --      If exceeded, request is dropped.
 -- "max_body_size" = The maxium amount of bytes a request body can be.
 --      If exceeded, request is dropped. HAS NO EFFECT IF read_body IS FALSE.
--- "ssl_options" = 
+-- "ssl_options" =
 --      "key_file" = SSL key file if a SSL enabled server is wanted.
 --      "cert_file" = Certificate file. key_file must also be set.
-function httpserver.HTTPServer:initialize(request_callback, 
-                                          no_keep_alive, 
-                                          io_loop, 
-                                          xheaders, 
+function httpserver.HTTPServer:initialize(request_callback,
+                                          no_keep_alive,
+                                          io_loop,
+                                          xheaders,
                                           kwargs)
     self.request_callback = request_callback
     self.no_keep_alive = no_keep_alive
@@ -260,18 +260,18 @@ function httpserver.HTTPConnection:_on_request_body(data)
             self.arguments =
                 httputil.parse_post_arguments(self._request.body) or {}
         elseif content_type:find("multipart/form-data", 1, true) then
-            -- Valid boundary must only be max 70 characters not 
+            -- Valid boundary must only be max 70 characters not
             -- ending in space.
             -- Valid characters from RFC2046 are:
             -- bchar := DIGIT / ALPHA / "'" / "(" / ")" /
             --          "+" / "_" / "," / "-" / "." /
             --          "/" / ":" / "=" / "?" / " "
             -- Boundary string is permitted to be quoted.
-            local boundary = 
+            local boundary =
                 content_type:match(
                     "boundary=[\"]?([0-9a-zA-Z'()+_,-./:=? ]*[0-9a-zA-Z'()+_,-./:=?])")
             self.arguments =
-                httputil.parse_multipart_data(self._request.body, boundary) 
+                httputil.parse_multipart_data(self._request.body, boundary)
                     or {}
         end
     end

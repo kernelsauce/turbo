@@ -82,7 +82,7 @@ function Buffer:append_right(data, len)
     return self
 end
 
-function Buffer:append_char_right(char) 
+function Buffer:append_char_right(char)
     if self.tbuffer.mem - self.tbuffer.sz >= 1 then
         self.tbuffer.data[self.tbuffer.sz] = char
         self.tbuffer.sz = self.tbuffer.sz + 1

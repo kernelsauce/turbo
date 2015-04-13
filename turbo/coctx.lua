@@ -21,8 +21,8 @@ require "turbo.3rdparty.middleclass"
 local coctx = {} -- coctx namespace.
 
 --- Couroutine context helper class.
--- This class is used to help tie yields in Turbo RequestHandlers together 
--- with waiting for events to become available. The class act as a reference 
+-- This class is used to help tie yields in Turbo RequestHandlers together
+-- with waiting for events to become available. The class act as a reference
 -- for both the user and the IOLoop to tie suspended coroutines together with
 -- actual async operations. Typical usage would be:
 --
@@ -32,23 +32,23 @@ local coctx = {} -- coctx namespace.
 --     .... do stuff with response when it is ready without blocking ....
 -- end
 --
--- The HTTPClient class function fetch returns a CoroutineContext instance. 
--- The coroutine.yield will halt execution of the function and return the 
--- CoroutineContext from 'fetch'.  The IOLoop will keep a reference to the 
--- returned CoroutineContext together with the suspended coroutine. This list 
+-- The HTTPClient class function fetch returns a CoroutineContext instance.
+-- The coroutine.yield will halt execution of the function and return the
+-- CoroutineContext from 'fetch'.  The IOLoop will keep a reference to the
+-- returned CoroutineContext together with the suspended coroutine. This list
 -- is not iterated on every IOLoop iteration so it is relatively cheap to have
--- thousands of yielded RequestHandlers at once. When the HTTPClient class 
--- internals has handled the request (or failed to do so), it will trigger a 
--- coroutine resume with the parameters stored in the CoroutineContext via a 
+-- thousands of yielded RequestHandlers at once. When the HTTPClient class
+-- internals has handled the request (or failed to do so), it will trigger a
+-- coroutine resume with the parameters stored in the CoroutineContext via a
 -- callback placed on the IOLoop by matching the CorutineContext by reference.
 -- Only the IOLoop will know anything about suspended coroutines.
--- Lua Coroutines are not OS threads and are purely implemented in the Lua 
--- interpreter, and as such are very cheap to create, suspend and destroy. 
+-- Lua Coroutines are not OS threads and are purely implemented in the Lua
+-- interpreter, and as such are very cheap to create, suspend and destroy.
 -- Yielding can be done from anywhere that the IOLoop:add_callback() has been
--- used to place a function on the IOLoop. However the yield must, either 
+-- used to place a function on the IOLoop. However the yield must, either
 -- return a CoroutineContext or a function. A yielded function will simply be
 -- resumed on next iteration of the IOLoop. The yielder is free to yield again.
--- This class is NOT EXCEPTION/ERROR safe, and should not raise any errors as 
+-- This class is NOT EXCEPTION/ERROR safe, and should not raise any errors as
 -- they are unhandled, and will cause the program to exit!
 coctx.CoroutineContext = class("CoroutineContext")
 
@@ -81,20 +81,20 @@ function coctx.CoroutineContext:set_arguments(args)
     return self
 end
 
-function coctx.CoroutineContext:set_state(state) 
-    self.co_state = state 
+function coctx.CoroutineContext:set_state(state)
+    self.co_state = state
     return self
 end
-function coctx.CoroutineContext:get_state(state) 
-    return self.co_state 
+function coctx.CoroutineContext:get_state(state)
+    return self.co_state
 end
 
-function coctx.CoroutineContext:finalize_context() 
-    self.io_loop:finalize_coroutine_context(self) 
+function coctx.CoroutineContext:finalize_context()
+    self.io_loop:finalize_coroutine_context(self)
 end
 
-function coctx.CoroutineContext:get_coroutine_arguments() 
-    return self.co_args 
+function coctx.CoroutineContext:get_coroutine_arguments()
+    return self.co_args
 end
 
 return coctx

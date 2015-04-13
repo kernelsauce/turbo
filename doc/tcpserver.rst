@@ -30,7 +30,7 @@ implement the TCPServer:handle_stream() method. Optional SSL support is provided
 	* "key_file" (String) - Path to SSL key file if a SSL enabled server is wanted.
 	* "cert_file" (String) - Path to certificate file. key_file must also be set.
 
-.. function:: TCPServer:handle_stream(stream, address) 
+.. function:: TCPServer:handle_stream(stream, address)
 
 	This method is called by the class when clients connect. Implement this method in inheriting class to handle new connections.
 
@@ -42,7 +42,7 @@ implement the TCPServer:handle_stream() method. Optional SSL support is provided
 .. function:: TCPServer:listen(port, address, backlog, family)
 
 	Start listening on port and address. When using this method, as oposed to TCPServer:bind you should not call
-	TCPServer:start. You can call this method multiple times with different parameters to bind multiple sockets to the same TCPServer. 
+	TCPServer:start. You can call this method multiple times with different parameters to bind multiple sockets to the same TCPServer.
 
 	:param port: The port number to bind to.
 	:type port: Number
@@ -55,8 +55,8 @@ implement the TCPServer:handle_stream() method. Optional SSL support is provided
 
 
 .. function:: TCPServer:add_sockets(sockets)
-	
-	Add multiple sockets in a table that should be bound on calling start. Use the ``turbo.sockutil.bind_sockets`` function to create sockets easily and add them to the sockets table.	
+
+	Add multiple sockets in a table that should be bound on calling start. Use the ``turbo.sockutil.bind_sockets`` function to create sockets easily and add them to the sockets table.
 
 	:param sockets:  1 or more socket fd's.
 	:type sockets: Table
@@ -66,7 +66,7 @@ implement the TCPServer:handle_stream() method. Optional SSL support is provided
 	Single socket version of TCPServer:add_socket.
 
 	:param socket:  Socket fd.
-	:type socket: Number	
+	:type socket: Number
 
 .. function:: TCPServer:bind(port, address, backlog, family)
 

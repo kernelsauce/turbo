@@ -77,7 +77,7 @@ end
 
 Object = _createClass("Object", nil)
 
-Object.static.__metamethods = { '__add', '__call', '__concat', '__div', '__le', '__lt', 
+Object.static.__metamethods = { '__add', '__call', '__concat', '__div', '__le', '__lt',
                                 '__mod', '__mul', '__pow', '__sub', '__tostring', '__unm' }
 
 function Object.static:allocate()

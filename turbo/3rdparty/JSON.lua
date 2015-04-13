@@ -89,11 +89,11 @@ local OBJDEF = { VERSION = VERSION }
 --            :
 --
 --          for i, photo in ipairs(photosToProcess) do
---               :             
---               :             
+--               :
+--               :
 --               local data = JSON:decode(someJsonText, { photo = photo })
---               :             
---               :             
+--               :
+--               :
 --          end
 --
 --

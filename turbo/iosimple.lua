@@ -25,7 +25,7 @@
 --     local data = stream:read_until_close()
 --     print(data)
 --
---     turbo.ioloop.instance():close() 
+--     turbo.ioloop.instance():close()
 -- end):start()
 --
 --
@@ -79,8 +79,8 @@ function iosimple.dial(address, io)
     end
     local stream = iostream.IOStream(sock)
     local ctx = coctx.CoroutineContext(io)
-    
-    stream:connect(host, port, address_family, 
+
+    stream:connect(host, port, address_family,
         function()
             ctx:set_arguments({true})
             ctx:finalize_context()

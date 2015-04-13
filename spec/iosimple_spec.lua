@@ -12,7 +12,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.   
+-- limitations under the License.
 
 local turbo = require 'turbo'
 
@@ -22,6 +22,6 @@ turbo.ioloop.instance():add_callback(function()
     stream:write("GET / HTTP/1.0\r\n\r\n")
     local data = stream:read_until_close()
 
-    turbo.ioloop.instance():close() 
+    turbo.ioloop.instance():close()
 end):start()
 

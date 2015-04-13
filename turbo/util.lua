@@ -24,7 +24,7 @@ end
 require "turbo.cdef"
 local C = ffi.C
 
-local g_time_str_buf, g_time_t, g_timeval  
+local g_time_str_buf, g_time_t, g_timeval
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     g_time_str_buf = ffi.new("char[1024]")
     g_time_t = ffi.new("time_t[1]")
@@ -157,7 +157,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
 else
     function util.gettimeofday()
         return math.ceil(luasocket.gettime() * 1000)
-    end    
+    end
 end
 do
     local rt_support, rt = pcall(ffi.load, "rt")

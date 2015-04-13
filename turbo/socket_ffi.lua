@@ -12,7 +12,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.          
+-- limitations under the License.
 
 local log = require "turbo.log"
 local util = require "turbo.util"
@@ -23,20 +23,20 @@ require "turbo.cdef"
 local octal = function (s) return tonumber(s, 8) end
 
 local F = {}
-F.F_DUPFD =             0       
-F.F_GETFD =             1       
-F.F_SETFD =             2       
-F.F_GETFL =             3       
-F.F_SETFL =             4       
+F.F_DUPFD =             0
+F.F_GETFD =             1
+F.F_SETFD =             2
+F.F_GETFL =             3
+F.F_SETFL =             4
 
 local O = {}
 O.O_ACCMODE =           octal("0003")
 O.O_RDONLY =            octal("00")
 O.O_WRONLY =            octal("01")
 O.O_RDWR =              octal("02")
-O.O_CREAT =             octal("0100")   
-O.O_EXCL =              octal("0200")   
-O.O_NOCTTY =            octal("0400")   
+O.O_CREAT =             octal("0100")
+O.O_EXCL =              octal("0200")
+O.O_NOCTTY =            octal("0400")
 O.O_TRUNC =             octal("01000")
 O.O_APPEND =            octal("02000")
 O.O_NONBLOCK =          octal("04000")
@@ -51,7 +51,7 @@ SOCK.SOCK_DGRAM =       2
 SOCK.SOCK_RAW =         3
 SOCK.SOCK_RDM =         4
 SOCK.SOCK_SEQPACKET =   5
-SOCK.SOCK_DCCP =        6   
+SOCK.SOCK_DCCP =        6
 SOCK.SOCK_PACKET =      10
 SOCK.SOCK_CLOEXEC =     octal("02000000")
 SOCK.SOCK_NONBLOCK =    octal("040009")
@@ -221,7 +221,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         if hostent == nil then
            return -1
         end
-        local inaddr = ffi.cast("struct in_addr **", hostent.h_addr_list) 
+        local inaddr = ffi.cast("struct in_addr **", hostent.h_addr_list)
         local i = 0
         while inaddr[i] ~= nil do
            in_addr_arr[#in_addr_arr + 1] = inaddr[i][0]
@@ -273,7 +273,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         local fd = ffi.C.socket(family or AF.AF_INET,
                                 stype or SOCK.SOCK_STREAM,
                                 protocol or 0)
-        
+
         if fd == -1 then
            errno = ffi.errno()
            return -1, string.format("Could not create socket. %s", strerror(errno))
@@ -297,7 +297,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
            return -1
         else
            return 0, tonumber(value[0])
-        end    
+        end
     end
 
     local export = util.tablemerge(SOCK,
@@ -307,7 +307,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         util.tablemerge(PF,
         util.tablemerge(SOL,
         util.tablemerge(SO, E)))))))
-        
+
     return util.tablemerge({
         strerror = strerror,
         resolv_hostname = resolv_hostname,

@@ -323,7 +323,7 @@ char* turbo_websocket_mask(const char* mask32, const char* in, size_t sz)
 {
     size_t i = 0;
     char* buf = malloc(sz);
-    
+
     if (!buf)
         return 0;
     for (i = 0; i < sz; i++) {

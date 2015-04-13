@@ -12,9 +12,9 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.  
+-- limitations under the License.
 
--- This implementation uses the Github REST API to pull current amount of 
+-- This implementation uses the Github REST API to pull current amount of
 -- watchers for the Turbo.lua repository.
 
 TURBO_SSL = true -- Enable SSL as Github API requires HTTPS.
@@ -26,7 +26,7 @@ local GithubFeed = class("GithubFeed", turbo.web.RequestHandler)
 function GithubFeed:get(search)
     local res = yield(
         turbo.async.HTTPClient():fetch("https://api.github.com/repos/kernelsauce/turbo"))
-    
+
     if res.error or res.headers:get_status_code() ~= 200 then
         -- Check for errors.
         -- If data could not be fetched a 500 error is sent as response.

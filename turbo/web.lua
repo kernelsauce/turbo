@@ -88,7 +88,7 @@ function web.RequestHandler:initialize(application, request, url_args, options)
     self:clear()
     if self.request.headers:get("Connection") then
         self.request.connection.stream:set_close_callback(
-            self.on_connection_close, 
+            self.on_connection_close,
             self)
     end
     self.options = options
@@ -143,7 +143,7 @@ function web.RequestHandler:options(...) error(web.HTTPError:new(405)) end
 
 --*************** Input ***************
 
---- Returns the value of the argument with the given name. 
+--- Returns the value of the argument with the given name.
 -- If multiple values are set with the same name, then only one is returned.
 -- For multiple arguments, use get_arguments() instead.
 -- If default value is not given the argument is considered to be required and
@@ -339,11 +339,11 @@ function web.RequestHandler:get_cookie(name, default)
 end
 
 --- Get a signed cookie value from incoming request.
--- If the cookie can not be validated, then an error with a string error 
+-- If the cookie can not be validated, then an error with a string error
 -- is raised.
 -- Hash-based message authentication code (HMAC) is used to be able to verify
--- that the cookie has been created with the "cookie_secret" set in the 
--- Application class kwargs. This is simply verifing that the cookie has been 
+-- that the cookie has been created with the "cookie_secret" set in the
+-- Application class kwargs. This is simply verifing that the cookie has been
 -- signed by your key, IT IS NOT ENCRYPTING DATA.
 -- @param name The name of the cookie to get.
 -- @param default A default value if no cookie is found.
@@ -364,9 +364,9 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
         assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
     end
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
-                               string.format("%d|%s|%s", 
-                                             len, 
-                                             tostring(timestamp), 
+                               string.format("%d|%s|%s",
+                                             len,
+                                             tostring(timestamp),
                                              value))
     assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
                               Either the cookie is forged or the cookie secret \
@@ -393,8 +393,8 @@ end
 
 --- Set a signed cookie value to response.
 -- Hash-based message authentication code (HMAC) is used to be able to verify
--- that the cookie has been created with the "cookie_secret" set in the 
--- Application class kwargs. This is simply verifing that the cookie has been 
+-- that the cookie has been created with the "cookie_secret" set in the
+-- Application class kwargs. This is simply verifing that the cookie has been
 -- signed by your key, IT IS NOT ENCRYPTING DATA.
 -- @param name The name of the cookie to set.
 -- @param value The value of the cookie.
@@ -408,14 +408,14 @@ function web.RequestHandler:set_secure_cookie(name, value, domain, expire_hours)
     -- Each column is separated by a pipe.
     -- value length | HMAC hash | timestamp | value
     -- timestamp and value separated by a pipe char is what is being hashed.
-    assert(type(self.application.kwargs.cookie_secret) == "string", 
+    assert(type(self.application.kwargs.cookie_secret) == "string",
            "No cookie secret has been set in the Application class.")
     if type(value) ~= "string" then
         value = tostring(value)
     end
-    local to_hash = string.format("%d|%s|%s", 
-                                  value:len(), 
-                                  tostring(util.gettimeofday()), 
+    local to_hash = string.format("%d|%s|%s",
+                                  value:len(),
+                                  tostring(util.gettimeofday()),
                                   value)
     local cookie = string.format("%s|%s",
                                  hash.HMAC(
@@ -797,7 +797,7 @@ function web._StaticWebCache:get_file(path)
                 log.error(string.format(
                     "[web.lua] Could not open file for reading; %s.",
                     err))
-                return SWCRC_NOT_FOUND    
+                return SWCRC_NOT_FOUND
             end
             return SWCRC_TOO_BIG, cf[2], file, cf[4]
         elseif cf[1] == SWCT_NOFILE then
@@ -938,7 +938,7 @@ function web.StaticFileHandler:_send_next_chunk()
     self.__file_data_ref = data -- Make sure a reference to string is kept.
     self.request:write_zero_copy(
         bufferptr(ffi.cast("const char *", data), data:len()),
-        self._send_next_chunk, 
+        self._send_next_chunk,
         self)
 end
 
@@ -979,7 +979,7 @@ function web.StaticFileHandler:get(path)
             -- Client has the most recent file. Do not send :).
             self:set_status(304)
             self:add_header("Etag", sha1)
-            self:finish()            
+            self:finish()
             return
         end
     end
@@ -1104,7 +1104,7 @@ web.Application = class("Application")
 -- Key word arguments supported:
 -- "default_host" = Redirect to this URL if no matching handler is found.
 -- "cookie_secret" = Sequence of bytes used for to sign cookies.
--- "settings" = Global user settings that can be accessed in 
+-- "settings" = Global user settings that can be accessed in
 --     RequestHandler's through self.application.settings
 function web.Application:initialize(handlers, kwargs)
     self.handlers = handlers or {}
@@ -1139,8 +1139,8 @@ end
 -- method.
 -- @param port (Number) Port to bind server to.
 -- @param address (String) Address to bind server to. E.g "127.0.0.1".
--- @param kwargs (Table) Keyword arguments passed on to 
---      ``turbo.httpserver.HTTPServer``. See documentation for that class for 
+-- @param kwargs (Table) Keyword arguments passed on to
+--      ``turbo.httpserver.HTTPServer``. See documentation for that class for
 --      available options.
 function web.Application:listen(port, address, kwargs)
     -- Key word arguments supported:

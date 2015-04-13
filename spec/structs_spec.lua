@@ -91,36 +91,36 @@ describe("turbo.structs Namespace", function()
         end)
     end)
 
-    describe("Deque class", function()     
+    describe("Deque class", function()
         local d
         it("should be constructed right", function()
            d = turbo.structs.deque:new()
            assert.truthy(instanceOf(turbo.structs.deque, d))
         end)
-        
+
         local append_n_elements = 20000
         local string1 = "Some string that should be appended"
         local string2 = "Another string that should be appended"
-        
-        it("should append correctly", function() 
+
+        it("should append correctly", function()
             for i = 1, append_n_elements, 1 do
                     d:append(string1)
             end
             assert.equal(d:size(), append_n_elements)
         end)
-        
+
         it("concat should give correct length", function()
-            assert.equal(d:concat():len(), append_n_elements * string1:len())   
+            assert.equal(d:concat():len(), append_n_elements * string1:len())
         end)
-            
+
         it("should support appendleft", function()
            d:appendleft(string2)
            assert.equal(d:peekfirst(), string2)
         end)
-            
+
         it("should support popleft", function()
             assert.equal(d:popleft(), string2)
-            assert.equal(d:popleft(), string1)   
+            assert.equal(d:popleft(), string1)
         end)
 
         it("should support pop", function()
@@ -128,7 +128,7 @@ describe("turbo.structs Namespace", function()
            assert.equal(d:pop(), string1 .. string2)
            assert.equal(d:pop(), string1)
         end)
-        
+
         it("must report not empty right", function()
             assert.truthy(d:not_empty())
             while d:not_empty() == true do
@@ -136,7 +136,7 @@ describe("turbo.structs Namespace", function()
             end
             assert.falsy(d:not_empty())
         end)
-        
+
         it("getn should work correctly", function()
             d:appendleft("pos3")
             d:appendleft("pos2")
@@ -145,12 +145,12 @@ describe("turbo.structs Namespace", function()
             assert.equal(d:getn(1), "pos2")
             assert.equal(d:getn(2), "pos3")
         end)
-        
+
         it("should behave logically", function()
             local q = turbo.structs.deque:new()
             local str = ""
-            local n = 0 
-            
+            local n = 0
+
             for i=0, 1000 do
                 math.randomseed(os.time() + i)
                 local action = math.random(0,4)
@@ -176,7 +176,7 @@ describe("turbo.structs Namespace", function()
                     end
                 elseif (action == 4) then
                     assert.equal(q:size(), n)
-                end            
+                end
             end
         end)
     end)

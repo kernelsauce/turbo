@@ -364,7 +364,7 @@ else
         local ptr, sz = buf:get()
         local str = ffi.string(ptr, sz)
         self:write(str, callback, arg)
-    end    
+    end
 end
 
 --- Are the stream currently being read from?
@@ -402,7 +402,7 @@ function iostream.IOStream:set_max_buffer_size(sz)
     if sz < TURBO_SOCKET_BUFFER_SZ then
         log.warning(
             string.format("Max buffer size could not be set to lower value "..
-                          "than _G.TURBO_SOCKET_BUFFER_SZ (%dB).", 
+                          "than _G.TURBO_SOCKET_BUFFER_SZ (%dB).",
                           TURBO_SOCKET_BUFFER_SZ + 8))
         sz = TURBO_SOCKET_BUFFER_SZ + 8
     end
@@ -608,15 +608,15 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         if buffer_left == 0 then
             log.devel("Maximum read buffer size reached. Throttling read.")
             if self._maxb_callback then
-                self:_run_callback(self._maxb_callback, 
-                                   self._maxb_callback_arg, 
+                self:_run_callback(self._maxb_callback,
+                                   self._maxb_callback_arg,
                                    self._read_buffer_size)
             end
             return
         end
-        local sz = tonumber(C.recv(self.socket, 
-                                   buf, 
-                                   math.min(TURBO_SOCKET_BUFFER_SZ, buffer_left), 
+        local sz = tonumber(C.recv(self.socket,
+                                   buf,
+                                   math.min(TURBO_SOCKET_BUFFER_SZ, buffer_left),
                                    0))
         if sz == -1 then
             errno = ffi.errno()
@@ -645,8 +645,8 @@ else
         if buffer_left == 0 then
             log.devel("Maximum read buffer size reached. Throttling read.")
             if self._maxb_callback then
-                self:_run_callback(self._maxb_callback, 
-                                   self._maxb_callback_arg, 
+                self:_run_callback(self._maxb_callback,
+                                   self._maxb_callback_arg,
                                    self._read_buffer_size)
             end
             return
@@ -685,7 +685,7 @@ else
                       fd,
                       err))
             end
-            
+
         end
         if self._luasocket_buf:len() > 0 then
             local ptr, sz = self._luasocket_buf:get()
@@ -693,7 +693,7 @@ else
         else
             return
         end
-    end 
+    end
 end
 
 --- Read from the socket and append to the read buffer.
@@ -932,12 +932,12 @@ else
             else
                 log.warning(string.format(
                     "Error on fd %s. %s",
-                    fd, 
+                    fd,
                     err))
             end
             fd = self.socket
             self:close()
-            return            
+            return
         end
         self._write_buffer_offset = self._write_buffer_offset + num_bytes
         self._write_buffer_size = self._write_buffer_size - num_bytes
@@ -957,7 +957,7 @@ else
     end
 
     -- _handle_write_const is not implemented for LuaSocket as it gives no real
-    -- benefit. Function calls to const writes are rewritten to nonconst. 
+    -- benefit. Function calls to const writes are rewritten to nonconst.
     function iostream.IOStream:_handle_write_const()
         error("Not implemented for LuaSocket Turbo.")
     end
@@ -1532,6 +1532,6 @@ elseif _G.TURBO_SSL then
         end
         self:_do_ssl_handshake()
     end
- 
+
 end
 return iostream

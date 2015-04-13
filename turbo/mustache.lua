@@ -66,13 +66,13 @@ local PART =            0x06    -- Partial
 local Mustache = {}
 
 local function IS_WHITESPACE(char)
-    if char == b ' ' or char == b '\t' then 
+    if char == b ' ' or char == b '\t' then
         return true
     end
 end
 
 local function PLAIN_STRING(tbl, ptr, sz)
-    tbl[#tbl+1]= {} 
+    tbl[#tbl+1]= {}
     tbl[#tbl][1] = MSTR
     tbl[#tbl][2] = ffi.string(ptr, sz)
 end
@@ -121,7 +121,7 @@ end
 local function CHECK_TABLE_SEC(tbl, key, sz)
     local name = ffi.string(key, sz)
     for i = #tbl, 1, -1 do
-        if (tbl[i][1] == SECS or tbl[i][1] == SECI) and 
+        if (tbl[i][1] == SECS or tbl[i][1] == SECI) and
             tbl[i][2] == name then
             return true
         end
@@ -130,7 +130,7 @@ end
 
 --- Compile a Mustache highlighted string into its intermediate state before
 -- rendering. This function does some validation on the template. If it finds
--- syntax errors a error with a message is raised. It is always a good idea to 
+-- syntax errors a error with a message is raised. It is always a good idea to
 -- cache pre-compiled frequently used templates before rendering them. Although
 -- compiling each time is usally not a big overhead.
 -- @param template (String) Template in string form.
@@ -147,18 +147,18 @@ function Mustache.compile(template)
     ::search::
     local loc = SEARCH(temp, tsz - consumed, START)
     if loc ~= nil then
-        if loc[2] ~= b '{' then 
+        if loc[2] ~= b '{' then
             -- No escape mustache {{
             PLAIN_STRING(vmtbl, temp, loc - temp)
             state = PSTART
-            consumed = consumed + (loc - temp) + START:len() 
+            consumed = consumed + (loc - temp) + START:len()
             temp = loc + START:len()
         else
             -- Escape mustache {{{
             PLAIN_STRING(vmtbl, temp, (loc - temp))
             state = PSTARTNOESC
             consumed = consumed + (loc - temp) + START_NO_ESC:len()
-            temp = loc + START_NO_ESC:len()         
+            temp = loc + START_NO_ESC:len()
         end
     else
         -- No mustaches or end of file reached.
@@ -178,7 +178,7 @@ function Mustache.compile(template)
             elseif state == PTABLEKEYNOESC then
                 TABLE_KEY_NO_ESC(vmtbl, mark, (temp - mark))
                 state = PNONE
-            elseif state == PEND then 
+            elseif state == PEND then
                 -- Check if section end is actually opened somewhere.
                 if not CHECK_TABLE_SEC(vmtbl, mark + 1, (temp - mark - 1)) then
                     error(string.format(
@@ -188,7 +188,7 @@ function Mustache.compile(template)
                 SECTION_END(vmtbl, mark + 1, (temp - mark - 1))
                 state = PNONE
             elseif state == PSTARTSEC then
-                SECTION(vmtbl, mark + 1, (temp - mark - 1)) 
+                SECTION(vmtbl, mark + 1, (temp - mark - 1))
                 state = PNONE
             elseif state == PSTARTSECINV then
                 SECTION_INVERTED(vmtbl, mark + 1, (temp - mark - 1))
@@ -205,7 +205,7 @@ function Mustache.compile(template)
             end
             -- Whitespace is allowed if state is not above, just skip.
             -- Most probably it is something like {{ name }}
-        elseif temp[0] == b '}' and temp[1] == b '}' then 
+        elseif temp[0] == b '}' and temp[1] == b '}' then
             -- End of mustache highlight.
             -- Determine escapeness.
             if temp[2] == b '}'  then
@@ -216,10 +216,10 @@ function Mustache.compile(template)
                 elseif state == PSTARTSEC then
                     -- Basically we do no treat unescaped list {{{#list}}} any
                     -- other way than {{#list}}
-                    SECTION(vmtbl, mark + 1, (temp - mark - 1)) 
+                    SECTION(vmtbl, mark + 1, (temp - mark - 1))
                     -- Skip magic character '#' from name.
                     state = PNONE
-                elseif state == PEND then 
+                elseif state == PEND then
                     -- Check if section end is actually opened somewhere.
                     if not CHECK_TABLE_SEC(vmtbl, mark + 1, (temp - mark - 1)) then
                         error(string.format(
@@ -241,7 +241,7 @@ function Mustache.compile(template)
                 temp = temp + 3
                 consumed = consumed + 3
             else
-                if state == PTABLEKEY then 
+                if state == PTABLEKEY then
                     TABLE_KEY(vmtbl, mark, (temp - mark))
                     state = PNONE
                 elseif state == PTABLEKEYNOESC then
@@ -249,7 +249,7 @@ function Mustache.compile(template)
                     TABLE_KEY_NO_ESC(vmtbl, mark + 1, (temp - mark - 1))
                     state = PNONE
                 elseif state == PSTARTSEC then
-                    SECTION(vmtbl, mark + 1, (temp - mark - 1)) 
+                    SECTION(vmtbl, mark + 1, (temp - mark - 1))
                     state = PNONE
                 elseif state == PEND then
                     if not CHECK_TABLE_SEC(vmtbl, mark + 1, (temp - mark - 1)) then
@@ -272,18 +272,18 @@ function Mustache.compile(template)
                 consumed = consumed + 2
             end
             goto search
-        elseif state == PSTART  or state == PSTARTNOESC then 
-            -- Essentially next char is either first char of key or it is 
+        elseif state == PSTART  or state == PSTARTNOESC then
+            -- Essentially next char is either first char of key or it is
             -- a section char "#". If a match is found a mark is placed.
             if temp[0] == b(START_SEC) then
                 mark = temp
                 state = PSTARTSEC
             elseif temp[0] == b(START_INV_SEC) then
                 mark = temp
-                state = PSTARTSECINV    
+                state = PSTARTSECINV
             elseif temp[0] == b(END_SEC) then
                 mark = temp
-                state = PEND    
+                state = PEND
             elseif temp[0] == b(ESCAPE) then
                 mark = temp
                 state = PTABLEKEYNOESC
@@ -301,7 +301,7 @@ function Mustache.compile(template)
                 else
                     state = PTABLEKEYNOESC
                 end
-            end 
+            end
         end
         consumed = consumed + 1
         temp = temp + 1
@@ -323,10 +323,10 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
     local secname = vmtbl[i][2]
     local inversed = vmtbl[i][1] == SECI
     local base_i = i
-    for y = 1, #obj, 1 do 
+    for y = 1, #obj, 1 do
         -- Reset to base.
         i = base_i + 1
-        while 1 do 
+        while 1 do
             local instr = vmtbl[i][1]
             local arg = vmtbl[i][2]
             if instr == SECE and arg == secname then
@@ -398,12 +398,12 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                                 Mustache._template_dump(vmtbl, i)))
                     end
                 end
-            elseif instr == SECS then 
+            elseif instr == SECS then
                 if obj[y][arg] then
                     if type(obj[y][arg]) == "table" and #obj[y][arg] ~= 0 then
                         -- Nested section
                         obj_parents[#obj_parents+1] = obj[y]
-                        local secbuf, new_i = 
+                        local secbuf, new_i =
                             Mustache._render_section(vmtbl,
                                             obj[y][arg],
                                             i,
@@ -418,10 +418,10 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                         -- Basically nothing needs to be done.
                     end
                 else
-                    -- Section is purely used as a conditional thing, 
+                    -- Section is purely used as a conditional thing,
                     -- and no key is found in table.
                     -- Just fast-forward until SECE is found.
-                    while 1 do 
+                    while 1 do
                         i = i + 1
                         if vmtbl[i][1] == SECE then
                             break
@@ -432,7 +432,7 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                 if obj[y][arg] then
                     -- Object exists in a "if not" condition.
                     -- Fast-forward towards SECE.
-                    while 1 do 
+                    while 1 do
                         i = i + 1
                         if vmtbl[i][1] == SECE then
                             break
@@ -445,7 +445,7 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                 -- used as partial.
                 if partials[arg] then
                     local partial = Mustache._render_partial(
-                        type(partials[arg]) == "string" and 
+                        type(partials[arg]) == "string" and
                             Mustache.compile(partials[arg]) or partials[arg],
                         obj[y],
                         obj_parents,
@@ -494,7 +494,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                             -- May also be a function.
                             buf:append_luastr_right(in_parent(arg) or "")
                         end
-                    
+
                     elseif safe == true then
                         error(
                             string.format(
@@ -546,7 +546,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                 -- Section is purely used as a conditional thing, and no key is
                 -- found in table.
                 -- Just fast-forward until SECE is found.
-                while 1 do 
+                while 1 do
                     i = i + 1
                     if vmtbl[i][1] == SECE then
                         goto start
@@ -557,7 +557,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
             if obj[arg] then
                 -- Object exists in a "if not" condition.
                 -- Fast-forward towards SECE.
-                while 1 do 
+                while 1 do
                     i = i + 1
                     if vmtbl[i][1] == SECE then
                         goto start
@@ -569,7 +569,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
         elseif instr == PART then
             if partials[arg] then
                 local partial = Mustache._render_partial(
-                    type(partials[arg]) == "string" and 
+                    type(partials[arg]) == "string" and
                         Mustache.compile(partials[arg]) or partials[arg],
                     obj,
                     obj_parents,
@@ -643,7 +643,7 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                 -- Section is purely used as a conditional thing, and no key is
                 -- found in table.
                 -- Just fast-forward until SECE is found.
-                while 1 do 
+                while 1 do
                     i = i + 1
                     if vmtbl[i][1] == SECE then
                         goto start
@@ -654,7 +654,7 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
             if obj[arg] then
                 -- Object exists in a "if not" condition.
                 -- Fast-forward towards SECE.
-                while 1 do 
+                while 1 do
                     i = i + 1
                     if vmtbl[i][1] == SECE then
                         goto start
@@ -714,34 +714,34 @@ function Mustache._template_dump(tbl, mark)
     dmp = dmp.."\
           ====================================\n"
     for i = 1, #tbl do
-        if tbl[i][1] == SECS or tbl[i][1] == SECI or 
+        if tbl[i][1] == SECS or tbl[i][1] == SECI or
             tbl[i][1] == SECE then
             dmp = dmp ..
-                string.format("  0x%s \x1b[32m %s => \x1b[37m %s\n", 
+                string.format("  0x%s \x1b[32m %s => \x1b[37m %s\n",
                     bit.tohex(i),
-                    vmcode[tbl[i][1]], 
+                    vmcode[tbl[i][1]],
                     tbl[i][2]:gsub("[\n\t]+", ""))
         elseif tbl[i][1] == TKEY or tbl[i][1] == TKEE then
             dmp = dmp ..
-                string.format("  0x%s \x1b[32m %s => \x1b[37m %s\n", 
+                string.format("  0x%s \x1b[32m %s => \x1b[37m %s\n",
                     bit.tohex(i),
-                    vmcode[tbl[i][1]], 
+                    vmcode[tbl[i][1]],
                     tbl[i][2]:gsub("[\n\t]+", ""))
         elseif tbl[i][1] == PART then
             dmp = dmp ..
-                string.format("  0x%s \x1b[35m %s => \x1b[37m %s\n", 
+                string.format("  0x%s \x1b[35m %s => \x1b[37m %s\n",
                     bit.tohex(i),
-                    vmcode[tbl[i][1]], 
+                    vmcode[tbl[i][1]],
                     tbl[i][2]:gsub("[\n\t]+", ""))
         else
             dmp = dmp ..
-                string.format("  0x%s \x1b[36m %s => \x1b[37m '%s'\n", 
+                string.format("  0x%s \x1b[36m %s => \x1b[37m '%s'\n",
                     bit.tohex(i),
-                    vmcode[tbl[i][1]], 
+                    vmcode[tbl[i][1]],
                     tbl[i][2]:gsub("[\n\t]+", ""))
         end
         if i == mark then
-            dmp = dmp .. 
+            dmp = dmp ..
                 "              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
             return dmp
         end
@@ -769,7 +769,7 @@ function Mustache.TemplateHelper:set_base_directory(file)
 end
 
 function Mustache.TemplateHelper:load(template)
-    if not template then 
+    if not template then
         error("No template name specified.")
     elseif not self.base_dir then
         error("Please call set_base_directory first.")
@@ -778,7 +778,7 @@ function Mustache.TemplateHelper:load(template)
         return self.templates[template]
     else
         local data = util.read_all(self.base_dir .. template)
-        local tbl = Mustache.compile(data)      
+        local tbl = Mustache.compile(data)
         self.templates[template] = tbl
         return tbl
     end

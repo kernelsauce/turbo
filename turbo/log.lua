@@ -3,7 +3,7 @@
 -- formatting. Messages written is appended to level and timestamp. You
 -- can turn off unwanted categories by modifiying the table at log.categories.
 --
--- For messages shorter than 4096 bytes a static buffer is used to 
+-- For messages shorter than 4096 bytes a static buffer is used to
 -- improve performance. C time.h functions are used as Lua builtin's is
 -- not compiled by LuaJIT. This statement applies to all log functions, except
 -- log.dump.
@@ -176,10 +176,10 @@ end
 -- @note Messages are printed with red color.
 -- @param str (String) Message to output.
 if platform.__LINUX__ then
-    function log.error(str) 
+    function log.error(str)
         if log.categories.error == false then
             return
-        end    
+        end
         ffi.C.time(time_t)
         local tm = ffi.C.localtime(time_t)
         local sz = ffi.C.strftime(buf, 4096, "\x1b[31m[E %Y/%m/%d %H:%M:%S] ", tm)
@@ -213,7 +213,7 @@ if platform.__LINUX__ then
     function log.debug(str)
         if log.categories.debug == false then
             return
-        end    
+        end
         ffi.C.time(time_t)
         local tm = ffi.C.localtime(time_t)
         local sz = ffi.C.strftime(buf, 4096, "[D %Y/%m/%d %H:%M:%S] ", tm)
@@ -247,7 +247,7 @@ if platform.__LINUX__ then
     function log.devel(str)
         if log.categories.development == false then
             return
-        end    
+        end
         ffi.C.time(time_t)
         local tm = ffi.C.localtime(time_t)
         local sz = ffi.C.strftime(buf, 4096, "\x1b[36m[d %Y/%m/%d %H:%M:%S] ", tm)
@@ -348,11 +348,11 @@ end
 -- Use for warnings.
 -- @note Messages are printed with white color.
 -- @param str (String) Message to output.
-function log.stacktrace(str) 
+function log.stacktrace(str)
     if log.categories.stacktrace == false then
         return
     end
-    io.stderr:write(str .. "\n") 
+    io.stderr:write(str .. "\n")
 end
 
 return log

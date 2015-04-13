@@ -8,7 +8,7 @@ A simple log writer implementation with different levels and standard
 formatting. Messages written is appended to level and timestamp. You
 can turn off unwanted categories by modifiying the table at log.categories.
 
-For messages shorter than 4096 bytes a static buffer is used to 
+For messages shorter than 4096 bytes a static buffer is used to
 improve performance. C time.h functions are used as Lua builtin's is
 not compiled by LuaJIT. This statement applies to all log functions, except
 log.dump.
@@ -18,7 +18,7 @@ Example output:
 
 To enable or disable categories, modify the table in ``turbo.log.categories``.
 
-As default, it is declared as such: 
+As default, it is declared as such:
 
 .. code-block:: lua
 
@@ -58,7 +58,7 @@ As default, it is declared as such:
 	Log to stderr. Warning category.
 	Use for warnings.
 	Messages are printed with yellow color.
-	
+
 	:param str: Log string.
 	:type str: String
 
@@ -75,7 +75,7 @@ As default, it is declared as such:
 
 	Log to stdout. Debug category.
 	Use for debug messages not critical for releases.
-	
+
 	:param str: Log string.
 	:type str: String
 
@@ -84,7 +84,7 @@ As default, it is declared as such:
 	Log to stdout. Development category.
 	Use for development purpose messages.
 	Messages are printed with cyan color.
-	
+
 	:param str: Log string.
 	:type str: String
 

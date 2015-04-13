@@ -12,7 +12,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.  
+-- limitations under the License.
 
 local turbo = require "turbo"
 
@@ -21,6 +21,6 @@ local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 function ExampleHandler:get()
     self:write("Hello world!")
 end
- 
+
 turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888, "::1")
 turbo.ioloop.instance():start()

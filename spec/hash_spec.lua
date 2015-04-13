@@ -21,7 +21,7 @@ if pcall(ffi.load, "ssl") then
 
 	describe("turbo.hash Namespace", function()
 	    it("SHA1 class", function()
-	    	local hash = turbo.hash.SHA1("lol")	
+	    	local hash = turbo.hash.SHA1("lol")
 	    	assert.equal(hash:hex(), "403926033d001b5279df37cbbe5287b7c7c267fa")
 	    end)
 	    it("works with nil initializer", function()

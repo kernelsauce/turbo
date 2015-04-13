@@ -13,13 +13,13 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.     ]]
-  
+
 local turbo = require "turbo"
 require "turbo.3rdparty.middleclass"
- 
+
 describe("turbo.httputil Namespace", function()
   describe("HTTPParser Class", function()
-    local raw_headers = 
+    local raw_headers =
         "GET /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
         "Host: somehost.no\r\n"..
         "Connection: keep-alive\r\n"..
@@ -30,7 +30,7 @@ describe("turbo.httputil Namespace", function()
         "Accept-Language: en-US,en;q=0.8\r\n"..
         "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n\r\n"
 
-    local badheaders = 
+    local badheaders =
         "BAD! /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
         "Host: somehost.no\r\n"..
         "Connection: keep-alive\r\n"..
@@ -41,7 +41,7 @@ describe("turbo.httputil Namespace", function()
         "Accept-Language: en-US,en;q=0.8\r\n"..
         "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3\r\n\r\n"
 
-    local badheaders2 = 
+    local badheaders2 =
         "BAD! /test/test.gif?param1=something&param2=somethingelse&param2=somethingelseelse HTTP/1.1\r\n"..
         "Host: somehost.no\r\n"..
         "Connection: keep-alive\0 Attr:Here\0Scraps\r\n"..
@@ -54,27 +54,27 @@ describe("turbo.httputil Namespace", function()
 
     it("should parse valid headers correctly", function()
         local headers = turbo.httputil.HTTPParser(
-            raw_headers, 
+            raw_headers,
             turbo.httputil.hdr_t["HTTP_REQUEST"])
         assert.truthy(instanceOf(turbo.httputil.HTTPParser, headers))
     end)
 
-    it("should throw on bad headers", function()        
-        assert.has_error(function() 
+    it("should throw on bad headers", function()
+        assert.has_error(function()
             local header = turbo.httputil.HTTPParser(
-                badheaders, 
-                turbo.httputil.hdr_t["HTTP_REQUEST"]) 
+                badheaders,
+                turbo.httputil.hdr_t["HTTP_REQUEST"])
         end)
-        assert.has_error(function() 
+        assert.has_error(function()
             local header = turbo.httputil.HTTPParser(
-                badheaders2, 
-                turbo.httputil.hdr_t["HTTP_REQUEST"]) 
+                badheaders2,
+                turbo.httputil.hdr_t["HTTP_REQUEST"])
         end)
-    end)    
-    
+    end)
+
     it("should parse request header correctly", function()
         local headers = turbo.httputil.HTTPParser(
-            raw_headers, 
+            raw_headers,
             turbo.httputil.hdr_t["HTTP_REQUEST"])
         assert.equal(headers:get("Host"), "somehost.no")
         assert.equal(headers:get("Connection"), "keep-alive")
@@ -104,10 +104,10 @@ describe("turbo.httputil Namespace", function()
         assert.equal(header:get_url_field(turbo.httputil.UF.QUERY), "andmyparams")
         assert.equal(header:get_url_field(turbo.httputil.UF.FRAGMENT), "fragment")
     end)
-    
+
   end)
 
-  describe("HTTPHeaders class", function()  
+  describe("HTTPHeaders class", function()
 
     it("should assemble headers correctly", function()
         local headers = turbo.httputil.HTTPHeaders:new()
@@ -123,7 +123,7 @@ describe("turbo.httputil Namespace", function()
         assert.equal(headers:__tostring(), expected)
         assert.equal(headers:__tostring():len(), 137)
     end)
-    
+
     it("should allow settings and getting of notable values", function()
         local h = turbo.httputil.HTTPHeaders:new()
         h:set_status_code(200)
@@ -139,7 +139,7 @@ describe("turbo.httputil Namespace", function()
         h:remove("My-Field")
         assert.equal(h:get("My-Field"), nil)
     end)
-    
+
     it("should fail on setting of bad values", function()
         local h = turbo.httputil.HTTPHeaders:new()
         assert.has_error(function() h:set_status_code("FAIL") end)
@@ -160,6 +160,6 @@ describe("turbo.httputil Namespace", function()
         assert.equal(tbl.arr[1], "1")
         assert.equal(tbl.arr[2], "2")
     end)
-    
+
   end)
 end)

@@ -91,7 +91,7 @@ ffi.cdef [[
     int close(int fd);
     int connect(int fd, const struct sockaddr *addr, socklen_t len);
     int setsockopt(
-        int fd, 
+        int fd,
         int level,
         int optname,
         const void *optval,
@@ -293,7 +293,7 @@ if platform.__LINUX__ then
         int epoll_create(int size);
         int epoll_ctl(
             int epfd,
-            int op, 
+            int op,
             int fd,
             struct epoll_event *event);
         int epoll_wait(
@@ -324,7 +324,7 @@ if platform.__LINUX__ then
     ffi.cdef[[
         typedef long int __ssize_t;
         typedef __ssize_t ssize_t;
-        
+
         ssize_t read(int fd, void *buf, size_t nbytes) ;
         int syscall(int number, ...);
         void *mmap(
@@ -461,7 +461,7 @@ end
 
 if _G.TURBO_SSL then
     --- *******OpenSSL *******
-    -- Note: Typedef SSL structs to void as we never access their members and 
+    -- Note: Typedef SSL structs to void as we never access their members and
     -- they are massive in ifdef's etc and are best left as blackboxes!
     ffi.cdef[[
         typedef void SSL_METHOD;
@@ -583,7 +583,7 @@ end
 
 --- ******* HTTP parser and libtffi *******
 ffi.cdef[[
-    enum http_parser_url_fields{ 
+    enum http_parser_url_fields{
         UF_SCHEMA = 0,
         UF_HOST = 1,
         UF_PORT = 2,
@@ -654,7 +654,7 @@ ffi.cdef[[
         int is_connect,
         struct http_parser_url *u);
      bool url_field_is_set(
-        const struct http_parser_url *url, 
+        const struct http_parser_url *url,
         enum http_parser_url_fields prop);
      char *url_field(const char *url_str,
         const struct http_parser_url *url,

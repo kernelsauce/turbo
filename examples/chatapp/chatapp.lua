@@ -67,7 +67,7 @@ end
 function ChatRoom:update_participants()
     -- Send a updated participant list.
     local nicks = {}
-    for i = 1, #self.subscribers do 
+    for i = 1, #self.subscribers do
         nicks[#nicks+1] = self.subscribers[i].nick
     end
     self:broadcast({
@@ -78,7 +78,7 @@ end
 
 function ChatRoom:unsubscribe(nick, socket)
     -- NYI, remove nick and socket object.
-    for i = 1, #self.subscribers do 
+    for i = 1, #self.subscribers do
         if self.subscribers[i].nick == nick then
             assert(self.subscribers[i].socket == socket,
                    "Uh oh...")
@@ -120,7 +120,7 @@ function ChatCom:on_message(msg)
     self.options.chatroom:broadcast({
         type = "message",
         data = {
-            nick = self.nick, 
+            nick = self.nick,
             msg = pack.data.msg
         }
     })
@@ -163,7 +163,7 @@ local function main()
         {"^/signin$", SignInHandler, {chatroom = chatroom}},
         {"^/$", turbo.web.StaticFileHandler, "assets/index.html"},
         {"^/assets/(.*)$", turbo.web.StaticFileHandler, "assets/"}
-    }, 
+    },
     {
         cookie_secret = "akofdkapokfposakfdsafasdåpfkadåpf"
     })

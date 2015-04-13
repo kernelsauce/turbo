@@ -358,9 +358,9 @@ the body of the request. The request is always finished on error.
 
 StaticFileHandler class
 ~~~~~~~~~~~~~~~~~~~~~~~
-A static file handler for files on the local file system. 
+A static file handler for files on the local file system.
 All files below user defined ``_G.TURBO_STATIC_MAX`` or default 1MB in size
-are stored in memory after initial request. Files larger than this are read 
+are stored in memory after initial request. Files larger than this are read
 from disk on demand.
 
 Usage:

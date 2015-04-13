@@ -12,7 +12,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.  
+-- limitations under the License.
 
 local turbo = require "turbo"
 
@@ -26,9 +26,9 @@ function ChunkedHandler:get()
     self:write("Hello Mars!") -- Refill buffer.
     -- Flush again.
     -- Each flush will end up as one chunk in the IOStream.
-    self:flush() 
+    self:flush()
     self:finish()
 end
- 
+
 turbo.web.Application({{"^/$", ChunkedHandler}}):listen(8888)
 turbo.ioloop.instance():start()

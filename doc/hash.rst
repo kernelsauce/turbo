@@ -10,9 +10,9 @@ SHA1 class
 ~~~~~~~~~~
 
 .. function :: SHA1(str)
-	
+
 	Create a SHA1 object. Pass a Lua string with the initializer to digest it.
-	
+
 	:param str: Lua string to digest immediately. Note that you cannot call ``SHA1.update`` or ``SHA1.final`` afterwards as the digest is already final.
 	:type str: String or nil
 
@@ -42,10 +42,10 @@ SHA1 class
 
 .. function :: HMAC(key, digest)
 
-	Keyed-hash message authentication code (HMAC) is a specific construction 
-	for calculating a message authentication code (MAC) involving a 
+	Keyed-hash message authentication code (HMAC) is a specific construction
+	for calculating a message authentication code (MAC) involving a
 	cryptographic hash function in combination with a secret cryptographic key.
- 
+
  	:param key: Sequence of bytes used as a key.
  	:type key: String
 	:param digest: String to digest.

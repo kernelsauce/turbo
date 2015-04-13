@@ -16,7 +16,7 @@
 
 local turbo = require "turbo"
 
-describe("turbo.web.Mustache Namespace", function() 
+describe("turbo.web.Mustache Namespace", function()
     it("Basic usage", function()
 
     local simple_template = [[
@@ -24,11 +24,11 @@ describe("turbo.web.Mustache Namespace", function()
     <h1>
         {{heading }}
     </h1>
-    {{!     
+    {{!
 
-            Some comment section that 
+            Some comment section that
             even spans across multiple lines,
-            that I just have to have to explain my flawless code.       
+            that I just have to have to explain my flawless code.
 
     }}
     <h2>
@@ -43,11 +43,11 @@ describe("turbo.web.Mustache Namespace", function()
             Type available: {{type}}
         {{/types}}
         {{^types}}  Only one type available.
-        {{! Apparently only one type is available because types is not set, 
+        {{! Apparently only one type is available because types is not set,
         determined by the hat char ^}}
         {{/types}}
     {{/items}}
-    
+
     {{^items}}
         No items available!
     {{/items}}
@@ -58,13 +58,13 @@ describe("turbo.web.Mustache Namespace", function()
         -- if the compiling is erroring on valid input.
         local tmpl = turbo.web.Mustache.compile(simple_template)
         local compiled_tmpl = turbo.web.Mustache.render(tmpl, {
-            heading="My website!", 
+            heading="My website!",
             desc="<b>Big important website</b>",
             age=27,
             items={
-                {item="Bread", 
+                {item="Bread",
                     types={
-                        {type="light"}, 
+                        {type="light"},
                         {type="fatty"}
                     }
                 },
