@@ -1172,6 +1172,8 @@ function web.Application:_get_request_handlers(request)
     end
 end
 
+local _str_borders_down = string.rep("▼", 80)
+local _str_borders_up = string.rep("▲", 80)
 --- Entry point for requests recieved by HTTPServer.
 -- @param request (HTTPRequest instance)
 function web.Application:__call(request)
@@ -1187,13 +1189,20 @@ function web.Application:__call(request)
                     err.code,
                     err.message)
             elseif type(err) == "string" then
-                local trace = debug.traceback()
-                log.error("[web.lua] " .. err)
-                log.stacktrace(trace)
+                local thread = coroutine.running()
+                local trace = debug.traceback(coroutine.running(), err, 2)
+                log.error(
+                    string.format(
+                        "[web.lua] Error in RequestHandler, %s is dead.\n%s\n%s\n%s",
+                        thread,
+                        _str_borders_down,
+                        trace,
+                        _str_borders_up))
                 handler = web.ErrorHandler:new(self,
                     request,
                     500,
-                    string.format("<pre>%s\n%s\n</pre>", err, trace))
+                    string.format('<pre style="font-size:12px; font-family:monospace; color:#8B0000;">[web.lua] Error in RequestHandler, %s is dead.\r\n%s\r\n%s\r\n%s</pre>',
+                        thread, _str_borders_down, trace, _str_borders_up))
             else
                 local trace = debug.traceback()
                 log.error("[web.lua] Unknown error.")

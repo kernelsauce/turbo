@@ -528,9 +528,17 @@ function ioloop.IOLoop:_run_handler(fd, events)
     end
 end
 
+local _str_borders_down = string.rep("▼", 80)
+local _str_borders_up = string.rep("▲", 80)
 local function _run_callback_error_handler(err)
-    log.error("[ioloop.lua] Uncaught error in callback: " .. err)
-    log.stacktrace(debug.traceback())
+    local thread = coroutine.running()
+    log.error(
+        string.format(
+            "[ioloop.lua] Error in IOLoop callback, %s is dead.\n%s\n%s\n%s",
+            thread,
+            _str_borders_down,
+            debug.traceback(coroutine.running(), err, 2),
+            _str_borders_up))
 end
 
 local function _run_callback_protected(func, arg)
