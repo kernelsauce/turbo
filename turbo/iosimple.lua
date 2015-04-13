@@ -15,17 +15,20 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+--
 -- A interface for turbo.iostream without the callback spaghetti, but still
 -- the async backend (the yield is done internally):
 -- turbo.ioloop.instance():add_callback(function()
 --     local stream = turbo.iosimple.dial("tcp://turbolua.org:80")
 --     stream:write("GET / HTTP/1.0\r\n\r\n")
 --
---     local data, err = stream:read_until_close()
---     if not data then print(err) else print(data) end
+--     local data = stream:read_until_close()
+--     print(data)
 --
 --     turbo.ioloop.instance():close() 
 -- end):start()
+--
+--
 
 local log =         require "turbo.log"
 local ioloop =      require "turbo.ioloop"
