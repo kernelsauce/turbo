@@ -21,7 +21,6 @@ turbo.ioloop.instance():add_callback(function()
 
 	stream:write("GET / HTTP/1.0\r\n\r\n")
 	local data = stream:read_until_close()
-	print(data)
 
 	turbo.ioloop.instance():close()	
 end):start()
