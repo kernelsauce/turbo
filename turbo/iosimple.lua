@@ -1,7 +1,7 @@
 --- Turbo.lua IO Stream module.
--- High-level wrappers for asynchronous socket communication.
+-- Very High-level wrappers for asynchronous socket communication.
 --
--- Copyright 2011 - 2015 John Abrahamsen
+-- Copyright 2015 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,24 +14,35 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
-
+--
+-- A interface for turbo.iostream without the callback spaghetti, but still
+-- the async backend (the yield is done internally):
+-- turbo.ioloop.instance():add_callback(function()
+--     local stream = turbo.iosimple.dial("tcp://turbolua.org:80")
+--     stream:write("GET / HTTP/1.0\r\n\r\n")
+--
+--     local data, err = stream:read_until_close()
+--     if not data then print(err) else print(data) end
+--
+--     turbo.ioloop.instance():close() 
+-- end):start()
 
 local log =         require "turbo.log"
 local ioloop =      require "turbo.ioloop"
-local deque =       require "turbo.structs.deque"
-local buffer =      require "turbo.structs.buffer"
 local coctx =       require "turbo.coctx"
 local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
 local iostream =    require "turbo.iostream"
-local platform =    require "turbo.platform"
-local async =       require "turbo.async"
-local bit =         jit and require "bit" or require "bit32"
-local ffi =         require "ffi"
 
 local iosimple = {} -- iosimple namespace
 
+--- Connect to a host using a simple URI pattern.
+-- @param address (String) E.g tcp://turbolua.org:8887
+-- @param io (IOLoop object) IOLoop class instance to use for event
+-- processing. If none is set then the global instance is used, see the
+-- ioloop.instance() function.
+-- @return (IOSimple class instance) or raise error.
 function iosimple.dial(address, io)
     assert(type(address) == "string", "No address in call to dial.")
     local protocol, host, port = address:match("^(%a+)://(.+):(%d+)")
@@ -85,10 +96,66 @@ end
 
 iosimple.IOSimple = class("IOSimple")
 
+
 function iosimple.IOSimple:initialize(stream, io)
     self.stream = stream
     self.io = io
     self.stream:set_close_callback(self._wake_yield_close, self)
+end
+
+--- Close this stream and clean up.
+function iosimple.IOSimple:close(str)
+    self.stream:close()
+end
+
+function iosimple.IOSimple:write(str)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:write(str, self._wake_yield, self)
+    local res, err = coroutine.yield(self.coctx)
+    if not res and err then
+        error(err)
+    end
+end
+
+function iosimple.IOSimple:read_until(delimiter)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_until(delimiter, self._wake_yield, self)
+    local res, err = coroutine.yield(self.coctx)
+    if not res and err then
+        error(err)
+    end
+end
+
+function iosimple.IOSimple:read_bytes(bytes)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_bytes(bytes, self._wake_yield, self)
+    local res, err = coroutine.yield(self.coctx)
+    if not res and err then
+        error(err)
+    end
+end
+
+function iosimple.IOSimple:read_until_pattern(pattern)
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_until_pattern(pattern, self._wake_yield, self)
+    local res, err = coroutine.yield(self.coctx)
+    if not res and err then
+        error(err)
+    end
+end
+
+function iosimple.IOSimple:read_until_close()
+    assert(not self.coctx, "IOSimple is already working.")
+    self.coctx = coctx.CoroutineContext(self.io)
+    self.stream:read_until_close(self._wake_yield, self)
+    local res, err = coroutine.yield(self.coctx)
+    if not res and err then
+        error(err)
+    end
 end
 
 function iosimple.IOSimple:_wake_yield_close(...)
@@ -104,45 +171,6 @@ function iosimple.IOSimple:_wake_yield(...)
     self.coctx = nil
     ctx:set_arguments({...})
     ctx:finalize_context()
-end
-
-function iosimple.IOSimple:close(str)
-    self.stream:close()
-end
-
-function iosimple.IOSimple:write(str)
-    assert(not self.coctx, "IOSimple is already working.")
-    self.coctx = coctx.CoroutineContext(self.io)
-    self.stream:write(str, self._wake_yield, self)
-    return coroutine.yield(self.coctx)
-end
-
-function iosimple.IOSimple:read_until(delimiter)
-    assert(not self.coctx, "IOSimple is already working.")
-    self.coctx = coctx.CoroutineContext(self.io)
-    self.stream:read_until(delimiter, self._wake_yield, self)
-    return coroutine.yield(self.coctx)
-end
-
-function iosimple.IOSimple:read_bytes(bytes)
-    assert(not self.coctx, "IOSimple is already working.")
-    self.coctx = coctx.CoroutineContext(self.io)
-    self.stream:read_bytes(bytes, self._wake_yield, self)
-    return coroutine.yield(self.coctx)
-end
-
-function iosimple.IOSimple:read_until_pattern(pattern)
-    assert(not self.coctx, "IOSimple is already working.")
-    self.coctx = coctx.CoroutineContext(self.io)
-    self.stream:read_until_pattern(pattern, self._wake_yield, self)
-    return coroutine.yield(self.coctx)
-end
-
-function iosimple.IOSimple:read_until_close()
-    assert(not self.coctx, "IOSimple is already working.")
-    self.coctx = coctx.CoroutineContext(self.io)
-    self.stream:read_until_close(self._wake_yield, self)
-    return coroutine.yield(self.coctx)
 end
 
 return iosimple

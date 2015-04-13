@@ -17,7 +17,8 @@
 local turbo = require 'turbo'
 
 turbo.ioloop.instance():add_callback(function()
-	local stream = turbo.iosimple.dial("tcp://turbolua.org:80")
+	local stream = turbo.iosimple.dial("sadfsdftcp://turbolua.org:80")
+
 	stream:write("GET / HTTP/1.0\r\n\r\n")
 	local data, err = stream:read_until_close()
 	if not data then print(err) else print(data) end
