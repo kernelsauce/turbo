@@ -179,6 +179,7 @@ else
         return 0
     end
 end
+
 --- Read until delimiter, then call callback with recieved data. The callback
 -- recieves the data read as a parameter. Delimiter is plain text, and does
 -- not support Lua patterns. See read_until_pattern for that functionality.

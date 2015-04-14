@@ -99,19 +99,29 @@ end
 
 iosimple.IOSimple = class("IOSimple")
 
-
-function iosimple.IOSimple:initialize(stream, io)
+--- Wrap a IOStream class instance with a simpler IO.
+-- @param stream IOStream class instance, already connected. If not consider 
+-- using iosimple.dial.
+function iosimple.IOSimple:initialize(stream)
     self.stream = stream
-    self.io = io
+    self.io = self.stream.io_loop
     self.stream:set_close_callback(self._wake_yield_close, self)
 end
 
 --- Close this stream and clean up.
-function iosimple.IOSimple:close(str)
+function iosimple.IOSimple:close()
     self.stream:close()
 end
 
-function iosimple.IOSimple:write(str)
+--- Returns the IOStream instance backed by the current IOSimple instance.
+-- @return (IOStream class instance)
+function iosimple.IOSimple:get_iostream()
+    return self.stream
+end
+
+--- Write the given data to the stream. Return when data has been written.
+-- @param data (String) Data to write to stream.
+function iosimple.IOSimple:write(data)
     assert(not self.coctx, "IOSimple is already working.")
     self.coctx = coctx.CoroutineContext(self.io)
     self.stream:write(str, self._wake_yield, self)
@@ -121,6 +131,13 @@ function iosimple.IOSimple:write(str)
     end
 end
 
+--- Read until delimiter, then call callback with recieved data.
+-- Delimiter is plain text, and does not support Lua patterns. 
+-- See read_until_pattern for Lua patterns.
+-- read_until should be used instead of read_until_pattern wherever possible
+-- because of the overhead of doing pattern matching.
+-- @param delimiter (String) Delimiter sequence, text or binary.
+-- @return (String) Data recieved until delimiter.
 function iosimple.IOSimple:read_until(delimiter)
     assert(not self.coctx, "IOSimple is already working.")
     self.coctx = coctx.CoroutineContext(self.io)
@@ -131,6 +148,9 @@ function iosimple.IOSimple:read_until(delimiter)
     end
 end
 
+--- Read given amount of bytes from connection.
+-- @param bytes (Number) The amount of bytes to read.
+-- @return (String) Data recieved.
 function iosimple.IOSimple:read_bytes(bytes)
     assert(not self.coctx, "IOSimple is already working.")
     self.coctx = coctx.CoroutineContext(self.io)
@@ -141,6 +161,11 @@ function iosimple.IOSimple:read_bytes(bytes)
     end
 end
 
+--- Read until pattern is matched, then returns recieved data.
+-- If you only are doing plain text matching then using read_until
+-- is recommended for less overhead.
+-- @param pattern (String) The pattern to match.
+-- @return (String) Data recieved.
 function iosimple.IOSimple:read_until_pattern(pattern)
     assert(not self.coctx, "IOSimple is already working.")
     self.coctx = coctx.CoroutineContext(self.io)
@@ -151,6 +176,8 @@ function iosimple.IOSimple:read_until_pattern(pattern)
     end
 end
 
+--- Reads all data from the socket until it is closed.
+-- @return (String) Data recieved.
 function iosimple.IOSimple:read_until_close()
     assert(not self.coctx, "IOSimple is already working.")
     self.coctx = coctx.CoroutineContext(self.io)
