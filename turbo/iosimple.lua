@@ -124,7 +124,7 @@ end
 function iosimple.IOSimple:write(data)
     assert(not self.coctx, "IOSimple is already working.")
     self.coctx = coctx.CoroutineContext(self.io)
-    self.stream:write(str, self._wake_yield, self)
+    self.stream:write(data, self._wake_yield, self)
     local res, err = coroutine.yield(self.coctx)
     if not res and err then
         error(err)
