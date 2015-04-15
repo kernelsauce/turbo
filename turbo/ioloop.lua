@@ -35,6 +35,9 @@ local unpack = util.funpack
 local ioloop = {} -- ioloop namespace
 
 local epoll_ffi, _poll_implementation
+-- Backtrace formatters.
+local _str_borders_down = string.rep("▼", 80)
+local _str_borders_up = string.rep("▲", 80)
 
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     -- Epoll FFI module found and loaded.
@@ -494,7 +497,12 @@ end
 
 --- Error handler for IOLoop:_run_handler.
 local function _run_handler_error_handler(err)
-    log.debug("[ioloop.lua] Handler error: " .. err)
+    log.error(
+        string.format(
+            "[ioloop.lua] Error in IOLoop handler.\n%s\n%s\n%s",
+            _str_borders_down,
+            debug.traceback(err, 2),
+            _str_borders_up))
 end
 
 --- Run callbacks protected with error handlers. Because errors can always
@@ -528,8 +536,6 @@ function ioloop.IOLoop:_run_handler(fd, events)
     end
 end
 
-local _str_borders_down = string.rep("▼", 80)
-local _str_borders_up = string.rep("▲", 80)
 local function _run_callback_error_handler(err)
     local thread = coroutine.running()
     log.error(
