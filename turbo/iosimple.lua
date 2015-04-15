@@ -37,6 +37,7 @@ local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
 local iostream =    require "turbo.iostream"
+local crypto =      require "turbo.crypto"
 
 local iosimple = {} -- iosimple namespace
 
@@ -46,7 +47,7 @@ local iosimple = {} -- iosimple namespace
 -- processing. If none is set then the global instance is used, see the
 -- ioloop.instance() function.
 -- @return (IOSimple class instance) or raise error.
-function iosimple.dial(address, io)
+function iosimple.dial(address, ssl, io)
     assert(type(address) == "string", "No address in call to dial.")
     local protocol, host, port = address:match("^(%a+)://(.+):(%d+)")
     port = tonumber(port)
@@ -70,6 +71,22 @@ function iosimple.dial(address, io)
         error("Unknown schema: " .. protocol)
     end
 
+    local err, ssl_context
+    if ssl then
+        if ssl == true then
+            ssl = {verify=true}
+        end
+        err, res = crypto.ssl_create_client_context(
+            ssl.cert_file,
+            ssl.key_file,
+            ssl.ca_cert_file,
+            ssl.verify)
+        if err ~= 0 then
+            error(res)
+        end
+        ssl_context = res
+    end
+
     local sock, msg = socket.new_nonblock_socket(
          address_family,
          sock_t,
@@ -77,19 +94,37 @@ function iosimple.dial(address, io)
     if sock == -1 then
         error("Could not create socket.")
     end
-    local stream = iostream.IOStream(sock)
-    local ctx = coctx.CoroutineContext(io)
 
-    stream:connect(host, port, address_family,
-        function()
-            ctx:set_arguments({true})
-            ctx:finalize_context()
-        end,
-        function(err)
-            ctx:set_arguments({false, sockerr, strerr})
-            ctx:finalize_context()
-        end
-    )
+    local ctx = coctx.CoroutineContext(io)
+    local stream
+    if ssl and ssl_context then
+        stream = iostream.SSLIOStream(sock, {_ssl_ctx=ssl_context,
+                                             _type=1})
+        stream:connect(host, port, address_family, ssl.verify or false,
+            function()
+                ctx:set_arguments({true})
+                ctx:finalize_context()
+            end,
+            function(err)
+                ctx:set_arguments({false, sockerr, strerr})
+                ctx:finalize_context()
+            end
+        )
+    else
+        stream = iostream.IOStream(sock)
+        stream:connect(host, port, address_family,
+            function()
+                ctx:set_arguments({true})
+                ctx:finalize_context()
+            end,
+            function(err)
+                ctx:set_arguments({false, sockerr, strerr})
+                ctx:finalize_context()
+            end
+        )
+    end
+
+
     local rc, sockerr, strerr = coroutine.yield(ctx)
     if rc ~= true then
         error(string.format("Could not connect to %s, %s", address, strerr))
@@ -129,6 +164,7 @@ function iosimple.IOSimple:write(data)
     if not res and err then
         error(err)
     end
+    return res
 end
 
 --- Read until delimiter, then call callback with recieved data.
@@ -146,6 +182,7 @@ function iosimple.IOSimple:read_until(delimiter)
     if not res and err then
         error(err)
     end
+    return res
 end
 
 --- Read given amount of bytes from connection.
@@ -159,6 +196,7 @@ function iosimple.IOSimple:read_bytes(bytes)
     if not res and err then
         error(err)
     end
+    return res
 end
 
 --- Read until pattern is matched, then returns recieved data.
@@ -174,6 +212,7 @@ function iosimple.IOSimple:read_until_pattern(pattern)
     if not res and err then
         error(err)
     end
+    return res
 end
 
 --- Reads all data from the socket until it is closed.
@@ -186,6 +225,7 @@ function iosimple.IOSimple:read_until_close()
     if not res and err then
         error(err)
     end
+    return res
 end
 
 function iosimple.IOSimple:_wake_yield_close(...)
