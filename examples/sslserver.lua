@@ -12,7 +12,7 @@
 -- distributed under the License is distributed on an "AS IS" BASIS,
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
--- limitations under the License.  
+-- limitations under the License.
 
 TURBO_SSL = true -- Always set me when using SSL, before loading framework.
 local turbo = require "turbo"
@@ -21,7 +21,7 @@ local SSL_Handler = class("SSL_Handler", turbo.web.RequestHandler)
 function SSL_Handler:get()
     self:write("SSL is working!")
 end
- 
+
 local application = turbo.web.Application:new({
     {"^/$", SSL_Handler}
 })

@@ -27,7 +27,7 @@ describe("turbo.async Namespace", function()
                 cb(cb_arg,1,100,200,300,800)
             end)
         end
-        
+
         -- Only global instance is supported for this convinience function.
         io:add_callback(function()
             local r1,r2,r3,r4,r5 = coroutine.yield (turbo.async.task(typical_cb_func, 1234))

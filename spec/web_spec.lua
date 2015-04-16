@@ -226,7 +226,7 @@ describe("turbo.web Namespace", function()
             turbo.log.categories.stacktrace = true
         end)
 
-        it("Supprt multiple cookies.", function() 
+        it("Supprt multiple cookies.", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
 
@@ -239,20 +239,20 @@ describe("turbo.web Namespace", function()
                 self:set_cookie("TestValue2", test_value2)
                 self:write("Hello World!")
             end
-            
+
             local GetCookieHandler = class("GetCookieHandler", turbo.web.RequestHandler)
             function GetCookieHandler:get()
                 assert.equal(self:get_cookie("TestValue"), test_value1)
                 assert.equal(self:get_cookie("TestValue2"), test_value2)
                 self:write("Hello World!")
             end
-            
+
             turbo.web.Application({
                 {"^/set$", SetCookieHandler},
                 {"^/get$", GetCookieHandler},
             }):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/set"))
                 assert.falsy(res.error)
@@ -260,11 +260,11 @@ describe("turbo.web Namespace", function()
                 local cookiestr = res.headers:get("Set-Cookie")
 
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-                    "http://127.0.0.1:"..tostring(port).."/get", { 
-                        on_headers = function(h) 
+                    "http://127.0.0.1:"..tostring(port).."/get", {
+                        on_headers = function(h)
                             h:add("Cookie", cookiestr[1])
                             h:add("Cookie", cookiestr[2])
-                        end 
+                        end
                     }))
                 io:close()
             end)
@@ -272,7 +272,7 @@ describe("turbo.web Namespace", function()
 
         end)
 
-        it("Support cookie.", function() 
+        it("Support cookie.", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
 
@@ -283,19 +283,19 @@ describe("turbo.web Namespace", function()
                 self:set_cookie("TestValue", test_value1)
                 self:write("Hello World!")
             end
-            
+
             local GetCookieHandler = class("GetCookieHandler", turbo.web.RequestHandler)
             function GetCookieHandler:get()
                 assert.equal(self:get_cookie("TestValue"), test_value1)
                 self:write("Hello World!")
             end
-            
+
             turbo.web.Application({
                 {"^/set$", SetCookieHandler},
                 {"^/get$", GetCookieHandler},
             }):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/set"))
                 assert.falsy(res.error)
@@ -303,19 +303,19 @@ describe("turbo.web Namespace", function()
                 local cookiestr = res.headers:get("Set-Cookie")
 
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-                    "http://127.0.0.1:"..tostring(port).."/get", { 
-                        on_headers = function(h) 
+                    "http://127.0.0.1:"..tostring(port).."/get", {
+                        on_headers = function(h)
                             h:add("Cookie", cookiestr)
-                        end 
+                        end
                     }))
                 io:close()
             end)
             io:wait(5)
 
         end)
-        
+
         if TEST_WITH_SSL then
-        it("Support multiple secure cookies.", function() 
+        it("Support multiple secure cookies.", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
 
@@ -328,20 +328,20 @@ describe("turbo.web Namespace", function()
                 self:set_secure_cookie("TestValue2", test_value2)
                 self:write("Hello World!")
             end
-            
+
             local GetCookieHandler = class("GetCookieHandler", turbo.web.RequestHandler)
             function GetCookieHandler:get()
                 assert.equal(self:get_secure_cookie("TestValue"), test_value1)
                 assert.equal(self:get_secure_cookie("TestValue2"), test_value2)
                 self:write("Hello World!")
             end
-            
+
             turbo.web.Application({
                 {"^/set$", SetCookieHandler},
                 {"^/get$", GetCookieHandler},
             }, {cookie_secret="akpodpo0jsadasjdfoj24234øæ"}):listen(port)
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
                     "http://127.0.0.1:"..tostring(port).."/set"))
                 assert.falsy(res.error)
@@ -349,11 +349,11 @@ describe("turbo.web Namespace", function()
                 local cookiestr = res.headers:get("Set-Cookie")
 
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-                    "http://127.0.0.1:"..tostring(port).."/get", { 
-                        on_headers = function(h) 
+                    "http://127.0.0.1:"..tostring(port).."/get", {
+                        on_headers = function(h)
                             h:add("Cookie", cookiestr[1])
                             h:add("Cookie", cookiestr[2])
-                        end 
+                        end
                     }))
                 io:close()
             end)
@@ -361,7 +361,7 @@ describe("turbo.web Namespace", function()
         end)
         end
 
-        it("Should not accept big headers.", function() 
+        it("Should not accept big headers.", function()
             local port = math.random(10000,40000)
             local io = turbo.ioloop.instance()
 
@@ -369,17 +369,17 @@ describe("turbo.web Namespace", function()
             function TestHandler:get()
                 self:write("Hello World!")
             end
-            
+
             turbo.web.Application({
                 {"^/$", TestHandler}
             }):listen(port)
 
             local timedout = false
 
-            io:add_callback(function() 
+            io:add_callback(function()
                 local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-                    "http://127.0.0.1:"..tostring(port).."/", { 
-                        on_headers = function(h) 
+                    "http://127.0.0.1:"..tostring(port).."/", {
+                        on_headers = function(h)
                             -- Create a 1MB header.
                             h:add("Bomb", string.rep("B", 1024*1024))
                         end,

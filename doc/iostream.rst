@@ -15,7 +15,7 @@ its own write buffer and there is no need to buffer data at any other level. The
 .. function:: IOStream(fd, io_loop, max_buffer_size)
 
 	Create a new IOStream instance.
-	
+
 	:param fd: File descriptor, either open or closed. If closed then, the ``turbo.iostream.IOStream:connect()`` method can be used to connect.
 	:type fd: Number
 	:param io_loop: IOLoop class instance to use for event processing. If none is set then the global instance is used, see the ``ioloop.instance()`` function.
@@ -23,12 +23,12 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:param max_buffer_size: The maximum number of bytes that can be held in internal buffer before flushing must occur. If none is set, 104857600 are used as default.
 	:type max_buffer_size: Number
 	:rtype: IOStream object
-	
+
 .. function:: IOStream:connect(address, port, family, callback, errhandler, arg)
 
 	Connect to a address without blocking. To successfully use this method it is neccessary to check
-	the return value, and also assign a error handler function. 
-	
+	the return value, and also assign a error handler function.
+
 	:param host: The host to connect to. Either hostname or IP.
 	:type host: String
 	:param port: The port to connect to. E.g 80.
@@ -40,15 +40,15 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:type errhandler: Function
 	:param arg: Optional argument for callback. callback and errhandler are called with this as first argument.
 	:rtype: Number. -1 + error message on error, 0 on success.
-	
+
 .. function:: IOStream:read_until(delimiter, callback, arg)
 
-	Read until delimiter, then call callback with recieved data. The callback 
-	recieves the data read as a parameter. Delimiter is plain text, and does 
-	not support Lua patterns. See read_until_pattern for that functionality. 
-	read_until should be used instead of read_until_pattern wherever possible 
+	Read until delimiter, then call callback with recieved data. The callback
+	recieves the data read as a parameter. Delimiter is plain text, and does
+	not support Lua patterns. See read_until_pattern for that functionality.
+	read_until should be used instead of read_until_pattern wherever possible
 	because of the overhead of doing pattern matching.
-	
+
 	:param delimiter: Delimiter sequence, text or binary.
 	:type delimiter: String
 	:param callback:  Callback function. The function is called with the recieved data as parameter.
@@ -57,7 +57,7 @@ its own write buffer and there is no need to buffer data at any other level. The
 
 .. function:: IOStream:read_until_pattern(pattern, callback, arg)
 
-	Read until pattern is matched, then call callback with recieved data. 
+	Read until pattern is matched, then call callback with recieved data.
 	The callback recieves the data read as a parameter. If you only are
 	doing plain text matching then using read_until is recommended for
 	less overhead.
@@ -69,12 +69,12 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 
 .. function:: IOStream:read_bytes(num_bytes, callback, arg, streaming_callback, streaming_arg)
-	
+
 	Call callback when we read the given number of bytes.
-	If a streaming_callback argument is given, it will be called with chunks 
-	of data as they become available, and the argument to the final call to 
+	If a streaming_callback argument is given, it will be called with chunks
+	of data as they become available, and the argument to the final call to
 	callback will be empty.
-	
+
 	:param num_bytes: The amount of bytes to read.
 	:type num_bytes: Number
 	:param callback: Callback function. The function is called with the recieved data as parameter.
@@ -83,22 +83,22 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:param streaming_callback: Optional callback to be called as chunks become available.
 	:type streaming_callback: Function
 	:param streaming_arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
-	
+
 .. function:: IOStream:read_until_close(callback, arg, streaming_callback, streaming_arg)
 
 	Reads all data from the socket until it is closed.
 	If a streaming_callback argument is given, it will be called with
-	chunks of data as they become available, and the argument to the final call to 
+	chunks of data as they become available, and the argument to the final call to
 	callback will contain the final chunk.
 	This method respects the max_buffer_size set in the IOStream object.
-	
+
 	:param callback: Function to call when connection has been closed.
 	:type callback: Function with one parameter or nil.
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 	:param streaming_callback: Function to call as chunks become available.
 	:type callback: Function with one parameter or nil.
 	:param streaming_arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
-	
+
 .. function:: IOStream:write(data, callback, arg)
 
 	Write the given data to this stream.
@@ -106,13 +106,13 @@ its own write buffer and there is no need to buffer data at any other level. The
 	data has been successfully written to the stream. If there was
 	previously buffered write data and an old write callback, that
 	callback is simply overwritten with this new callback.
-	
+
 	:param data: The chunk to write to the stream.
 	:type data: String
 	:param callback: Function to be called when data has been written to stream.
 	:type callback: Function
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback.
-	
+
 .. function:: IOStream:write_buffer(buf, callback, arg)
 
 	Write the given ``turbo.structs.buffer`` to the stream.
@@ -124,14 +124,14 @@ its own write buffer and there is no need to buffer data at any other level. The
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback.
 
 .. function:: IOStream:write_zero_copy(buf, callback, arg)
-	
+
 	Write the given buffer class instance to the stream without
 	copying. This means that this write MUST complete before any other
 	writes can be performed, and that the internal buffer has to be completely flushed
-	before it is invoked. This can be achieved by either using ``IOStream:writing`` or adding a callback to 
-	other write methods callled before this. There is a barrier in place to stop this from 
+	before it is invoked. This can be achieved by either using ``IOStream:writing`` or adding a callback to
+	other write methods callled before this. There is a barrier in place to stop this from
 	happening. A error is raised in the case of invalid use. This method is recommended
-	when you are serving static data, it refrains from copying the contents of 
+	when you are serving static data, it refrains from copying the contents of
 	the buffer into its internal buffer, at the cost of not allowing
 	more data being added to the internal buffer before this write is finished. The reward is lower
 	memory usage and higher throughput.
@@ -145,13 +145,13 @@ its own write buffer and there is no need to buffer data at any other level. The
 .. function:: IOStream:set_close_callback(callback, arg)
 
 	Set a callback to be called when the stream is closed.
-	
+
 	:param callback: Function to call on close.
 	:type callback: Function
 	:param arg: Optional argument for callback.
-	
+
 .. function:: IOStream:set_max_buffer_size(sz)
-    
+
     Set the maximum amount of bytes to be buffered internally in the IOStream instance.
     This limit can also be set on class instanciation. This method does NOT check the
     current size and does NOT immediately raise a error if the size is already exceeded.
@@ -164,23 +164,23 @@ its own write buffer and there is no need to buffer data at any other level. The
 .. function:: IOStream:close()
 
 	Close the stream and its associated socket.
-	
+
 .. function:: IOStream:reading()
 
 	Is the stream currently being read from?
-	
+
 	:rtype: Boolean
-	
+
 .. function:: IOStream:writing()
 
 	Is the stream currently being written to?
-	
+
 	:rtype: Boolean
-	
+
 .. function:: IOStream:closed()
 
 	Has the stream been closed?
-	
+
 	:rtype: Boolean
 
 SSLIOStream class
@@ -198,7 +198,7 @@ must be set.
 	* ``turbo.crypto.ssl_create_client_context``
 	* ``turbo.crypto.ssl_create_server_context``
 	to create a SSL context to pass in the ssl_options argument.
-	
+
 	ssl_options table should contain:
 
 	* "_ssl_ctx" - SSL_CTX pointer created with context functions in crypto.lua.
@@ -217,9 +217,9 @@ must be set.
 .. function:: IOStream:connect(address, port, family, verify, callback, errhandler, arg)
 
 	Connect to a address without blocking. To successfully use this method it is neccessary to check
-	the return value, and also assign a error handler function. Notice that the verify arugment has 
+	the return value, and also assign a error handler function. Notice that the verify arugment has
 	been added as opposed to the ``IOStream:connect`` method.
-	
+
 	:param host: The host to connect to. Either hostname or IP.
 	:type host: String
 	:param port: The port to connect to. E.g 80.

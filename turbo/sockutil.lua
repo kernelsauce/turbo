@@ -13,7 +13,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
-  
+
 local socket =      require "turbo.socket_ffi"
 local ioloop =      require "turbo.ioloop"
 local log =         require "turbo.log"
@@ -49,12 +49,12 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     --- Creates the sockaddr_in or sockaddr_in6 struct
     -- If not address is defined '0.0.0.0'/'::' will be used.
     -- If not family is defined then AF_INET(ipv4) will be used
-    -- @param address (Number or String) The address to bind to in unsigned 
+    -- @param address (Number or String) The address to bind to in unsigned
     -- integer hostlong or a string like "127.0.0.1".
     -- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
     -- binding to all addresses.
     -- @param port (Number) The port number to bind to.
-    -- @param family (Number) Optional socket family. Defined in Socket module. If 
+    -- @param family (Number) Optional socket family. Defined in Socket module. If
     -- not defined AF_INET is used as default.
     function sockutils.create_server_address(port, address, family)
         local serv_addr
@@ -80,7 +80,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         end
 
         if type(address) == "string" then
-            rc = ffi.C.inet_pton(family, address, 
+            rc = ffi.C.inet_pton(family, address,
                 family == AF_INET and serv_addr.sin_addr or serv_addr.sin6_addr)
             if rc == 0 then
                 error(string.format("[sockutil.lua] Invalid address %s",
@@ -136,14 +136,14 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     --- Binds sockets to port and address.
     -- If not address is defined then * will be used.
     -- If no backlog size is given then 128 connections will be used.
-    -- @param address (Number or String) The address to bind to in unsigned 
+    -- @param address (Number or String) The address to bind to in unsigned
     -- integer hostlong or a string like "127.0.0.1".
     -- If not address is given, INADDR_ANY or ("::" for ipv6) will be used,
     -- binding to all addresses.
     -- @param port (Number) The port number to bind to.
     -- @param backlog (Number) Maximum backlogged client connects to allow. If not
     -- defined then 128 is used as default.
-    -- @param family (Number) Optional socket family. Defined in Socket module. If 
+    -- @param family (Number) Optional socket family. Defined in Socket module. If
     -- not defined AF_INET is used as default.
     function sockutils.bind_sockets(port, address, backlog, family)
         local serv_addr
@@ -165,39 +165,39 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         end
 
         serv_addr = sockutils.create_server_address(port, address, family)
-        
+
         local fd = C.socket(family, SOCK_STREAM, 0)
         if fd == -1 then
             errno = ffi.errno()
             error(string.format(
                 "[tcpserver.lua Errno %d] Could not create socket. %s",
-                errno, 
-                socket.strerror(errno)))        
-        end    
+                errno,
+                socket.strerror(errno)))
+        end
         rc, msg = socket.set_nonblock_flag(fd)
         if rc ~= 0 then
            error("[iostream.lua] " .. msg)
-        end    
+        end
         rc, msg = socket.set_reuseaddr_opt(fd)
         if rc ~= 0 then
            error("[tcpserver.lua] " .. msg)
         end
-        if C.bind(fd, ffi.cast("struct sockaddr *", serv_addr), 
+        if C.bind(fd, ffi.cast("struct sockaddr *", serv_addr),
             ffi.sizeof(serv_addr)) ~= 0 then
             errno = ffi.errno()
             error(string.format(
-                "[tcpserver.lua Errno %d] Could not bind to address. %s", 
-                errno, 
-                socket.strerror(errno)))        
+                "[tcpserver.lua Errno %d] Could not bind to address. %s",
+                errno,
+                socket.strerror(errno)))
         end
-        if C.listen(fd, backlog) ~= 0 then 
+        if C.listen(fd, backlog) ~= 0 then
             errno = ffi.errno()
             error(string.format(
                 "[tcpserver.lua Errno %d] Could not listen to socket fd %d. %s",
-                errno, 
-                fd, 
+                errno,
+                fd,
                 socket.strerror(errno)))
-        end    
+        end
         --log.devel(string.format("[tcpserver.lua] Listening to socket fd %d", fd))
         return fd
     end
@@ -206,14 +206,14 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     local client_addr_sz = ffi.new("int32_t[1]", ffi.sizeof(client_addr))
 
     _add_accept_hander_cb = function(arg, fd, events)
-       while true do 
+       while true do
             local errno
             local address
             --log.devel(string.format(
                 --"[tcpserver.lua] Accepting connection on socket fd %d", fd))
 
-            local client_fd = 
-                C.accept(fd, ffi.cast("struct sockaddr *", client_addr), 
+            local client_fd =
+                C.accept(fd, ffi.cast("struct sockaddr *", client_addr),
                          client_addr_sz)
             local family = client_addr.ss_family
             if client_fd == -1 then
@@ -222,8 +222,8 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                     break
                 else
                     log.error(string.format(
-                        "[tcpserver.lua Errno %d] Could not accept connection. %s", 
-                        errno, 
+                        "[tcpserver.lua Errno %d] Could not accept connection. %s",
+                        errno,
                         socket.strerror(errno)))
                     break
                 end
@@ -260,7 +260,7 @@ else
     end
 
     _add_accept_hander_cb = function(arg, fd, events)
-        while true do 
+        while true do
             local client_fd = fd:accept()
             if not client_fd then
                 break
@@ -277,19 +277,19 @@ else
 end
 
 
---- Add accept handler for socket with given callback. 
--- Either supply a IOLoop object, or the global instance will be used... 
+--- Add accept handler for socket with given callback.
+-- Either supply a IOLoop object, or the global instance will be used...
 -- @param sock (Number) Socket file descriptor to add handler for.
 -- @param callback (Function) Callback to handle connects. Function recieves
 -- socket fd (Number) and address (String) of client as parameters.
 -- @param io_loop (IOLoop instance) If not set the global is used.
 -- @param arg Optional argument for callback.
-function sockutils.add_accept_handler(sock, callback, io_loop, arg) 
+function sockutils.add_accept_handler(sock, callback, io_loop, arg)
     local io_loop = io_loop or ioloop.instance()
     io_loop:add_handler(
-        sock, 
-        ioloop.READ, 
-        _add_accept_hander_cb, 
+        sock,
+        ioloop.READ,
+        _add_accept_hander_cb,
         {callback, arg})
 end
 

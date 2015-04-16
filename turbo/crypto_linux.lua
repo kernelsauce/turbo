@@ -40,7 +40,7 @@ crypto.SSL_ERROR_SYSCALL =          5
 crypto.SSL_ERROR_ZERO_RETURN =      6
 crypto.SSL_ERROR_WANT_CONNECT =     7
 crypto.SSL_ERROR_WANT_ACCEPT =      8
--- use either SSL_VERIFY_NONE or SSL_VERIFY_PEER, the last 2 options 
+-- use either SSL_VERIFY_NONE or SSL_VERIFY_PEER, the last 2 options
 -- are 'ored' with SSL_VERIFY_PEER if they are desired
 crypto.SSL_VERIFY_NONE =        0x00
 crypto.SSL_VERIFY_PEER =        0x01
@@ -153,7 +153,7 @@ end
 -- @param cert_file Certificate file (public key)
 -- @param prv_file Key file (private key)
 -- @param sslv (optional) SSL version to use.
--- @return Return code. 0 if successfull, else a OpenSSL error 
+-- @return Return code. 0 if successfull, else a OpenSSL error
 -- code and a SSL
 -- error string, or -1 and a error string.
 -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
@@ -235,7 +235,7 @@ function crypto.ssl_do_handshake(SSLIOStream)
     local ssl = SSLIOStream._ssl
     local client = SSLIOStream._ssl_options._type == 1
 
-    -- This method might be called multiple times if we recieved 
+    -- This method might be called multiple times if we recieved
     -- EINPROGRESS or equaivalent on prior calls. The OpenSSL
     -- documentation states that SSL_do_handshake should be called again
     -- when its needs are satisfied.

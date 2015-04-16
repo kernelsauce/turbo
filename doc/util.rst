@@ -12,7 +12,7 @@ Table tools
 .. function:: string:split(sep, max, pattern)
 
 	Split a string into a table on given seperator. This function extends the standard string library with new functionality.
-	
+
 	:param sep: String that seperate elements.
 	:type sep: String
 	:param max: Max elements to split
@@ -20,21 +20,21 @@ Table tools
 	:param pattern: Separator should be treated as a Lua pattern. Slower.
 	:type pattern: Boolean
 	:rtype: Table
-	
+
 .. function:: join(delimiter, list)
 
 	Join a table into a string.
-	
+
 	:param delimiter: Inserts this string between each table element.
 	:type delimiter: String
 	:param list: The table to join.
 	:type list: Table
 	:rtype: String
-	
+
 .. function:: is_in(needle, haystack)
 
 	Search table for given element.
-	
+
 	:param needle: The needle to find.
 	:type needle: Any that supports == operator.
 	:param haystack: The haystack to search.
@@ -52,12 +52,12 @@ Table tools
 
 Low level
 ---------
-	
+
 .. function:: mem_dump(ptr, sz)
 
 	Dump memory region to stdout, from ptr to given size. Usefull for debugging Luajit FFI.
 	Notice! This can and will cause a SIGSEGV if not being used on valid pointers.
-	
+
 	:param ptr: A cdata pointer (from FFI)
 	:type ptr: cdata
 	:param sz: Length to dump contents for.
@@ -65,7 +65,7 @@ Low level
 
 .. function:: TBM(x, m, y, n)
 
-	Turbo Booyer-Moore memory search algorithm. 
+	Turbo Booyer-Moore memory search algorithm.
 	Search through arbitrary memory and find first occurence of given byte sequence. Effective when looking
 	for large needles in a large haystack.
 
@@ -75,7 +75,7 @@ Low level
 	:type m: int
 	:param y: Haystack memory pointer.
 	:type y: char*
-	:param n: Haystack size.	
+	:param n: Haystack size.
 	:type n: int
 	:rtype: First occurence of byte sequence in y defined in x or nil if not found.
 
@@ -93,7 +93,7 @@ Misc
 .. function:: hex(num)
 
 	Convert number value to hexadecimal string format.
-	
+
 	:param num: The number to convert.
 	:type num: Number
 	:rtype: String
@@ -101,12 +101,12 @@ Misc
 .. function:: gettimeofday()
 
 	Returns the current time in milliseconds precision. Unlike Lua builtin which only offers granularity in seconds.
-	
+
 	:rtype: Number
 
 .. function:: gettimemonotonic()
 
 	Returns milliseconds since arbitraty start point, doesn't jump due to time changes.
-	
+
 	:rtype: Number
 

@@ -24,7 +24,7 @@ function write_to_chatwindow (msg, time, cl) {
     ("0" + time.getSeconds()).slice(-2);
 
     var class_str = cl ? "class=\"" + cl + "\"": "";
-    
+
     $("#chat-window").
         append("<p "+class_str+">["+ time_str + "] "+ msg +"</p>").
         animate({scrollTop: $("#chat-window").height()}, "fast");
@@ -86,13 +86,13 @@ function connect_to_chatcom () {
 
 function do_login () {
     $('#login').modal('show');
-    
+
     $("#chat-login-nick").keyup(function (event) {
         if (event.keyCode == 13){
             $("#chat-login-btn").click();
         }
     });
-       
+
     $("#chat-login-btn").click(function(){
         $.ajax({
             type: "POST",

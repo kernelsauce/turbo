@@ -54,7 +54,7 @@ after_build:
 artifacts:
   - path: libtffi_wrap.dll
     name: libtffi_wrap.dll
-    
+
   - path: turbolua.zip
     name: turbolua.zip
 

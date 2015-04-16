@@ -467,11 +467,11 @@ function httputil.parse_multipart_data(data, boundary)
             until skipped == 0
             boundary_headers = data:sub(h1,h2)
             boundary_headers = boundary_headers:gsub("([^%c%s:]-):",
-                      function(s) return string.gsub(s,"%u", function(c) 
-                            return string.lower(c) end) .. ":" 
+                      function(s) return string.gsub(s,"%u", function(c)
+                            return string.lower(c) end) .. ":"
                       end)
-            if not boundary_headers then 
-                goto next_boundary 
+            if not boundary_headers then
+                goto next_boundary
             end
             do
                 local name, ctype
@@ -484,7 +484,7 @@ function httputil.parse_multipart_data(data, boundary)
                         repeat
                             p, key = getRFC822Atom(content_kvs,p)
                             if p == nil then break end
-                            if content_kvs:byte(p+1) ~= string.byte('=') then 
+                            if content_kvs:byte(p+1) ~= string.byte('=') then
                                 break
                             end
                             p=p+2
@@ -503,14 +503,14 @@ function httputil.parse_multipart_data(data, boundary)
                         if fname=="content-type" then
                             ctype = fvalue
                             fvalue = fvalue:lower()
-                        elseif fname=="charset" or 
+                        elseif fname=="charset" or
                                 fname=="content-transfer-encoding" then
                             fvalue = fvalue:lower()
                         end
                         argument[fname] = fvalue
                     end
                 end
-                if not name then 
+                if not name then
                     goto next_boundary
                 end
                 argument[1] = data:sub(v1, b2)
@@ -529,7 +529,7 @@ function httputil.parse_multipart_data(data, boundary)
         end
 ::next_boundary::
         b1 = find_line_start(data,p2+1)
-    until (b1+1 > #data) or 
+    until (b1+1 > #data) or
         (data:byte(p2+1) == DASH and data:byte(p2+2) == DASH)
     return arguments
 end

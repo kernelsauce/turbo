@@ -6,7 +6,7 @@ turbo.httpserver -- Callback based HTTP Server
 
 A non-blocking HTTPS Server based on the TCPServer class.
 Supports HTTP/1.0 and HTTP/1.1.
-Includes SSL support. 
+Includes SSL support.
 
 HTTPServer class
 ~~~~~~~~~~~~~~~~
@@ -16,10 +16,10 @@ This class is used by the ``turbo.web.Application`` class to serve its RequestHa
 The server itself is only responsible for handling incoming requests, no
 response to the request is produced, that is the purpose of the request
 callback given as argument on initialization. The callback recieves the
-HTTPRequest class instance produced for the incoming request and can 
-by data provided in that instance decide on how it want to respond to 
+HTTPRequest class instance produced for the incoming request and can
+by data provided in that instance decide on how it want to respond to
 the client. The callback must produce a valid HTTP response header and
-optionally a response body and use the ``turbo.web.HTTPRequest:write`` method. 
+optionally a response body and use the ``turbo.web.HTTPRequest:write`` method.
 The server supports SSL, HTTP/1.1 Keep-Alive and optionally HTTP/1.0
 Keep-Alive if the header field is specified.
 
@@ -46,7 +46,7 @@ Example usage of HTTPServer:
 	ioloop_instance:start()
 
 .. function:: HTTPServer(request_callback, no_keep_alive, io_loop, xheaders, kwargs)
-	
+
 	Create a new HTTPServer class instance.
 
 	:param request_callback: Function to be called when requests are recieved by the server. The callback recieves the HTTPRequest class instance produced for the incoming request as first argument. See the HTTPRequest documentation.
@@ -110,7 +110,7 @@ This class has some attributes that can be accessed:
  	:type chunk: String
 	:param callback: Optional function called when buffer is fully flushed.
 	:type callback: Function
-	:param arg: Optional first argument for callback.	
+	:param arg: Optional first argument for callback.
 
 .. function:: HTTPRequest:write_buffer(buf, callback, arg)
 
@@ -139,18 +139,18 @@ This class has some attributes that can be accessed:
 
 .. function:: HTTPConnection:finish()
 
-	Finishes request. 
+	Finishes request.
 
 .. function:: HTTPRequest:supports_http_1_1()
 
 	Returns true if requester supports HTTP 1.1
 
-	:rtype: Boolean	
+	:rtype: Boolean
 
 HTTPConnection class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Represents a live connection to the server. Basically a helper class to 
+Represents a live connection to the server. Basically a helper class to
 HTTPServer. It uses the IOStream class's callbacks to handle the different
 sections of a HTTP request.
 
@@ -162,7 +162,7 @@ sections of a HTTP request.
  	:type chunk: String
 	:param callback: Optional function called when buffer is fully flushed.
 	:type callback: Function
-	:param arg: Optional first argument for callback.	
+	:param arg: Optional first argument for callback.
 
 .. function:: HTTPConnection:write_buffer(buf, callback, arg)
 
@@ -191,4 +191,4 @@ sections of a HTTP request.
 
 .. function:: HTTPConnection:finish()
 
-	Finishes request. 
+	Finishes request.

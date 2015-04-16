@@ -18,7 +18,7 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE."           
+-- SOFTWARE."
 
 local ffi = require "ffi"
 require "turbo.cdef"
@@ -26,7 +26,7 @@ local platform = require "turbo.platform"
 
 -- For Linux and LuaJIT only.
 if platform.__LINUX__ and jit then
-    return {    
+    return {
         signal = ffi.C.signal
         -- For sigprocmask(2)
         , SIG_BLOCK   = 0
@@ -35,7 +35,7 @@ if platform.__LINUX__ and jit then
         -- Fake signal functions.
         , SIG_ERR = ffi.cast("sighandler_t", -1)    --[[ Error return.  ]]
         , SIG_DFL = ffi.cast("sighandler_t", 0) --[[ Default action.  ]]
-        , SIG_IGN = ffi.cast("sighandler_t", 1) --[[ Ignore signal.  ]]   
+        , SIG_IGN = ffi.cast("sighandler_t", 1) --[[ Ignore signal.  ]]
         -- Signals.
         ,   SIGHUP  =   1   --[[ Hangup (POSIX).  ]]
         ,   SIGINT  =   2   --[[ Interrupt (ANSI).  ]]

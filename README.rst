@@ -78,7 +78,7 @@ To verify a installation you can try running the applications in the examples fo
 Dependencies
 ------------
 All of the modules of Turbo.lua are made with the class implementation that Middleclass provides.
-https://github.com/kikito/middleclass. 
+https://github.com/kikito/middleclass.
 
 The HTTP parser by Ryan Dahl is used for HTTP parsing. This is built and installed as part of the package.
 
@@ -100,7 +100,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Many of the modules in the software package are derivatives of the 
+Many of the modules in the software package are derivatives of the
 Tornado web server. Tornado is also licensed under Apache 2.0 license.
 For more details on Tornado please see:
 

@@ -23,7 +23,7 @@ standard Lua table. Keep in mind that inserting to the back is still slower than
 
 	Append elements to tail.
 
-.. function:: deque:appendleft(item)	
+.. function:: deque:appendleft(item)
 
 	Append element to head.
 
@@ -113,7 +113,7 @@ It is NOT protected.
 	:param len: The length of the data in bytes.
 	:type len: Number
 
-.. function:: Buffer:append_luastr_left(str) 
+.. function:: Buffer:append_luastr_left(str)
 
 	Prepend Lua string to the buffer.
 
@@ -137,7 +137,7 @@ It is NOT protected.
 .. function:: Buffer:get()
 
 	Get internal buffer pointer. Must be treated as a const value. Keep in mind that the internal pointer may or may not
-	change when calling its methods. 
+	change when calling its methods.
 
 	:rtype: Two values: const char * to data and current size in bytes.
 
@@ -170,7 +170,7 @@ It is NOT protected.
 
 	:rtype: Number. Bytes allocated.
 
-.. function:: Buffer:__tostring() 
+.. function:: Buffer:__tostring()
 
 	Convert to Lua type string using the tostring() builtin or implicit conversions.
 
@@ -180,6 +180,6 @@ It is NOT protected.
 
 .. function:: Buffer:__concat(src)
 
-	Concat by using the .. operator, Lua type strings can be concated also. 
-	Please note that all concatination involves deep copying and is slower than manually 
+	Concat by using the .. operator, Lua type strings can be concated also.
+	Please note that all concatination involves deep copying and is slower than manually
 	building a buffer with append methods.

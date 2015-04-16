@@ -60,7 +60,7 @@ end
 -- @param cert_file Certificate file (public key)
 -- @param prv_file Key file (private key)
 -- @param sslv (optional) SSL version to use.
--- @return Return code. 0 if successfull, else a OpenSSL error 
+-- @return Return code. 0 if successfull, else a OpenSSL error
 -- code and a SSL
 -- error string, or -1 and a error string.
 -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.

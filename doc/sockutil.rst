@@ -16,12 +16,12 @@ turbo.sockutil -- Socket utilites and helpers
 	:param family: (Number) Optional socket family. Defined in Socket module. If not defined AF_INET is used as default.
 	:rtype: (Number) File descriptor
 
-.. function:: add_accept_handler(sock, callback, io_loop, arg)	
+.. function:: add_accept_handler(sock, callback, io_loop, arg)
 
 
-	Add accept handler for socket with given callback. 
-	Either supply a IOLoop object, or the global instance will be used... 
-	
+	Add accept handler for socket with given callback.
+	Either supply a IOLoop object, or the global instance will be used...
+
 	:param sock: (Number) Socket file descriptor to add handler for.
 	:param callback: (Function) Callback to handle connects. Function recieves socket fd (Number) and address (String) of client as parameters.
 	:param io_loop: (IOLoop instance) If not set the global is used.

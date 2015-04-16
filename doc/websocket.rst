@@ -8,15 +8,15 @@ The WebSocket modules extends Turbo and offers RFC 6455 compliant WebSocket
 support.
 
 The module offers two classes:
-	
+
 - ``turbo.websocket.WebSocketHandler``, WebSocket support for ``turbo.web.Application``.
 - ``turbo.websocket.WebSocketClient``, callback based WebSocket client.
 
 Both classes uses the mixin class ``turbo.websocket.WebSocketStream``, which in
-turn provides almost identical API's for the two classes once connected. Both 
+turn provides almost identical API's for the two classes once connected. Both
 classes support SSL (wss://).
 
-*NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be 
+*NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be
 installed to use this module as certain hash functions are required by the
 WebSocket protocol.*
 
@@ -79,10 +79,10 @@ in ``turbo.websocket.WebSocketHandler`` and ``turbo.websocket.WebSocketClient``.
 
 WebSocketHandler class
 ~~~~~~~~~~~~~~~~~~~~~~
-The WebSocketHandler is a subclass of ``turbo.web.RequestHandler``. 
+The WebSocketHandler is a subclass of ``turbo.web.RequestHandler``.
 So most of the methods and attributes of that class are available. However, some
-of them will not work with WebSocket's. It also have the mixin class 
-``turbo.websocket.WebSocketStream`` included. Only the official WebSocket 
+of them will not work with WebSocket's. It also have the mixin class
+``turbo.websocket.WebSocketStream`` included. Only the official WebSocket
 specification, RFC 6455, is supported.
 
 For a more thorough example of usage of this class you can review the "chatapp"
@@ -110,14 +110,14 @@ the corresponding events.*
 .. function:: WebSocketHandler:on_error(msg)
 
 	:param msg: A error string.
-	:type msg: String	
+	:type msg: String
 
 .. function:: WebSocketHandler:prepare()
 
 	Called when the headers has been parsed and the server is about to initiate
 	the WebSocket specific handshake. Use this to e.g check if the headers
-	Origin field matches what you expect. To abort the connection you raise a 
-	error. ``turbo.web.HTTPError`` is the most convinient as you can set error 
+	Origin field matches what you expect. To abort the connection you raise a
+	error. ``turbo.web.HTTPError`` is the most convinient as you can set error
 	code and a message returned to the client.
 
 .. function:: WebSocketHandler:subprotocol(protocols)
@@ -128,25 +128,25 @@ the corresponding events.*
 	never be called. The return value of this method should be a string
 	which matches one of the suggested protcols in its parameter.
 	If all of the suggested protocols are unacceptable then dismissing of
-	the request is done by either raising error 
+	the request is done by either raising error
 	(such as ``turbo.web.HTTPError``) or returning nil.
-	
+
 	:param protocols: The protocol names recieved from client.
 	:type protocols: Table of protocol name strings.
 
 WebSocketClient class
 ~~~~~~~~~~~~~~~~~~~~~
 
-A async callback based WebSocket client. Only the official WebSocket 
+A async callback based WebSocket client. Only the official WebSocket
 specification, RFC 6455, is supported. The WebSocketClient is partly based
 on the ``turbo.async.HTTPClient`` using its HTTP implementation to do the initial
-connect to the server, then do the handshake and finally wrapping the connection 
+connect to the server, then do the handshake and finally wrapping the connection
 with the ``turbo.websocket.WebSocketStream``. All of the callback functions
 recieves the class instance as first argument for convinence. Furthermore the
 class can be initialized with keyword arguments that are passed on to the
-``turbo.async.HTTPClient`` that are being used. So if you are going to use 
+``turbo.async.HTTPClient`` that are being used. So if you are going to use
 the connect to a SSL enabled server (wss://) then you simply refer to the documentation
-of the HTTPClient and set "priv_file", "cert_file" keys properly. 
+of the HTTPClient and set "priv_file", "cert_file" keys properly.
 Some arguments are discared though, such as e.g "method".
 
 A simple usage example of ``turbo.websocket.WebSocketClient``.:
@@ -179,12 +179,12 @@ A simple usage example of ``turbo.websocket.WebSocketClient``.:
 	            self:close()
 	        end,
 	        on_close = function(self)
-	            -- I am called when connection is closed. Both gracefully and 
+	            -- I am called when connection is closed. Both gracefully and
 	            -- not gracefully.
 	        end,
 	        on_error = function(self, code, reason)
 	            -- I am called whenever there is a error with the WebSocket.
-	            -- code are defined in ``turbo.websocket.errors``. reason are 
+	            -- code are defined in ``turbo.websocket.errors``. reason are
 	            -- a string representation of the same error.
 	        end
 	    })
@@ -297,7 +297,7 @@ Description of the callback functions
 
 .. function:: on_close(self)
 
-	Called when connection is closed. Both gracefully and 
+	Called when connection is closed. Both gracefully and
 	not gracefully.
 
 	:param self: The WebSocketClient instance calling the callback.
@@ -306,7 +306,7 @@ Description of the callback functions
 .. function:: on_error(self, code, reason)
 
 	Called whenever there is a error with the WebSocket.
-	code are defined in ``turbo.websocket.errors``. reason are 
+	code are defined in ``turbo.websocket.errors``. reason are
 	a string representation of the same error.
 
 	:param self: The WebSocketClient instance calling the callback.

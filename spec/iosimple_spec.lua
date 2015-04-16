@@ -1,6 +1,6 @@
---- Turbo.lua Hello world example
+--- Turbo.lua Unit test
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2015 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-local turbo = require "turbo"
+local turbo = require 'turbo'
 
-local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+turbo.ioloop.instance():add_callback(function()
+    local stream = turbo.iosimple.dial("tcp://turbolua.org:80")
 
-function ExampleHandler:get()
-    self:write("Hello World!")
-end
+    stream:write("GET / HTTP/1.0\r\n\r\n")
+    local data = stream:read_until_close()
 
-turbo.web.Application({{"^/$", ExampleHandler}}):listen(8888)
-turbo.ioloop.instance():start()
+    turbo.ioloop.instance():close()
+end):start()
+

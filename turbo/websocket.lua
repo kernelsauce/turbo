@@ -9,7 +9,7 @@
 -- almost identical API's for the two classes once connected. Both classes
 -- support SSL (wss://).
 --
--- NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be 
+-- NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be
 -- installed to use this module.
 --
 -- Copyright 2013 John Abrahamsen
@@ -285,14 +285,14 @@ if le then
             _ws_header.len = bit.bor(data_sz,
                                      self.mask_outgoing and 0x80 or 0x0)
             self.stream:write(ffi.string(_ws_header, 2))
-        
+
         -- 16 bit
         elseif data_sz <= 0xffff then
             _ws_header.len = bit.bor(126, self.mask_outgoing and 0x80 or 0x0)
             _ws_header.ext_len.sh = data_sz
             _ws_header.ext_len.sh = ffi.C.htons(_ws_header.ext_len.sh)
             self.stream:write(ffi.string(_ws_header, 4))
-        
+
         -- 64 bit
         else
             _ws_header.len = bit.bor(127, self.mask_outgoing and 0x80 or 0x0)
@@ -300,7 +300,7 @@ if le then
             _ws_header.ext_len.ll = ENDIAN_SWAP_U64(_ws_header.ext_len.ll)
             self.stream:write(ffi.string(_ws_header, 10))
         end
-        
+
         if self.mask_outgoing == true then
             -- Create a random mask.
             ws_mask = ffi.new("unsigned char[4]")
@@ -312,7 +312,7 @@ if le then
             self.stream:write(_unmask_payload(ws_mask, data))
             return
         end
-        
+
         self.stream:write(data)
     end
 elseif be then
@@ -576,12 +576,12 @@ end
 websocket.WebSocketClient = class("WebSocketClient")
 websocket.WebSocketClient:include(websocket.WebSocketStream)
 
-function websocket.WebSocketClient:initialize(address, kwargs) 
+function websocket.WebSocketClient:initialize(address, kwargs)
     self.address = address
     self.kwargs = kwargs or {}
     self._connect_time = util.gettimemonotonic()
-    self.http_cli = async.HTTPClient(self.kwargs, 
-                                     self.kwargs.ioloop, 
+    self.http_cli = async.HTTPClient(self.kwargs,
+                                     self.kwargs.ioloop,
                                      self.kwargs.max_buffer_size)
     local websocket_key = escape.base64_encode(util.rand_str(16))
     -- Reusing async.HTTPClient.
@@ -599,9 +599,9 @@ function websocket.WebSocketClient:initialize(address, kwargs)
             http_header:add("Upgrade", "Websocket")
             http_header:add("Sec-WebSocket-Key", websocket_key)
             http_header:add("Sec-WebSocket-Version", "13")
-            -- WebSocket Sub-Protocol handling... 
+            -- WebSocket Sub-Protocol handling...
             if type(self.kwargs.websocket_protocol) == "string" then
-                http_header:add("Sec-WebSocket-Protocol", 
+                http_header:add("Sec-WebSocket-Protocol",
                                 self.kwargs.websocket_protocol)
             elseif self.kwargs.websocket_protocol then
                 error("Invalid type of \"websocket_protocol\" value")
@@ -618,7 +618,7 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     }))
     if _modify_headers_success == false then
         -- Must do this outside callback to HTTPClient to get desired effect.
-        -- In the event of error in "modify_headers" callback _error is already 
+        -- In the event of error in "modify_headers" callback _error is already
         -- called.
         return
     end
@@ -631,28 +631,28 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     if res.code == 101 then
         -- Check accept key.
         local accept_key = res.headers:get("Sec-WebSocket-Accept")
-        assert(accept_key, 
+        assert(accept_key,
                "Missing Sec-WebSocket-Accept header field.")
         local match = escape.base64_encode(
             hash.SHA1(websocket_key..websocket.MAGIC):finalize(), 20)
-        assert(accept_key == match, 
+        assert(accept_key == match,
                "Sec-WebSocket-Accept does not match what was expected.")
         if type(self.kwargs.on_headers) == "function" then
-            if not self:_protected_call("on_headers", 
-                                        self.kwargs.on_headers, 
-                                        self, 
+            if not self:_protected_call("on_headers",
+                                        self.kwargs.on_headers,
+                                        self,
                                         res.headers) then
                 return
             end
             if self:closed() then
-                -- User closed the connection in on_headers callback. Just 
+                -- User closed the connection in on_headers callback. Just
                 -- return as the connection is already closed off.
                 return
             end
         end
     else
         -- Handle error.
-        self:_error(websocket.errors.BAD_HTTP_STATUS, 
+        self:_error(websocket.errors.BAD_HTTP_STATUS,
                     strf("Excpected 101, was %d, can not upgrade.", res.code))
         return
     end
@@ -669,10 +669,10 @@ function websocket.WebSocketClient:_protected_call(name, func, arg, data)
     local status, err = pcall(func, arg, data)
     if status ~= true then
         local err_msg = strf(
-            "WebSocketClient at %p unhandled error in callback \"%s\":\n", 
-            self, 
+            "WebSocketClient at %p unhandled error in callback \"%s\":\n",
+            self,
             name)
-        self:_error(websocket.errors.CALLBACK_ERROR, 
+        self:_error(websocket.errors.CALLBACK_ERROR,
                     err and err_msg .. err or err_msg)
         return false
     end
@@ -690,7 +690,7 @@ function websocket.WebSocketClient:_continue_ws()
     end
 end
 
-function websocket.WebSocketClient:_error(code, msg) 
+function websocket.WebSocketClient:_error(code, msg)
     if self.stream then
         self.stream:close()
     end
@@ -758,18 +758,18 @@ function websocket.WebSocketClient:_handle_opcode(opcode, data)
     if opcode == websocket.opcode.TEXT or
             opcode == websocket.opcode.BINARY then
         if self.kwargs.on_message then
-            self:_protected_call("on_message", 
-                                 self.kwargs.on_message, 
-                                 self, 
+            self:_protected_call("on_message",
+                                 self.kwargs.on_message,
+                                 self,
                                  data)
         end
     elseif opcode == websocket.opcode.CLOSE then
         self:close()
     elseif opcode == websocket.opcode.PING then
         if self.kwargs.on_ping then
-            self:_protected_call("on_ping", 
-                                 self.kwargs.on_ping, 
-                                 self, 
+            self:_protected_call("on_ping",
+                                 self.kwargs.on_ping,
+                                 self,
                                  data)
         else
             self:pong(data)
@@ -794,7 +794,7 @@ function websocket.WebSocketClient:_handle_opcode(opcode, data)
     end
 end
 
-function websocket.WebSocketClient:_socket_closed() 
+function websocket.WebSocketClient:_socket_closed()
     log.success(string.format(
         [[[websocket.lua] WebSocketClient closed %s %dms]],
         self.address,
