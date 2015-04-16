@@ -4,46 +4,34 @@
 Get Started With Turbo
 ************************
 
-A set off simple examples to get you started using Turbo.
+A set of simple examples to get you started using Turbo.
 
 Installing Turbo
 ================
 Turbo needs LuaJIT to run, because it uses the LuaJIT FFI library it will not
-run on 'official/normal/vanilla' Lua.
-You can get the latest stable and installation instructions at http://luajit.org/download
+run on 'official/normal/vanilla' Lua. Quick install on Debian/Ubuntu (you may need
+to add sudo or run these as root user):
 
-There's no official stable releases of Turbo yet, but you can obtain
-a pretty-stable copy from the git repository.
+.. code-block:: sh
+
+    $ apt-get install luajit luarocks git build-essential libssl-dev
+    $ luarocks install turbo
+
+You can also install Turbo use the included Makefile in the project source:
+
 
 .. code-block:: sh
 
     $ git clone https://github.com/kernelsauce/turbo.git
-    $ make -C ./turbo install
+    $ cd turbo && make install
 
-You can also install Turbo to a different directory than /usr/local
-by setting the PREFIX variable when doing make install.
+You can provide a PREFIX argument to the make which will install Turbo in a specified directory. 
 
+For Windows users it is recommended to use the included install.bat file or running the one-line command below from a administrative command line. Beware that this will compile and install all dependencies: Visual Studio, git, mingw, gnuwin, openssl using Chocolatey. LuaJIT, the LuaRocks package manager and Turbo will be installed at C:\\turbo.lua. Unfortunately it is required to have Visual Studio to effectively use LuaRocks on Windows. LuaRocks will be used to install LuaSocket and LuaFileSystem. The Windows environment will be ready to use upon success, and the luajit and luarocks commands will be in your Windows environment PATH.
 
-.. code-block:: sh
+.. code-block:: bat
 
-    $ make -C ./turbo install PREFIX=/path/to/my/dir
-
-
-Or, if you want a self-contained directory with luajit and turbo,
-you can use the turbo-virtual-env tool from https://github.com/enotodden/turbo-virtual-env
-
-.. code-block:: sh
-
-    $ cd /some/dir
-    $ curl https://raw.github.com/enotodden/turbo-virtual-env/master/turbo-virtual-env | bash -s - --create ./env
-
-
-To start using the newly installed LuaJIT and Turbo, just source the 'activate' script located in /some/dir/env/bin/activate
-
-.. code-block:: sh
-
-    $ . env/bin/activate
-
+    powershell -command "& { iwr https://raw.githubusercontent.com/kernelsauce/turbo/master/install.bat -OutFile t.bat }" && t.bat
 
 
 
@@ -72,7 +60,7 @@ The traditional and mandatory 'Hello World'
     app:listen(8888)
     turbo.ioloop.instance():start()
 
-
+Save the file as helloworld.lua and run it with ``luajit helloworld.lua``.
 
 Request parameters
 ==================
