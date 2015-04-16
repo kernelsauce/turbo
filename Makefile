@@ -16,12 +16,16 @@ INSTALL_X= install -m 0755
 INSTALL_F= install -m 0644
 CP_R= cp -r
 LDCONFIG= ldconfig -n
-PREFIX ?= /usr/local
+TAR = tar -zcvf 
 
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+ALL_LUA_FILES := $(call rwildcard,./,*.lua)
+ALL_LUAC_FILES := $(call rwildcard,./,*.luac)
 MAJVER=  2
 MINVER=  0
 MICVER=  0
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
+PREFIX ?= /usr/local
 TDEPS= deps
 HTTP_PARSERDIR = $(TDEPS)/http-parser
 INSTALL_LIB= $(PREFIX)/lib
@@ -31,8 +35,12 @@ INSTALL_TFFI_WRAP_SONAME= $(INSTALL_TFFI_WRAP_SOSHORT).$(TVERSION)
 INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
 INSTALL_TFFI_WRAP_SHORT= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SOSHORT)
 TEST_DIR = tests
+PACKAGE_DIR = package/turbo
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
 LUA_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
+LUAJIT_VERSION?=2.0.2
+LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
+LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 INC = -I$(HTTP_PARSERDIR)/
 CFLAGS = -g
 
@@ -64,10 +72,6 @@ ifeq ($(SSL), openssl)
 	LDFLAGS += -lcrypto -lssl
 endif
 
-LUAJIT_VERSION?=2.0.2
-LUAJIT_LIBRARYDIR = $(PREFIX)/lib/lua/5.1
-LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
-
 all:
 	$(MAKE) -C deps/http-parser library
 	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
@@ -75,6 +79,8 @@ all:
 clean:
 	$(MAKE) -C deps/http-parser clean
 	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
+	rm -rf $(PACKAGE_DIR)
+	$(RM) $(ALL_LUAC_FILES)
 
 uninstall:
 	@echo "==== Uninstalling Turbo.lua ===="
@@ -111,6 +117,54 @@ install:
 	$(LDCONFIG) $(INSTALL_LIB) && \
 	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
 	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
+
+bytecode: 
+	@echo "==== Creating bytecode for Turbo.lua v$(TVERSION) ===="
+	for f in $(ALL_LUA_FILES); do \
+		luajit -b -g "$$f" "$$f"c; \
+	done
+	@echo "==== Successfully created bytecode for Turbo.lua v$(TVERSION) ===="
+
+minimize: bytecode
+	rm -rf package
+	@echo "==== Creating minimal Turbo.lua v$(TVERSION) ===="
+	$(MKDIR) $(PACKAGE_DIR)/turbo/structs
+	$(CP_R) $(INSTALL_TFFI_WRAP_SOSHORT) $(PACKAGE_DIR)
+	$(CP_R) turbo.luac $(PACKAGE_DIR)
+	$(CP_R) turbovisor.luac $(PACKAGE_DIR)
+	$(CP_R) turbo/*.luac $(PACKAGE_DIR)/turbo
+	$(CP_R) turbo/structs/*.luac $(PACKAGE_DIR)/turbo/structs
+	$(MKDIR) $(PACKAGE_DIR)/turbo/3rdparty/middleclass
+	$(CP_R) turbo/3rdparty/*.luac $(PACKAGE_DIR)/turbo/3rdparty/
+	$(CP_R) turbo/3rdparty/middleclass/*.luac $(PACKAGE_DIR)/turbo/3rdparty/middleclass
+	rename "s/\.luac$$/\.lua/" $(PACKAGE_DIR)/*.luac $(PACKAGE_DIR)/turbo/*.luac $(PACKAGE_DIR)/turbo/3rdparty/*.luac $(PACKAGE_DIR)/turbo/3rdparty/middleclass/*.luac $(PACKAGE_DIR)/turbo/structs/*.luac
+	@echo "==== Successfully created minimal Turbo.lua $(TVERSION) ===="
+
+bcodeinstall: package
+	@echo "==== Installing Turbo.lua v$(TVERSION) by bytecode to: ===="
+	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
+	@echo "==== $(LUAJIT_MODULEDIR) ===="
+	$(MKDIR) $(INSTALL_LIB)
+	$(MKDIR) $(LUA_MODULEDIR)/turbo
+	$(MKDIR) $(LUAJIT_MODULEDIR)/turbo
+	$(CP_R) package/turbo/* $(LUA_MODULEDIR)
+	$(CP_R) package/turbo/* $(LUAJIT_MODULEDIR)
+	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
+	@echo "==== Building 3rdparty modules ===="
+	make -C deps/http-parser library
+	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	@echo "==== Installing libturbo_parser ===="
+	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
+	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
+	$(LDCONFIG) $(INSTALL_LIB) && \
+	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
+	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
+
+package: all minimize
+	@echo "==== Packaging minimal Turbo.lua v$(TVERSION) ===="
+	$(TAR) turbo.$(MAJVER).$(MINVER).$(MICVER).tar.gz package
+	@echo "==== Created turbo.$(MAJVER).$(MINVER).$(MICVER).tar.gz package: ===="
+	md5sum turbo.$(MAJVER).$(MINVER).$(MICVER).tar.gz
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
