@@ -21,7 +21,7 @@ It's main features and design principles are:
 
 - Low-level operations is possible if the users wishes that.
 
-- Implemented in straight Lua and LuaJIT FFI, so the user can study and modify inner workings without too much effort.
+- Implemented in straight Lua and LuaJIT FFI on Linux, so the user can study and modify inner workings without too much effort. The Windows implementation uses some Lua modules to make compability possible.
 
 - Good documentation
 
@@ -29,22 +29,59 @@ It's main features and design principles are:
 
 - Small footprint
 
-- SSL support (requires OpenSSL or axTLS)
+- SSL support (requires OpenSSL or LuaSec module for Windows)
+
+Travis Linux CI
+
+.. image:: https://api.travis-ci.org/kernelsauce/turbo.png
+   :target: http://travis-ci.org/kernelsauce/turbo
+
+Appveyor Windows CI
+
+.. image:: https://api.travis-ci.org/kernelsauce/turbo.png
+   :target: https://ci.appveyor.com/project/kernelsauce/turbo
 
 Supported Architectures
 -----------------------
 x86, x64, ARM, PPC
 
+Supported Operating Systems
+---------------------------
+Linux distros (x86, x64) and Windows x64. Possibly others using LuaSocket, but not tested or supported.
+
 Installation
 ------------
-Linux distro's are the only OS supported at this point (although adding support for other Unix's is trivial).
-Make sure that the latest LuaJIT is installed. Version 2.0 is required, http://luajit.org/. Most package managers have LuaJIT 2.0 available by now.
 
-Installing Turbo.lua is easy. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
+You can use LuaRocks to install Turbo on Linux.
+
+``luarocks install turbo``
+
+If installation fails make sure that you have these required pacakages:
+
+``apt-get install luajit luarocks git build-essential libssl-dev``
+
+For Windows use the included install.bat file or one line downloader:
+
+``powershell -command "& { iwr https://raw.githubusercontent.com/kernelsauce/turbo/luasocket/install.bat OutFile t.bat }" && t.bat``
+
+This will install all dependencies: Visual Studio, git, mingw, gnuwin, openssl using Chocolatey. LuaJIT, the LuaRocks package manager and Turbo will be installed at C:\turbo.lua. It will also install LuaSocket and LuaFileSystem with LuaRocks. The Windows environment will be ready to use upon success.
+
+Try: ``luajit C:\turbo.lua\src\turbo\examples\helloworld.lua``
+
+If any of the .dll or. so's are placed at non-default location then use environment variables to point to the correct place:
+
+E.g:
+``SET TURBO_LIBTFFI=C:\turbo.lua\src\turbo\libtffi_wrap.dll`` and
+``SET TURBO_LIBSSL=C:\Program Files\OpenSSL\libeay32.dll``
+
+Applies for Linux only:
+
+Turbo.lua can also be installed by the included Makefile. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
 
 You can specify your own prefix by using ``make install PREFIX=<prefix>``, and you can specify LuaJIT version with a ``LUAJIT_VERSION=2.0.0`` style parameter.
 
-To compile without support for OpenSSL (and SSL connections) use ``make install SSL=none``.
+To compile without support for OpenSSL (and SSL connections) use the make option SSL=none.
+To compile with axTLS support instead of OpenSSL use the make option SSL=axTLS.
 
 In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
 To verify a installation you can try running the applications in the examples folder.
