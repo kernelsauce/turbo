@@ -1154,6 +1154,9 @@ function web.Application:_get_request_handlers(request)
     end
 end
 
+
+local _str_borders_down = string.rep("▼", 80)
+local _str_borders_up = string.rep("▲", 80)
 --- Entry point for requests recieved by HTTPServer.
 -- @param request (HTTPRequest instance)
 function web.Application:__call(request)
@@ -1164,24 +1167,51 @@ function web.Application:__call(request)
         local status, err = pcall(handler._execute, handler)
         if err then
             if instanceOf(web.HTTPError, err) then
-                handler = web.ErrorHandler:new(self,
+                web.ErrorHandler(self,
                     request,
                     err.code,
                     err.message)
-            else
-                local trace = debug.traceback()
-                log.error("[web.lua] " .. err)
-                log.stacktrace(trace)
-                handler = web.ErrorHandler:new(self,
+            elseif type(err) == "string" then
+                local thread = coroutine.running()
+                local trace = debug.traceback(coroutine.running(), err, 2)
+
+                log.error(
+                    string.format(
+                        "[web.lua] Error in RequestHandler, %s is dead.\n%s\n%s\n%s",
+                        thread,
+                        _str_borders_down,
+                        trace,
+                        _str_borders_up))
+                web.ErrorHandler(
+                    self,
                     request,
                     500,
-                    string.format("<pre>%s\n%s\n</pre>", err, trace))
+                    string.format('<pre style="font-size:12px; font-family:monospace; color:#8B0000;">[web.lua] Error in RequestHandler, %s is dead.\r\n%s\r\n%s\r\n%s</pre>',
+                        thread, _str_borders_down, trace, _str_borders_up))
+            else
+                local thread = coroutine.running()
+                local trace = debug.traceback(coroutine.running(),
+                                              log.stringify(err), 2)
+
+                log.error(
+                    string.format(
+                        "[web.lua] Unknown error in RequestHandler, %s is dead.\n%s\n%s\n%s",
+                        thread,
+                        _str_borders_down,
+                        trace,
+                        _str_borders_up))
+                web.ErrorHandler(
+                    self,
+                    request,
+                    500,
+                    string.format('<pre style="font-size:12px; font-family:monospace; color:#8B0000;">[web.lua] Unknown error in RequestHandler, %s is dead.\r\n%s\r\n%s\r\n%s</pre>',
+                        thread, _str_borders_down, trace, _str_borders_up))
             end
         end
     elseif not handlers and self.default_host then
-        handler = web.RedirectHandler:new(self, request, nil, self.default_host):_execute()
+        handler = web.RedirectHandler(self, request, nil, self.default_host):_execute()
     else
-        handler = web.ErrorHandler:new(self, request, 404)
+        handler = web.ErrorHandler(self, request, 404)
     end
 end
 
