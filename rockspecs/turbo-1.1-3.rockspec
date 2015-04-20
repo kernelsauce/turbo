@@ -1,9 +1,9 @@
 package = "turbo"
-version = "1.1-0"
+version = "1.1-3"
 supported_platforms = {"linux"}
 source = {
     url = "git://github.com/kernelsauce/turbo",
-    tag = "v1.1.0"
+    tag = "v1.1.3"
 }
 description = {
     summary = "A networking suite for LuaJIT2 and Linux, optimized for performance.",
