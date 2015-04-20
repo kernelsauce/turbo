@@ -1187,7 +1187,7 @@ function web.Application:__call(request)
                     request,
                     500,
                     string.format('<pre style="font-size:12px; font-family:monospace; color:#8B0000;">[web.lua] Error in RequestHandler, %s is dead.\r\n%s\r\n%s\r\n%s</pre>',
-                        thread, _str_borders_down, trace, _str_borders_up))
+                        thread, _str_borders_down, escape.html_escape(trace), _str_borders_up))
             else
                 local thread = coroutine.running()
                 local trace = debug.traceback(coroutine.running(),
@@ -1205,7 +1205,7 @@ function web.Application:__call(request)
                     request,
                     500,
                     string.format('<pre style="font-size:12px; font-family:monospace; color:#8B0000;">[web.lua] Unknown error in RequestHandler, %s is dead.\r\n%s\r\n%s\r\n%s</pre>',
-                        thread, _str_borders_down, trace, _str_borders_up))
+                        thread, _str_borders_down, escape.html_escape(trace), _str_borders_up))
             end
         end
     elseif not handlers and self.default_host then

@@ -55,6 +55,20 @@ function escape.escape(s)
     return string.gsub(s, "([^A-Za-z0-9_])", _hex)
 end
 
+--- Encodes the HTML entities in a string. Helpfull to avoid XSS.
+-- @param s (String) String to escape.
+function escape.html_escape(s)
+    assert("Expected string in argument #1.")
+    return (string.gsub(s, "[}{\">/<'&]", {
+        ["&"] = "&amp;",
+        ["<"] = "&lt;",
+        [">"] = "&gt;",
+        ['"'] = "&quot;",
+        ["'"] = "&#39;",
+        ["/"] = "&#47;"
+    }))
+end
+
 -- Remove trailing and leading whitespace from string.
 -- @param s String
 function escape.trim(s)
