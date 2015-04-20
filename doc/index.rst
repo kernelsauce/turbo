@@ -1,8 +1,6 @@
 
 .. image:: _static/turbo.png
 
-This is the documentation for Turbo.lua version 1.1.0.
-
 Introduction
 ------------
 Turbo.lua is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
