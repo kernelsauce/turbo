@@ -41,6 +41,14 @@ Escaping
 	:type s: String
 	:rtype: String
 
+.. function:: html_escape(s)
+
+	Encodes the HTML entities in a string. Helpfull to avoid XSS.
+
+	:param s: String to escape.
+	:type s: String
+	:rtype: String
+
 String trimming
 ---------------
 

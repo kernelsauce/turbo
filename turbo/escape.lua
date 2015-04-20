@@ -25,18 +25,18 @@ local json = require('turbo.3rdparty.JSON')
 local escape = {} -- escape namespace
 
 --- JSON stringify a table.
--- @param lua_table_or_value Value to JSON encode.
+-- @param t Value to JSON encode.
 -- @note May raise a error if table could not be decoded.
-function escape.json_encode(lua_table_or_value)
-    return json:encode(lua_table_or_value)
+function escape.json_encode(t)
+    return json:encode(t)
 end
 
 --- Decode a JSON string to table.
--- @param json_string_literal (String) JSON enoded string to decode into
+-- @param s (String) JSON enoded string to decode into
 -- Lua primitives.
 -- @return (Table)
-function escape.json_decode(json_string_literal)
-    return json:decode(json_string_literal)
+function escape.json_decode(s)
+    return json:decode(s)
 end
 
 local function _unhex(hex) return string.char(tonumber(hex, 16)) end
@@ -53,6 +53,20 @@ end
 -- @param s (String) String to escape.
 function escape.escape(s)
     return string.gsub(s, "([^A-Za-z0-9_])", _hex)
+end
+
+--- Encodes the HTML entities in a string. Helpfull to avoid XSS.
+-- @param s (String) String to escape.
+function escape.html_escape(s)
+    assert("Expected string in argument #1.")
+    return (string.gsub(s, "[}{\">/<'&]", {
+        ["&"] = "&amp;",
+        ["<"] = "&lt;",
+        [">"] = "&gt;",
+        ['"'] = "&quot;",
+        ["'"] = "&#39;",
+        ["/"] = "&#47;"
+    }))
 end
 
 -- Remove trailing and leading whitespace from string.
