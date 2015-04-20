@@ -7,19 +7,19 @@ turbo.escape -- Escaping and JSON utilities
 JSON conversion
 ---------------
 
-.. function:: json_encode(lua_table_or_value)
+.. function:: json_encode(t)
 
 	JSON stringify a table. May raise a error if table could not be decoded.
 
-	:param lua_table_or_value: Value to JSON encode.
+	:param t: Value to JSON encode.
 	:rtype: String
 
-.. function:: json_decode(json_string_literal)
+.. function:: json_decode(s)
 
 	Decode a JSON string to table.
 
-	:param json_string_literal: JSON enoded string to decode into Lua primitives.
-	:type json_string_literal: String
+	:param s: JSON enoded string to decode into Lua primitives.
+	:type s: String
 	:rtype: Table
 
 Escaping
