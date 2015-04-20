@@ -368,25 +368,25 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
             elseif instr == TKEE then
                 if type(obj[y]) == "table" and obj[y][arg] then
                     if type(obj[y][arg]) == "string" then
-                        buf:append_luastr_right(escape.escape(obj[y][arg]))
+                        buf:append_luastr_right(escape.html_escape(obj[y][arg]))
                     elseif type(obj[y][arg]) == "number" then
                         buf:append_luastr_right(tostring(obj[y][arg]))
                     elseif type(obj[y][arg]) == "function" then
                         -- May also be a function.
                         buf:append_luastr_right(
-                            escape.escape(obj[y][arg](arg) or ""))
+                            escape.html_escape(obj[y][arg](arg) or ""))
                     end
                 else
                     local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
                     if in_parent then
                         if type(in_parent) == "string" then
-                            buf:append_luastr_right(escape.escape(in_parent))
+                            buf:append_luastr_right(escape.html_escape(in_parent))
                         elseif type(in_parent) == "number" then
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
                             buf:append_luastr_right(
-                                escape.escape(in_parent(arg)) or "")
+                                escape.html_escape(in_parent(arg)) or "")
                         end
                     elseif safe == true then
                         error(
@@ -478,7 +478,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
         elseif instr == TKEE then
             if obj[arg] then
                 if type(obj[arg]) == "string" then
-                    local esc = escape.escape(obj[arg])
+                    local esc = escape.html_escape(obj[arg])
                     buf:append_luastr_right(esc)
                 elseif type(obj[arg]) == "number" then
                     buf:append_luastr_right(tostring(obj[arg]))
@@ -600,7 +600,7 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
         elseif instr == TKEE then
             if obj[arg] then
                 if type(obj[arg]) == "string" then
-                    local esc = escape.escape(obj[arg])
+                    local esc = escape.html_escape(obj[arg])
                     buf:append_luastr_right(esc)
                 elseif type(obj[arg]) == "number" then
                     buf:append_luastr_right(tostring(obj[arg]))
