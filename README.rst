@@ -71,9 +71,7 @@ You can specify your own prefix by using ``make install PREFIX=<prefix>``, and y
 
 To compile without support for OpenSSL (and SSL connections) use the make option SSL=none.
 To compile with axTLS support instead of OpenSSL use the make option SSL=axTLS. If you
-want to install the framework in a bytecode form use:
-
-`` make bcodeinstall ``
+want to install the framework in a bytecode form use: ``make bcodeinstall``
 
 In essence the toolkit can run from anywere, but is must be able to load the libtffi_wrap.so at run time.
 To verify a installation you can try running the applications in the examples folder.
@@ -85,9 +83,7 @@ This file will include only the neccessary bits and pieces for Turbo to run. The
 will be built as bytecode (luajit -b -g) with debug info. This reduces size drastically.
 Suitable for embedded devices with limited storage... It also reduces the startup time.
 
-Use
-
-`` make package ``
+Use ``make package``.
 
 this results in a turbo.x.x.x.tar.gz file and a package/ directory being created.
 
