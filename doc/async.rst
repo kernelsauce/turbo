@@ -29,8 +29,8 @@ Utilities for coroutines
 	-- Result from read_until operation will be returned in the res variable.
 
 
-HTTPClient class
-~~~~~~~~~~~~~~~~
+A HTTP(S) client - HTTPClient class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Based on the IOStream/SSLIOStream and IOLoop classes.
 Designed to asynchronously communicate with a HTTP server via the Turbo I/O
 Loop. The user MUST use Lua's builtin coroutines to manage yielding, after
