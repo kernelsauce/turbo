@@ -167,7 +167,7 @@ function iosimple.IOSimple:write(data)
     return res
 end
 
---- Read until delimiter, then call callback with recieved data.
+--- Read until delimiter.
 -- Delimiter is plain text, and does not support Lua patterns. 
 -- See read_until_pattern for Lua patterns.
 -- read_until should be used instead of read_until_pattern wherever possible
