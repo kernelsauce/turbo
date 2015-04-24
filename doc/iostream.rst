@@ -1,8 +1,8 @@
 .. _iostream:
 
-****************************************************************
-turbo.iostream -- High-level asynchronous streaming sockets
-****************************************************************
+***************************************************************
+turbo.iostream -- Callback based asynchronous streaming sockets
+***************************************************************
 
 The turbo.iostream namespace contains the IOStream and SSLIOStream classes, which are abstractions to provide easy to use streaming sockets. All API's are callback based and depend on the ``turbo.ioloop.IOLoop`` class.
 
