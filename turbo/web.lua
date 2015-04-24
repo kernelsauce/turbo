@@ -730,7 +730,13 @@ function web.RequestHandler:_execute()
     end
     self:prepare()
     if not self._finished then
-        self[self.request.method:lower()](self, unpack(self._url_args))
+        -- If there is no URL args then do not unpack as this has a significant
+        -- cost.
+        if self._url_args and #self._url_args > 0 then
+            self[self.request.method:lower()](self, unpack(self._url_args))
+        else
+            self[self.request.method:lower()](self)
+        end
         if self._auto_finish and not self._finished then
             self:finish()
         end
@@ -1157,7 +1163,7 @@ end
 -- class.
 -- @param request (HTTPRequest instance)
 function web.Application:_get_request_handlers(request)
-    local path = request.path and request.path:lower()
+    local path = request.path
     if not path then
         path = "/"
     end
