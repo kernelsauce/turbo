@@ -115,10 +115,13 @@ API documentation
 
    apiref
    web
-   async
    websocket
-   ioloop
+   iosimple
    iostream
+   ioloop
+   async
+   escape
+   turbovisor
    httputil
    httpserver
    tcpserver
@@ -126,7 +129,4 @@ API documentation
    hash
    util
    sockutil
-   escape
    log
-   turbovisor
-
