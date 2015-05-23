@@ -53,18 +53,11 @@ local function get_param(arg)
     return arg_tbl;
 end
 
+
 --- Kill all descendants for a given pid
 local function kill_tree(pid)
-    local status = ffi.new("int[1]")
-    local cpids = io.popen('pgrep -P ' .. pid)
-    for cpid in cpids:lines() do
-        kill_tree(cpid)
-        ffi.C.kill(tonumber(cpid), 9)
-        ffi.C.waitpid(tonumber(cpid), status, 0)
-        assert(status[0] == 9 or bit.band(status[0], 0x7f) == 0,
-               "Child process " .. cpid .. " not killed.")
-    end
-    cpids:close()
+    local file_handle = io.popen('pkill -P ' .. pid)
+    file_handle:close()
 end
 
 

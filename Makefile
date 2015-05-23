@@ -16,7 +16,7 @@ INSTALL_X= install -m 0755
 INSTALL_F= install -m 0644
 CP_R= cp -r
 LDCONFIG= ldconfig -n
-TAR = tar -zcvf 
+TAR = tar -zcvf
 
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 ALL_LUA_FILES := $(call rwildcard,./,*.lua)
@@ -118,7 +118,7 @@ install:
 	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
 	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
 
-bytecode: 
+bytecode:
 	@echo "==== Creating bytecode for Turbo.lua v$(TVERSION) ===="
 	for f in $(ALL_LUA_FILES); do \
 		luajit -b -g "$$f" "$$f"c; \
