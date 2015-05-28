@@ -444,7 +444,6 @@ end
 --- Parse multipart form data.
 function httputil.parse_multipart_data(data, boundary)
     local arguments = {}
-    local data = escape.unescape(data)
     local p1, p2, b1, b2
 
     boundary = "--" .. boundary
