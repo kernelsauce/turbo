@@ -65,10 +65,10 @@ local turbo = {}  -- turbo main namespace.
 -- changes, the major version is incremented and others are set to zero.
 turbo.MAJOR_VERSION = 1
 turbo.MINOR_VERSION = 1
-turbo.MICRO_VERSION = 3
+turbo.MICRO_VERSION = 4
 -- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for
 -- version 1.2.1 and 0x010300 for version 1.3.
-turbo.VERSION_HEX = 0x010103
+turbo.VERSION_HEX = 0x010104
 if turbo.MICRO_VERSION then
     turbo.VERSION = string.format("%d.%d.%d",
         turbo.MAJOR_VERSION,
