@@ -678,6 +678,16 @@ function async.HTTPClient:_finalize_request()
         if (res_code == 301 or res_code == 302) and self.kwargs.allow_redirects and
                 self.redirect < self.redirect_max then
             local redirect_loc = self.response_headers:get("Location", true)
+            if redirect_loc:match("^/.*") then
+                -- If Location header starts with /, treat it as a redirect to
+                -- the same schema, hostname and port, where Location is the 
+                -- path.
+                redirect_loc = string.format("%s://%s:%d%s",
+                    self.schema,
+                    self.hostname,
+                    self.port,
+                    redirect_loc)
+            end
             if redirect_loc then
                 self:_handle_redirect(redirect_loc)
                 return
