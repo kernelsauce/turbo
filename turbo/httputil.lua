@@ -286,6 +286,8 @@ local strncasecmp
 if platform.__LINUX__ or platform.__UNIX__ then
     strncasecmp = ffi.C.strncasecmp
 elseif platform.__WINDOWS__ then
+    -- Windows does not have strncasecmp, but has strnicmp, which does the
+    -- thing.
     strncasecmp = ffi.C._strnicmp
 end
 function httputil.HTTPParser:get(key, caseinsensitive)
@@ -737,6 +739,7 @@ end
 function httputil.HTTPHeaders:stringify_as_response()
     local buf = buffer:new()
     if not self:get("Date") then
+        -- Add current time as Date header if not set already.
         self:add("Date", util.time_format_http_header(util.gettimeofday()))
     end
     for i = 1 , #self._fields do
