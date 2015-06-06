@@ -580,7 +580,7 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     self.address = address
     self.kwargs = kwargs or {}
     self._connect_time = util.gettimemonotonic()
-    self.http_cli = async.HTTPClient(self.kwargs,
+    self.http_cli = async.HTTPClient(self.kwargs.ssl_options,
                                      self.kwargs.ioloop,
                                      self.kwargs.max_buffer_size)
     local websocket_key = escape.base64_encode(util.rand_str(16))
