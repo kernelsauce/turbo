@@ -534,7 +534,7 @@ local function _run_callback_error_handler(err)
 
     log.error(
         string.format(
-            "[iostream.lua] Error in callback. Closing socket. Thread %s is dead.\n%s\n%s\n%s\n%s",
+            "[iostream.lua] Error in callback. Closing socket, %s is dead.\n%s\n%s\n%s\n",
             thread,
             _str_borders_down,
             trace,
@@ -542,28 +542,27 @@ local function _run_callback_error_handler(err)
 end
 
 local function _run_callback_protected(call)
-    -- call[1] : Calling IOStream instance.
-    -- call[2] : Callback
-    -- call[3] : Callback result
-    -- call[4] : Callback argument (userinfo)
-    call[1]._pending_callbacks = call[1]._pending_callbacks - 1
-    local success
-    if call[4] then
+    local stream, callback, res, arg = call[1], call[2], call[3], call[4]
+    local success = false
+    -- Remove 1 pending callback from IOStream instance.
+    stream._pending_callbacks = stream._pending_callbacks - 1
+    
+    if arg then
         -- Callback argument. First argument should be this to allow self
         -- references to be used as argument.
         success = xpcall(
-            call[2],
+            callback,
             _run_callback_error_handler,
-            call[4],
-            call[3])
+            arg,
+            res)
     else
         success = xpcall(
-            call[2],
+            callback,
             _run_callback_error_handler,
-            call[3])
+            res)
     end
     if success == false then
-        call[1]:close()
+        stream:close()
     end
 end
 
