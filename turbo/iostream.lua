@@ -527,9 +527,18 @@ end
 
 --- Error handler for IOStream callbacks.
 local function _run_callback_error_handler(err)
-    log.error(string.format(
-        "[iostream.lua] Error in callback %s. Closing socket.", err))
-    log.stacktrace(debug.traceback())
+    local thread = coroutine.running()
+    local trace = debug.traceback(coroutine.running(), err, 2)
+    local _str_borders_down = string.rep("▼", 80)
+    local _str_borders_up = string.rep("▲", 80)
+
+    log.error(
+        string.format(
+            "[iostream.lua] Error in callback. Closing socket. Thread %s is dead.\n%s\n%s\n%s\n%s",
+            thread,
+            _str_borders_down,
+            trace,
+            _str_borders_up))
 end
 
 local function _run_callback_protected(call)
