@@ -31,6 +31,7 @@ return {
     __ABI64__ = ffi.abi("64bit"),
     __X86__ = ffi.arch == "x86",
     __X64__ = ffi.arch == "x64",
-    __PPC_ = ffi.arch == "ppc",
+    __PPC__ = ffi.arch == "ppc",
+    __PPC64__ = ffi.arch == "ppc64le",
     __ARM__ = ffi.arch == "arm"
 }

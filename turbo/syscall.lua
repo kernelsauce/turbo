@@ -83,7 +83,7 @@ elseif ffi.arch == "x64" then
         SYS_clock_getres     = 229,
         SYS_clock_nanosleep  = 230
     }
-elseif ffi.arch == "ppc" then
+elseif ffi.arch == "ppc" or ffi.arch == "ppc64le" then
     cmds = {
         SYS_stat             = 106,
         SYS_fstat            = 108,
