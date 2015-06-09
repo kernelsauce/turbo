@@ -272,7 +272,7 @@ if platform.__LINUX__ then
             uint64_t u64;
         } epoll_data_t;
     ]]
-    if platform.__ABI32__ then
+    if platform.__ABI32__ or platform.__PPC64__ then
         ffi.cdef[[
             struct epoll_event{
                 unsigned int events;
