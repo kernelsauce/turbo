@@ -115,6 +115,22 @@ elseif ffi.arch == "arm" then
         SYS_clock_getres     = 264,
         SYS_clock_nanosleep  = 265
     }
+elseif ffi.arch == "mipsel" then
+    cmds = {
+        SYS_stat             = 4106,
+        SYS_fstat            = 4108,
+        SYS_lstat            = 4107,
+        SYS_getdents         = 4141,
+        SYS_io_setup         = 4241,
+        SYS_io_destroy       = 4242,
+        SYS_io_getevents     = 4244,
+        SYS_io_submit        = 4246,
+        SYS_io_cancel        = 4245,
+        SYS_clock_settime    = 4262,
+        SYS_clock_gettime    = 4263,
+        SYS_clock_getres     = 4264,
+        SYS_clock_nanosleep  = 4265
+    }
 end
 
 return tm(flags, cmds)

@@ -33,5 +33,6 @@ return {
     __X64__ = ffi.arch == "x64",
     __PPC__ = ffi.arch == "ppc",
     __PPC64__ = ffi.arch == "ppc64le",
-    __ARM__ = ffi.arch == "arm"
+    __ARM__ = ffi.arch == "arm",
+    __MIPSEL__ = ffi.arch == "mipsel",
 }

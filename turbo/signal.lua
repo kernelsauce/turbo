@@ -24,9 +24,57 @@ local ffi = require "ffi"
 require "turbo.cdef"
 local platform = require "turbo.platform"
 
--- For Linux and LuaJIT only.
-if platform.__LINUX__ and jit then
-    return {
+if ffi.arch == "mipsel" then
+return {
+	signal = ffi.C.signal
+    -- For sigprocmask(2)
+    , SIG_BLOCK   = 1
+    , SIG_UNBLOCK = 2
+    , SIG_SETMASK = 3
+    -- Fake signal functions.
+    , SIG_ERR = ffi.cast("sighandler_t", -1)    --[[ Error return.  ]]
+    , SIG_DFL = ffi.cast("sighandler_t", 0) --[[ Default action.  ]]
+    , SIG_IGN = ffi.cast("sighandler_t", 1) --[[ Ignore signal.  ]]   
+    -- Signals.
+    ,   SIGHUP  =   1   --[[ Hangup (POSIX).  ]]
+    ,   SIGINT  =   2   --[[ Interrupt (ANSI).  ]]
+    ,   SIGQUIT =   3   --[[ Quit (POSIX).  ]]
+    ,   SIGILL  =   4   --[[ Illegal instruction (ANSI).  ]]
+    ,   SIGTRAP =   5   --[[ Trace trap (POSIX).  ]]
+    ,   SIGIOT  =   6   --[[ IOT trap (4.2 BSD).  ]]
+    ,   SIGABRT =   SIGIOT   --[[ Abort (ANSI).  ]]
+    ,   SIGBUS  =   10   --[[ BUS error (4.2 BSD).  ]]
+    ,   SIGFPE  =   8   --[[ Floating-point exception (ANSI).  ]]
+    ,   SIGKILL =   9   --[[ Kill, unblockable (POSIX).  ]]
+    ,   SIGUSR1 =   16  --[[ User-defined signal 1 (POSIX).  ]]
+    ,   SIGSEGV =   11  --[[ Segmentation violation (ANSI).  ]]
+    ,   SIGUSR2 =   17  --[[ User-defined signal 2 (POSIX).  ]]
+    ,   SIGPIPE =   13  --[[ Broken pipe (POSIX).  ]]
+    ,   SIGALRM =   14  --[[ Alarm clock (POSIX).  ]]
+    ,   SIGTERM =   15  --[[ Termination (ANSI).  ]]
+    ,   SIGSTKFLT = 16  --[[ Stack fault.  ]]
+    ,   SIGCLD  =   SIGCHLD --[[ Same as SIGCHLD (System V).  ]]
+    ,   SIGCHLD =   18  --[[ Child status has changed (POSIX).  ]]
+    ,   SIGCONT =   25  --[[ Continue (POSIX).  ]]
+    ,   SIGSTOP =   23  --[[ Stop, unblockable (POSIX).  ]]
+    ,   SIGTSTP =   24  --[[ Keyboard stop (POSIX).  ]]
+    ,   SIGTTIN =   26  --[[ Background read from tty (POSIX).  ]]
+    ,   SIGTTOU =   27  --[[ Background write to tty (POSIX).  ]]
+    ,   SIGURG  =   21  --[[ Urgent condition on socket (4.2 BSD).  ]]
+    ,   SIGXCPU =   30  --[[ CPU limit exceeded (4.2 BSD).  ]]
+    ,   SIGXFSZ =   31  --[[ File size limit exceeded (4.2 BSD).  ]]
+    ,   SIGVTALRM = 28  --[[ Virtual alarm clock (4.2 BSD).  ]]
+    ,   SIGPROF =   29  --[[ Profiling alarm clock (4.2 BSD).  ]]
+    ,   SIGWINCH =  20  --[[ Window size change (4.3 BSD, Sun).  ]]
+    ,   SIGIO =     22  --[[ I/O now possible (4.2 BSD).  ]]
+    ,   SIGPOLL =   SIGIO   --[[ Pollable event occurred (System V).  ]]
+    ,   SIGPWR =    19  --[[ Power failure restart (System V).  ]]
+    ,   SIGSYS =    12  --[[ Bad system call.  ]]
+--    ,   SIGUNUSED = 31 --[[ Not defined in MIPSEL ]]
+    ,   _NSIG   =   128  --[[ Biggest signal number + 1 (including real-time signals).  ]]
+	}
+else
+return {
         signal = ffi.C.signal
         -- For sigprocmask(2)
         , SIG_BLOCK   = 0

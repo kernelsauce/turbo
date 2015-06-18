@@ -41,7 +41,7 @@ Appveyor Windows CI
 
 Supported Architectures
 -----------------------
-x86, x64, ARM, PPC
+x86, x64, ARM, PPC, MIPSEL
 
 Supported Operating Systems
 ---------------------------
