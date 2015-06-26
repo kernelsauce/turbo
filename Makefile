@@ -6,7 +6,7 @@
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
-CC ?= gcc
+CC= gcc
 RM= rm -f
 UNINSTALL= rm -rf
 MKDIR= mkdir -p
