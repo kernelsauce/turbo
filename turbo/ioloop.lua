@@ -89,13 +89,11 @@ function ioloop.IOLoop:initialize()
     -- Set the most fitting poll implementation. The API's are all unified.
     if _poll_implementation == "epoll_ffi" then
         self._poll = _EPoll_FFI()
+        signal.signal(signal.SIGPIPE, signal.SIG_IGN)
     elseif _poll_implementation == "luasocket" then
         self._poll = _LuaSocketPoll()
         -- do nothing
     end
-    -- Must be set to avoid stopping execution when SIGPIPE is recieved.
-    -- TODO find a module for this.
-    -- signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 end
 
 --- Add handler function for given event mask on fd.
