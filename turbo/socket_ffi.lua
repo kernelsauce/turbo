@@ -21,6 +21,7 @@ local platform = require "turbo.platform"
 require "turbo.cdef"
 
 local octal = function (s) return tonumber(s, 8) end
+local hex = function (s) return tonumber(s, 16) end
 
 local F = {}
 F.F_DUPFD =             0
@@ -30,31 +31,60 @@ F.F_GETFL =             3
 F.F_SETFL =             4
 
 local O = {}
-O.O_ACCMODE =           octal("0003")
-O.O_RDONLY =            octal("00")
-O.O_WRONLY =            octal("01")
-O.O_RDWR =              octal("02")
-O.O_CREAT =             octal("0100")
-O.O_EXCL =              octal("0200")
-O.O_NOCTTY =            octal("0400")
-O.O_TRUNC =             octal("01000")
-O.O_APPEND =            octal("02000")
-O.O_NONBLOCK =          octal("04000")
-O.O_NDELAY =            O.O_NONBLOCK
-O.O_SYNC =              octal("04010000")
-O.O_FSYNC =             O.O_SYNC
-O.O_ASYNC =             octal("020000")
+if ffi.arch == "mipsel" then
+	O.O_ACCMODE =           octal("0003")
+	O.O_RDONLY =            octal("00")
+	O.O_WRONLY =            octal("01")
+	O.O_RDWR =              octal("02")
+	O.O_CREAT =             octal("0400")   
+	O.O_EXCL =              octal("2000")   
+	O.O_NOCTTY =            octal("4000")   
+	O.O_TRUNC =             octal("1000")
+	O.O_APPEND =            octal("0010")
+	O.O_NONBLOCK =          octal("0200")
+	O.O_NDELAY =            O.O_NONBLOCK
+	O.O_SYNC =              octal("0020")
+	O.O_FSYNC =             O.O_SYNC
+	O.O_ASYNC =             octal("10000")
+else
+	O.O_ACCMODE =           octal("0003")
+	O.O_RDONLY =            octal("00")
+	O.O_WRONLY =            octal("01")
+	O.O_RDWR =              octal("02")
+	O.O_CREAT =             octal("0100")   
+	O.O_EXCL =              octal("0200")   
+	O.O_NOCTTY =            octal("0400")   
+	O.O_TRUNC =             octal("01000")
+	O.O_APPEND =            octal("02000")
+	O.O_NONBLOCK =          octal("04000")
+	O.O_NDELAY =            O.O_NONBLOCK
+	O.O_SYNC =              octal("04010000")
+	O.O_FSYNC =             O.O_SYNC
+	O.O_ASYNC =             octal("020000")
+end
 
 local SOCK = {}
-SOCK.SOCK_STREAM =      1
-SOCK.SOCK_DGRAM =       2
-SOCK.SOCK_RAW =         3
-SOCK.SOCK_RDM =         4
-SOCK.SOCK_SEQPACKET =   5
-SOCK.SOCK_DCCP =        6
-SOCK.SOCK_PACKET =      10
-SOCK.SOCK_CLOEXEC =     octal("02000000")
-SOCK.SOCK_NONBLOCK =    octal("040009")
+if ffi.arch == "mipsel" then
+	SOCK.SOCK_STREAM =      2
+	SOCK.SOCK_DGRAM =       1
+	SOCK.SOCK_RAW =         3
+	SOCK.SOCK_RDM =         4
+	SOCK.SOCK_SEQPACKET =   5
+	SOCK.SOCK_DCCP =        6   
+	SOCK.SOCK_PACKET =      10
+	SOCK.SOCK_CLOEXEC =     octal("02000000")
+	SOCK.SOCK_NONBLOCK =    octal("0200")
+else
+	SOCK.SOCK_STREAM =      1
+	SOCK.SOCK_DGRAM =       2
+	SOCK.SOCK_RAW =         3
+	SOCK.SOCK_RDM =         4
+	SOCK.SOCK_SEQPACKET =   5
+	SOCK.SOCK_DCCP =        6   
+	SOCK.SOCK_PACKET =      10
+	SOCK.SOCK_CLOEXEC =     octal("02000000")
+	SOCK.SOCK_NONBLOCK =    octal("040009")
+end
 
 --[[ Protocol families.  ]]
 local PF = {}
@@ -148,9 +178,61 @@ AF.AF_NFC =             PF.PF_NFC
 AF.AF_MAX =             PF.PF_MAX
 
 local SOL = {}
+if ffi.arch == "mipsel" then
+SOL.SOL_SOCKET =        octal("177777")	-- 0xFFFF
+else
 SOL.SOL_SOCKET =        1
+end
 
 local SO = {}
+if ffi.arch == "mipsel" then
+SO.SO_DEBUG =           1
+SO.SO_REUSEADDR =       4
+SO.SO_TYPE =            hex("1008")
+SO.SO_ERROR =           hex("1007")
+SO.SO_DONTROUTE =       hex("0010")
+SO.SO_BROADCAST =       hex("0020")
+SO.SO_SNDBUF =          hex("1001")
+SO.SO_RCVBUF =          hex("1002")
+SO.SO_SNDBUFFORCE =     31
+SO.SO_RCVBUFFORCE =     33
+SO.SO_KEEPALIVE =       8
+SO.SO_OOBINLINE =       hex("0100")
+SO.SO_NO_CHECK =        11
+SO.SO_PRIORITY =        12
+SO.SO_LINGER =          hex("0080")
+SO.SO_BSDCOMPAT =       14
+SO.SO_PASSCRED =        17
+SO.SO_PEERCRED =        18
+SO.SO_RCVLOWAT =        hex("1004")
+SO.SO_SNDLOWAT =        hex("1003")
+SO.SO_RCVTIMEO =        hex("1006")
+SO.SO_SNDTIMEO =        hex("1005")
+SO.SO_SECURITY_AUTHENTICATION =            22
+SO.SO_SECURITY_ENCRYPTION_TRANSPORT =      23
+SO.SO_SECURITY_ENCRYPTION_NETWORK =        24
+SO.SO_BINDTODEVICE =    25
+SO.SO_ATTACH_FILTER =   26
+SO.SO_DETACH_FILTER =   27
+SO.SO_PEERNAME =        28
+SO.SO_TIMESTAMP =       29
+SO.SCM_TIMESTAMP =      SO.SO_TIMESTAMP
+SO.SO_ACCEPTCONN =      hex("1009")
+SO.SO_PEERSEC =         30
+SO.SO_PASSSEC =         34
+SO.SO_TIMESTAMPNS =     35
+SCM_TIMESTAMPNS =       SO.SO_TIMESTAMPNS
+SO.SO_MARK =            36
+SO.SO_TIMESTAMPING =    37
+SO.SCM_TIMESTAMPING=    SO.SO_TIMESTAMPING
+SO.SO_PROTOCOL =        hex("1028")
+SO.SO_DOMAIN =          hex("1029")
+SO.SO_RXQ_OVFL =        40
+--SO.SO_WIFI_STATUS =     41
+--SO.SCM_WIFI_STATUS =    SO.SO_WIFI_STATUS
+--SO.SO_PEEK_OFF =        42
+--SO.SO_NOFCS =           43
+else
 SO.SO_DEBUG =           1
 SO.SO_REUSEADDR =       2
 SO.SO_TYPE =            3
@@ -197,14 +279,26 @@ SO.SO_WIFI_STATUS =     41
 SO.SCM_WIFI_STATUS =    SO.SO_WIFI_STATUS
 SO.SO_PEEK_OFF =        42
 SO.SO_NOFCS =           43
+end
 
-local E = {
+local E
+if ffi.arch == "mipsel" then
+E = {
+    EAGAIN =            11,
+    EWOULDBLOCK =       11,
+    EINPROGRESS =       150,
+    ECONNRESET =        131,
+    EPIPE =             32
+}
+else
+E = {
     EAGAIN =            11,
     EWOULDBLOCK =       11,
     EINPROGRESS =       115,
     ECONNRESET =        104,
     EPIPE =             32
 }
+end
 
 
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then

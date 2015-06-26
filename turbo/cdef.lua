@@ -456,6 +456,28 @@ if platform.__LINUX__ then
             unsigned long   __unused5;
           };
         ]]
+    elseif platform.__MIPSEL__ then
+        ffi.cdef[[
+          struct stat {
+            unsigned long long  st_dev;
+            long int            st_pad1[2];
+            unsigned int        st_ino;
+            unsigned int        st_mode;
+            unsigned int        st_nlink;
+            unsigned int        st_uid;
+            unsigned int        st_gid;
+            unsigned long long  st_rdev;
+            long int            st_pad2[1];
+            unsigned int        st_size;
+            long int            st_pad3;
+            unsigned int        st_atime;
+            unsigned int        st_mtime;
+            unsigned int        st_ctime;
+            unsigned int        st_blksize;
+            unsigned int        st_blocks;
+            long int            st_pad5[14];
+          };
+        ]]
     end
 
 
