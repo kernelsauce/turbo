@@ -116,6 +116,24 @@ and time interval callbacks. Heavily influenced by ioloop.py in the Tornado web 
         :param ref: Reference returned by ``IOLoop:set_interval()``
         :type ref: Boolean
 
+.. function:: IOLoop:add_signal_handler(signo, handler, arg)
+
+        Add a signal handler. If handler already exists for signal it is overwritten. Calling of multiple functions should be
+        handled by user.
+
+        :param signo: The signal number(s) too handle.
+        :type signo: (Number) Signal number, defined in turbo.signal, e.g turbo.signal.SIGINT.
+        :param handler: Function to handle the signal.
+        :type handler: Function
+        :param arg: Optional argument for handler function.
+
+.. function:: IOLoop:remove_signal_handler(signo)
+
+        Remove a signal handler for specified signal number.
+
+        :param signo: The signal number to remove.
+        :type signo: (Number) Signal number, defined in turbo.signal, e.g turbo.signal.SIGINT.
+
 .. function:: IOLoop:start()
 
         Start the IO Loop. The loop will continue running until ``IOLoop.close`` is called via a callback added.
