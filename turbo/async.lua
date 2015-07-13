@@ -131,7 +131,10 @@ function async.HTTPClient:initialize(ssl_options, io_loop, max_buffer_size)
     self.family = AF_INET
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size
-    self.ssl_options = ssl_options
+    self.ssl_options = ssl_options or {}
+    if self.ssl_options.verify_ca == nil then
+        self.ssl_options.verify_ca = true
+    end
 end
 
 --- Errors that can be set in the return object of fetch (HTTPResponse instance).
