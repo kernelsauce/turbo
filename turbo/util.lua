@@ -348,8 +348,15 @@ function util.load_libtffi(name)
     name = name or os.getenv("TURBO_LIBTFFI") or "libtffi_wrap"
     local ok, lib = pcall(ffi.load, name)
     if not ok then
-        error("Could not load " .. name .. " \
-        Please run makefile and ensure that installation is done correct.")
+        -- Try the old loading method which works for some Linux distros.
+        -- But only if name is not given as argument.
+        if not name then
+            ok, lib = pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
+        end
+        if not ok then
+            error("Could not load " .. name .. " \
+            Please run makefile and ensure that installation is done correct.")
+        end
     end
     return lib
 end
