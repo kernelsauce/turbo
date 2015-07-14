@@ -350,7 +350,7 @@ function util.load_libtffi(name)
     if not ok then
         -- Try the old loading method which works for some Linux distros.
         -- But only if name is not given as argument.
-        if not name then
+        if not name and not ok then
             ok, lib = pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
         end
         if not ok then
