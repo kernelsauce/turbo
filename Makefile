@@ -168,8 +168,8 @@ package: all minimize
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	export LD_LIBRARY_PATH=$(INSTALL_LIB); export TURBO_TEST_SSL=1; busted
-	export LD_LIBRARY_PATH=$(INSTALL_LIB); luajit examples/helloworld.lua &
+	export TURBO_TEST_SSL=1; busted
+	luajit examples/helloworld.lua &
 	sleep 1
 	wget http://127.0.0.1:8888/
 	test -f index.html
