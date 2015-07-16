@@ -345,7 +345,7 @@ end
 --- Loads dynamic library with helper functions or bails out with error.
 -- @param name Custom library name or path
 function util.load_libtffi(name)
-    have_name = name and true or false
+    local have_name = name and true or false
     name = name or os.getenv("TURBO_LIBTFFI") or "libtffi_wrap"
     local ok, lib = pcall(ffi.load, name)
     if not ok then
