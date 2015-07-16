@@ -345,15 +345,17 @@ end
 --- Loads dynamic library with helper functions or bails out with error.
 -- @param name Custom library name or path
 function util.load_libtffi(name)
+    have_name = name and true or false
     name = name or os.getenv("TURBO_LIBTFFI") or "libtffi_wrap"
     local ok, lib = pcall(ffi.load, name)
     if not ok then
         -- Try the old loading method which works for some Linux distros.
         -- But only if name is not given as argument.
-        if not name and not ok then
+        if not have_name then
             ok, lib = pcall(ffi.load, "/usr/local/lib/libtffi_wrap.so")
         end
         if not ok then
+            -- Still not OK...
             error("Could not load " .. name .. " \
             Please run makefile and ensure that installation is done correct.")
         end
