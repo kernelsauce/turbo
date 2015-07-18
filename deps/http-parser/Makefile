@@ -22,6 +22,9 @@ PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 SONAME ?= libhttp_parser.so.2.1
 
 CC=gcc
+ifeq (darwin,$(PLATFORM))
+CC=clang
+endif
 AR?=ar
 
 CPPFLAGS += -I.

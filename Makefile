@@ -7,6 +7,10 @@
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
 CC= gcc
+ifeq ($(uname_S),Darwin)
+CC= clang
+endif
+
 RM= rm -f
 UNINSTALL= rm -rf
 MKDIR= mkdir -p
@@ -30,10 +34,6 @@ TDEPS= deps
 HTTP_PARSERDIR = $(TDEPS)/http-parser
 INSTALL_LIB= $(PREFIX)/lib
 INSTALL_BIN= $(PREFIX)/bin
-INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.so
-INSTALL_TFFI_WRAP_SONAME= $(INSTALL_TFFI_WRAP_SOSHORT).$(TVERSION)
-INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
-INSTALL_TFFI_WRAP_SHORT= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SOSHORT)
 TEST_DIR = tests
 PACKAGE_DIR = package/turbo
 LUA_MODULEDIR = $(PREFIX)/share/lua/5.1
@@ -44,13 +44,21 @@ LUAJIT_MODULEDIR = $(PREFIX)/share/luajit-$(LUAJIT_VERSION)
 INC = -I$(HTTP_PARSERDIR)/
 CFLAGS = -g
 
+# For Windows builds.
+INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.dll
+
 ifeq ($(uname_S),Linux)
+	INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.so
 	CFLAGS += -fPIC
 endif
 
 ifeq ($(uname_S),Darwin)
+	INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.dylib
 	CFLAGS += -I/usr/include/malloc
 endif
+INSTALL_TFFI_WRAP_SONAME= $(INSTALL_TFFI_WRAP_SOSHORT).$(TVERSION)
+INSTALL_TFFI_WRAP_DYN= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SONAME)
+INSTALL_TFFI_WRAP_SHORT= $(INSTALL_LIB)/$(INSTALL_TFFI_WRAP_SOSHORT)
 
 ifeq ($(SSL), axTLS)
 # axTLS only uses axtls lib from luajit
@@ -84,7 +92,12 @@ clean:
 
 uninstall:
 	@echo "==== Uninstalling Turbo.lua ===="
+ifeq ($(uname_S),Linux)
 	$(UNINSTALL) $(INSTALL_TFFI_WRAP_SHORT) $(INSTALL_TFFI_WRAP_DYN)
+endif
+ifeq ($(uname_S),Darwin)
+	$(UNINSTALL) $(INSTALL_TFFI_WRAP_SHORT)
+endif
 	$(LDCONFIG) $(INSTALL_LIB)
 	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
 	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
@@ -104,18 +117,23 @@ install:
 	$(CP_R) turbo/* $(LUA_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUA_MODULEDIR)
 	$(CP_R) turbovisor.lua $(LUA_MODULEDIR)
-	$(CP_R) -R turbo/* $(LUAJIT_MODULEDIR)/turbo
+	$(CP_R) turbo/* $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo.lua $(LUAJIT_MODULEDIR)
 	$(CP_R) turbovisor.lua $(LUAJIT_MODULEDIR)
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C deps/http-parser library
 	$(CC) $(INC) -shared -O3 -Wall $(CFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
-	@echo "==== Installing libturbo_parser ===="
+	@echo "==== Installing libtffi_wrap ===="
+ifeq ($(uname_S),Linux)
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
 	$(LDCONFIG) $(INSTALL_LIB) && \
 	$(SYMLINK) $(INSTALL_TFFI_WRAP_SONAME) $(INSTALL_TFFI_WRAP_SHORT)
+endif
+ifeq ($(uname_S),Darwin)
+	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_SHORT)
+endif
 	@echo "==== Successfully installed Turbo.lua $(TVERSION) to $(PREFIX) ===="
 
 bytecode:

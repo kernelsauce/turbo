@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."			*/
 
 #include <strings.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -51,6 +51,8 @@ SOFTWARE."			*/
 
 #ifndef TURBO_NO_SSL
 
+#pragma GCC diagnostic push 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 static int matches_common_name(const char *hostname, const X509 *server_cert)
 {
     int common_name_loc = -1;
@@ -172,6 +174,7 @@ int32_t validate_hostname(const char *hostname, const SSL *server){
     return result;
 }
 #endif
+#pragma GCC diagnostic pop
 
 bool url_field_is_set(
         const struct http_parser_url *url,

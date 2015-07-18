@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."          */
 
 #include <stdint.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 #ifndef TURBO_NO_SSL
 #include <openssl/ssl.h>
