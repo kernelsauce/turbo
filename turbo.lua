@@ -114,7 +114,6 @@ turbo.websocket =       require "turbo.websocket"
 turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash =            require "turbo.hash"
-turbo.platform =        require "turbo.platform"
 if turbo.platform.__LINUX__ then
     turbo.inotify =         require "turbo.inotify"
     turbo.fs =              require "turbo.fs"
