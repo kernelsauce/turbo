@@ -89,7 +89,6 @@ assert(pcall(require, "bit") or pcall(require, "bit32"),
 turbo.platform =        require "turbo.platform"
 turbo.log =             require "turbo.log"
 if not turbo.platform.__LINUX__ then
-    turbo.log.warning("Not Linux, using LuaSocket (degraded performance).")
     if not pcall(require, "socket") then
         turbo.log.error("Could not load LuaSocket. Aborting.")
     end
@@ -115,6 +114,7 @@ turbo.websocket =       require "turbo.websocket"
 turbo.socket =          require "turbo.socket_ffi"
 turbo.sockutil =        require "turbo.sockutil"
 turbo.hash =            require "turbo.hash"
+turbo.platform =        require "turbo.platform"
 if turbo.platform.__LINUX__ then
     turbo.inotify =         require "turbo.inotify"
     turbo.fs =              require "turbo.fs"

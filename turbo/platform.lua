@@ -16,17 +16,22 @@
 
 local ffi = require "ffi"
 
-local uname = (function()
-    local f = io.popen("uname")
-    local l = f:read("*a")
-    f:close()
-    return l
-end)()
+local uname = ""
+if not ffi.abi("win") then
+    uname = (function()
+        local f = io.popen("uname")
+        local l = f:read("*a")
+        f:close()
+        return l
+    end)()
+end
 
 return {
     __WINDOWS__ = ffi.abi("win"),
-    __UNIX__ = uname:match("Unix") or uname:match("Linux") and true or false,
+    __UNIX__ = uname:match("Unix") or uname:match("Linux") or 
+        uname:match("Darwin") and true or false,
     __LINUX__ = uname:match("Linux") and true or false,
+    __DARWIN__ = uname:match("Darwin") and true or false,
     __ABI32__ = ffi.abi("32bit"),
     __ABI64__ = ffi.abi("64bit"),
     __X86__ = ffi.arch == "x86",

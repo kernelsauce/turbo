@@ -16,12 +16,25 @@
 -- limitations under the License.
 
 local ffi = require "ffi"
+local log = require "turbo.log"
 local platform = require "turbo.platform"
 require "turbo.cdef"
 
 local crypto = {} -- crypto namespace
 
-local ssl = require "ssl"
+local ok, ssl = pcall(require, "ssl")
+if not ok then
+    log.error(
+        "Could not load \"ssl\" module (LuaSec). Exiting. "..
+        "Please install module to enable SSL in Turbo.")
+    os.exit(1)
+end
+
+local default_ca_path = "/etc/ssl/certs/ca-certificates.crt"
+local env_ca_path = os.getenv("TURBO_CAPATH")
+if env_ca_path then
+    default_ca_path = env_ca_path
+end
 
 --- Create a client type SSL context.
 -- @param cert_file (optional) Certificate file
@@ -43,14 +56,14 @@ function crypto.ssl_create_client_context(
         protocol = "sslv23",
         key = prv_file,
         certificate = cert_file,
-        cafile = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt",
+        cafile = ca_cert_path or default_ca_path,
         verify = verify and {"peer", "fail_if_no_peer_cert"} or nil,
         options = {"all"},
     }
 
     local ctx, err = ssl.newcontext(params)
     if not ctx then
-        return -1, "Could not create SSL server context."
+        return -1, "Could not create SSL client context."
     else
         return 0, ctx
     end
@@ -70,7 +83,7 @@ function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
         protocol = "sslv23",
         key = prv_file,
         certificate = cert_file,
-        cafile = ca_cert_path or "/etc/ssl/certs/ca-certificates.crt",
+        cafile = ca_cert_path or default_ca_path,
         options = {"all"},
     }
 

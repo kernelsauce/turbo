@@ -163,8 +163,6 @@ do
     local rt_support, rt = pcall(ffi.load, "rt")
     if not rt_support or _G.__TURBO_USE_LUASOCKET__ then
         util.gettimemonotonic = util.gettimeofday
-        io.stderr:write(
-            "[util.lua] Could not load rt.so, falling back to gettimeofday.\n")
     else
         local ts = ffi.new("struct timespec")
         -- Current msecs since arbitrary start point, doesn't jump due to

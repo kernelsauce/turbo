@@ -19,6 +19,10 @@ local bit = require "bit"
 local turbo = require "turbo"
 local fs = require "turbo.fs"
 
+if not turbo.platform.__LINUX__ then
+    error("Turbovisor is only supported on Linux.")
+end
+
 --- Parsing arguments for turbovisor
 -- @param arg All command line input. Note arg[0] is 'turbovisor', arg[1] is
 --    application name; so user-defined argument starts from arg[2]

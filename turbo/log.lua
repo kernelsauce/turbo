@@ -65,7 +65,7 @@ function log.disable_all()
     }
 end
 
-if platform.__LINUX__ then
+if platform.__UNIX__ then
     --- Log to stdout. Success category.
     -- Use for successfull events etc.
     -- @note Messages are printed with green color.
@@ -99,7 +99,7 @@ else
     end
 end
 
-if platform.__LINUX__ then
+if platform.__UNIX__ then
     --- Log to stdout. Notice category.
     -- Use for notices, typically non-critical messages to give a hint.
     -- @note Messages are printed with white color.
@@ -137,7 +137,7 @@ end
 -- Use for warnings.
 -- @note Messages are printed with yellow color.
 -- @param str (String) Message to output.
-if platform.__LINUX__ then
+if platform.__UNIX__ then
     function log.warning(str)
         if log.categories.warning == false then
             return
@@ -175,7 +175,7 @@ end
 -- Use for critical errors, when something is clearly wrong.
 -- @note Messages are printed with red color.
 -- @param str (String) Message to output.
-if platform.__LINUX__ then
+if platform.__UNIX__ then
     function log.error(str)
         if log.categories.error == false then
             return
@@ -205,7 +205,7 @@ else
     end
 end
 
-if platform.__LINUX__ then
+if platform.__UNIX__ then
     --- Log to stdout. Debug category.
     -- Use for debug messages not critical for releases.
     -- @note Messages are printed with white color.
@@ -239,7 +239,7 @@ else
     end
 end
 
-if platform.__LINUX__ then
+if platform.__UNIX__ then
     --- Log to stdout. Development category.
     -- Use for development purpose messages.
     -- @note Messages are printed with cyan color.
