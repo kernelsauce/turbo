@@ -72,7 +72,7 @@ Note that this class has sanity checking for input parameters. If they are of wr
 
     :rtype: Number or nil
 
-.. function :: HTTPHeaders:get(key, caseinsensitive)
+.. function :: HTTPParser:get(key, caseinsensitive)
 
     Get given key from header key value section.
 
