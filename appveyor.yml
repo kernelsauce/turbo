@@ -70,25 +70,6 @@ build_script:
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
   - dir
 
-after_build:
-  # Create a pre-compiled package for Windows.
-  - mkdir %TURBO_PACK%
-  # Copy LuaJIT binaries, place in root.
-  - cd %TURBO_ROOT%\src\luajit-2.0\src
-  - cp luajit.exe %TURBO_PACK%
-  - cp lua51.dll %TURBO_PACK%
-  # Copy lib turbo ffi.
-  - cd %APPVEYOR_BUILD_FOLDER%
-  - cp libtffi_wrap.dll %TURBO_PACK%
-  # Copy rocks.
-  - cp -R %TURBO_ROOT%\luarocks %TURBO_PACK%\luarocks
-  - cp -R %TURBO_ROOT%\rocks %TURBO_PACK%\rocks
-  - mkdir %TURBO_PACK%\src
-  - cp -R %TURBO_ROOT%\src\luajit-2.0 %TURBO_PACK%\src\luajit-2.0
-  - mkdir %TURBO_PACK%\src\turbo
-  - cp -R %APPVEYOR_BUILD_FOLDER% %TURBO_PACK%\src\turbo\
-  - 7z a %APPVEYOR_BUILD_FOLDER%\turbolua.zip %TURBO_PACK%
-
 artifacts:
   - path: libtffi_wrap.dll
     name: libtffi_wrap.dll
