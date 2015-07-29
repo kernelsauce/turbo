@@ -182,6 +182,9 @@ function httputil.HTTPParser:get_url()
         if not self.tpw then
             error("No URL or header has been parsed. Can not return URL.")
         end
+        if self.tpw.url_str == nil then
+            error("No URL available for request headers.")
+        end
         self.url = ffi.string(self.tpw.url_str, self.tpw.url_sz)
     end
     return self.url
