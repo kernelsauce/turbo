@@ -66,6 +66,7 @@ install:
 
 build_script:
   - cd %APPVEYOR_BUILD_FOLDER%
+  - git submodule update --init --recursive
   - mingw32-make SSL=none
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
   - dir
