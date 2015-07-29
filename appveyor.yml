@@ -69,7 +69,7 @@ build_script:
   - cd deps
   - git clone https://github.com/joyent/http-parser.git
   - cd %APPVEYOR_BUILD_FOLDER%
-  - mingw32-make SSL=none
+  - mingw32-make SSL=none CC=gcc
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
   - dir
 
