@@ -677,7 +677,7 @@ end
 
 function web.RequestHandler:_parse_cookies()
     local cookie_str, cnt = self.request.headers:get("Cookie")
-    local rfc6265pat = '%s*([%w]+)="*([%w%p]+[^%s%;^%,^%\\%"])%s*'
+
     self._cookies_parsed = true
     if cnt == 0 then
         self._cookies = {}
