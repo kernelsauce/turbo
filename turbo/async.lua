@@ -190,6 +190,7 @@ function async.HTTPClient:fetch(url, kwargs)
     self.kwargs = kwargs or {}
     -- Set sane defaults for kwargs if not present.
     self.redirect_max = self.kwargs.max_redirects or 4
+    self.allow_redirects = self.kwargs.allow_redirects or true
     self.kwargs.method = self.kwargs.method or "GET"
     self.kwargs.user_agent = self.kwargs.user_agent or "Turbo Client v2.0.0"
     self.kwargs.connect_timeout = self.kwargs.connect_timeout or 30
