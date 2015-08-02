@@ -95,7 +95,23 @@ describe("turbo.async Namespace", function()
         io:wait(5)
     end)
 
-        it("HTTPS different sites", function()
+
+    it("HEAD redirect", function()
+        local port = math.random(10000,40000)
+        local io = turbo.ioloop.instance()
+
+        io:add_callback(function()
+            local res = coroutine.yield(
+                turbo.async.HTTPClient():fetch("http://t.co/rKAeu0zUNV", {method = "HEAD", allow_redirects = true}))
+            assert.falsy(res.error)
+            assert(res.code == 200)
+            io:close()
+        end)
+        io:wait(5)
+    end)
+
+
+    it("HTTPS different sites", function()
         local port = math.random(10000,40000)
         local io = turbo.ioloop.instance()
 
