@@ -566,9 +566,9 @@ function async.HTTPClient:_handle_headers(data)
         return
     end
     local content_length = self.response_headers:get("Content-Length", true)
-    if not content_length or content_length == 0  then
+    if not content_length or content_length == 0 or self.kwargs.method == "HEAD" then
         if self.response_headers:get("Transfer-Encoding", true) ==
-            "chunked" then
+            "chunked" and not self.kwargs.method == "HEAD" then
             -- Chunked encoding.
             self._chunked = true
             self._read_buffer = buffer()
@@ -621,8 +621,7 @@ function async.HTTPClient:_handle_redirect(location)
     local old_host = self.hostname
     self:_set_url(location)
     if self.response_headers:get("Connection") == "close" or
-        self.iostream:closed() or old_host ~= self.hostname or
-        old_scehma ~= self.schema then
+        self.iostream:closed() or old_host ~= self.hostname then
         -- Call close to be sure that it really is closed...
         self.iostream:close()
         local sock, msg = socket.new_nonblock_socket(self.family,
