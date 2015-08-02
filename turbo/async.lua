@@ -718,6 +718,7 @@ function async.HTTPClient:_finalize_request()
         res.body = self.payload
         res.request_time = self.finish_time - self.start_time
         res.headers = self.response_headers
+        res.url = self.url
     end
     self.coctx:set_state(coctx.states.DEAD)
     self.coctx:set_arguments({res})
