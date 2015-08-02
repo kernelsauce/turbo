@@ -727,13 +727,5 @@ end
 
 async.HTTPResponse = class("HTTPResponse")
 
-function async.HTTPResponse:initialize()
-    self.request = nil
-    self.code = code
-    self.headers = headers
-    self.body = body
-    self.error = err
-    self.request_time = nil
-end
 
 return async
