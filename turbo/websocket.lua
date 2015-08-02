@@ -206,11 +206,12 @@ function websocket.WebSocketStream:_accept_frame(header)
 end
 
 if le then
+    local _tmp_convert_16 = ffi.new("uint16_t[1]")
     function websocket.WebSocketStream:_frame_len_16(data)
         -- Network byte order for multi-byte length values.
         -- What were they thinking!
-        self._payload_len = tonumber(
-            ffi.C.htons(ffi.cast("uint16_t", data)))
+        ffi.copy(_tmp_convert_16, data, 2)
+        self._payload_len = tonumber(ffi.C.ntohs(_tmp_convert_16[0]))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
@@ -220,9 +221,11 @@ if le then
         end
     end
 
+    local _tmp_convert_64 = ffi.new("uint64_t[1]")
     function websocket.WebSocketStream:_frame_len_64(data)
+        ffi.copy(_tmp_convert_64, data, 2)
         self._payload_len = tonumber(
-            ENDIAN_SWAP_U64(ffi.cast("uint64_t", data)))
+            ENDIAN_SWAP_U64(_tmp_convert_64))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
@@ -241,13 +244,18 @@ function websocket.WebSocketStream:_frame_mask_key(data)
 end
 
 function websocket.WebSocketStream:_masked_frame_payload(data)
-    self:_frame_payload(_unmask_payload(self._frame_mask, data))
+    local unmasked = _unmask_payload(self._frame_mask, data)
+    self:_frame_payload(unmasked)
 end
 
 if le then
     -- Multi-byte lengths must be sent in network byte order, aka
     -- big-endian. Ugh...
     function websocket.WebSocketStream:_send_frame(finflag, opcode, data)
+        if self.stream:closed() then
+            return
+        end
+
         local data_sz = data:len()
         _ws_header.flags = bit.bor(finflag and 0x80 or 0x0, opcode)
 
@@ -273,9 +281,14 @@ if le then
         end
         
         if self.mask_outgoing == true then
-            _ws_mask = math.random(0x00000001, 0x7FFFFFFF)
-            self.stream:write(ffi.string(ffi.cast("uint8_t*", _ws_mask[0]), 4))
-            self.stream:write(_unmask_payload(_ws_mask, data))
+            -- Create a random mask.
+            ws_mask = ffi.new("unsigned char[4]")
+            ws_mask[0] = math.random(0x0, 0xff)
+            ws_mask[1] = math.random(0x0, 0xff)
+            ws_mask[2] = math.random(0x0, 0xff)
+            ws_mask[3] = math.random(0x0, 0xff)
+            self.stream:write(ffi.string(ws_mask, 4))
+            self.stream:write(_unmask_payload(ws_mask, data))
             return
         end
         
@@ -531,6 +544,7 @@ end
 --      on_headers =         function(self, header) end,
 --      on_connect =         function(self) end,
 --      on_close =           function(self) end,
+--      on_ping =            function(self, data) end,
 --      modify_headers =     function(header) end,
 --      request_timeout =    10,
 --      connect_timeout =    10,
@@ -541,12 +555,12 @@ end
 websocket.WebSocketClient = class("WebSocketClient")
 websocket.WebSocketClient:include(websocket.WebSocketStream)
 
-function websocket.WebSocketClient:initialize(address, kwargs) 
+function websocket.WebSocketClient:initialize(address, kwargs)
     self.address = address
     self.kwargs = kwargs or {}
     self._connect_time = util.gettimemonotonic()
-    self.http_cli = async.HTTPClient(self.kwargs, 
-                                     self.kwargs.ioloop, 
+    self.http_cli = async.HTTPClient(self.kwargs.ssl_options,
+                                     self.kwargs.ioloop,
                                      self.kwargs.max_buffer_size)
     local websocket_key = escape.base64_encode(util.rand_str(16))
     -- Reusing async.HTTPClient.
@@ -731,7 +745,14 @@ function websocket.WebSocketClient:_handle_opcode(opcode, data)
     elseif opcode == websocket.opcode.CLOSE then
         self:close()
     elseif opcode == websocket.opcode.PING then
-        self:_send_frame(true, websocket.opcode.PONG, data)
+        if self.kwargs.on_ping then
+            self:_protected_call("on_ping",
+                                 self.kwargs.on_ping,
+                                 self,
+                                 data)
+        else
+            self:pong(data)
+        end
     elseif opcode == websocket.opcode.PONG then
         if self._ping_callback then
             local callback = self._ping_callback
