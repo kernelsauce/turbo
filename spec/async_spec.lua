@@ -14,6 +14,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+_G.TURBO_SSL = true
 _G.__TURBO_USE_LUASOCKET__ = os.getenv("TURBO_USE_LUASOCKET") and true or false
 local turbo = require "turbo"
 
@@ -42,28 +43,83 @@ describe("turbo.async Namespace", function()
     end)
 
     it("Cookie support", function()
-    local port = math.random(10000,40000)
-    local io = turbo.ioloop.instance()
-    local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
-    function ExampleHandler:get()
-        assert.equal("testvalue", self:get_cookie("testcookie"))
-        assert.equal("secondvalue", self:get_cookie("testcookie2"))
-        self:write("Hello World!")
-    end
-    turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
+        local port = math.random(10000,40000)
+        local io = turbo.ioloop.instance()
+        local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
+        function ExampleHandler:get()
+            assert.equal("testvalue", self:get_cookie("testcookie"))
+            assert.equal("secondvalue", self:get_cookie("testcookie2"))
+            self:write("Hello World!")
+        end
+        turbo.web.Application({{"^/$", ExampleHandler}}):listen(port)
 
-    io:add_callback(function()
-        local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-            "http://127.0.0.1:"..tostring(port).."/", {
-            cookie = {
-                testcookie="testvalue",
-                testcookie2="secondvalue"
-            }}))
-        assert.falsy(res.error)
-        assert.equal(res.body, "Hello World!")
-        io:close()
+        io:add_callback(function()
+            local res = coroutine.yield(turbo.async.HTTPClient():fetch(
+                "http://127.0.0.1:"..tostring(port).."/", {
+                cookie = {
+                    testcookie="testvalue",
+                    testcookie2="secondvalue"
+                }}))
+            assert.falsy(res.error)
+            assert.equal(res.body, "Hello World!")
+            io:close()
+        end)
+        io:wait(5)
     end)
 
-    io:wait(5)
-end)
+    it("HTTPS altinn.no", function()
+        local port = math.random(10000,40000)
+        local io = turbo.ioloop.instance()
+
+        io:add_callback(function()
+            local res = coroutine.yield(
+                turbo.async.HTTPClient():fetch("https://altinn.no/", {allow_redirects=true}))
+            assert.falsy(res.error)
+            assert(res.code == 200)
+            io:close()
+        end)
+        io:wait(5)
+    end)
+
+    it("HTTPS redirect altinn.no", function()
+        local port = math.random(10000,40000)
+        local io = turbo.ioloop.instance()
+
+        io:add_callback(function()
+            local res = coroutine.yield(
+                turbo.async.HTTPClient():fetch("http://altinn.no/", {allow_redirects=true}))
+            assert.falsy(res.error)
+            assert(res.code == 200)
+            io:close()
+        end)
+        io:wait(5)
+    end)
+
+        it("HTTPS different sites", function()
+        local port = math.random(10000,40000)
+        local io = turbo.ioloop.instance()
+
+        io:add_callback(function()
+            local res = coroutine.yield(
+                turbo.async.HTTPClient():fetch("https://google.com/", {allow_redirects=true}))
+            assert.falsy(res.error)
+            assert(res.code == 200)
+
+
+            local res = coroutine.yield(
+                turbo.async.HTTPClient():fetch("https://microsoft.com/", {allow_redirects=true}))
+            assert.falsy(res.error)
+            assert(res.code == 200)
+
+
+            local res = coroutine.yield(
+                turbo.async.HTTPClient():fetch("https://amazon.com/", {allow_redirects=true}))
+            assert.falsy(res.error)
+            assert(res.code == 200)
+
+            io:close()
+        end)
+        io:wait(60)
+    end)
+
 end)
