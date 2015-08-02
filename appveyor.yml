@@ -68,6 +68,7 @@ build_script:
   - cd %APPVEYOR_BUILD_FOLDER%
   - mingw32-make SSL=none
   - SET TURBO_LIBTFFI=%APPVEYOR_BUILD_FOLDER%\libtffi_wrap.dll
+  - SET TURBO_CAPATH=%APPVEYOR_BUILD_FOLDER%\turbo\ca-certificates.crt
   - dir
 
 artifacts:
