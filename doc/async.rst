@@ -140,4 +140,5 @@ Represents a HTTP response by a few attributes. Returned by ``turbo.async.HTTPCl
 	:code: (Number) The HTTP response code
 	:headers: (HTTPHeader class instance) Response headers recieved from the server.
 	:body: (String) Body of response
+	:url: (String) The URL that was used for final resource.
 	:request_time: (Number) msec used to process request.
