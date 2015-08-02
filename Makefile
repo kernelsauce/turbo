@@ -20,7 +20,7 @@ PREFIX ?= /usr/local
 
 MAJVER=  1
 MINVER=  1
-MICVER=  5
+MICVER=  6
 TVERSION= $(MAJVER).$(MINVER).$(MICVER)
 TDEPS= deps
 HTTP_PARSERDIR = $(TDEPS)/http-parser

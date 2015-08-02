@@ -1,7 +1,7 @@
 
 .. image:: _static/turbo.png
 
-This is the documentation for Turbo.lua version 1.1.5.
+This is the documentation for Turbo.lua version 1.1.6.
 
 Introduction
 ------------
