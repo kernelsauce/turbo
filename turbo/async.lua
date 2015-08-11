@@ -568,7 +568,7 @@ function async.HTTPClient:_handle_headers(data)
     local content_length = self.response_headers:get("Content-Length", true)
     if not content_length or content_length == 0 or self.kwargs.method == "HEAD" then
         if self.response_headers:get("Transfer-Encoding", true) ==
-            "chunked" and not self.kwargs.method == "HEAD" then
+            "chunked" and self.kwargs.method ~= "HEAD" then
             -- Chunked encoding.
             self._chunked = true
             self._read_buffer = buffer()
