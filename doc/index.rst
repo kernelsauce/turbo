@@ -11,6 +11,8 @@ Keep in mind that running this with LuaJIT provides you with roughly the speed o
 
 LuaJIT 2 is REQUIRED, PUC-RIO Lua is unsupported.
 
+Git repository is available at https://github.com/kernelsauce/turbo.
+
 It's main features and design principles are:
 
 - Simple and intuitive API (much like Tornado).
