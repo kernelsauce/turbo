@@ -9,7 +9,7 @@ Keep in mind that running this with LuaJIT provides you with roughly the speed o
 
 LuaJIT 2 is REQUIRED, PUC-RIO Lua is unsupported.
 
-API Documentation is available at http://turbolua.org/doc/
+API Documentation is available at http://turbolua.org, or it can be built from source with ``make html`` from /doc in the source tree.
 
 It's main features and design principles are:
 
@@ -36,7 +36,7 @@ x86, x64, ARM, PPC, MIPSEL
 
 Supported Operating Systems
 ---------------------------
-Linux distros (x86, x64) and Windows x64. Possibly others using LuaSocket, but not tested or supported.
+Linux distros (x86, x64), OSX (Intel-based) and Windows x64. Possibly others using LuaSocket, but not tested or supported.
 
 Installation
 ------------
@@ -60,7 +60,7 @@ E.g:
 ``SET TURBO_LIBTFFI=C:\turbo.lua\src\turbo\libtffi_wrap.dll`` and
 ``SET TURBO_LIBSSL=C:\Program Files\OpenSSL\libeay32.dll``
 
-Applies for Linux only:
+Applies for Linux based OS and OSX only:
 
 Turbo.lua can also be installed by the included Makefile. Simply download and run ``make install`` (requires root priv). It is installed in the default Lua 5.1 and LuaJIT 2.0 module directory.
 

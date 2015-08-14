@@ -89,6 +89,7 @@ clean:
 	$(RM) $(INSTALL_TFFI_WRAP_SOSHORT)
 	rm -rf $(PACKAGE_DIR)
 	$(RM) $(ALL_LUAC_FILES)
+	rm -rf *.dSYM
 
 uninstall:
 	@echo "==== Uninstalling Turbo.lua ===="
