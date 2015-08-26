@@ -1,0 +1,18 @@
+<html>
+    <head>
+        <title>
+            turbo.lua cors example
+        </title>
+        <meta charset="UTF-8">
+        <!-- jquery -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    </head>
+    <body>
+        <script type="text/javascript">
+            $.getJSON( "http://localhost:8888/api",
+            function(data){
+                document.write(JSON.stringify(data));
+            });
+        </script>
+    </body>
+</html>
