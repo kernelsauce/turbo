@@ -113,6 +113,7 @@ install:
 	@echo "==== $(LUAJIT_LIBRARYDIR) and ===="
 	@echo "==== $(LUAJIT_MODULEDIR) ===="
 	$(MKDIR) $(INSTALL_LIB)
+	$(MKDIR) $(INSTALL_BIN)
 	$(MKDIR) $(LUA_MODULEDIR)/turbo
 	$(MKDIR) $(LUAJIT_MODULEDIR)/turbo
 	$(CP_R) turbo/* $(LUA_MODULEDIR)/turbo
