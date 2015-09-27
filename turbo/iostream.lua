@@ -613,7 +613,7 @@ end
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     function iostream.IOStream:_read_from_socket()
         local errno
-        local buffer_left = self.max_buffer_size - self._read_buffer_size - 1
+        local buffer_left = self.max_buffer_size - self._read_buffer_size
         if buffer_left == 0 then
             log.devel("Maximum read buffer size reached. Throttling read.")
             if self._maxb_callback then
@@ -650,7 +650,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
 else
     function iostream.IOStream:_read_from_socket()
         local errno, closed
-        local buffer_left = self.max_buffer_size - self._read_buffer_size - 1
+        local buffer_left = self.max_buffer_size - self._read_buffer_size
         if buffer_left == 0 then
             log.devel("Maximum read buffer size reached. Throttling read.")
             if self._maxb_callback then
@@ -717,7 +717,7 @@ function iostream.IOStream:_read_to_buffer()
     if closed then
         self:close()
     end
-    if self._read_buffer_size >= self.max_buffer_size then
+    if self._read_buffer_size > self.max_buffer_size then
         log.error('Reached maximum read buffer size')
         self:close()
         return
