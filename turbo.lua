@@ -39,7 +39,7 @@
 -- * Small footprint
 --
 --
--- Copyright John Abrahamsen 2011, 2012, 2013, 2014
+-- Copyright John Abrahamsen 2011 - 2015
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ local turbo = {}  -- turbo main namespace.
 -- changes, the major version is incremented and others are set to zero.
 turbo.MAJOR_VERSION = 2
 turbo.MINOR_VERSION = 0
-turbo.MICRO_VERSION = 0
+turbo.MICRO_VERSION = 2
 -- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for
 -- version 1.2.1 and 0x010300 for version 1.3.
 turbo.VERSION_HEX = 0x020000
