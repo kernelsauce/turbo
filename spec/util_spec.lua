@@ -39,37 +39,5 @@ describe("turbo.util Namespace", function()
             local n_str, n_len = needle:get()
             assert.equal(turbo.util.str_find(h_str, n_str, h_len, n_len) - h_str, 51000051)
         end)
-
-        it("should perform on par with string.find by a factor of 1.5", function()
-            local haystack = turbo.structs.buffer()
-            for i = 0, search_time do
-                haystack:append_luastr_right(shaystack)
-            end
-            haystack:append_luastr_right(sneedle)
-            for i = 0, search_time do
-                haystack:append_luastr_right(shaystack)
-            end
-            local needle = turbo.structs.buffer()
-            needle:append_luastr_right(sneedle)
-            local h_str, h_len = haystack:get()
-            local n_str, n_len = needle:get()
-            local start = turbo.util.gettimeofday()
-            turbo.util.str_find(h_str, n_str, h_len, n_len)
-            local ag_time = turbo.util.gettimeofday() - start
-            -- Lua comparison.
-            local str = {}
-            for i = 0, search_time do
-                str[#str+1] = shaystack
-            end
-            str[#str+1] = sneedle
-            for i = 0, search_time do
-                str[#str+1] = shaystack
-            end
-            str = table.concat(str)
-            start = turbo.util.gettimeofday()
-            str:find(sneedle, 1, true)
-            local find_time = turbo.util.gettimeofday() - start
-            assert.truthy(ag_time < find_time * 1.5)
-        end)
     end)
 end)

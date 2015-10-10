@@ -361,38 +361,6 @@ describe("turbo.web Namespace", function()
         end)
         end
 
-        it("Should not accept big headers.", function()
-            local port = math.random(10000,40000)
-            local io = turbo.ioloop.instance()
-
-            local TestHandler = class("TestHandler", turbo.web.RequestHandler)
-            function TestHandler:get()
-                self:write("Hello World!")
-            end
-
-            turbo.web.Application({
-                {"^/$", TestHandler}
-            }):listen(port)
-
-            local timedout = false
-
-            io:add_callback(function()
-                local res = coroutine.yield(turbo.async.HTTPClient():fetch(
-                    "http://127.0.0.1:"..tostring(port).."/", {
-                        on_headers = function(h)
-                            -- Create a 1MB header.
-                            h:add("Bomb", string.rep("B", 1024*1024))
-                        end,
-                        request_timeout=1
-                    }))
-                assert.equal(turbo.async.errors.REQUEST_TIMEOUT, res.error.code)
-                timedout = true
-                io:close()
-            end)
-            io:start()
-            assert.equal(true, timedout)
-
-        end)
 
     end)
 

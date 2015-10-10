@@ -132,7 +132,7 @@ describe("turbo.iostream Namespace", function()
             local data = false
             local bytes = turbo.structs.buffer()
 
-            for i = 1, 1024*1024*5 do
+            for i = 1, 1024*1024 do
                 bytes:append_luastr_right(string.char(math.random(1, 128)))
             end
             bytes:append_luastr_right(delim)
@@ -193,7 +193,7 @@ describe("turbo.iostream Namespace", function()
             local data = false
             local bytes = turbo.structs.buffer()
 
-            for i = 1, 1024*1024*5 do
+            for i = 1, 1024*1024 do
                 bytes:append_luastr_right(string.char(math.random(1, 128)))
             end
             bytes:append_luastr_right(delim)
@@ -253,7 +253,7 @@ describe("turbo.iostream Namespace", function()
             local data = false
             local bytes = turbo.structs.buffer()
 
-            for i = 1, 1024*1024*5 do
+            for i = 1, 1024*1024 do
                 bytes:append_luastr_right(string.char(math.random(1, 128)))
             end
             bytes = tostring(bytes)
