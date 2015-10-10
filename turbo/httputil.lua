@@ -297,6 +297,10 @@ function httputil.HTTPParser:get(key, caseinsensitive)
     local value
     local c = 0
     local hdr_sz = tonumber(self.tpw.hkv_sz)
+    -- If caseinsensitive is nil then default to true.
+    if caseinsensitive == nil then
+        caseinsensitive = true
+    end
 
     if hdr_sz <= 0 then
         return nil
