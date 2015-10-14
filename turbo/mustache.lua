@@ -423,7 +423,7 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                     -- Just fast-forward until SECE is found.
                     while 1 do
                         i = i + 1
-                        if vmtbl[i][1] == SECE then
+                        if vmtbl[i][1] == SECE and vmtbl[i][2] == arg then
                             break
                         end
                     end
@@ -434,7 +434,7 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                     -- Fast-forward towards SECE.
                     while 1 do
                         i = i + 1
-                        if vmtbl[i][1] == SECE then
+                        if vmtbl[i][1] == SECE and vmtbl[i][2] == arg then
                             break
                         end
                     end
@@ -645,7 +645,7 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                 -- Just fast-forward until SECE is found.
                 while 1 do
                     i = i + 1
-                    if vmtbl[i][1] == SECE then
+                    if vmtbl[i][1] == SECE and vmtbl[i][2] == arg then
                         goto start
                     end
                 end
@@ -656,7 +656,7 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                 -- Fast-forward towards SECE.
                 while 1 do
                     i = i + 1
-                    if vmtbl[i][1] == SECE then
+                    if vmtbl[i][1] == SECE and vmtbl[i][2] == arg then
                         goto start
                     end
                 end
