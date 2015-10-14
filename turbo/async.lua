@@ -620,9 +620,18 @@ function async.HTTPClient:_handle_redirect(location)
     local old_schema = self.schema
     local old_host = self.hostname
     self:_set_url(location)
+    -- Port may not be set by _set_url if there is none defined in redirect
+    -- URL. Use defaults for known schemas.
+    if not self.port then
+        if self.schema == "http" then 
+            self.port = 80
+        elseif self.schema == "https" then
+            self.port = 443
+        end
+    end
     if self.response_headers:get("Connection") == "close" or
-        self.iostream:closed() or old_host ~= self.hostname then
-        -- Call close to be sure that it really is closed...
+        self.iostream:closed() or old_host ~= self.hostname or
+        old_schema ~= self.schema then
         self.iostream:close()
         local sock, msg = socket.new_nonblock_socket(self.family,
             socket.SOCK_STREAM,
