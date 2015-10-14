@@ -364,12 +364,17 @@ function ioloop.IOLoop:start()
         local timeout_sz = self._timeouts_sz
         if timeout_sz ~= 0 then
             local current_time = util.gettimemonotonic()
-            for i = 1, timeout_sz do
+            local timeouts_run = 0
+            local i = 0
+            while timeouts_run ~= timeout_sz do
                 if self._timeouts[i] ~= nil then
-                    local time_until_timeout = self._timeouts[i]:timed_out(current_time)
+                    timeouts_run = timeouts_run + 1
+                    local time_until_timeout = 
+                        self._timeouts[i]:timed_out(current_time)
                     if time_until_timeout == 0 then
                         self:_run_callback({self._timeouts[i]:callback()})
                         self._timeouts[i] = nil
+                        self._timeouts_sz = self._timeouts_sz - 1
                         -- Function may have scheduled work for next iteration
                         -- must Drop timeout, without this, yielding from a request
                         -- handler that adds a timeout couroutine task will not wake
@@ -383,13 +388,17 @@ function ioloop.IOLoop:start()
                         end
                     end
                 end
+                i = i + 1
             end
         end
         local intervals_sz = self._intervals_sz
         if intervals_sz ~= 0 then
             local time_now = util.gettimemonotonic()
-            for i = 1, intervals_sz do
+            local intervals_run = 0
+            local i = 0
+            while intervals_run ~= intervals_sz do
                 if self._intervals[i] ~= nil then
+                    intervals_run = intervals_run + 1
                     local timed_out = self._intervals[i]:timed_out(time_now)
                     if timed_out == 0 then
                         self:_run_callback({
@@ -412,6 +421,7 @@ function ioloop.IOLoop:start()
                         end
                     end
                 end
+                i = i + 1
             end
         end
         if self._stopped == true then
@@ -484,16 +494,18 @@ end
 function ioloop.IOLoop:wait(timeout)
     assert(self:running() == false, "Can not wait, already started")
     local timedout
+    local ref
     if timeout then
-        local io = self
-        self:add_timeout(util.gettimemonotonic() + (timeout*1000), function()
+        local _ioloop = self
+        ref = self:add_timeout(util.gettimemonotonic() + (timeout*1000), function()
             timedout = true
-            io:close()
+            _ioloop:close()
         end)
     end
     self:start()
     assert(self:running() == false, "IO Loop stopped unexpectedly")
     assert(not timedout, "Sync wait operation timed out.")
+    self:remove_timeout(ref)
     return true
 end
 
