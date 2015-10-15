@@ -43,7 +43,7 @@ install:
   #
   # Build OpenSSL 1.0.2c
   - cd %TURBO_ROOT%\src
-  - appveyor DownloadFile https://www.openssl.org/source/openssl-1.0.2d.tar.gz
+  - appveyor DownloadFile http://mirror.switch.ch/ftp/mirror/openssl/source/openssl-1.0.2d.tar.gz
   - 7z x openssl-1.0.2d.tar.gz
   - 7z x openssl-1.0.2d.tar
   - cd openssl-1.0.2d
