@@ -6,3 +6,4 @@ doc/_build
 *.swp
 deps/http-parser/libhttp_parser.so.2.1
 .DS_Store
+package
