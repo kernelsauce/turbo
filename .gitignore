@@ -1,6 +1,7 @@
 doc/_build
 *.so.*
 *.so
+*.dylib
 *.dSYM
 *.o
 *.swp
