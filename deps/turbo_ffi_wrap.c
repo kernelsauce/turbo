@@ -173,8 +173,8 @@ int32_t validate_hostname(const char *hostname, const SSL *server){
     X509_free(server_cert);
     return result;
 }
-#endif
 #pragma GCC diagnostic pop
+#endif
 
 bool url_field_is_set(
         const struct http_parser_url *url,

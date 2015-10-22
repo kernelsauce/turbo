@@ -95,11 +95,11 @@ uninstall:
 	@echo "==== Uninstalling Turbo.lua ===="
 ifeq ($(uname_S),Linux)
 	$(UNINSTALL) $(INSTALL_TFFI_WRAP_SHORT) $(INSTALL_TFFI_WRAP_DYN)
+	$(LDCONFIG) $(INSTALL_LIB)
 endif
 ifeq ($(uname_S),Darwin)
 	$(UNINSTALL) $(INSTALL_TFFI_WRAP_SHORT)
 endif
-	$(LDCONFIG) $(INSTALL_LIB)
 	$(UNINSTALL) $(LUA_MODULEDIR)/turbo/
 	$(UNINSTALL) $(LUAJIT_MODULEDIR)/turbo/
 	$(UNINSTALL) $(INSTALL_BIN)/turbovisor
