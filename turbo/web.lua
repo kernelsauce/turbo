@@ -302,7 +302,7 @@ function web.RequestHandler:redirect(url, permanent)
     if self._headers_written then
         error("Cannot redirect after headers have been written")
     end
-    local status = permanent and 302 or 301
+    local status = permanent and 301 or 302
     self:set_status(status)
     self:add_header("Location", url)
     self:finish()
