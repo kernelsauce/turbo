@@ -597,6 +597,7 @@ function websocket.WebSocketClient:initialize(address, kwargs)
         max_redirects = self.kwargs.max_redirects,
         on_headers = function(http_header)
             http_header:add("Upgrade", "Websocket")
+            http_header:add("Connection", "Upgrade")
             http_header:add("Sec-WebSocket-Key", websocket_key)
             http_header:add("Sec-WebSocket-Version", "13")
             -- WebSocket Sub-Protocol handling...
