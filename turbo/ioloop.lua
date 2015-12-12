@@ -60,13 +60,18 @@ end
 --- Create or get the global IOLoop instance.
 -- Multiple calls to this function returns the same IOLoop.
 -- @return IOLoop class instance.
-function ioloop.instance()
+function ioloop.instance(func)
+    local iol
     if _G.io_loop_instance then
-        return _G.io_loop_instance
+        iol =  _G.io_loop_instance
     else
-        _G.io_loop_instance = ioloop.IOLoop:new()
-        return _G.io_loop_instance
+        iol = ioloop.IOLoop()
+        _G.io_loop_instance = iol 
     end
+    if func then
+        iol:add_callback(func)
+    end
+    return iol
 end
 
 --- IOLoop is a level triggered I/O loop, with additional support for timeout
