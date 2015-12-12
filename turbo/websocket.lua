@@ -309,11 +309,14 @@ if le then
             ws_mask[2] = math.random(0x0, 0xff)
             ws_mask[3] = math.random(0x0, 0xff)
             self.stream:write(ffi.string(ws_mask, 4))
-            self.stream:write(_unmask_payload(ws_mask, data))
+            coroutine.yield (async.task(
+                self.stream.write, self.stream, _unmask_payload(ws_mask, data)))
             return
         end
 
-        self.stream:write(data)
+        -- Do not return until write is flushed to iostream :).
+        coroutine.yield (async.task(
+            self.stream.write, self.stream, data))
     end
 elseif be then
     -- TODO: create websocket.WebSocketStream:_send_frame for BE.
