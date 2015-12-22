@@ -361,7 +361,7 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
     if max_age then
         max_age = max_age * 1000 -- Get milliseconds.
         local cookietime = tonumber(timestamp)
-        assert(util.getimeofday() - timestamp < max_age, "Cookie has expired.")
+        assert(util.gettimeofday() - timestamp < max_age, "Cookie has expired.")
     end
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
                                string.format("%d|%s|%s",
