@@ -200,7 +200,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     --- Create a time string used in HTTP header fields.
     -- "Sun, 04 Sep 2033 16:49:21 GMT"
     function util.time_format_http_header(time_t)
-        g_time_t[0] = time_t
+        g_time_t[0] = time_t / 1000
         local tm = C.gmtime(g_time_t)
         local sz = C.strftime(
             g_time_str_buf,
