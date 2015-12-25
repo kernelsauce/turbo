@@ -180,15 +180,16 @@ do
     --- Base64 encode binary data of a string or a FFI char *.
     -- @param str (String or char*) Bytearray to encode.
     -- @param sz (Number) Length of string to encode, optional if str is a Lua string
+    -- @param disable_break (Bool) Do not break result with newlines, optional
     -- @return (String) Encoded base64 string.
-    function escape.base64_encode(str, sz)
+    function escape.base64_encode(str, sz, disable_break)
         if (type(str)=="string") and (sz == nil) then sz=#str end
         local outlen = floor(sz*2/3)
         outlen = outlen + floor(outlen/19)+3
         local m64arr=ffi.new(u16arr,outlen)
         local l,p,v=0,0
         local bptr = ffi.cast(u8ptr,str)
-        local c = 38 -- put a new line after every 76 characters
+        local c = disable_break and -1 or 38 -- put a new line after every 76 characters
         local i,k=0,0
         ::while_3bytes::
             if i+3>sz then goto break3 end
