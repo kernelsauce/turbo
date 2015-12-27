@@ -1117,7 +1117,7 @@ function web.Application:initialize(handlers, kwargs)
     self.kwargs = kwargs or {}
     self.settings = self.kwargs.settings
     self.default_host = self.kwargs.default_host
-    self.application_name = self.kwargs.application_name or "Turbo.lua v1.1"
+    self.application_name = self.kwargs.application_name or "Turbo.lua v2"
 end
 
 --- Sets the server name.
