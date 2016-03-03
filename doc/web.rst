@@ -361,7 +361,7 @@ StaticFileHandler class
 A static file handler for files on the local file system.
 All files below user defined ``_G.TURBO_STATIC_MAX`` or default 1MB in size
 are stored in memory after initial request. Files larger than this are read
-from disk on demand.
+from disk on demand. If TURBO_STATIC_MAX is set to -1 then cache is disabled.
 
 Usage:
 

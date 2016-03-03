@@ -789,7 +789,7 @@ function web._StaticWebCache:get_file(path)
     local cf = self.files[path]
 
     -- Full path hash lookup.
-    if cf then
+    if cf and STATICWEBCACHE_MAX ~= -1 then
         -- index 1 = type
         -- index 2 = stat_t
         -- index 3 = buf or file
