@@ -180,8 +180,8 @@ else
     end
 end
 
---- Read until delimiter, then call callback with recieved data. The callback
--- recieves the data read as a parameter. Delimiter is plain text, and does
+--- Read until delimiter, then call callback with receive data. The callback
+-- receives the data read as a parameter. Delimiter is plain text, and does
 -- not support Lua patterns. See read_until_pattern for that functionality.
 -- read_until should be used instead of read_until_pattern wherever possible
 -- because of the overhead of doing pattern matching.
@@ -198,8 +198,8 @@ function iostream.IOStream:read_until(delimiter, callback, arg)
     self:_initial_read()
 end
 
---- Read until pattern is matched, then call callback with recieved data.
--- The callback recieves the data read as a parameter. If you only are
+--- Read until pattern is matched, then call callback with receive data.
+-- The callback receives the data read as a parameter. If you only are
 -- doing plain text matching then using read_until is recommended for
 -- less overhead.
 -- @param pattern (String) Lua pattern string.

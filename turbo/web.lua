@@ -65,7 +65,7 @@ web.RequestHandler = class("RequestHandler")
 
 --- Initialize a new RequestHandler class instance.
 -- Normally a user is not the one to initialize this, but rather a Application
--- class instance which has recieved a HTTP request. Normal there should not be
+-- class instance which has receive a HTTP request. Normal there should not be
 -- a need for you to redefine this initializer,  instead look at the different
 -- entry points given longer down.
 -- @param application (Application instance) The calling application should
@@ -108,7 +108,7 @@ function web.RequestHandler:prepare() end
 
 --- Redefine this method if you want to do something straight after the class
 -- has been initialized. This is called after a request has been
--- recieved, and before the HTTP method has been verified against supported
+-- receive, and before the HTTP method has been verified against supported
 -- methods. So if a not supported method is requested, this method is still
 -- called.
 function web.RequestHandler:on_create(kwargs) end
@@ -118,7 +118,7 @@ function web.RequestHandler:on_create(kwargs) end
 function web.RequestHandler:on_finish() end
 
 --- Redefine this method to set HTTP headers at the beginning of all the
--- request recieved by the RequestHandler. For example setting some kind
+-- request receive by the RequestHandler. For example setting some kind
 -- of cookie or adjusting the Server key in the headers would be sensible
 -- to do in this method.
 function web.RequestHandler:set_default_headers() end
@@ -127,7 +127,7 @@ function web.RequestHandler:set_default_headers() end
 -- Subclass RequestHandler and implement any of the following methods to handle
 -- the corresponding HTTP request.
 -- If not implemented they will provide a 405 (Method Not Allowed).
--- These methods recieve variable arguments, depending on what the Application
+-- These methods receive variable arguments, depending on what the Application
 -- instance calling them has captured from the pattern matching of the request
 -- URL. The methods are run protected, so they are error safe. When a error
 -- occurs in the execution of these methods the request is given a
@@ -1180,7 +1180,7 @@ end
 
 local _str_borders_down = string.rep("▼", 80)
 local _str_borders_up = string.rep("▲", 80)
---- Entry point for requests recieved by HTTPServer.
+--- Entry point for requests receive by HTTPServer.
 -- @param request (HTTPRequest instance)
 function web.Application:__call(request)
     local handler = nil

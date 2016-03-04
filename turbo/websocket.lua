@@ -339,8 +339,8 @@ end
 --- Called when a new websocket request is opened.
 function websocket.WebSocketHandler:open() end
 
---- Called when a message is recieved.
--- @param msg (String) The recieved message.
+--- Called when a message is receive.
+-- @param msg (String) The receive message.
 function websocket.WebSocketHandler:on_message(msg) end
 
 --- Called when the connection is closed.
@@ -355,7 +355,7 @@ function websocket.WebSocketHandler:on_error(msg) end
 function websocket.WebSocketHandler:prepare() end
 
 --- Called if the client have included a Sec-WebSocket-Protocol field
--- in header. This method will then recieve a table of protocols that
+-- in header. This method will then receive a table of protocols that
 -- the clients wants to use. If this field is not set, this method will
 -- never be called. The return value of this method should be a string
 -- which matches one of the suggested protcols in its parameter.

@@ -58,7 +58,7 @@ in ``turbo.websocket.WebSocketHandler`` and ``turbo.websocket.WebSocketClient``.
 
 	:param data: Data to pong back.
 	:type data: String
-	:param callback: Function to call when pong is recieved.
+	:param callback: Function to call when pong is received.
 	:type callback: Function
 	:param callback_arg: Argument for callback function.
 
@@ -98,9 +98,9 @@ the corresponding events.*
 
 .. function:: WebSocketHandler:on_message(msg)
 
-	Called when a message is recieved.
+	Called when a message is received.
 
-	:param msg: The recieved message.
+	:param msg: The received message.
 	:type msg: String
 
 .. function:: WebSocketHandler:on_close()
@@ -123,7 +123,7 @@ the corresponding events.*
 .. function:: WebSocketHandler:subprotocol(protocols)
 
 	Called if the client have included a Sec-WebSocket-Protocol field
-	in header. This method will then recieve a table of protocols that
+	in header. This method will then receive a table of protocols that
 	the clients wants to use. If this field is not set, this method will
 	never be called. The return value of this method should be a string
 	which matches one of the suggested protcols in its parameter.
@@ -131,7 +131,7 @@ the corresponding events.*
 	the request is done by either raising error
 	(such as ``turbo.web.HTTPError``) or returning nil.
 
-	:param protocols: The protocol names recieved from client.
+	:param protocols: The protocol names received from client.
 	:type protocols: Table of protocol name strings.
 
 WebSocketClient class
@@ -142,7 +142,7 @@ specification, RFC 6455, is supported. The WebSocketClient is partly based
 on the ``turbo.async.HTTPClient`` using its HTTP implementation to do the initial
 connect to the server, then do the handshake and finally wrapping the connection
 with the ``turbo.websocket.WebSocketStream``. All of the callback functions
-recieves the class instance as first argument for convinence. Furthermore the
+receives the class instance as first argument for convinence. Furthermore the
 class can be initialized with keyword arguments that are passed on to the
 ``turbo.async.HTTPClient`` that are being used. So if you are going to use
 the connect to a SSL enabled server (wss://) then you simply refer to the documentation
@@ -159,7 +159,7 @@ A simple usage example of ``turbo.websocket.WebSocketClient``.:
 	turbo.ioloop.instance():add_callback(function()
 	    turbo.websocket.WebSocketClient("ws://127.0.0.1:8888/ws", {
 	        on_headers = function(self, headers)
-	            -- Review headers recieved from the WebSocket server.
+	            -- Review headers received from the WebSocket server.
 	            -- You can e.g drop the request if the response headers
 	            -- are not satisfactory with self:close().
 	        end,
@@ -224,9 +224,9 @@ WebSocketClient uses error codes to report failure for the ``on_error`` callback
 
 	    ``CALLBACK_ERROR``         - Error in callback.
 
-	    ``BAD_HTTP_STATUS``        - Did not recieve expected 101 Upgrade.
+	    ``BAD_HTTP_STATUS``        - Did not receive expected 101 Upgrade.
 
-	    ``WEBSOCKET_PROTOCOL_ERROR``  - Invalid WebSocket protocol data recieved.
+	    ``WEBSOCKET_PROTOCOL_ERROR``  - Invalid WebSocket protocol data received.
 
 .. function:: WebSocketClient(address, kwargs):
 
@@ -269,13 +269,13 @@ Description of the callback functions
 
 .. function:: on_headers(self, headers)
 
-	Review HTTP headers recieved from the WebSocket server.
+	Review HTTP headers received from the WebSocket server.
 	You can e.g drop the request if the response headers
 	are not satisfactory with self:close().
 
 	:param self: The WebSocketClient instance calling the callback.
 	:type self: turbo.websocket.WebSocketClient
-	:param headers: Headers recieved from the client.
+	:param headers: Headers received from the client.
 	:type headers: ``turbo.httputil.HTTPHeader``
 
 .. function:: on_connect(self)
@@ -288,7 +288,7 @@ Description of the callback functions
 
 .. function:: on_message(self, msg)
 
-	Called when a message is recieved.
+	Called when a message is received.
 
 	:param self: The WebSocketClient instance calling the callback.
 	:type self: turbo.websocket.WebSocketClient
@@ -318,7 +318,7 @@ Description of the callback functions
 
 .. function:: on_ping(self, data)
 
-	Called when a ping request is recieved.
+	Called when a ping request is received.
 
 	:param self: The WebSocketClient instance calling the callback.
 	:type self: turbo.websocket.WebSocketClient

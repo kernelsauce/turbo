@@ -43,28 +43,28 @@ its own write buffer and there is no need to buffer data at any other level. The
 
 .. function:: IOStream:read_until(delimiter, callback, arg)
 
-	Read until delimiter, then call callback with recieved data. The callback
-	recieves the data read as a parameter. Delimiter is plain text, and does
+	Read until delimiter, then call callback with received data. The callback
+	receives the data read as a parameter. Delimiter is plain text, and does
 	not support Lua patterns. See read_until_pattern for that functionality.
 	read_until should be used instead of read_until_pattern wherever possible
 	because of the overhead of doing pattern matching.
 
 	:param delimiter: Delimiter sequence, text or binary.
 	:type delimiter: String
-	:param callback:  Callback function. The function is called with the recieved data as parameter.
+	:param callback:  Callback function. The function is called with the received data as parameter.
 	:type callback: Function
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 
 .. function:: IOStream:read_until_pattern(pattern, callback, arg)
 
-	Read until pattern is matched, then call callback with recieved data.
-	The callback recieves the data read as a parameter. If you only are
+	Read until pattern is matched, then call callback with received data.
+	The callback receives the data read as a parameter. If you only are
 	doing plain text matching then using read_until is recommended for
 	less overhead.
 
 	:param pattern: Lua pattern string.
 	:type pattern: String
-	:param callback: Callback function. The function is called with the recieved data as parameter.
+	:param callback: Callback function. The function is called with the received data as parameter.
 	:type callback: Function
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 
@@ -77,7 +77,7 @@ its own write buffer and there is no need to buffer data at any other level. The
 
 	:param num_bytes: The amount of bytes to read.
 	:type num_bytes: Number
-	:param callback: Callback function. The function is called with the recieved data as parameter.
+	:param callback: Callback function. The function is called with the received data as parameter.
 	:type callback: Function
 	:param arg: Optional argument for callback. If arg is given then it will be the first argument for the callback and the data will be the second.
 	:param streaming_callback: Optional callback to be called as chunks become available.

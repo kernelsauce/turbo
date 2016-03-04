@@ -71,7 +71,7 @@ All functions may raise errors. All functions yield to the IOLoop internally. Yo
 
 .. function:: IOSimple:read_until_pattern(pattern)
 
-    Read until pattern is matched, then return with recieved data. If you only are
+    Read until pattern is matched, then return with received data. If you only are
     doing plain text matching then using read_until is recommended for
     less overhead.
 
