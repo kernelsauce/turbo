@@ -205,7 +205,7 @@ function websocket.WebSocketStream:_accept_frame(header)
     if self._opcode == websocket.opcode.CLOSE and payload_len >= 126 then
         self:_error(
             "WebSocket protocol error: \
-            Recieved CLOSE opcode with greater than 126 payload.")
+            Received CLOSE opcode with greater than 126 payload.")
         return
     end
     if payload_len < 126 then
