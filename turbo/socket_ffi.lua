@@ -288,7 +288,8 @@ E = {
     EWOULDBLOCK =       11,
     EINPROGRESS =       150,
     ECONNRESET =        131,
-    EPIPE =             32
+    EPIPE =             32,
+    EAI_AGAIN =         3
 }
 else
 E = {
@@ -296,7 +297,8 @@ E = {
     EWOULDBLOCK =       11,
     EINPROGRESS =       115,
     ECONNRESET =        104,
-    EPIPE =             32
+    EPIPE =             32,
+    EAI_AGAIN =         3
 }
 end
 
