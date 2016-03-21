@@ -157,6 +157,7 @@ end
             struct addrinfo **res);
         void freeaddrinfo(struct addrinfo *ai);
         const char *gai_strerror(int ecode);
+        int __res_init(void);
     ]]
 
 

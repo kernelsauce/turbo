@@ -45,7 +45,7 @@ require "turbo.cdef"
 require "turbo.3rdparty.middleclass"
 
 local SOCK_STREAM, AF_UNSPEC, EWOULDBLOCK, EINPROGRESS, ECONNRESET, EPIPE,
-    EAGAIN
+    EAGAIN, EAI_AGAIN
 
 if platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
     SOCK_STREAM = socket.SOCK_STREAM
@@ -55,6 +55,7 @@ if platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
     ECONNRESET =  socket.ECONNRESET
     EPIPE =       socket.EPIPE
     EAGAIN =      socket.EAGAIN
+    EAI_AGAIN =   socket.EAI_AGAIN
 end
 
 local bitor, bitand, min, max =  bit.bor, bit.band, math.min, math.max
@@ -145,6 +146,9 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         hints[0].ai_protocol = 0
         rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
         if rc ~= 0 then
+            if rc == -EAI_AGAIN then
+                ffi.C.__res_init()
+            end
             return -1, string.format("Could not resolve hostname '%s': %s",
                 address, ffi.string(C.gai_strerror(rc)))
         end
