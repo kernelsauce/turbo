@@ -45,6 +45,7 @@ INC = -I$(HTTP_PARSERDIR)/
 CFLAGS = -O3 -Wall -g
 MYCFLAGS = $(CFLAGS)
 MYCPPFLAGS = $(CPPFLAGS)
+MYLDFLAGS = $(LDFLAGS)
 
 # For Windows builds.
 INSTALL_TFFI_WRAP_SOSHORT= libtffi_wrap.dll
@@ -79,12 +80,12 @@ ifeq ($(SSL),)
 endif
 ifeq ($(SSL), openssl)
 	# Link OpenSSL
-	LDFLAGS += -lcrypto -lssl
+	MYLDFLAGS += -lcrypto -lssl
 endif
 
 all:
 	$(MAKE) -C deps/http-parser library
-	$(CC) $(INC) -shared $(MYCFLAGS) $(MYCPPFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared $(MYCFLAGS) $(MYCPPFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(MYLDFLAGS)
 
 clean:
 	$(MAKE) -C deps/http-parser clean
@@ -127,7 +128,7 @@ install:
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C deps/http-parser library
-	$(CC) $(INC) -shared $(MYCFLAGS) $(MYCPPFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared $(MYCFLAGS) $(MYCPPFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(MYLDFLAGS)
 	@echo "==== Installing libtffi_wrap ===="
 ifeq ($(uname_S),Linux)
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
@@ -174,7 +175,7 @@ bcodeinstall: package
 	$(INSTALL_X) bin/turbovisor $(INSTALL_BIN)
 	@echo "==== Building 3rdparty modules ===="
 	make -C deps/http-parser library
-	$(CC) $(INC) -shared $(MYCFLAGS) $(MYCPPFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(LDFLAGS)
+	$(CC) $(INC) -shared $(MYCFLAGS) $(MYCPPFLAGS) $(HTTP_PARSERDIR)/libhttp_parser.o $(TDEPS)/turbo_ffi_wrap.c -o $(INSTALL_TFFI_WRAP_SOSHORT) $(MYLDFLAGS)
 	@echo "==== Installing libturbo_parser ===="
 	test -f $(INSTALL_TFFI_WRAP_SOSHORT) && \
 	$(INSTALL_X) $(INSTALL_TFFI_WRAP_SOSHORT) $(INSTALL_TFFI_WRAP_DYN) && \
