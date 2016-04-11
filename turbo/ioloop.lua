@@ -402,19 +402,20 @@ function ioloop.IOLoop:start()
             local intervals_run = 0
             local i = 0
             while intervals_run ~= intervals_sz do
-                if self._intervals[i] ~= nil then
+                local interval = self._intervals[i]
+                if interval ~= nil then
                     intervals_run = intervals_run + 1
-                    local timed_out = self._intervals[i]:timed_out(time_now)
+                    local timed_out = interval:timed_out(time_now)
                     if timed_out == 0 then
                         self:_run_callback({
-                            self._intervals[i].callback,
-                            self._intervals[i].arg
+                            interval.callback,
+                            interval.arg
                             })
                         -- Get current time to protect against building
                         -- diminishing interval time on heavy functions.
                         -- It is debatable wether this feature is wanted or not.
                         time_now = util.gettimemonotonic()
-                        local next_call = self._intervals[i]:set_last_call(
+                        local next_call = interval:set_last_call(
                             time_now)
                         if next_call < poll_timeout then
                             poll_timeout = next_call
