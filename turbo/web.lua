@@ -720,6 +720,25 @@ end
 --- Called in asynchronous handlers when the connection is closed.
 function web.RequestHandler:on_connection_close() end
 
+function web.RequestHandler:_execute_func_table_unpack(func)
+    if type(func) == "table" then
+        for i = 1, #func, 1 do
+            func[i](self, unpack(self._url_args))
+        end
+    else
+        func(self, unpack(self._url_args))
+    end
+end
+
+function web.RequestHandler:_execute_func_table(func)
+    if type(func) == "table" then
+        for i = 1, #func, 1 do
+            func[i](self)
+        end
+    else
+        func(self)
+    end
+end
 
 --- Main entry point for the Application class.
 function web.RequestHandler:_execute()
@@ -732,10 +751,38 @@ function web.RequestHandler:_execute()
     if not self._finished then
         -- If there is no URL args then do not unpack as this has a significant
         -- cost.
-        if self._url_args and #self._url_args > 0 then
-            self[self.request.method:lower()](self, unpack(self._url_args))
-        else
-            self[self.request.method:lower()](self)
+        local method = self[self.request.method:lower()]
+        if self._url_args and #self._url_args > 1 then
+            if type(method) == "table" then
+                -- Table based request method.
+                if method.pre then
+                    self:_execute_func_table_unpack(method.pre)
+                end
+                if method.main then
+                    self:_execute_func_table_unpack(method.main)
+                end
+                if method.post then
+                    self:_execute_func_table_unpack(method.post)
+                end
+            else
+                method(self, unpack(self._url_args))
+            end
+        else    
+            if type(method) == "table" then
+                -- Table based request method.
+                if method.pre then
+                    self:_execute_func_table(method.pre)
+                end
+                if method.main then
+                    self:_execute_func_table(method.main)
+                end
+                if method.post then
+                    self:_execute_func_table(method.post)
+                end
+            else
+                -- Is function based method.
+                method(self)
+            end
         end
         if self._auto_finish and not self._finished then
             self:finish()
