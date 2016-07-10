@@ -30,7 +30,7 @@ local httpserver = {} -- httpserver namespace
 -- This class is used by the Application class to serve its RequestHandlers.
 -- The server itself is only responsible for handling incoming requests, no
 -- response to the request is produced, that is the purpose of the request
--- callback given as argument on initialization. The callback recieves the
+-- callback given as argument on initialization. The callback receives the
 -- HTTPRequest class instance produced for the incoming request and can
 -- by data provided in that instance decide on how it want to respond to
 -- the client. The callback must produce a valid HTTP response header and
@@ -59,7 +59,7 @@ local httpserver = {} -- httpserver namespace
 httpserver.HTTPServer = class('HTTPServer', tcpserver.TCPServer)
 
 --- Create a new HTTPServer class instance.
--- @param request_callback (Function) Callback when requests are recieved by
+-- @param request_callback (Function) Callback when requests are receive by
 -- the server.
 -- @param no_keep_alive (Boolean) If clients request use Keep-Alive it is to be
 -- ignored.

@@ -235,7 +235,7 @@ function crypto.ssl_do_handshake(SSLIOStream)
     local ssl = SSLIOStream._ssl
     local client = SSLIOStream._ssl_options._type == 1
 
-    -- This method might be called multiple times if we recieved
+    -- This method might be called multiple times if we receive
     -- EINPROGRESS or equaivalent on prior calls. The OpenSSL
     -- documentation states that SSL_do_handshake should be called again
     -- when its needs are satisfied.

@@ -51,7 +51,7 @@ Entry points
 
 	Redefine this method if you want to do something straight after the class
 	has been initialized. This is called after a request has been
-	recieved, and before the HTTP method has been verified against supported
+	received, and before the HTTP method has been verified against supported
 	methods. So if a not supported method is requested, this method is still
 	called.
 
@@ -71,14 +71,14 @@ Entry points
 .. function:: RequestHandler:set_default_headers()
 
 	Redefine this method to set HTTP headers at the beginning of all the
-	request recieved by the RequestHandler. For example setting some kind
+	request received by the RequestHandler. For example setting some kind
 	of cookie or adjusting the Server key in the headers would be sensible
 	to do in this method.
 
 *Subclass RequestHandler and implement any of the following methods to handle
 the corresponding HTTP request.
 If not implemented they will provide a 405 (Method Not Allowed).
-These methods recieve variable arguments, depending on what the Application
+These methods receive variable arguments, depending on what the Application
 instance calling them has captured from the pattern matching of the request
 URL. The methods are run protected, so they are error safe. When a error
 occurs in the execution of these methods the request is given a

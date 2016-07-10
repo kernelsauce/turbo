@@ -280,7 +280,7 @@ end
 --- Add accept handler for socket with given callback.
 -- Either supply a IOLoop object, or the global instance will be used...
 -- @param sock (Number) Socket file descriptor to add handler for.
--- @param callback (Function) Callback to handle connects. Function recieves
+-- @param callback (Function) Callback to handle connects. Function receives
 -- socket fd (Number) and address (String) of client as parameters.
 -- @param io_loop (IOLoop instance) If not set the global is used.
 -- @param arg Optional argument for callback.

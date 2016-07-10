@@ -83,7 +83,7 @@ end
 -- muliple :fetch()'s with the same class instance. If the instance is already
 -- in use then it will return a error.
 --
--- Note: Do not throw errors in this class. The caller will not recieve them as
+-- Note: Do not throw errors in this class. The caller will not receive them as
 -- all the code is done outside the yielding coroutines call stack, except for
 -- calls to fetch(). But for the sake of continuity, there are no raw errors
 -- thrown from this method either.
@@ -99,7 +99,7 @@ end
 -- self.request = (HTTPHeaders class instance) The request header sent to
 --  the server.
 -- self.code = (Number) The response code
--- self.headers = (HTTPHeader class instance) Response headers recieved from
+-- self.headers = (HTTPHeader class instance) Response headers receive from
 --  the server.
 -- self.body = (String) Body of response
 -- self.error = (Table) Table with code and message members. Possible codes is
@@ -545,7 +545,7 @@ end
 function async.HTTPClient:_handle_headers(data)
     if not data then
         self:_throw_error(errors.NO_HEADERS,
-            "No data recieved after connect. Expected HTTP headers.")
+            "No data receive after connect. Expected HTTP headers.")
         return
     end
     local status, headers = xpcall(httputil.HTTPParser,

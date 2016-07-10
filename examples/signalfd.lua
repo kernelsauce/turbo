@@ -23,7 +23,7 @@ print("Press CTRL-C 3 times to exit")
 io:add_callback(function ()
     local times = 0
     io:add_signal_handler(turbo.signal.SIGINT, function (signum, info)
-        print(string.format("\nRecieved signal SIGINT (%d)", signum))
+        print(string.format("\nReceived signal SIGINT (%d)", signum))
         times = times + 1
         if times == 3 then
             io:close()

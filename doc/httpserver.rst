@@ -15,7 +15,7 @@ HTTPServer based on TCPServer, IOStream and IOLoop classes.
 This class is used by the ``turbo.web.Application`` class to serve its RequestHandlers.
 The server itself is only responsible for handling incoming requests, no
 response to the request is produced, that is the purpose of the request
-callback given as argument on initialization. The callback recieves the
+callback given as argument on initialization. The callback receives the
 HTTPRequest class instance produced for the incoming request and can
 by data provided in that instance decide on how it want to respond to
 the client. The callback must produce a valid HTTP response header and
@@ -49,14 +49,14 @@ Example usage of HTTPServer:
 
 	Create a new HTTPServer class instance.
 
-	:param request_callback: Function to be called when requests are recieved by the server. The callback recieves the HTTPRequest class instance produced for the incoming request as first argument. See the HTTPRequest documentation.
+	:param request_callback: Function to be called when requests are received by the server. The callback receives the HTTPRequest class instance produced for the incoming request as first argument. See the HTTPRequest documentation.
 	:type request_callback: Function
 	:param no_keep_alive: If clients request to use Keep-Alive is to be ignored.
 	:type no_keep_alive: Boolean
 	:param io_loop: The IOLoop instance you want to use, if not defined the global instance is used.
 	:type io_loop: ``turbo.ioloop.IOLoop`` class instance.
 	:param xheaders: Care about X-* header fields or not. If set to true the remote_ip attribute in self
-		reflects the X-Real-Ip or X-Forwarded-For HTTP header value recieved.
+		reflects the X-Real-Ip or X-Forwarded-For HTTP header value received.
 	:type xheaders: Boolean
 	:param kwars: Optional keyword arguments
 	:type kwargs: Table
