@@ -145,8 +145,20 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         hints[0].ai_protocol = 0
         rc = ffi.C.getaddrinfo(address, tostring(port), hints, servinfo)
         if rc ~= 0 then
-            return -1, string.format("Could not resolve hostname '%s': %s",
+            -- Add callback as well as return error for convinence.
+            local strerr = ffi.string(C.gai_strerror(rc))
+            local errdesc = string.format("Could not resolve hostname '%s': %s",
                 address, ffi.string(C.gai_strerror(rc)))
+            if arg then
+                self.io_loop:add_callback(function()
+                    errhandler(arg, rc, strerr, errdesc)
+                end)
+            else
+                self.io_loop:add_callback(function()
+                    errhandler(rc, strerr, errdesc)
+                end)
+            end
+            return -1, errdesc
         end
         ffi.gc(servinfo, function (ai) C.freeaddrinfo(ai[0]) end)
         local ai, err = sockutils.connect_addrinfo(self.socket, servinfo)

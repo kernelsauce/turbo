@@ -530,6 +530,10 @@ end
 function ioloop.IOLoop:_run_handler(fd, events)
     local ok
     local handler = self._handlers[fd]
+    if not handler then
+        log.error(string.format("Critical error, no handler for fd: %d.", fd))
+        return
+    end
     -- handler[1] = function.
     -- handler[2] = optional first argument for function.
     -- If there is no optional argument, do not add it as parameter to the
