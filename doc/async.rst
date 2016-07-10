@@ -118,6 +118,7 @@ Usage inside a ``turbo.web.RequestHandler`` method:
 
 	* ``method`` - The HTTP method to use. Default is ``GET``
 	* ``params`` - Provide parameters as table.
+	* ``keep_alive`` - Reuse connection if scenario supports it.
 	* ``cookie`` - The cookie to use.
 	* ``http_version`` - Set HTTP version. Default is HTTP1.1
 	* ``use_gzip`` - Use gzip compression. Default is true.

@@ -629,7 +629,8 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         end
         local sz = tonumber(C.recv(self.socket,
                                    buf,
-                                   math.min(TURBO_SOCKET_BUFFER_SZ, buffer_left),
+                                   TURBO_SOCKET_BUFFER_SZ < buffer_left and
+                                       TURBO_SOCKET_BUFFER_SZ or buffer_left,
                                    0))
         if sz == -1 then
             errno = ffi.errno()
