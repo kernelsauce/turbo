@@ -24,43 +24,43 @@ local users = {["john@turbolua.org"] = "Secretz123"}
 local LoginHandler = class("LoginHandler", turbo.web.RequestHandler)
 
 function LoginHandler:post()
-	local email = self:get_argument("email")
-	local password = self:get_argument("password")
-	if users[email] and users[email] == password then
-		local session_id = turbo.util.rand_str(16)
-		sessions[session_id] = {
-			email = email,
-			time = turbo.util.gettimeofday(),
-			ip = self.request.host
-		}
-		self:set_cookie("turbo-session", session_id)
-		self:write({status = "ok"})
-		return
-	end
-	error(turbo.web.HTTPError(404, "invalid login attempt"))
+    local email = self:get_argument("email")
+    local password = self:get_argument("password")
+    if users[email] and users[email] == password then
+        local session_id = turbo.util.rand_str(16)
+        sessions[session_id] = {
+            email = email,
+            time = turbo.util.gettimeofday(),
+            ip = self.request.host
+        }
+        self:set_cookie("turbo-session", session_id)
+        self:write({status = "ok"})
+        return
+    end
+    error(turbo.web.HTTPError(404, "invalid login attempt"))
 end
 
 
 local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 
 function CheckAuthentication(req)
-	req.session_id = req:get_cookie("turbo-session")
-	if not req.session_id or not sessions[req.session_id] then
-		error(turbo.web.HTTPError(403, "no valid session found"))
-	end
-	req.session = sessions[req.session_id]
+    req.session_id = req:get_cookie("turbo-session")
+    if not req.session_id or not sessions[req.session_id] then
+        error(turbo.web.HTTPError(403, "no valid session found"))
+    end
+    req.session = sessions[req.session_id]
 end
 
 ExampleHandler.get = {
-	pre = {CheckAuthentication},
+    pre = {CheckAuthentication},
     main = function(self)
-    	self:write("Welcome " .. self.session.email ..
-    		" you logged in from " .. self.session.ip)
+        self:write("Welcome " .. self.session.email ..
+            " you logged in from " .. self.session.ip)
     end
 }
 
 turbo.web.Application({
-	{"^/$", ExampleHandler},
-	{"^/login$", LoginHandler},
+    {"^/$", ExampleHandler},
+    {"^/login$", LoginHandler},
 }):listen(8888)
 turbo.ioloop.instance():start()
