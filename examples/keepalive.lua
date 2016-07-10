@@ -1,4 +1,4 @@
---- Turbo.lua Simple Curl clone using HTTPClient.
+--- Turbo.lua HTTPClient.
 -- A really simple one...
 --
 -- Copyright 2013 John Abrahamsen
@@ -22,34 +22,17 @@ local tio = turbo.ioloop.instance()
 
 tio:add_callback(function()
     local cli = turbo.async.HTTPClient()
-
-    local res = coroutine.yield(
-        cli:fetch("http://www.vg.no", {allow_redirects=true, keep_alive = true}))
-
-    if res.error or res.headers:get_status_code() ~= 200 then
-        -- Check for errors.
-        tio:close()
-        return
-    else
-        -- Print result to stdout.
-        print("Yep")
+    for i=1, 10, 1 do
+        local res = coroutine.yield(
+            cli:fetch("http://www.vg.no", {allow_redirects=true, keep_alive = true}))
+        if res.error or res.headers:get_status_code() ~= 200 then
+            -- Check for errors.
+            tio:close()
+            return
+        else
+            -- Handle body :) 
+        end
     end
-
-print("doing 2nd")
-    local res = coroutine.yield(
-        cli:fetch("http://www.vg.no", {allow_redirects=true, keep_alive = true}))
-
-    if res.error or res.headers:get_status_code() ~= 200 then
-        -- Check for errors.
-        tio:close()
-        return
-    else
-        -- Print result to stdout.
-        print("Yep")
-    end
-
-
     tio:close()
 end)
-
 tio:start()
