@@ -161,6 +161,7 @@ async.errors = errors
 -- ** Available options **
 -- ``method`` = The HTTP method to use. Default is ``GET``
 -- ``params`` = Provide parameters as table.
+-- ``keep_alive`` = Reuse connection if the scenario supports it.
 -- ``cookie`` = (Table) The cookie(s) to use.
 -- ``http_version`` = Set HTTP version. Default is HTTP1.1
 -- ``use_gzip`` = Use gzip compression. Default is true.
