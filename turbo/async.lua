@@ -213,10 +213,20 @@ function async.HTTPClient:fetch(url, kwargs)
     self.s_error = false
     self.error_str = ""
     self.error_code = 0
-    self:_connect() -- No point to check return, as this is the last thing to happen.
-    -- Assuming the method is yielded the returned context is placed in the
-    -- IOLoop, awaiting further work, or returning error being set.
-    self.coctx:set_state(coctx.states.WAIT_COND)
+    print(self.url, url)
+    print(self.iostream and self.iostream:closed())
+    if not self.kwargs.keep_alive or
+            not self.iostream or self.iostream:closed() == true or url ~= self.url then
+        self:_connect() -- No point to check return, as this is the last thing to happen.
+        -- Assuming the method is yielded the returned context is placed in the
+        -- IOLoop, awaiting further work, or returning error being set.
+        self.coctx:set_state(coctx.states.WAIT_COND)
+    else
+        print("Reusing connection.")
+        self.headers = httputil.HTTPHeaders()
+        self.req = nil
+        self:_handle_connect()
+    end
     return self.coctx
 end
 
@@ -496,12 +506,14 @@ end
 
 function async.HTTPClient:_send_http_request()
     local req = self.req
+    print(req)
     if not req then
         req = self:_prepare_http_request()
         if req == -1 then
             return -1
         end
     end
+    print(req)
     self.iostream:write(req, self._headers_written_cb, self)
 end
 
@@ -543,6 +555,7 @@ local function _on_headers_error_handler(err)
 end
 
 function async.HTTPClient:_handle_headers(data)
+    print(data)
     if not data then
         self:_throw_error(errors.NO_HEADERS,
             "No data recieved after connect. Expected HTTP headers.")
@@ -657,6 +670,7 @@ function async.HTTPClient:_throw_error(code, msg)
 end
 
 function async.HTTPClient:_finalize_request()
+    self.in_progress = false
     if self.request_timeout_ref then
         self.io_loop:remove_timeout(self.request_timeout_ref)
     end
