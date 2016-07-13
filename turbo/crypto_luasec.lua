@@ -63,7 +63,7 @@ function crypto.ssl_create_client_context(
 
     local ctx, err = ssl.newcontext(params)
     if not ctx then
-        return -1, "Could not create SSL client context."
+        return -1, err
     else
         return 0, ctx
     end
@@ -89,7 +89,7 @@ function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
 
     local ctx, err = ssl.newcontext(params)
     if not ctx then
-        return -1, "Could not create SSL server context."
+        return -1, err
     else
         return 0, ctx
     end
