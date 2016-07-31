@@ -486,7 +486,7 @@ function httputil.parse_multipart_data(data, boundary)
                 local name, ctype
                 local argument = { }
                 for fname, fvalue, content_kvs in
-                   boundary_headers:gmatch("([^%c%s:]+):%s*([^;]*);?([^\n\r]*)") do
+                   boundary_headers:gmatch("([^%c%s:]+):%s*([^\r\n;]*);?([^\n\r]*)") do
                     if fvalue == "form-data" and fname=="content-disposition" then
                         argument[fname] = {}
                         local p = 1
