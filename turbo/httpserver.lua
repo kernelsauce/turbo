@@ -223,7 +223,7 @@ function httpserver.HTTPConnection:_on_headers(data)
     self._headers_read = true
     self._request = httpserver.HTTPRequest:new(headers:get_method(),
         headers:get_url(), {
-            version = headers.version,
+            version = headers:get_version(),
             connection = self,
             headers = headers,
             remote_ip = self.address
