@@ -244,9 +244,9 @@ if le then
 
     local _tmp_convert_64 = ffi.new("uint64_t[1]")
     function websocket.WebSocketStream:_frame_len_64(data)
-        ffi.copy(_tmp_convert_64, data, 2)
+        ffi.copy(_tmp_convert_64, data, 8)
         self._payload_len = tonumber(
-            ENDIAN_SWAP_U64(_tmp_convert_64))
+            ENDIAN_SWAP_U64(_tmp_convert_64[0]))
         if self._mask_bit then
             self.stream:read_bytes(4, self._frame_mask_key, self)
         else
