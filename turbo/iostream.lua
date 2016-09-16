@@ -705,7 +705,7 @@ else
             local ptr, sz = self._luasocket_buf:get()
             return ptr, sz, closed
         else
-            return
+            return nil, nil, closed
         end
     end
 end
@@ -715,6 +715,10 @@ end
 function iostream.IOStream:_read_to_buffer()
     local ptr, sz, closed = self:_read_from_socket()
     if not ptr then
+        if closed then
+            self:close()
+            return
+        end
         return 0
     end
     self._read_buffer:append_right(ptr, sz)
