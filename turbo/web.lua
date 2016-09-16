@@ -543,15 +543,17 @@ function web.RequestHandler:flush(callback, arg)
 end
 
 function web.RequestHandler:_gen_headers()
-    if not self:get_header("Content-Type") then
-        -- No content type is set, assume that it is text/html.
-        -- This might not be preferable in all cases.
-        self:add_header("Content-Type", "text/html; charset=UTF-8")
-    end
-    if not self:get_header("Content-Length") and not self.chunked then
-        -- No length is set, add current write buffer size.
-        self:add_header("Content-Length",
-            tonumber(self._write_buffer:len()))
+    if self:get_status() ~= 204 then
+        if not self:get_header("Content-Type") then
+            -- No content type is set, assume that it is text/html.
+            -- This might not be preferable in all cases.
+            self:add_header("Content-Type", "text/html; charset=UTF-8")
+        end
+        if not self:get_header("Content-Length") and not self.chunked then
+            -- No length is set, add current write buffer size.
+            self:add_header("Content-Length",
+                tonumber(self._write_buffer:len()))
+        end
     end
     self.headers:set_status_code(self._status_code)
     self.headers:set_version("HTTP/1.1")
