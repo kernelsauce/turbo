@@ -580,6 +580,7 @@ websocket.WebSocketClient = class("WebSocketClient")
 websocket.WebSocketClient:include(websocket.WebSocketStream)
 
 function websocket.WebSocketClient:initialize(address, kwargs)
+    self.mask_outgoing = true
     self.address = address
     self.kwargs = kwargs or {}
     self._connect_time = util.gettimemonotonic()
