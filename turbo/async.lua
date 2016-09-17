@@ -213,16 +213,19 @@ function async.HTTPClient:fetch(url, kwargs)
         self.prev_schema == self.schema then
         re_use_connection = true
 
-    elseif self.iostream then self.iostream:close() end
-    local sock, msg = socket.new_nonblock_socket(self.family,
-        socket.SOCK_STREAM,
-        0)
-    if sock == -1 then
-        -- Could not create a new socket. Highly unlikely case.
-        self:_throw_error(errors.SOCKET_ERROR, msg)
-        return self.coctx
+    else
+        if self.iostream then self.iostream:close() end
+
+        local sock, msg = socket.new_nonblock_socket(self.family,
+            socket.SOCK_STREAM,
+            0)
+        if sock == -1 then
+            -- Could not create a new socket. Highly unlikely case.
+            self:_throw_error(errors.SOCKET_ERROR, msg)
+            return self.coctx
+        end
+        self.sock = sock
     end
-    self.sock = sock
     -- Reset states from previous fetch.
     self.redirect = 0
     self.s_connecting = false
