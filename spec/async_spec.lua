@@ -67,35 +67,6 @@ describe("turbo.async Namespace", function()
         io:wait(5)
     end)
 
-    it("HTTPS altinn.no", function()
-        local port = math.random(10000,40000)
-        local io = turbo.ioloop.instance()
-
-        io:add_callback(function()
-            local res = coroutine.yield(
-                turbo.async.HTTPClient():fetch("https://altinn.no/", {allow_redirects=true}))
-            assert.falsy(res.error)
-            assert(res.code == 200)
-            io:close()
-        end)
-        io:wait(5)
-    end)
-
-    it("HTTPS redirect altinn.no", function()
-        local port = math.random(10000,40000)
-        local io = turbo.ioloop.instance()
-
-        io:add_callback(function()
-            local res = coroutine.yield(
-                turbo.async.HTTPClient():fetch("http://altinn.no/", {allow_redirects=true}))
-            assert.falsy(res.error)
-            assert(res.code == 200)
-            io:close()
-        end)
-        io:wait(5)
-    end)
-
-
     it("HEAD redirect", function()
         local port = math.random(10000,40000)
         local io = turbo.ioloop.instance()
