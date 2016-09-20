@@ -86,7 +86,7 @@ if platform.__WINDOWS__ then
                   Catastrophic failure.")
         end
         data = ffi.cast("char*", data)
-        mask = ffi.cast("char*", mask32)
+        local mask = ffi.cast("char*", mask32)
         while i < sz do
             buf[i] = bit.bxor(data[i],  mask[i % 4])
             i = i + 1
@@ -303,7 +303,7 @@ if le then
 
         if self.mask_outgoing == true then
             -- Create a random mask.
-            ws_mask = ffi.new("unsigned char[4]")
+            local ws_mask = ffi.new("unsigned char[4]")
             ws_mask[0] = math.random(0x0, 0xff)
             ws_mask[1] = math.random(0x0, 0xff)
             ws_mask[2] = math.random(0x0, 0xff)
