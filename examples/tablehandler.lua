@@ -1,4 +1,4 @@
---- Turbo.lua Hello world example
+--- Turbo.lua Table Handler example.
 --
 -- Copyright 2013 John Abrahamsen
 --
@@ -16,51 +16,29 @@
 
 local turbo = require "turbo"
 
--- Tables instead of a DB :)
-local sessions = {}
-local users = {["john@turbolua.org"] = "Secretz123"}
-
-
-local LoginHandler = class("LoginHandler", turbo.web.RequestHandler)
-
-function LoginHandler:post()
-    local email = self:get_argument("email")
-    local password = self:get_argument("password")
-    if users[email] and users[email] == password then
-        local session_id = turbo.util.rand_str(16)
-        sessions[session_id] = {
-            email = email,
-            time = turbo.util.gettimeofday(),
-            ip = self.request.host
-        }
-        self:set_cookie("turbo-session", session_id)
-        self:write({status = "ok"})
-        return
-    end
-    error(turbo.web.HTTPError(404, "invalid login attempt"))
-end
-
-
 local ExampleHandler = class("ExampleHandler", turbo.web.RequestHandler)
 
-function CheckAuthentication(req)
-    req.session_id = req:get_cookie("turbo-session")
-    if not req.session_id or not sessions[req.session_id] then
-        error(turbo.web.HTTPError(403, "no valid session found"))
-    end
-    req.session = sessions[req.session_id]
-end
-
 ExampleHandler.get = {
-    pre = {CheckAuthentication},
+    pre = {function(self)
+            self:set_header("Server", "Special awesomeness V1")
+            self.session = self:get_cookie("ritz")
+            if not self.session then
+                self.cookie = turbo.util.rand_str(10)
+                self:set_cookie("ritz", self.cookie)
+            end
+        end, function(self)
+            turbo.log.success("Someone is using my site!")
+        end},
     main = function(self)
-        self:write("Welcome " .. self.session.email ..
-            " you logged in from " .. self.session.ip)
-    end
+        self:write(
+            string.format("Hello You. Your unique ID is %s. ", self.session))
+    end,
+    post = {function(self)
+        self:write("Goodbye")
+    end}
 }
 
 turbo.web.Application({
     {"^/$", ExampleHandler},
-    {"^/login$", LoginHandler},
 }):listen(8888)
 turbo.ioloop.instance():start()
