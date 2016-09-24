@@ -323,6 +323,13 @@ function web.RequestHandler:send_error(status_code, msg)
     end
 end
 
+--- Check status of request being handled. If finished the response is sent.
+-- @return (Boolean) true or false.
+function web.RequestHandler:finished()
+    return self._finished == true
+end
+
+
 --- Get cookie value from incoming request.
 -- @param name The name of the cookie to get.
 -- @param default A default value if no cookie is found.
