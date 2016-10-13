@@ -17,6 +17,7 @@
 local ffi = require "ffi"
 local platform = require "turbo.platform"
 
+local S = pcall(require, "syscall")
 
 --- ******* stdlib UNIX *******
 ffi.cdef [[
@@ -52,36 +53,42 @@ end
 
 
 --- ******* Berkeley Socket UNIX *******
+
+if not S then
+    ffi.cdef [[
+        struct sockaddr{
+            unsigned short sa_family;
+            char sa_data[14];
+        };
+        struct sockaddr_storage{
+            unsigned short int ss_family;
+            unsigned long int __ss_align;
+            char __ss_padding[128 - (2 *sizeof(unsigned long int))];
+        };
+        struct in_addr{
+            unsigned long s_addr;
+        };
+        struct in6_addr{
+            unsigned char s6_addr[16];
+        };
+        struct sockaddr_in{
+            short sin_family;
+            unsigned short sin_port;
+            struct in_addr sin_addr;
+            char sin_zero[8];
+        } __attribute__ ((__packed__));
+        struct sockaddr_in6{
+            unsigned short sin6_family;
+            unsigned short sin6_port;
+            unsigned int sin6_flowinfo;
+            struct in6_addr sin6_addr;
+            unsigned int sin6_scope_id;
+        };
+    ]]
+end
+
 ffi.cdef [[
     typedef int socklen_t;
-    struct sockaddr{
-        unsigned short sa_family;
-        char sa_data[14];
-    };
-    struct sockaddr_storage{
-        unsigned short int ss_family;
-        unsigned long int __ss_align;
-        char __ss_padding[128 - (2 *sizeof(unsigned long int))];
-    };
-    struct in_addr{
-        unsigned long s_addr;
-    };
-    struct in6_addr{
-        unsigned char s6_addr[16];
-    };
-    struct sockaddr_in{
-        short sin_family;
-        unsigned short sin_port;
-        struct in_addr sin_addr;
-        char sin_zero[8];
-    } __attribute__ ((__packed__));
-    struct sockaddr_in6{
-        unsigned short sin6_family;
-        unsigned short sin6_port;
-        unsigned int sin6_flowinfo;
-        struct in6_addr sin6_addr;
-        unsigned int sin6_scope_id;
-    };
 
     char *strerror(int errnum);
     int socket(int domain, int type, int protocol);
@@ -162,6 +169,29 @@ end
 
 
     --- ******* Signals *******
+    if not S then
+        ffi.cdef [[
+            struct signalfd_siginfo{
+                unsigned int ssi_signo;
+                int ssi_errno;
+                int ssi_code;
+                unsigned int ssi_pid;
+                unsigned int ssi_uid;
+                int ssi_fd;
+                unsigned int ssi_tid;
+                unsigned int ssi_band;
+                unsigned int ssi_overrun;
+                unsigned int ssi_trapno;
+                int ssi_status;
+                int ssi_int;
+                uint64_t ssi_ptr;
+                uint64_t ssi_utime;
+                uint64_t ssi_stime;
+                uint64_t ssi_addr;
+                unsigned char __pad[48];
+            };
+        ]]
+    end
     ffi.cdef(string.format([[
         typedef void(*sighandler_t)(int);
         sighandler_t signal(int signum, sighandler_t handler);
@@ -170,25 +200,6 @@ end
             unsigned long int __val[%d];
         } __sigset_t;
         typedef __sigset_t sigset_t;
-        struct signalfd_siginfo{
-            unsigned int ssi_signo;
-            int ssi_errno;
-            int ssi_code;
-            unsigned int ssi_pid;
-            unsigned int ssi_uid;
-            int ssi_fd;
-            unsigned int ssi_tid;
-            unsigned int ssi_band;
-            unsigned int ssi_overrun;
-            unsigned int ssi_trapno;
-            int ssi_status;
-            int ssi_int;
-            uint64_t ssi_ptr;
-            uint64_t ssi_utime;
-            uint64_t ssi_stime;
-            uint64_t ssi_addr;
-            unsigned char __pad[48];
-        };
 
         int sigemptyset(sigset_t *set);
         int sigfillset(sigset_t *set);
@@ -201,17 +212,23 @@ end
 
 
     --- ******* Time *******
+    if not S then
+        ffi.cdef[[
+            typedef long suseconds_t;
+            typedef long time_t;
+            struct timeval{
+                time_t tv_sec;
+                suseconds_t tv_usec;
+            };
+            struct timezone{
+                int tz_minuteswest;
+                int tz_dsttime;
+            };
+        ]]
+    end
     ffi.cdef([[
         typedef long suseconds_t;
         typedef long time_t;
-        struct timeval{
-            time_t tv_sec;
-            suseconds_t tv_usec;
-        };
-        struct timezone{
-            int tz_minuteswest;
-            int tz_dsttime;
-        };
         struct tm
         {
             int tm_sec;
@@ -246,12 +263,16 @@ end
 if platform.__UNIX__ then
 
     --- ******* RealTime (for Monotonic time) *******
+    if not S then
+        ffi.cdef[[
+            struct timespec
+            {
+                time_t tv_sec;
+                long tv_nsec;
+            };
+        ]]
+    end
     ffi.cdef[[
-        struct timespec
-        {
-            time_t tv_sec;
-            long tv_nsec;
-        };
         typedef unsigned int clockid_t;
         enum clock_ids{
             CLOCK_REALTIME,
@@ -265,28 +286,30 @@ end
 
 if platform.__LINUX__ then
     --- ******* Epoll *******
-    ffi.cdef[[
-        typedef union epoll_data{
-            void *ptr;
-            int fd;
-            unsigned int u32;
-            uint64_t u64;
-        } epoll_data_t;
-    ]]
-    if platform.__ABI32__ or platform.__PPC64__ then
+    if not S then
         ffi.cdef[[
-            struct epoll_event{
-                unsigned int events;
-                epoll_data_t data;
-            };
+            typedef union epoll_data{
+                void *ptr;
+                int fd;
+                unsigned int u32;
+                uint64_t u64;
+            } epoll_data_t;
         ]]
-    elseif platform.__ABI64__ then
-        ffi.cdef[[
-            struct epoll_event{
-                unsigned int events;
-                epoll_data_t data;
-            } __attribute__ ((__packed__));
-        ]]
+        if platform.__ABI32__ or platform.__PPC64__ then
+            ffi.cdef[[
+                struct epoll_event{
+                    unsigned int events;
+                    epoll_data_t data;
+                };
+            ]]
+        elseif platform.__ABI64__ then
+            ffi.cdef[[
+                struct epoll_event{
+                    unsigned int events;
+                    epoll_data_t data;
+                } __attribute__ ((__packed__));
+            ]]
+        end
     end
     ffi.cdef[[
         typedef struct epoll_event epoll_event;
@@ -306,15 +329,18 @@ if platform.__LINUX__ then
 
 
     --- ******* Inotify *******
-    ffi.cdef[[
-        struct inotify_event{
-            int wd;
-            unsigned int mask;
-            unsigned int cookie;
-            unsigned int len;
-            char name [];
-        };
-
+    if not S then
+        ffi.cdef [[
+            struct inotify_event{
+                int wd;
+                unsigned int mask;
+                unsigned int cookie;
+                unsigned int len;
+                char name [];
+            };
+        ]]
+    end
+    ffi.cdef [[
         int inotify_init(void);
         int inotify_add_watch(int fd, const char *name, unsigned int mask);
         int inotify_rm_watch (int fd, int wd);
@@ -342,143 +368,145 @@ if platform.__LINUX__ then
     ]]
 
     -- stat structure is architecture dependent in Linux
-    if platform.__X86__ then
-        ffi.cdef[[
-          struct stat {
-            unsigned long  st_dev;
-            unsigned long  st_ino;
-            unsigned short st_mode;
-            unsigned short st_nlink;
-            unsigned short st_uid;
-            unsigned short st_gid;
-            unsigned long  st_rdev;
-            unsigned long  st_size;
-            unsigned long  st_blksize;
-            unsigned long  st_blocks;
-            unsigned long  st_atime;
-            unsigned long  st_atime_nsec;
-            unsigned long  st_mtime;
-            unsigned long  st_mtime_nsec;
-            unsigned long  st_ctime;
-            unsigned long  st_ctime_nsec;
-            unsigned long  __unused4;
-            unsigned long  __unused5;
-          };
-        ]]
-    elseif platform.__X64__ then
-        ffi.cdef [[
-          struct stat {
-            unsigned long   st_dev;
-            unsigned long   st_ino;
-            unsigned long   st_nlink;
-            unsigned int    st_mode;
-            unsigned int    st_uid;
-            unsigned int    st_gid;
-            unsigned int    __pad0;
-            unsigned long   st_rdev;
-            long            st_size;
-            long            st_blksize;
-            long            st_blocks;
-            unsigned long   st_atime;
-            unsigned long   st_atime_nsec;
-            unsigned long   st_mtime;
-            unsigned long   st_mtime_nsec;
-            unsigned long   st_ctime;
-            unsigned long   st_ctime_nsec;
-            long            __unused[3];
-          };
-        ]]
-    elseif platform.__PPC__ then
-        ffi.cdef[[
-          struct stat {
-            unsigned int st_dev;
-            unsigned int st_ino;
-            unsigned int st_mode;
-            unsigned int st_nlink;
-            unsigned int st_uid;
-            unsigned int st_gid;
-            unsigned int st_rdev;
-            unsigned int st_size;
-            unsigned int st_blksize;
-            unsigned int st_blocks;
-            unsigned int st_atime;
-            unsigned int st_atime_nsec;
-            unsigned int st_mtime;
-            unsigned int st_mtime_nsec;
-            unsigned int st_ctime;
-            unsigned int st_ctime_nsec;
-            unsigned int __unused4;
-            unsigned int __unused5;
-          };
-        ]]
-    elseif platform.__PPC64__ then
-        ffi.cdef [[
-          struct stat {
-            unsigned long   st_dev;
-            unsigned long   st_ino;
-            unsigned long   st_nlink;
-            unsigned int    st_mode;
-            unsigned int    st_uid;
-            unsigned int    st_gid;
-            unsigned int    __pad0;
-            unsigned long   st_rdev;
-            long            st_size;
-            long            st_blksize;
-            long            st_blocks;
-            unsigned long   st_atime;
-            unsigned long   st_atime_nsec;
-            unsigned long   st_mtime;
-            unsigned long   st_mtime_nsec;
-            unsigned long   st_ctime;
-            unsigned long   st_ctime_nsec;
-            long            __unused[3];
-          };
-        ]]
-    elseif platform.__ARM__ then
-        ffi.cdef[[
-          struct stat {
-            unsigned short  st_dev;
-            unsigned long   st_ino;
-            unsigned short  st_mode;
-            unsigned short  st_nlink;
-            unsigned short  st_uid;
-            unsigned short  st_gid;
-            unsigned long   st_rdev;
-            unsigned long   st_size;
-            unsigned long   st_blksize;
-            unsigned long   st_blocks;
-            unsigned long   st_atime;
-            unsigned long   st_atime_nsec;
-            unsigned long   st_mtime;
-            unsigned long   st_mtime_nsec;
-            unsigned long   st_ctime;
-            unsigned long   st_ctime_nsec;
-            unsigned long   __unused4;
-            unsigned long   __unused5;
-          };
-        ]]
-    elseif platform.__MIPSEL__ then
-        ffi.cdef[[
-          struct stat {
-            unsigned long long  st_dev;
-            long int            st_pad1[2];
-            unsigned int        st_ino;
-            unsigned int        st_mode;
-            unsigned int        st_nlink;
-            unsigned int        st_uid;
-            unsigned int        st_gid;
-            unsigned long long  st_rdev;
-            long int            st_pad2[1];
-            unsigned int        st_size;
-            long int            st_pad3;
-            unsigned int        st_atime;
-            unsigned int        st_mtime;
-            unsigned int        st_ctime;
-            unsigned int        st_blksize;
-            unsigned int        st_blocks;
-            long int            st_pad5[14];
-          };
-        ]]
+    if not S then
+        if platform.__X86__ then
+            ffi.cdef[[
+              struct stat {
+                unsigned long  st_dev;
+                unsigned long  st_ino;
+                unsigned short st_mode;
+                unsigned short st_nlink;
+                unsigned short st_uid;
+                unsigned short st_gid;
+                unsigned long  st_rdev;
+                unsigned long  st_size;
+                unsigned long  st_blksize;
+                unsigned long  st_blocks;
+                unsigned long  st_atime;
+                unsigned long  st_atime_nsec;
+                unsigned long  st_mtime;
+                unsigned long  st_mtime_nsec;
+                unsigned long  st_ctime;
+                unsigned long  st_ctime_nsec;
+                unsigned long  __unused4;
+                unsigned long  __unused5;
+              };
+            ]]
+        elseif platform.__X64__ then
+            ffi.cdef [[
+              struct stat {
+                unsigned long   st_dev;
+                unsigned long   st_ino;
+                unsigned long   st_nlink;
+                unsigned int    st_mode;
+                unsigned int    st_uid;
+                unsigned int    st_gid;
+                unsigned int    __pad0;
+                unsigned long   st_rdev;
+                long            st_size;
+                long            st_blksize;
+                long            st_blocks;
+                unsigned long   st_atime;
+                unsigned long   st_atime_nsec;
+                unsigned long   st_mtime;
+                unsigned long   st_mtime_nsec;
+                unsigned long   st_ctime;
+                unsigned long   st_ctime_nsec;
+                long            __unused[3];
+              };
+            ]]
+        elseif platform.__PPC__ then
+            ffi.cdef[[
+              struct stat {
+                unsigned int st_dev;
+                unsigned int st_ino;
+                unsigned int st_mode;
+                unsigned int st_nlink;
+                unsigned int st_uid;
+                unsigned int st_gid;
+                unsigned int st_rdev;
+                unsigned int st_size;
+                unsigned int st_blksize;
+                unsigned int st_blocks;
+                unsigned int st_atime;
+                unsigned int st_atime_nsec;
+                unsigned int st_mtime;
+                unsigned int st_mtime_nsec;
+                unsigned int st_ctime;
+                unsigned int st_ctime_nsec;
+                unsigned int __unused4;
+                unsigned int __unused5;
+              };
+            ]]
+        elseif platform.__PPC64__ then
+            ffi.cdef [[
+              struct stat {
+                unsigned long   st_dev;
+                unsigned long   st_ino;
+                unsigned long   st_nlink;
+                unsigned int    st_mode;
+                unsigned int    st_uid;
+                unsigned int    st_gid;
+                unsigned int    __pad0;
+                unsigned long   st_rdev;
+                long            st_size;
+                long            st_blksize;
+                long            st_blocks;
+                unsigned long   st_atime;
+                unsigned long   st_atime_nsec;
+                unsigned long   st_mtime;
+                unsigned long   st_mtime_nsec;
+                unsigned long   st_ctime;
+                unsigned long   st_ctime_nsec;
+                long            __unused[3];
+              };
+            ]]
+        elseif platform.__ARM__ then
+            ffi.cdef[[
+              struct stat {
+                unsigned short  st_dev;
+                unsigned long   st_ino;
+                unsigned short  st_mode;
+                unsigned short  st_nlink;
+                unsigned short  st_uid;
+                unsigned short  st_gid;
+                unsigned long   st_rdev;
+                unsigned long   st_size;
+                unsigned long   st_blksize;
+                unsigned long   st_blocks;
+                unsigned long   st_atime;
+                unsigned long   st_atime_nsec;
+                unsigned long   st_mtime;
+                unsigned long   st_mtime_nsec;
+                unsigned long   st_ctime;
+                unsigned long   st_ctime_nsec;
+                unsigned long   __unused4;
+                unsigned long   __unused5;
+              };
+            ]]
+        elseif platform.__MIPSEL__ then
+            ffi.cdef[[
+              struct stat {
+                unsigned long long  st_dev;
+                long int            st_pad1[2];
+                unsigned int        st_ino;
+                unsigned int        st_mode;
+                unsigned int        st_nlink;
+                unsigned int        st_uid;
+                unsigned int        st_gid;
+                unsigned long long  st_rdev;
+                long int            st_pad2[1];
+                unsigned int        st_size;
+                long int            st_pad3;
+                unsigned int        st_atime;
+                unsigned int        st_mtime;
+                unsigned int        st_ctime;
+                unsigned int        st_blksize;
+                unsigned int        st_blocks;
+                long int            st_pad5[14];
+              };
+            ]]
+        end
     end
 
 
