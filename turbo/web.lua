@@ -761,7 +761,7 @@ function web.RequestHandler:_execute()
         -- If there is no URL args then do not unpack as this has a significant
         -- cost.
         local method = self[self.request.method:lower()]
-        if self._url_args and #self._url_args > 1 then
+        if self._url_args and #self._url_args > 0 then
             if type(method) == "table" then
                 -- Table based request method.
                 if method.pre then
