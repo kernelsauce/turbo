@@ -105,8 +105,8 @@ function iosimple.dial(address, ssl, io)
                 ctx:set_arguments({true})
                 ctx:finalize_context()
             end,
-            function(err)
-                ctx:set_arguments({false, sockerr, strerr})
+            function(rc, strerr, errdesc)
+                ctx:set_arguments({false, rc, strerr, errdesc})
                 ctx:finalize_context()
             end
         )
@@ -117,17 +117,15 @@ function iosimple.dial(address, ssl, io)
                 ctx:set_arguments({true})
                 ctx:finalize_context()
             end,
-            function(err)
-                ctx:set_arguments({false, sockerr, strerr})
+            function(rc, strerr, errdesc)
+                ctx:set_arguments({false, rc, strerr, errdesc})
                 ctx:finalize_context()
             end
         )
     end
-
-
-    local rc, sockerr, strerr = coroutine.yield(ctx)
+    local rc, sockerr, strerr, errdesc = coroutine.yield(ctx)
     if rc ~= true then
-        error(string.format("Could not connect to %s, %s", address, strerr))
+        error(errdesc)
     end
     return iosimple.IOSimple(stream, io)
 end
