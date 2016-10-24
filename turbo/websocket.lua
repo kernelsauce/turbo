@@ -401,7 +401,7 @@ function websocket.WebSocketHandler:_execute()
     end
     local prot = self.request.headers:get("Sec-WebSocket-Protocol")
     if prot then
-        prot = prot:split(",")
+        prot = util.strsplit(prot, ",")
         for i=1, #prot do
             prot[i] = escape.trim(prot[i])
         end

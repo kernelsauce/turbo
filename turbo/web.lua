@@ -934,7 +934,7 @@ function web._StaticWebCache:get_mime(path)
     if not path then
         error("No filename suplied to get_mime()")
     end
-    local parts = path:split(".")
+    local parts = util.strsplit(path, ".")
     if #parts == 0 then
         return -1
     end
