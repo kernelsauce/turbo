@@ -185,7 +185,7 @@ meant to give some pointers:
             self.io_loop,
             1024*1024)
 
-        local hostname, port = unpack(addr:split(":"))
+        local hostname, port = unpack(util.strsplit(addr, ":"))
         self.hostname = hostname
         self.port = tonumber(port)
         self.connected = false

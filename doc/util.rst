@@ -9,10 +9,12 @@ The util namespace contains various convinience functions that fits no where els
 Table tools
 -----------
 
-.. function:: string:split(sep, max, pattern)
+.. function:: strsplit(str, sep, max, pattern)
 
 	Split a string into a table on given seperator. This function extends the standard string library with new functionality.
 
+	:param str: String to split
+	:type str: String
 	:param sep: String that seperate elements.
 	:type sep: String
 	:param max: Max elements to split
