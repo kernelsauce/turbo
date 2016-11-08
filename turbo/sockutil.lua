@@ -85,7 +85,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
             if rc == 0 then
                 error(string.format("[sockutil.lua] Invalid address %s",
                     address))
-            elseif r == -1 then
+            elseif rc == -1 then
                 errno = ffi.errno()
                 error(string.format(
                     "[sockutil.lua Errno %d] Could not parse address. %s",
