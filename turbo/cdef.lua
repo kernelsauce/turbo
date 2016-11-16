@@ -34,6 +34,7 @@ ffi.cdef [[
     int strncasecmp(const char *s1, const char *s2, size_t n);
     int strcasecmp(const char *s1, const char *s2);
     int snprintf(char *s, size_t n, const char *format, ...);
+    size_t strlen(const char *str);
     pid_t fork();
     pid_t wait(int *status);
     pid_t waitpid(pid_t pid, int *status, int options);
@@ -110,6 +111,8 @@ ffi.cdef [[
         void *optval,
         socklen_t *optlen);
     int accept(int fd, struct sockaddr *addr, socklen_t *addr_len);
+    typedef int in_addr_t;
+    in_addr_t inet_addr(const char *cp);
     unsigned int ntohl(unsigned int netlong);
     unsigned int htonl(unsigned int hostlong);
     unsigned short ntohs(unsigned int netshort);
@@ -156,6 +159,13 @@ end
             struct addrinfo *ai_next;
         };
 
+        struct gaicb {
+            const char            *ar_name;
+            const char            *ar_service;
+            const struct addrinfo *ar_request;
+            struct addrinfo       *ar_result;
+       };
+
         struct hostent *gethostbyname(const char *name);
         int getaddrinfo(
             const char *nodename,
@@ -200,7 +210,18 @@ end
             unsigned long int __val[%d];
         } __sigset_t;
         typedef __sigset_t sigset_t;
-
+        union sigval {
+            int     sival_int;
+            void   *sival_ptr;
+        };
+        struct sigevent {
+            int          sigev_notify;
+            int          sigev_signo;
+            union sigval sigev_value;
+            void         (*sigev_notify_function) (union sigval);
+            void         *sigev_notify_attributes;
+            pid_t        sigev_notify_thread_id;
+        };
         int sigemptyset(sigset_t *set);
         int sigfillset(sigset_t *set);
         int sigaddset(sigset_t *set, int signum);

@@ -442,7 +442,7 @@ function async.HTTPClient:_handle_connect_timeout()
         self.kwargs.connect_timeout))
 end
 
-function async.HTTPClient:_handle_connect_fail(err, strerr)
+function async.HTTPClient:_handle_connect_fail(strerr)
     self:_throw_error(errors.COULD_NOT_CONNECT,
         "Could not connect: " .. strerr or "")
 end
