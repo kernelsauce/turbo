@@ -26,14 +26,14 @@ local tio = turbo.ioloop.instance()
 tio:add_callback(function()
     -- Must place everything in a IOLoop callback.
     local res = coroutine.yield(
-        turbo.async.HTTPClient():fetch(url, {allow_redirects=true}))
+        turbo.async.HTTPClient(nil,nil, 1024*1024*1024*5):fetch(url, {allow_redirects=true}))
     if res.error or res.headers:get_status_code() ~= 200 then
         -- Check for errors.
-        tio:close()
-        return
+        os.exit(1)
     else
         -- Print result to stdout.
         io.write(res.body)
+        os.exit(0)
     end
     tio:close()
 end)
