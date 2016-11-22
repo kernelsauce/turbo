@@ -29,9 +29,11 @@ local buffer =      require "turbo.structs.buffer"
 local socket =      require "turbo.socket_ffi"
 local sockutils =   require "turbo.sockutil"
 local util =        require "turbo.util"
+local signal =      require "turbo.signal"
 -- __Global value__ _G.TURBO_SSL allows the user to enable the SSL module.
 local crypto =      require "turbo.crypto"
 local platform =    require "turbo.platform"
+local sockutil =    require "turbo.sockutil"
 local bit =         jit and require "bit" or require "bit32"
 local ffi =         require "ffi"
 local ssl
@@ -72,6 +74,8 @@ if platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
 end
 
 local iostream = {} -- iostream namespace
+
+iostream.DNSCache = {}
 
 --- The IOStream class is implemented through the use of the IOLoop class,
 -- and are utilized e.g in the RequestHandler class and its subclasses.
@@ -123,23 +127,120 @@ end
 -- @param arg Optional argument for callback.
 -- @return (Number) -1 and error string on fail, 0 on success.
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
-    function iostream.IOStream:connect(address, port, family,
-        callback, errhandler, arg)
-        assert(type(address) == "string",
-            "argument #1, address, is not a string.")
-        assert(type(port) == "number",
-            "argument #2, ports, is not a number.")
-        assert((not family or type(family) == "number"),
-            "argument #3, family, is not a number or nil")
+    ffi.cdef [[
+        struct __packed_addrinfo{
+            int ai_flags;
+            int ai_family;
+            int ai_socktype;
+            int ai_protocol;
+            socklen_t ai_addrlen;
+            struct sockaddr ai_addr;
+        }
+    ]]
 
+    function iostream.IOStream:_compact_addrinfo(addrinfo)
+        local packed = ffi.new("struct __packed_addrinfo")
+        packed.ai_flags = addrinfo.ai_flags
+        packed.ai_family = addrinfo.ai_family
+        packed.ai_socktype = addrinfo.ai_socktype
+        packed.ai_protocol = addrinfo.ai_protocol
+        packed.ai_addrlen = addrinfo.ai_addrlen
+        packed.ai_addr.sa_family = addrinfo.ai_addr.sa_family
+        ffi.copy(packed.ai_addr.sa_data,
+                 addrinfo.ai_addr.sa_data,
+                 ffi.sizeof(addrinfo.ai_addr.sa_data))
+        return ffi.string(ffi.cast("unsigned char*", packed), ffi.sizeof(packed))
+    end
+
+    function iostream.IOStream:_unpack_addrinfo(packed)
+        local addrinfo = ffi.new("struct addrinfo")
+        local sockaddr = ffi.new("struct sockaddr")
+        addrinfo.ai_addr = sockaddr
+        local _packed = ffi.new("struct __packed_addrinfo")
+        ffi.copy(_packed, ffi.cast("unsigned char*", packed), ffi.sizeof(_packed))
+        addrinfo.ai_flags = _packed.ai_flags
+        addrinfo.ai_family = _packed.ai_family
+        addrinfo.ai_socktype = _packed.ai_socktype
+        addrinfo.ai_protocol = _packed.ai_protocol
+        addrinfo.ai_addrlen = _packed.ai_addrlen
+        addrinfo.ai_addr.sa_family = _packed.ai_addr.sa_family
+        ffi.copy(addrinfo.ai_addr.sa_data, _packed.ai_addr.sa_data, ffi.sizeof(addrinfo.ai_addr.sa_data))
+        addrinfo.ai_canonname = nil
+        addrinfo.ai_next = nil
+        -- Return all to avoid losing reference and gc cleaning up the pointers.
+        return addrinfo, _sa_data, sockaddr
+    end
+
+    function iostream.IOStream:_send_resolv_result(servport,
+                                                   success,
+                                                   errdesc,
+                                                   addrinfo)
+        local fd = ffi.C.socket(socket.AF_INET,
+                                socket.SOCK_STREAM,
+                                0)
+        if fd == -1 then
+            errno = ffi.errno()
+            log.error(
+                "[iostream.lua] Could not create socket for DNS resolver.")
+            os.exit(1)
+        end
+
+        -- Connect to main thread to send back result.
+        local remoteaddr = ffi.new("struct sockaddr_in")
+        remoteaddr.sin_family = socket.AF_INET
+        remoteaddr.sin_addr.s_addr = ffi.C.inet_addr("127.0.0.1")
+        remoteaddr.sin_port = ffi.C.htons(servport)
+        rc = ffi.C.connect(fd, 
+                           ffi.cast("const struct sockaddr *", remoteaddr),
+                           ffi.sizeof(remoteaddr))
+        if rc ~= 0 then
+            log.error(
+                "[iostream.lua] Could not connect to DNS resolv recipient server.")
+            ffi.C.close(fd)
+            os.exit(1)
+        end
+        local res = (success and "0" or "1")..
+                    "\r\n\r\n"..
+                    errdesc..
+                    "\r\n\r\n"..
+                    (addrinfo and self:_compact_addrinfo(addrinfo[0]) or "")..
+                    "\r\n\r\n"
+        rc = ffi.C.send(fd, ffi.cast("const char*", res), res:len(), 0)
+        if rc == -1 then
+            log.error(
+                "[iostream.lua] Could not send data to DNS resolv recipient server.")
+            ffi.C.close(fd)
+            os.exit(1)
+        end
+        ffi.C.close(fd)
+    end
+
+    function iostream.IOStream:_lookup_name(address, port, family)
+        -- Async DNS.
+        local servport = math.random(10000,20000)
+        local pid = ffi.C.fork()
+        if pid < 0 then
+            self:_handle_dns_error("Could not create thread for DNS resolver.")
+            return
+        end
+        if pid ~= 0 then
+            local sock = sockutil.bind_sockets(servport, "127.0.0.1", 1)
+            sockutils.add_accept_handler(
+                sock,
+                self._dns_resolved_callback,
+                self.io_loop,
+                self)
+            self._dns_sock = sock
+            self._dns_pid = pid
+            return
+        end
+        -- Fork will continue here.   
         local hints = ffi.new("struct addrinfo[1]")
         local servinfo = ffi.new("struct addrinfo *[1]")
         local rc
 
         self.address = address
         self.port = port
-        self._connect_fail_callback = errhandler
-        self._connecting = true
         ffi.fill(hints[0], ffi.sizeof(hints[0]))
         hints[0].ai_socktype = SOCK_STREAM
         hints[0].ai_family = family or AF_UNSPEC
@@ -149,29 +250,99 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
             if rc == -EAI_AGAIN then
                 ffi.C.__res_init()
             end
-            -- Add callback as well as return error for convinence.
             local strerr = ffi.string(C.gai_strerror(rc))
-            local errdesc = string.format("Could not resolve hostname '%s': %s",
+            local errdesc = string.format(
+                "Could not resolve hostname '%s': %s",
                 address, ffi.string(C.gai_strerror(rc)))
+            self:_send_resolv_result(servport, false, errdesc, nil)
+            os.exit(0)
+        end
+        self:_send_resolv_result(servport, true, "OK", servinfo)
+        os.exit(0)
+    end
+
+
+    function iostream.IOStream:_dns_resolved_callback(fd, peername)
+        local _self = self
+        local pipe = iostream.IOStream(fd, self.io_loop)
+        pipe:read_until_pattern("\r\n\r\n", function(rc)
+            pipe:read_until_pattern("\r\n\r\n", function(errmsg)
+                if tonumber(rc) ~= 0 then
+                    pipe:close()
+                    _self:_handle_dns_error(errmsg)
+                    return
+                end
+                pipe:read_until_pattern("\r\n\r\n", function(packed_servinfo)
+                    local servinfo = self:_unpack_addrinfo(packed_servinfo)
+                    pipe:close()
+                    local ai, err = sockutils.connect_addrinfo(
+                        _self.socket, servinfo)
+                    if not ai then
+                        _self._handle_dns_error(
+                            "Could not connect to remote server.")
+                        return
+                    end
+                    pipe:close()
+                    if self._dns_sock then
+                        ffi.C.close(self._dns_sock)
+                        self._dns_sock = nil
+                    end
+                    self.io_loop:remove_timeout(self._dns_timeout)
+                    _self:_add_io_state(ioloop.WRITE)
+                    ffi.C.wait(nil)
+                end)
+            end)
+        end)
+    end
+
+    function iostream.IOStream:_handle_dns_error(errmsg)
+        self.io_loop:remove_timeout(self._dns_timeout)
+        local errhandler = self._connect_fail_callback
+        local arg = self._connect_callback_arg
+        self._connect_fail_callback = nil
+        self._connecting = false
+        self._connect_callback = nil
+        self._connect_callback_arg = nil
+        -- Close DNS resolver server if existing.
+        if self._dns_sock then
+            ffi.C.close(self._dns_sock)
+            self._dns_sock = nil
+        end
+        if self._dns_pid then
+            ffi.C.kill(self._dns_pid, signal.SIGKILL)
+            ffi.C.wait(nil)
+            self._dns_pid = nil
+        end
+        self.io_loop:add_callback(function()
             if arg then
-                self.io_loop:add_callback(function()
-                    errhandler(arg, rc, strerr, errdesc)
-                end)
+                errhandler(arg, errmsg)
             else
-                self.io_loop:add_callback(function()
-                    errhandler(rc, strerr, errdesc)
-                end)
+                errhandler(errmsg)
             end
-            return -1, errdesc
-        end
-        ffi.gc(servinfo, function (ai) C.freeaddrinfo(ai[0]) end)
-        local ai, err = sockutils.connect_addrinfo(self.socket, servinfo)
-        if not ai then
-            return -1, err
-        end
+        end)
+    end
+
+    function iostream.IOStream:connect(address, port, family,
+        callback, errhandler, arg)
+        assert(type(address) == "string",
+            "argument #1, address, is not a string.")
+        assert(type(port) == "number",
+            "argument #2, ports, is not a number.")
+        assert((not family or type(family) == "number"),
+            "argument #3, family, is not a number or nil")
+        self._connect_fail_callback = errhandler
+        self._connecting = true
         self._connect_callback = callback
         self._connect_callback_arg = arg
-        self:_add_io_state(ioloop.WRITE)
+        self:_lookup_name(address, port, family)
+        _self = self
+        -- Set max time for DNS to resolve.
+        self._dns_timeout = self.io_loop:add_timeout(
+            util.gettimemonotonic() + (29*1000),
+            function()
+                _self:_handle_dns_error("DNS lookup timed out.")
+            end
+        )
         return 0
     end
 else
