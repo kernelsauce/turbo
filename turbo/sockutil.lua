@@ -173,7 +173,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         end
         rc, msg = socket.set_nonblock_flag(fd)
         if rc ~= 0 then
-           error("[iostream.lua] " .. msg)
+           error("[tcpserver.lua] " .. msg)
         end
         rc, msg = socket.set_reuseaddr_opt(fd)
         if rc ~= 0 then

@@ -119,6 +119,7 @@ if turbo.platform.__LINUX__ then
     turbo.fs =              require "turbo.fs"
     turbo.signal =          require "turbo.signal"
     turbo.syscall =         require "turbo.syscall"
+    turbo.thread =          require "turbo.thread"
 end
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"

@@ -41,6 +41,7 @@ ffi.cdef [[
     pid_t getpid();
     int execvp(const char *path, char *const argv[]);
     int fcntl(int fd, int cmd, int opt);
+    unsigned int sleep(unsigned int seconds);
 ]]
 if platform.__WINDOWS__ then
     -- Windows version of UNIX strncasecmp.
@@ -84,6 +85,11 @@ if not S then
             unsigned int sin6_flowinfo;
             struct in6_addr sin6_addr;
             unsigned int sin6_scope_id;
+        };
+        typedef unsigned short  sa_family_t;
+        struct sockaddr_un {
+            sa_family_t sun_family;
+            char        sun_path[108];
         };
     ]]
 end
