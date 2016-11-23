@@ -58,23 +58,12 @@ end
 
 --- Called by either main or child thread to send data to each other.
 function thread.Thread:send(data)
-    self.pipe:write("DATA\r\n\r\n"..data:len().."\r\n\r\n"..data, callback, callback_arg)
+    self.pipe:write("DATA\r\n\r\n"..data:len().."\r\n\r\n"..data)
 end
 
---- Wait for data to become available from child thread. Takes either a
--- callback or can be yielded directly to IOLoop.
--- @param callback (Function) Optional callback function.
--- @param arg Optional argument for callback. If arg is given then it will
--- be the first argument for the callback and the data will be the second.
--- @return (CoroutineContext) Yieldable object if no callback is given
-function thread.Thread:wait_for_data(callback, callback_arg)
-    if not callback then
-        -- Not using callbacks, return a CoroutineContext instance instead.
-        self.ctx = coctx.CoroutineContext(self.io_loop)
-        callback = coctx.CoroutineContext.finalize_context
-        callback_arg = self.ctx
-    end
-
+--- Wait for data to become available from child thread.
+function thread.Thread:wait_for_data()
+    self.data_ctx = coctx.CoroutineContext(self.io_loop)
     if self._waiting_data then
         -- Data is already available.
         local data = self._waiting_data
@@ -82,76 +71,49 @@ function thread.Thread:wait_for_data(callback, callback_arg)
         self.io_loop:add_callback(function()
             -- Can not run callback directly. CoroutineContext not on
             -- stack if async.task is used.
-            if callback_arg then
-                if self.ctx then
-                    self.ctx:set_arguments(data)
-                end
-                callback(callback_arg, data)
-            else
-                callback(data)
-            end
+            local ctx = self.data_ctx
+            self.data_ctx = nil
+            ctx:set_arguments({nil, data})
+            ctx:finalize_context()
         end)
     end
-    -- No data available, add callback for later use.
-    if self.main_thread then
-        self.main_thread_data_cb = callback
-        self.main_thread_data_arg = callback_arg
-    else
-        self.child_thread_data_cb = callback
-        self.child_thread_data_arg = callback_arg
+    local err, data = coroutine.yield(self.data_ctx)
+    if err then
+        error(err)
     end
-    return self.ctx
+    return data
 end
 
---- Wait for thread to stop running. Takes either a
--- callback or can be yielded directly to IOLoop.
--- @param callback (Function) Optional callback function.
--- @param arg Optional argument for callback. If arg is given then it will
--- be the first argument for the callback and the data will be the second.
--- @return (CoroutineContext) Yieldable object if no callback is given
-function thread.Thread:wait_for_finish(callback, callback_arg)
-    if not callback then
-        self.ctx = coctx.CoroutineContext(self.io_loop)
-        callback = coctx.CoroutineContext.finalize_context
-        callback_arg = self.ctx
+--- Wait for thread to stop running.
+function thread.Thread:wait_for_finish()
+    if not self.main_thread then
+        error("Child thread can not wait for child thread.")
     end
     if not self.running then
-        self.io_loop:add_callback(function()
-            callback(callback_arg)
-        end)
         return
     end
-    self.args.exit_callback = callback
-    self.args.exit_callback_arg = callback_arg
-    return self.ctx
+    self.fin_ctx = coctx.CoroutineContext(self.io_loop)
+    local err = coroutine.yield(self.fin_ctx)
+    if err then
+        error(err)
+    end
 end
 
 --- Wait for thread pipe to be connected. Must be used by main thread
--- before attempting to send data to child. Takes either a
--- callback or can be yielded directly to IOLoop.
--- @param callback (Function) Optional callback function.
--- @param arg Optional argument for callback. If arg is given then it will
--- be the first argument for the callback and the data will be the second.
--- @return (CoroutineContext) Yieldable object if no callback is given
-function thread.Thread:wait_for_pipe(callback, callback_arg)
+-- before attempting to send data to child. 
+function thread.Thread:wait_for_pipe()
     if not self.main_thread then
         error(
             "Child thread does not need to wait for pipe.")
     end
-    if not callback then
-        self.ctx = coctx.CoroutineContext(self.io_loop)
-        callback = coctx.CoroutineContext.finalize_context
-        callback_arg = self.ctx
-    end
     if self.connected then
-        self.io_loop:add_callback(function()
-            callback(callback_arg)
-        end)
         return
     end
-    self.args.connect_callback = callback
-    self.args.connect_callback_arg = callback_arg
-    return self.ctx
+    self.connect_ctx = coctx.CoroutineContext(self.io_loop)
+    local err = coroutine.yield(self.connect_ctx)
+    if err then
+        error(err)
+    end
 end
 
 function thread.Thread:_run_thread()
@@ -175,24 +137,51 @@ function thread.Thread:_run_thread()
     self:_connect_to_main_thread()
 end
 
+function thread.Thread:_restore_coctx_with_error(err)
+    if self.data_ctx then
+        local ctx = self.data_ctx
+        self.data_ctx = nil
+        ctx:set_arguments(err)
+        ctx:finalize_context()
+        return
+    end
+    if self.pipe_ctx then
+        local ctx = self.pipe_ctx
+        self.pipe_ctx = nil
+        ctx:set_arguments(err)
+        ctx:finalize_context()
+        return
+    end
+    if self.fin_ctx then
+        local ctx = self.fin_ctx
+        self.fin_ctx = nil
+        ctx:set_arguments(err)
+        ctx:finalize_context()
+        return
+    end
+end
+
 function thread.Thread:_execute_thread_func()
+    local _self = self
     xpcall(self._child_func, function(err) 
         -- Child thread encountered error.
         -- Cleanup everything and exit thread.
         local thread = tonumber(ffi.C.getpid())
-        local trace = debug.traceback(coroutine.running(), err, 2)
-        local _str_borders_down = string.rep("▼", 80)
-        local _str_borders_up = string.rep("▲", 80)
-
-        log.error(
+        local trace = debug.traceback(coroutine.running(), err, 2):gsub(
+            "stack traceback:", "thread traceback")
+        local _str_borders_down = string.rep("/", 80)
+        local _str_borders_up = string.rep("\\", 80)
+        local err =
             string.format(
-            "[thread.lua] Error in thread. PID %s is dead.\n%s\n%s\n%s\n",
+            "Error in thread. PID %s is dead.\n%s\n%s\n%s",
             thread,
             _str_borders_down,
             trace,
-            _str_borders_up))
+            _str_borders_up)
 
-        self:stop()
+        _self.pipe:write("ERRO\r\n\r\n"..err:len().."\r\n\r\n"..err, function()
+            _self:stop()
+        end)
     end,
     self)
 end
@@ -292,41 +281,30 @@ end
 --- Called when child thread connects to main thread.
 function thread.Thread:_child_connects(fd)
     local pipe = iostream.IOStream(fd, self.io_loop)
-    self.connected = true
-    if self.args.connect_callback then
-        local callback = self.args.connect_callback
-        local arg = self.args.connect_callback_arg
-        self.args.connect_callback = nil
-        self.args.connect_callback_arg = nil
-        self.io_loop:add_callback(function()
-            callback(arg)
-        end)
-    end
+    local _self = self
     self.pipe = pipe
+    self.connected = true
     pipe:read_until("\r\n\r\n",
                     thread.Thread._child_command_sent,
                     self)
+    if self.connect_ctx then
+        local ctx = self.connect_ctx
+        self.connect_ctx = nil
+        ctx:finalize_context()
+    end
 end
 
 --- Called when child thread is sending data over pipe.
-function thread.Thread:_child_data_sent(data)
+function thread.Thread:_data_sent(data)
     -- Continue listening for next command.
     self.pipe:read_until("\r\n\r\n",
                          thread.Thread._child_command_sent,
                          self)
-    if self.main_thread_data_cb then
-        local cb = self.main_thread_data_cb
-        local arg = self.main_thread_data_arg
-        self.main_thread_data_cb = nil
-        self.main_thread_data_arg = nil
-        if arg then
-            if self.ctx then
-                self.ctx:set_arguments(data)
-            end
-            cb(arg, data)
-        else
-            cb(data)
-        end
+    if self.data_ctx then
+        local ctx = self.data_ctx
+        self.data_ctx = nil
+        ctx:set_arguments({false, data})
+        ctx:finalize_context()
     else
         -- No one is waiting for data... Store recieved data until
         -- it can be consumed or discarded.
@@ -341,42 +319,26 @@ function thread.Thread:_child_command_sent(cmd)
     if cmd == "DATA" then
         self.pipe:read_until("\r\n\r\n", function(num_bytes)
             _self.pipe:read_bytes(tonumber(num_bytes),
-                                  thread.Thread._child_data_sent,
+                                  thread.Thread._data_sent,
                                   _self)
         end)
     elseif cmd == "STOP" then
-        if _self.args.exit_callback then
-            local cb = _self.args.exit_callback
-            local arg = _self.args.exit_callback_arg
-            _self.io_loop:add_callback(function()
-                if arg then
-                    cb(arg, _self)
-                else
-                    cb(_self)
-                end
-            end)
-            _self.pipe:close()
-            ffi.C.close(_self.server_sockfd)
-            self.running = false
-        end
+        _self.pipe:close()
+        ffi.C.close(_self.server_sockfd)
+        self.running = false
         -- Collect thread.
         ffi.C.wait(nil)
-    end
-end
-
---- Called when main thread is sending data over pipe.
-function thread.Thread:_main_data_sent(data)
-    local cb = self.child_thread_data_cb
-    local arg = self.child_thread_data_arg
-    self.child_thread_data_cb = nil
-    self.child_thread_data_arg = nil
-    if arg then
-        if self.ctx then
-            self.ctx:set_arguments(data)
+        if self.fin_ctx then
+            local ctx = self.fin_ctx
+            self.fin_ctx = nil
+            ctx:finalize_context()
         end
-        cb(arg, data)
-    else
-        cb(data)
+    elseif cmd == "ERRO" then
+        self.pipe:read_until("\r\n\r\n", function(num_bytes)
+            _self.pipe:read_bytes(tonumber(num_bytes),
+                                  thread.Thread._restore_coctx_with_error,
+                                  _self)
+        end)
     end
 end
 
@@ -387,7 +349,7 @@ function thread.Thread:_main_command_sent(cmd)
     if cmd == "DATA" then
         self.pipe:read_until("\r\n\r\n", function(num_bytes)
             _self.pipe:read_bytes(tonumber(num_bytes),
-                                  thread.Thread._main_data_sent,
+                                  thread.Thread._data_sent,
                                   _self)
         end)
     elseif cmd == "STOP" then
