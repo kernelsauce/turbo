@@ -95,10 +95,11 @@ iostream.IOStream = class('IOStream')
 -- @param max_buffer_size (Number) The maximum number of bytes that can be
 -- held in internal buffer before flushing must occur.
 -- If none is set, 104857600 are used as default.
-function iostream.IOStream:initialize(fd, io_loop, max_buffer_size)
-    self.socket = assert(fd, "argument #1, fd, is not a number.")
+function iostream.IOStream:initialize(fd, io_loop, max_buffer_size, args)
+    self.socket = assert(fd, "Fd is not a number.")
     self.io_loop = io_loop or ioloop.instance()
     self.max_buffer_size = max_buffer_size or 1024*1024*128
+    self.args = args or {}
     self._read_buffer = buffer(1024)
     self._read_buffer_size = 0
     self._read_buffer_offset = 0
@@ -111,7 +112,7 @@ function iostream.IOStream:initialize(fd, io_loop, max_buffer_size)
     self._connecting = false
     if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         local rc, msg = socket.set_nonblock_flag(self.socket)
-        if (rc == -1) then
+        if rc == -1 then
             error("[iostream.lua] " .. msg)
         end
     end
@@ -122,51 +123,62 @@ end
 -- @param port (Number)  The port to connect to. E.g 80.
 -- @param family (Number)  Socket family. Optional. Pass nil to guess.
 -- @param callback (Function)  Optional callback for "on successfull connect".
--- @param errhandler (Function) Optional callback for "on error".
+-- @param fail_callback (Function) Optional callback for "on error".
 -- @param arg Optional argument for callback.
--- @return (Number) -1 and error string on fail, 0 on success.
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     function iostream.IOStream:connect(address, port, family,
-        callback, errhandler, arg)
+        callback, fail_callback, arg)
         assert(type(address) == "string",
-            "argument #1, address, is not a string.")
+            "Address is not a string.")
         assert(type(port) == "number",
-            "argument #2, ports, is not a number.")
+            "Port is not a number.")
         assert((not family or type(family) == "number"),
-            "argument #3, family, is not a number or nil")
-        self._connect_fail_callback = errhandler
+            "Family is not a number or nil")
+        self._connect_fail_callback = fail_callback
         self._connecting = true
         self._connect_callback = callback
         self._connect_callback_arg = arg
-        local dns = iostream.DNSResolv()
-        local addr = dns:resolv(address, port, family)
+        local addr
+        local status, err = pcall(function()
+            local dns = iostream.DNSResolv(self.io_loop, self.args)
+            addr = dns:resolv(address, port, family)
+        end)
+        if not status then
+            self:_handle_connect_fail(err or "DNS resolv error")
+            return
+        end
         local ai, err = sockutils.connect_addrinfo(
                 self.socket, addr)
         if not ai then
-            error("Could not connect to remote server. " .. err or "")
+            self:_handle_connect_fail(
+                "Could not connect to remote server. " .. err or "")
+            return
         end
         self:_add_io_state(ioloop.WRITE)
-        return 0
+        return 0 -- Too avoid breaking backwards compability.
     end
 else
     function iostream.IOStream:connect(address, port, family,
-        callback, errhandler, arg)
-        local _, err = self.socket:connect(address, port)
-        if err ~= "Operation already in progress" and err ~= "timeout" then
-            log.error(string.format(
-                "[iostream.lua] Could not connect to %s:%d. %s",
-                address, port, err))
-            return -1, err
-        end
-
-        self.address = address
-        self.port = port
-        self._connecting = true
-        self._connect_fail_callback = errhandler
+        callback, fail_callback, arg)
+        assert(type(address) == "string",
+            "Address is not a string")
+        assert(type(port) == "number",
+            "Port is not a number")
+        assert((not family or type(family) == "number"),
+            "Family is not a number or nil")
+        self._connect_fail_callback = fail_callback
         self._connect_callback = callback
         self._connect_callback_arg = arg
+        self._connecting = true
+        local _, err = self.socket:connect(address, port)
+        if err ~= "Operation already in progress" and err ~= "timeout" then
+            self._handle_connect_fail(err)
+            return
+        end
+        self.address = address
+        self.port = port
         self:_add_io_state(ioloop.WRITE)
-        return 0
+        return 0  -- Too avoid breaking backwards compability.
     end
 end
 
@@ -197,7 +209,7 @@ end
 -- @param arg Optional argument for callback. If arg is given then it will
 -- be the first argument for the callback and the data will be the second.
 function iostream.IOStream:read_until_pattern(pattern, callback, arg)
-    assert(type(pattern) == "string", "argument #1, pattern, is not a string.")
+    assert(type(pattern) == "string", "Pattern, is not a string.")
     self._read_callback = callback
     self._read_callback_arg = arg
     self._read_pattern = pattern
@@ -457,6 +469,20 @@ function iostream.IOStream:_initial_read()
         end
     end
     self:_add_io_state(ioloop.READ)
+end
+
+function iostream.IOStream:_handle_connect_fail(err)
+    local cb = self._connect_fail_callback
+    local arg = self._connect_callback_arg
+    self._connect_fail_callback = nil
+    self._connect_callback = nil
+    self._connect_callback_arg = nil
+    self._connecting = false
+    if arg then
+        cb(arg, err)
+    else
+        cb(err)
+    end
 end
 
 --- Main event handler for the IOStream.
@@ -1134,7 +1160,7 @@ if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
     -- held in internal buffer before flushing must occur.
     -- If none is set, 104857600 are used as default.
     function iostream.SSLIOStream:initialize(fd, ssl_options, io_loop,
-        max_buffer_size)
+        max_buffer_size, args)
         self._ssl_options = ssl_options
         -- ssl_options should contain keys with values:
         -- "_ssl_ctx" = SSL_CTX pointer created with context functions in
@@ -1143,7 +1169,7 @@ if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
         -- is a server context, and 1 indicates a client context.
         -- Other keys may be stored in the table, but are simply ignored.
         self._ssl = nil
-        iostream.IOStream.initialize(self, fd, io_loop, max_buffer_size)
+        iostream.IOStream.initialize(self, fd, io_loop, max_buffer_size, args)
         self._ssl_accepting = true
         self._ssl_connect_callback = nil
         self._ssl_connect_callback_arg = arg
@@ -1551,7 +1577,6 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     function iostream.DNSResolv:initialize(io_loop, args)
         self.io_loop = io_loop or ioloop.instance()
         self.args = args or {}
-        self.args.timeout = self.args.timeout or 29
     end
 
     function iostream.DNSResolv:resolv(address, port, family)
@@ -1561,12 +1586,18 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
             return addr
         end
         -- Set max time for DNS to resolve.
-        self.com_port = "turbo-dns-"..tostring(math.random(0,2^1023))
+        self.com_port = "/tmp/turbo-dns-"..tostring(math.random(0,2^1023))
         self:_lookup_name(address, port, family)
         self.ctx = coctx.CoroutineContext(self.io_loop)
         local _self = self
         self._dns_timeout = self.io_loop:add_timeout(
-            util.gettimemonotonic() + (29*1000), function()
+            util.gettimemonotonic() + ((self.args.dns_timeout or
+                    30)*1000), function()
+                if _self.pid then
+                    ffi.C.kill(_self.pid, signal.SIGKILL)
+                    ffi.C.wait(nil)
+                    _self.pid = nil
+                end
                 ffi.C.close(_self.server_sockfd)
                 os.remove(_self.com_port)
                 _self.ctx:set_arguments("DNS resolv timeout.")
