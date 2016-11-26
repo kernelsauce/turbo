@@ -68,14 +68,7 @@ function thread.Thread:wait_for_data()
         -- Data is already available.
         local data = self._waiting_data
         self._waiting_data = nil
-        self.io_loop:add_callback(function()
-            -- Can not run callback directly. CoroutineContext not on
-            -- stack if async.task is used.
-            local ctx = self.data_ctx
-            self.data_ctx = nil
-            ctx:set_arguments({nil, data})
-            ctx:finalize_context()
-        end)
+        return data
     end
     local err, data = coroutine.yield(self.data_ctx)
     if err then
