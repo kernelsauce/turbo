@@ -109,16 +109,14 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     -- an error message on failure.
     -- @param sock A socket descriptor
     -- @param ai a struct addrinfo
-    function sockutils.connect_addrinfo(sock, ai)
-        local p = ffi.new("struct addrinfo *[1]")
+    function sockutils.connect_addrinfo(sock, p)
         local r = 0
         local errno = 0
-        p = ai
         while 1 do
             if p == nil then
                 return nil, "Could not connect"
             end
-            r = C.connect(sock, p[0].ai_addr, p[0].ai_addrlen)
+            r = C.connect(sock, p.ai_addr, p.ai_addrlen)
             if r ~= 0 then
                 errno = ffi.errno()
                 if errno == EINPROGRESS then
@@ -127,7 +125,6 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
             else
                 break
             end
-            p = p[0].ai_next
         end
         return p
     end
@@ -176,7 +173,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         end
         rc, msg = socket.set_nonblock_flag(fd)
         if rc ~= 0 then
-           error("[iostream.lua] " .. msg)
+           error("[tcpserver.lua] " .. msg)
         end
         rc, msg = socket.set_reuseaddr_opt(fd)
         if rc ~= 0 then
