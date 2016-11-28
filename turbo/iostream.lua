@@ -1586,7 +1586,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
             return addr
         end
         -- Set max time for DNS to resolve.
-        self.com_port = "/tmp/turbo-dns-"..tostring(math.random(0,2^1023))
+        self.com_port = "/tmp/turbo-dns-"..tostring(math.random(0,0xffffff))
         self:_lookup_name(address, port, family)
         self.ctx = coctx.CoroutineContext(self.io_loop)
         local _self = self
