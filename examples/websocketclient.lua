@@ -42,6 +42,7 @@ turbo.ioloop.instance():add_callback(function()
         on_close = function(self)
             -- I am called when connection is closed. Both gracefully and
             -- not gracefully.
+            os.exit(0)
         end,
         on_error = function(self, code, reason)
             -- I am called whenever there is a error with the WebSocket.

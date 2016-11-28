@@ -182,8 +182,10 @@ end
 --- Close the connection.
 function websocket.WebSocketStream:close()
     self._closed = true
-    self:_send_frame(true, websocket.opcode.CLOSE, "")
-    self.stream:close()
+    _self = self
+    self:_send_frame(true, websocket.opcode.CLOSE, "", function()
+        _self.stream:close()
+    end)
 end
 
 --- Is the WebSocketStream closed?
@@ -272,7 +274,8 @@ end
 if le then
     -- Multi-byte lengths must be sent in network byte order, aka
     -- big-endian. Ugh...
-    function websocket.WebSocketStream:_send_frame(finflag, opcode, data)
+    function websocket.WebSocketStream:_send_frame(finflag, opcode, data,
+        callback, callback_arg)
         if self.stream:closed() then
             return
         end
@@ -309,14 +312,12 @@ if le then
             ws_mask[2] = math.random(0x0, 0xff)
             ws_mask[3] = math.random(0x0, 0xff)
             self.stream:write(ffi.string(ws_mask, 4))
-            coroutine.yield (async.task(
-                self.stream.write, self.stream, _unmask_payload(ws_mask, data)))
+            self.stream:write(_unmask_payload(ws_mask, data), callback, callback_arg)
             return
         end
 
         -- Do not return until write is flushed to iostream :).
-        coroutine.yield (async.task(
-            self.stream.write, self.stream, data))
+        self.stream:write(data, callback, callback_arg)
     end
 elseif be then
     -- TODO: create websocket.WebSocketStream:_send_frame for BE.

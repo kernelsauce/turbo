@@ -305,20 +305,15 @@ function async.HTTPClient:_connect()
         self.iostream = iostream.IOStream(
             self.sock,
             self.io_loop,
-            self.max_buffer_size)
-        local rc, msg = self.iostream:connect(
+            self.max_buffer_size,
+            {dns_timeout = self.kwargs.connect_timeout-1})
+        self.iostream:connect(
             self.hostname,
             self.port,
             self.family,
             self._handle_connect,
             self._handle_connect_fail,
             self)
-        if rc ~= 0 then
-            -- If connect fails without blocking the hostname is most probably
-            -- not resolvable.
-            self:_throw_error(errors.COULD_NOT_CONNECT, msg)
-            return -1
-        end
     elseif self.schema == "https" then
         -- HTTPS connect.
         -- Create context if not already done.
@@ -348,8 +343,9 @@ function async.HTTPClient:_connect()
             self.sock,
             self.ssl_options,
             self.io_loop,
-            self.max_buffer_size)
-        local rc, msg = self.iostream:connect(
+            self.max_buffer_size,
+            {dns_timeout = self.kwargs.connect_timeout-1})
+        self.iostream:connect(
             self.hostname,
             self.port,
             self.family,
@@ -357,10 +353,6 @@ function async.HTTPClient:_connect()
             self._handle_connect,
             self._handle_connect_fail,
             self)
-        if rc ~= 0 then
-            self:_throw_error(errors.COULD_NOT_CONNECT, msg)
-            return -1
-        end
     elseif self.kwargs.allow_websocket_connect == true then
         -- Allow a user to use the client to connect with WebSocket schema.
         -- HTTPClient will not do the actual WebSocket upgrade protocol though.
@@ -368,7 +360,8 @@ function async.HTTPClient:_connect()
             self.iostream = iostream.IOStream(
                 self.sock,
                 self.io_loop,
-                self.max_buffer_size)
+                self.max_buffer_size,
+                {dns_timeout = self.kwargs.connect_timeout-1})
             local rc, msg = self.iostream:connect(self.hostname,
                 self.port,
                 self.family,
@@ -401,8 +394,9 @@ function async.HTTPClient:_connect()
                 self.sock,
                 self.ssl_options,
                 self.io_loop,
-                self.max_buffer_size)
-            local rc, msg = self.iostream:connect(
+                self.max_buffer_size,
+                {dns_timeout = self.kwargs.connect_timeout-1})
+            self.iostream:connect(
                 self.hostname,
                 self.port,
                 self.family,
@@ -410,10 +404,6 @@ function async.HTTPClient:_connect()
                 self._handle_connect,
                 self._handle_connect_fail,
                 self)
-            if rc ~= 0 then
-                self:_throw_error(errors.COULD_NOT_CONNECT, msg)
-                return -1
-            end
         end
     else
         -- Some other strange schema that not is HTTP or supported at all.
@@ -442,7 +432,11 @@ function async.HTTPClient:_handle_connect_timeout()
         self.kwargs.connect_timeout))
 end
 
-function async.HTTPClient:_handle_connect_fail(err, strerr)
+function async.HTTPClient:_handle_connect_fail(strerr)
+    if self.connect_timeout_ref then
+        self.io_loop:remove_timeout(self.connect_timeout_ref)
+        self.connect_timeout_ref = nil
+    end
     self:_throw_error(errors.COULD_NOT_CONNECT,
         "Could not connect: " .. strerr or "")
 end

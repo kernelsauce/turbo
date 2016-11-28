@@ -64,11 +64,11 @@ local turbo = {}  -- turbo main namespace.
 -- the micro version is set to zero. When there are backwards incompatible
 -- changes, the major version is incremented and others are set to zero.
 turbo.MAJOR_VERSION = 2
-turbo.MINOR_VERSION = 0
-turbo.MICRO_VERSION = 4
+turbo.MINOR_VERSION = 1
+turbo.MICRO_VERSION = 0
 -- A 3-byte hexadecimal representation of the version, e.g. 0x010201 for
 -- version 1.2.1 and 0x010300 for version 1.3.
-turbo.VERSION_HEX = 0x020004
+turbo.VERSION_HEX = 0x020005
 if turbo.MICRO_VERSION then
     turbo.VERSION = string.format("%d.%d.%d",
         turbo.MAJOR_VERSION,
@@ -119,6 +119,7 @@ if turbo.platform.__LINUX__ then
     turbo.fs =              require "turbo.fs"
     turbo.signal =          require "turbo.signal"
     turbo.syscall =         require "turbo.syscall"
+    turbo.thread =          require "turbo.thread"
 end
 turbo.structs =         {}
 turbo.structs.deque =   require "turbo.structs.deque"
