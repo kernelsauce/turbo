@@ -130,7 +130,7 @@ OpenSSL is required for SSL support. It is possible to run without this feature,
 
 License
 -------
-Copyright 2011 - 2015 John Abrahamsen
+Copyright 2011 - 2016 John Abrahamsen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -174,6 +174,7 @@ API documentation
    iostream
    ioloop
    async
+   thread
    escape
    turbovisor
    httputil
