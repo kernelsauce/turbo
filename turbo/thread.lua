@@ -28,8 +28,27 @@ local thread = {}
 
 thread.Thread = class("Thread")
 
+--- The Thread class is implemented with C fork, and allows the user to create 
+-- a seperate thread that runs independently of the main thread, but can
+-- communicate with each other over a AF_UNIX socket. Useful for long and heavy
+-- tasks that can not be yielded. Also useful for running shell commands etc.
+-- Usage:
+--     turbo.ioloop.instance():add_callback(function()
+--         local thread = turbo.thread.Thread(function(th)
+--             th:send("Hello World.")
+--             th:stop()
+--         end)
+--
+--         print(thread:wait_for_data())
+--         thread:wait_for_finish()
+--         turbo.ioloop.instance():close()
+--     end):start()
+-- All functions are yielded to the IOLoop internally.
+-- @param func Function to call when thread has been created. Function is called
+-- with the childs Thread object, which contains its own IOLoop
+-- e.g: "th.io_loop".
 function thread.Thread:initialize(func, args)
-    self.args = args or {}
+    --self.args = args or {}
     self.io_loop = io_loop or ioloop.instance()
     self.running = true
     self._child_func = func
@@ -57,11 +76,12 @@ function thread.Thread:stop()
 end
 
 --- Called by either main or child thread to send data to each other.
+-- @param data (String) String to be sent.
 function thread.Thread:send(data)
     self.pipe:write("DATA\r\n\r\n"..data:len().."\r\n\r\n"..data)
 end
 
---- Wait for data to become available from child thread.
+--- Wait for data to become available on communication socket.
 function thread.Thread:wait_for_data()
     self.data_ctx = coctx.CoroutineContext(self.io_loop)
     if self._waiting_data then
@@ -78,6 +98,7 @@ function thread.Thread:wait_for_data()
 end
 
 --- Wait for thread to stop running.
+-- Only callable from main thread.
 function thread.Thread:wait_for_finish()
     if not self.main_thread then
         error("Child thread can not wait for child thread.")
@@ -93,7 +114,8 @@ function thread.Thread:wait_for_finish()
 end
 
 --- Wait for thread pipe to be connected. Must be used by main thread
--- before attempting to send data to child. 
+-- before attempting to send data to child.
+-- Only callable from main thread.
 function thread.Thread:wait_for_pipe()
     if not self.main_thread then
         error(
@@ -107,6 +129,15 @@ function thread.Thread:wait_for_pipe()
     if err then
         error(err)
     end
+end
+
+--- Get PID of child.
+-- @return (Number) PID
+function thread.Thread:get_pid()
+    if not self.main_thread then
+        return tonumber(ffi.C.getpid())
+    end
+    return self.running_pid
 end
 
 function thread.Thread:_run_thread()
