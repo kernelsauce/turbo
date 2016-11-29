@@ -25,7 +25,7 @@ install:
 script:
   - if [[ $LUASOCKET == "yes" ]]; then export TURBO_USE_LUASOCKET=1; fi
   - lua -e "print(require'turbo'.VERSION)"
-  - make test
+  - valgrind make test
 
 notifications:
   email:
