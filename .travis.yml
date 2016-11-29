@@ -15,10 +15,10 @@ before_install:
 
 install:
   - luarocks install busted
-  - make install
+  - sudo make install
 
 script:
-  - lua -e "print(require'turbo'.VERSION"
+  - lua -e "print(require'turbo'.VERSION)"
   - make test
 
 notifications:
