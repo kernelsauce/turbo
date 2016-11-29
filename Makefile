@@ -191,7 +191,7 @@ package: all minimize
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="
-	export TURBO_TEST_SSL=1; busted
+	export TURBO_TEST_SSL=1; valgrind busted
 	luajit examples/helloworld.lua &
 	sleep 1
 	wget http://127.0.0.1:8888/
