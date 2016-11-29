@@ -1,7 +1,5 @@
 language: c
 
-sudo: false
-
 env:
   global:
     - LUAROCKS=2.3.0
