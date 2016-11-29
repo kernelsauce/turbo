@@ -8,19 +8,22 @@ env:
     - TURBO_LIBTFFI=./libtffi_wrap.so
   matrix:
     - LUA=luajit LUASOCKET=no    # latest stable version (2.0.4)
-    - LUA=luajit LUASOCKET=yes    # latest stable version (2.0.4)
+    - LUA=luajit LUASOCKET=yes    # latest stable version using luasocket (2.0.4)
     - LUA=luajit2.0  # current head of 2.0 branch
     - LUA=luajit2.1  # current head of 2.1 branch
-    - LUASOCKET=true
 
 before_install:
   - source .travis/setenv_lua.sh
 
 install:
   - luarocks install busted
+  - if [[ $LUASOCKET == "yes" ]]; then sudo -E luarocks install luasocket; fi
+  - if [[ $LUASOCKET == "yes" ]]; then sudo -E luarocks install luafilesystem; fi
+  - if [[ $LUASOCKET == "yes" ]]; then sudo -E luarocks install luasec OPENSSL_LIBDIR=/usr/lib/x86_64-linux-gnu OPENSSL_INCDIR=/usr/include; fi
   - make
 
 script:
+  - if [[ $LUASOCKET == "yes" ]]; then export TURBO_USE_LUASOCKET=1; fi
   - lua -e "print(require'turbo'.VERSION)"
   - make test
 
