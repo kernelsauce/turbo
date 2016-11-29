@@ -1,6 +1,5 @@
 language: c
 
-sudo: false
 
 env:
   global:
@@ -14,6 +13,7 @@ env:
 
 before_install:
   - source .travis/setenv_lua.sh
+  - sudo apt-get install valgrind
 
 install:
   - luarocks install busted
