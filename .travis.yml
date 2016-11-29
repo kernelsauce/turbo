@@ -1,13 +1,17 @@
 language: c
 
+sudo: false
+
 env:
   global:
     - LUAROCKS=2.3.0
     - TURBO_LIBTFFI=./libtffi_wrap.so
   matrix:
-    - LUA=luajit     # latest stable version (2.0.4)
+    - LUA=luajit LUASOCKET=no    # latest stable version (2.0.4)
+    - LUA=luajit LUASOCKET=yes    # latest stable version (2.0.4)
     - LUA=luajit2.0  # current head of 2.0 branch
     - LUA=luajit2.1  # current head of 2.1 branch
+    - LUASOCKET=true
 
 before_install:
   - source .travis/setenv_lua.sh
@@ -15,7 +19,6 @@ before_install:
 install:
   - luarocks install busted
   - make
-  - sudo make install
 
 script:
   - lua -e "print(require'turbo'.VERSION)"
