@@ -13,7 +13,8 @@ before_install:
 
 install:
   - luarocks install busted
-  - sudo make clean install
+  - make
+  - sudo make install
 
 script:
   - lua -e "print(require'turbo'.VERSION)"
