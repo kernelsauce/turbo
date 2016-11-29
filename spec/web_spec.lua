@@ -22,7 +22,6 @@ end
 
 local turbo = require "turbo"
 math.randomseed(turbo.util.gettimeofday())
-turbo.log.disable_all()
 
 describe("turbo.web Namespace", function()
 

@@ -1,39 +1,31 @@
-language: erlang
+language: c
+
 
 env:
   global:
-    - LUAROCKS_BASE=luarocks-2.0.12
+    - LUAROCKS=2.3.0
+    - TURBO_LIBTFFI=./libtffi_wrap.so
   matrix:
-    - LUA=luajit LUA_DEV=libluajit-5.1-dev LUA_VER=5.1 LUA_SFX=jit LUA_INCDIR=/usr/include/luajit-2.0 TURBO_TEST_SSL=1
-    #- USE_LUASOCKET=yes LUA=luajit LUA_DEV=libluajit-5.1-dev LUA_VER=5.1 LUA_SFX=jit LUA_INCDIR=/usr/include/luajit-2.0
+    - LUA=luajit LUASOCKET=no    # latest stable version (2.0.4)
+    - LUA=luajit LUASOCKET=yes    # latest stable version using luasocket (2.0.4)
+    - LUA=luajit2.0  # current head of 2.0 branch
+    - LUA=luajit2.1  # current head of 2.1 branch
 
 before_install:
-  - if [ $LUA = "luajit" ]; then
-      sudo add-apt-repository ppa:mwild1/ppa -y && sudo apt-get update -y;
-    fi
-  - sudo apt-get install $LUA
-  - sudo apt-get install $LUA_DEV
-  - sudo apt-get install libssl-dev
-  - lua$LUA_SFX -v
-  - wget http://luarocks.org/releases/$LUAROCKS_BASE.tar.gz
-  - tar zxvpf $LUAROCKS_BASE.tar.gz
-  - cd $LUAROCKS_BASE
-  - ./configure
-    --lua-version=$LUA_VER --lua-suffix=$LUA_SFX --with-lua-include="$LUA_INCDIR"
-  - sudo make
-  - sudo make install
-  - cd $TRAVIS_BUILD_DIR
+  - source .travis/setenv_lua.sh
+  - sudo apt-get install valgrind
 
 install:
-  - sudo -E luarocks install busted
-  - if [[ $USE_LUASOCKET == "yes" ]]; then sudo -E luarocks install luasocket; fi
-  - if [[ $USE_LUASOCKET == "yes" ]]; then sudo -E luarocks install luafilesystem; fi
-  - if [[ $USE_LUASOCKET == "yes" ]]; then sudo -E luarocks install luasec OPENSSL_LIBDIR=/usr/lib/x86_64-linux-gnu OPENSSL_INCDIR=/usr/include; fi
-  - sudo -E make install
+  - luarocks install busted
+  - if [[ $LUASOCKET == "yes" ]]; then luarocks install luasocket; fi
+  - if [[ $LUASOCKET == "yes" ]]; then luarocks install luafilesystem; fi
+  - if [[ $LUASOCKET == "yes" ]]; then luarocks install luasec OPENSSL_LIBDIR=/usr/lib/x86_64-linux-gnu OPENSSL_INCDIR=/usr/include; fi
+  - make
 
 script:
-  - if [[ $USE_LUASOCKET == "yes" ]]; then export TURBO_USE_LUASOCKET=1; fi
-  - make test
+  - if [[ $LUASOCKET == "yes" ]]; then export TURBO_USE_LUASOCKET=1; fi
+  - lua -e "print(require'turbo'.VERSION)"
+  - valgrind make test
 
 notifications:
   email:
