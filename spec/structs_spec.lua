@@ -42,7 +42,7 @@ describe("turbo.structs Namespace", function()
         it("should handle mixed append/prepend", function()
             local buf = turbo.structs.buffer()
             local cmp = ""
-            for i = 0, 10000 do
+            for i = 0, 300 do
                 local dice = math.random() * 10
                 if dice > 5 then
                     cmp = tostring(dice) .. cmp
@@ -98,7 +98,7 @@ describe("turbo.structs Namespace", function()
            assert.truthy(instanceOf(turbo.structs.deque, d))
         end)
 
-        local append_n_elements = 20000
+        local append_n_elements = 200
         local string1 = "Some string that should be appended"
         local string2 = "Another string that should be appended"
 
