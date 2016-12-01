@@ -69,7 +69,7 @@ function ioloop.instance(func)
         _G.io_loop_instance = iol 
     end
     if func then
-        iol:add_callback(func)
+        iol:add_callback(func, iol)
     end
     return iol
 end
