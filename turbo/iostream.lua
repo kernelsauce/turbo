@@ -1660,7 +1660,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         addrinfo.ai_canonname = nil
         addrinfo.ai_next = nil
         -- Return all to avoid losing reference and gc cleaning up the pointers.
-        return addrinfo, _sa_data, sockaddr
+        return addrinfo, sockaddr
     end
 
     function iostream.DNSResolv:_send_resolv_result(servport,
@@ -1816,7 +1816,8 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                     self.server_sockfd = nil
                     self.io_loop:remove_timeout(self._dns_timeout)
                     os.remove(self.com_port)
-                    local servinfo = _unpack_addrinfo(packed_servinfo)
+                    local servinfo, sockaddr =
+                        _unpack_addrinfo(packed_servinfo)
                     iostream._dns_cache[self.cache_id] = servinfo
                     _self.ctx:set_arguments({false, servinfo})
                     _self.ctx:finalize_context()
