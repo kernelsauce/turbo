@@ -43,6 +43,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     local EINPROGRESS = socket.EINPROGRESS
     local EWOULDBLOCK = socket.EWOULDBLOCK
     local EAGAIN =      socket.EAGAIN
+    local EAFNOSUPPORT = socket.EAFNOSUPPORT
     local INET_ADDRSTRLEN = 16
     local INET6_ADDRSTRLEN = 46
 
@@ -112,19 +113,16 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     function sockutils.connect_addrinfo(sock, p)
         local r = 0
         local errno = 0
-        while 1 do
-            if p == nil then
-                return nil, "Could not connect"
+        if p == nil then
+            return nil, "Could not connect"
+        end
+        r = C.connect(sock, p.ai_addr, p.ai_addrlen)
+        if r ~= 0 then
+            errno = ffi.errno()
+            if errno == EINPROGRESS then
+                return p
             end
-            r = C.connect(sock, p.ai_addr, p.ai_addrlen)
-            if r ~= 0 then
-                errno = ffi.errno()
-                if errno == EINPROGRESS then
-                    break
-                end
-            else
-                break
-            end
+            return nil, string.format("Could not connect. Errno %d: %s", errno, socket.strerror(errno) or "")
         end
         return p
     end

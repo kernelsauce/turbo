@@ -1819,6 +1819,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                     local servinfo, sockaddr =
                         _unpack_addrinfo(packed_servinfo)
                     iostream._dns_cache[self.cache_id] = servinfo
+                    getmetatable(iostream._dns_cache)[self.cache_id] = sockaddr
                     _self.ctx:set_arguments({false, servinfo})
                     _self.ctx:finalize_context()
                 end)
