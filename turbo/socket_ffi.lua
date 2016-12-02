@@ -286,6 +286,7 @@ if ffi.arch == "mipsel" then
 E = {
     EAGAIN =            11,
     EWOULDBLOCK =       11,
+    EAFNOSUPPORT =      124,
     EINPROGRESS =       150,
     ECONNRESET =        131,
     EPIPE =             32,
@@ -295,6 +296,7 @@ else
 E = {
     EAGAIN =            11,
     EWOULDBLOCK =       11,
+    EAFNOSUPPORT =      97,
     EINPROGRESS =       115,
     ECONNRESET =        104,
     EPIPE =             32,
