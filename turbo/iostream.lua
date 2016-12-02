@@ -1604,11 +1604,11 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                 _self.ctx:finalize_context()
             end
         )
-        local err, addr = coroutine.yield(self.ctx)
+        local err, servinfo, sockaddr = coroutine.yield(self.ctx)
         if err then
             error(err)
         end
-        return addr
+        return servinfo, sockaddr
     end
 
     function iostream.DNSResolv:clean()
@@ -1819,7 +1819,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                     local servinfo, sockaddr =
                         _unpack_addrinfo(packed_servinfo)
                     iostream._dns_cache[self.cache_id] = {servinfo, sockaddr}
-                    _self.ctx:set_arguments({false, servinfo})
+                    _self.ctx:set_arguments({false, servinfo, sockaddr})
                     _self.ctx:finalize_context()
                 end)
             end)
