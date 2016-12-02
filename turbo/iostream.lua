@@ -138,17 +138,17 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         self._connecting = true
         self._connect_callback = callback
         self._connect_callback_arg = arg
-        local addr
+        local servinfo, sockaddr
         local status, err = pcall(function()
             local dns = iostream.DNSResolv(self.io_loop, self.args)
-            addr = dns:resolv(address, port, family)
+            servinfo, sockaddr = dns:resolv(address, port, family)
         end)
         if not status then
             self:_handle_connect_fail(err or "DNS resolv error")
             return
         end
         local ai, err = sockutils.connect_addrinfo(
-                self.socket, addr)
+                self.socket, servinfo)
         if not ai then
             self:_handle_connect_fail(
                 "Could not connect to remote server. " .. err or "")
@@ -1583,7 +1583,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         self.cache_id = address..(port or "0")..(family or "0")
         local addr = iostream._dns_cache[self.cache_id]
         if addr then
-            return addr
+            return unpack(addr)
         end
         -- Set max time for DNS to resolve.
         self.com_port = "/tmp/turbo-dns-"..tostring(math.random(0,0xffffff))
@@ -1818,7 +1818,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                     os.remove(self.com_port)
                     local servinfo, sockaddr =
                         _unpack_addrinfo(packed_servinfo)
-                    iostream._dns_cache[self.cache_id] = servinfo
+                    iostream._dns_cache[self.cache_id] = {servinfo, sockaddr}
                     _self.ctx:set_arguments({false, servinfo})
                     _self.ctx:finalize_context()
                 end)
