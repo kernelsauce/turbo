@@ -182,7 +182,7 @@ end
 --- Close the connection.
 function websocket.WebSocketStream:close()
     self._closed = true
-    _self = self
+    local _self = self
     self:_send_frame(true, websocket.opcode.CLOSE, "", function()
         _self.stream:close()
     end)
