@@ -54,7 +54,7 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
     self._pending_sockets = {}
     self._started = false
     -- Validate SSL options if set.
-    if self.ssl_options and platform.__LINUX__ then
+    if self.ssl_options then
         if not type(ssl_options.cert_file) == "string" then
             error("ssl_options argument is set, but cert_file argument is \
                 missing or not a string.")
@@ -77,7 +77,7 @@ function tcpserver.TCPServer:initialize(io_loop, ssl_options, max_buffer_size)
         -- The ssl_create_context function will raise error and exit by its
         -- own, so there is no need to catch errors.
         local rc, ctx_or_err = crypto.ssl_create_server_context(
-            self.ssl_options.cert_file, self.ssl_options.key_file)
+            self.ssl_options.cert_file, self.ssl_options.key_file, self.ssl_options.ca_path)
         if rc ~= 0 then
             error(string.format("Could not create SSL context. %s",
                 ctx_or_err))
@@ -198,7 +198,7 @@ end
 -- @param connection (Number) Client socket fd.
 -- @param address (String) IP address of newly connected client.
 function tcpserver.TCPServer:_handle_connection(connection, address)
-    if self.ssl_options ~= nil and platform.__LINUX__ then
+    if self.ssl_options ~= nil then
         local stream = iostream.SSLIOStream(
             connection,
             self.ssl_options,
