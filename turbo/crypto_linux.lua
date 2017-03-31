@@ -152,12 +152,14 @@ end
 --- Create a server type SSL context.
 -- @param cert_file Certificate file (public key)
 -- @param prv_file Key file (private key)
+-- @param ca_cert_path (optional) Path to CA certificates, or the system
+-- wide in /etc/ssl/certs/ca-certificates.crt will be used.
 -- @param sslv (optional) SSL version to use.
 -- @return Return code. 0 if successfull, else a OpenSSL error
 -- code and a SSL
 -- error string, or -1 and a error string.
 -- @return Allocated SSL_CTX *. Must not be freed. It is garbage collected.
-function crypto.ssl_create_server_context(cert_file, prv_file, sslv)
+function crypto.ssl_create_server_context(cert_file, prv_file, ca_cert_path, sslv)
     local meth
     local ctx
     local err = 0
@@ -235,7 +237,7 @@ function crypto.ssl_do_handshake(SSLIOStream)
     local ssl = SSLIOStream._ssl
     local client = SSLIOStream._ssl_options._type == 1
 
-    -- This method might be called multiple times if we receive
+    -- This method might be called multiple times if we recieved
     -- EINPROGRESS or equaivalent on prior calls. The OpenSSL
     -- documentation states that SSL_do_handshake should be called again
     -- when its needs are satisfied.
