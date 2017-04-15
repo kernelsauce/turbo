@@ -590,11 +590,24 @@ end
 -- @param chunk (String) Final data to write to stream before finishing.
 function web.RequestHandler:finish(chunk)
     if self._finished then
-        error("finish() called twice. Something terrible has happened")
+        error("finish() called twice. You can not finish a already finished request.")
     end
     self._finished = true
     if chunk then
         self:write(chunk)
+    end
+    if _G.TURBO_SSL and not self._headers_written and 
+        self._write_buffer:len() ~= 0 then
+        -- Calculate ETAG...
+        local digest = hash.SHA1(tostring(self._write_buffer))
+        local hexdigest = digest:hex()
+        self:add_header("Etag", hexdigest)
+        local match = self.request.headers:get("If-None-Match")
+        if type(match) == "string" and hexdigest == match then
+            -- Requesters cache is consistent.
+            self._write_buffer:clear()
+            self:set_status(304)
+        end
     end
     self:flush() -- Make sure everything in buffers are flushed to IOStream.
     if self.chunked then
