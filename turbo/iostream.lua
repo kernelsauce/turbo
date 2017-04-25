@@ -1500,6 +1500,8 @@ elseif _G.TURBO_SSL then
             end
         elseif err == "wantread" then
             self:_add_io_state(ioloop.READ)
+        else
+            self:close()
         end
     end
 
