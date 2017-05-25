@@ -610,6 +610,9 @@ if _G.TURBO_SSL then
             SSL_CTX *ctx,
             const char *file,
             int type);
+        int SSL_CTX_use_certificate_chain_file(
+            SSL_CTX *ctx, 
+            const char *file);
         int SSL_CTX_load_verify_locations(
             SSL_CTX *ctx,
             const char *CAfile,

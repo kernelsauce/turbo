@@ -189,6 +189,11 @@ function crypto.ssl_create_server_context(cert_file, prv_file, ca_cert_path, ssl
         lssl.ERR_clear_error()
         return err, crypto.ERR_error_string(err)
     end
+    if lssl.SSL_CTX_use_certificate_chain_file(ctx, cert_file) <= 0 then
+        err = lssl.ERR_peek_error()
+        lssl.ERR_clear_error()
+        return err, crypto.ERR_error_string(err)
+    end
     if lssl.SSL_CTX_use_PrivateKey_file(ctx, prv_file,
         crypto.SSL_FILETYPE_PEM) <= 0 then
         err = lssl.ERR_peek_error()
