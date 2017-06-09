@@ -151,7 +151,7 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
                 self.socket, servinfo)
         if not ai then
             self:_handle_connect_fail(
-                "Could not connect to remote server. " .. err or "")
+                "Could not connect to remote server. " .. (err or ""))
             return
         end
         self:_add_io_state(ioloop.WRITE)
