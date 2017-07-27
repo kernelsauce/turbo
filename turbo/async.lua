@@ -438,7 +438,7 @@ function async.HTTPClient:_handle_connect_fail(strerr)
         self.connect_timeout_ref = nil
     end
     self:_throw_error(errors.COULD_NOT_CONNECT,
-        "Could not connect: " .. strerr or "")
+        "Could not connect: " .. (strerr or ""))
 end
 
 function async.HTTPClient:_prepare_http_request()
