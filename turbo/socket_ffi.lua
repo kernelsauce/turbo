@@ -16,6 +16,7 @@
 
 local log = require "turbo.log"
 local util = require "turbo.util"
+local bit = jit and require "bit" or require "bit32"
 local ffi = require "ffi"
 local platform = require "turbo.platform"
 require "turbo.cdef"
