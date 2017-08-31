@@ -206,6 +206,18 @@ end
                 uint64_t ssi_addr;
                 unsigned char __pad[48];
             };
+            union sigval {
+                int     sival_int;
+                void   *sival_ptr;
+            };
+            struct sigevent {
+                int          sigev_notify;
+                int          sigev_signo;
+                union sigval sigev_value;
+                void         (*sigev_notify_function) (union sigval);
+                void         *sigev_notify_attributes;
+                pid_t        sigev_notify_thread_id;
+           };
         ]]
     end
     ffi.cdef(string.format([[
@@ -216,18 +228,6 @@ end
             unsigned long int __val[%d];
         } __sigset_t;
         typedef __sigset_t sigset_t;
-        union sigval {
-            int     sival_int;
-            void   *sival_ptr;
-        };
-        struct sigevent {
-            int          sigev_notify;
-            int          sigev_signo;
-            union sigval sigev_value;
-            void         (*sigev_notify_function) (union sigval);
-            void         *sigev_notify_attributes;
-            pid_t        sigev_notify_thread_id;
-        };
         int sigemptyset(sigset_t *set);
         int sigfillset(sigset_t *set);
         int sigaddset(sigset_t *set, int signum);
@@ -235,7 +235,7 @@ end
         int sigismember(const sigset_t *set, int signum);
         int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
         int signalfd(int fd, const sigset_t *mask, int flags);
-        ]], (1024 / (8 *ffi.sizeof("unsigned long")))))
+    ]], (1024 / (8 *ffi.sizeof("unsigned long")))))
 
 
     --- ******* Time *******
