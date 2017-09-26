@@ -2095,7 +2095,7 @@ http_parser_parse_url(
       case s_req_server_with_at:
         found_at = 1;
 
-      /* FALLTROUGH */
+      /* FALLTHROUGH */
       case s_req_server:
         uf = UF_HOST;
         break;
