@@ -368,10 +368,6 @@ function async.HTTPClient:_connect()
                 self._handle_connect,
                 self._handle_connect_fail,
                 self)
-            if rc ~= 0 then
-                self:_throw_error(errors.COULD_NOT_CONNECT, msg)
-                return -1
-            end
         elseif self.schema == "wss" then
             if not self.ssl_options or not self.ssl_options._ssl_ctx then
                 self.ssl_options = self.ssl_options or {}
