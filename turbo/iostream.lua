@@ -478,11 +478,7 @@ function iostream.IOStream:_handle_connect_fail(err)
     self._connect_callback = nil
     self._connect_callback_arg = nil
     self._connecting = false
-    if arg then
-        cb(arg, err)
-    else
-        cb(err)
-    end
+    self:_run_callback(cb, arg, err)
 end
 
 --- Main event handler for the IOStream.
