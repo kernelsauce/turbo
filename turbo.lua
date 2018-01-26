@@ -17,7 +17,7 @@
 -- is that it is the fastest, most scalable and has the smallest footprint of
 -- them all. This is thanks to the excellent work done on LuaJIT.
 --
--- Please visist http://turbolua.org to report issues or ask questions.
+-- Please visist https://github.com/kernelsauce/turbo to report issues or ask questions.
 --
 --
 -- Main features and design principles:
