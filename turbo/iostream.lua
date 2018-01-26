@@ -644,6 +644,9 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
             errno = ffi.errno()
             if errno == EWOULDBLOCK or errno == EAGAIN then
                 return
+            elseif errno == ECONNRESET then
+                self:close()
+                return nil
             else
                 local fd = self.socket
                 self:close()
