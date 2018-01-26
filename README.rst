@@ -1,5 +1,5 @@
 .. image:: https://raw.github.com/kernelsauce/turbo/master/doc/design/turbo.png
-   :target: https://turbo.readthedocks.io
+   :target: https://turbo.readthedocs.io
 
 Turbo is a framework built for LuaJIT 2 to simplify the task of building fast and scalable network applications. It uses a event-driven, non-blocking, no thread design to deliver excellent performance and minimal footprint to high-load applications while also providing excellent support for embedded uses. The toolkit can be used for HTTP REST API's, traditional dynamic web pages through templating, open connections like WebSockets, or just as high level building blocks for native speed network applications.
 
@@ -9,7 +9,7 @@ Keep in mind that running this with LuaJIT provides you with roughly the speed o
 
 LuaJIT 2 is REQUIRED, PUC-RIO Lua is unsupported.
 
-API Documentation is available at https://turbo.readthedocks.io, or it can be built from source with ``make html`` from /doc in the source tree.
+API Documentation is available at https://turbo.readthedocs.io, or it can be built from source with ``make html`` from /doc in the source tree.
 
 It's main features and design principles are:
 
