@@ -26,6 +26,9 @@ local crypto = {} -- crypto namespace
 local lssl = ffi.load(os.getenv("TURBO_LIBSSL") or "ssl")
 local libtffi = util.load_libtffi()
 
+local EWOULDBLOCK, EINPROGRESS =
+   socket.EWOULDBLOCK, socket.EINPROGRESS
+
 crypto.X509_FILETYPE_PEM =          1
 crypto.X509_FILETYPE_ASN1 =         2
 crypto.X509_FILETYPE_DEFAULT =      3
