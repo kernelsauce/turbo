@@ -26,8 +26,8 @@ local crypto = {} -- crypto namespace
 local lssl = ffi.load(os.getenv("TURBO_LIBSSL") or "ssl")
 local libtffi = util.load_libtffi()
 
-local EWOULDBLOCK, EINPROGRESS =
-   socket.EWOULDBLOCK, socket.EINPROGRESS
+local EWOULDBLOCK, EINPROGRESS, ECONNRESET =
+   socket.EWOULDBLOCK, socket.EINPROGRESS, socket.ECONNRESET
 
 crypto.X509_FILETYPE_PEM =          1
 crypto.X509_FILETYPE_ASN1 =         2
@@ -272,6 +272,9 @@ function crypto.ssl_do_handshake(SSLIOStream)
             -- Error on socket.
             errno = ffi.errno()
             if errno == EWOULDBLOCK or errno == EINPROGRESS then
+                return false
+            elseif errno == ECONNRESET then
+                SSLIOStream:close()
                 return false
             elseif errno ~= 0 then
                 local fd = SSLIOStream.socket
