@@ -323,8 +323,8 @@ function async.HTTPClient:_connect()
             -- recreating new SSL contexts for every fetch.
             self.ssl_options = self.ssl_options or {}
             local rc, ctx_or_err = crypto.ssl_create_client_context(
-                self.ssl_options.priv_key,
-                self.ssl_options.cert_key,
+                self.ssl_options.cert_file,
+                self.ssl_options.priv_file,
                 self.ssl_options.ca_path,
                 self.ssl_options.verify_ca)
             if rc ~= 0 then
@@ -373,8 +373,8 @@ function async.HTTPClient:_connect()
                 self.ssl_options = self.ssl_options or {}
                 crypto.ssl_init()
                 local rc, ctx_or_err = crypto.ssl_create_client_context(
-                    self.ssl_options.priv_key,
-                    self.ssl_options.cert_key,
+                    self.ssl_options.cert_file,
+                    self.ssl_options.priv_file,
                     self.ssl_options.ca_path,
                     self.ssl_options.verify_ca)
                 if rc ~= 0 then
@@ -597,7 +597,7 @@ function async.HTTPClient:_handle_headers(data)
             self.iostream:read_until("\r\n", self._handle_chunked_encoding,
                 self)
         else
-        -- No content length or chunked, no body present.
+            -- No content length or chunked, no body present.
             self:_finalize_request()
         end
         return
