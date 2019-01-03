@@ -43,7 +43,7 @@ function util.strsplit(str, sep, max, pattern)
     if str:len() > 0 then
         local plain = not pattern
         max = max or -1
-        local field=1 start=1
+        local field, start = 1, 1
         local first, last = str:find(sep, start, plain)
         while first and max ~= 0 do
             record[field] = str:sub(start, first-1)
