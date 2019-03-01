@@ -610,13 +610,13 @@ function iostream.IOStream:_handle_read()
         if self:_read_to_buffer() == 0 then
             break
         end
+        -- Give a chance to run scheduled callback before we read all data.
+        if self:_read_from_buffer() == true then
+            break
+        end
     end
     self._pending_callbacks = self._pending_callbacks - 1
-    if self:_read_from_buffer() == true then
-        return
-    else
-        self:_maybe_run_close_callback()
-    end
+    self:_maybe_run_close_callback()
 end
 
 --- Reads from the socket. Return the data chunk or nil if theres nothing to
