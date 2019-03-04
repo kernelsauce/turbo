@@ -434,9 +434,9 @@ else
             "LuaSocket only support SOCK_DGRAM and SOCK_STREAM.")
         local sock
         if stype == SOCK.SOCK_DGRAM then
-            sock = socket.udp()
+            sock = luasocket.udp()
         elseif stype == SOCK.SOCK_STREAM then
-            sock = socket.tcp()
+            sock = luasocket.tcp()
         end
         sock:settimeout(0)
         sock:setoption("keepalive", true)
