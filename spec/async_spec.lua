@@ -92,13 +92,6 @@ describe("turbo.async Namespace", function()
             assert.falsy(res.error)
             assert(res.code == 200)
 
-
-            local res = coroutine.yield(
-                turbo.async.HTTPClient():fetch("https://microsoft.com/", {allow_redirects=true}))
-            assert.falsy(res.error)
-            assert(res.code == 200)
-
-
             local res = coroutine.yield(
                 turbo.async.HTTPClient():fetch("https://amazon.com/", {allow_redirects=true}))
             assert.falsy(res.error)
