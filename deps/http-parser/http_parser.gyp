@@ -2,8 +2,8 @@
 # http://code.google.com/p/gyp/
 # To build try this:
 #   svn co http://gyp.googlecode.com/svn/trunk gyp
-#   ./gyp/gyp -f make --depth=`pwd` http_parser.gyp
-#   ./out/Debug/test
+#   ./gyp/gyp -f make --depth=`pwd` http_parser.gyp 
+#   ./out/Debug/test 
 {
   'target_defaults': {
     'default_configuration': 'Debug',
