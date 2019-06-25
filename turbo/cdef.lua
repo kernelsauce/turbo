@@ -559,6 +559,43 @@ if platform.__LINUX__ then
     ]]
 end
 
+if platform.__DARWIN__ then
+    if not S then
+        ffi.cdef[[
+            struct stat {
+                unsigned int       st_dev;
+                unsigned short     st_mode;
+                unsigned short     st_nlink;
+                unsigned long long st_ino;
+                unsigned int       st_uid;
+                unsigned int       st_gid;
+                unsigned int       st_rdev;
+                unsigned int       __pad0;
+                long               st_atime;
+                long               st_atime_nsec;
+                long               st_mtime;
+                long               st_mtime_nsec;
+                long               st_ctime;
+                long               st_ctime_nsec;
+                long               st_birthtime;
+                long               st_birthtime_nsec;
+                long long          st_size;
+                long long          st_blocks;
+                int                st_blksize;
+                unsigned int       st_flags;
+                unsigned int       st_gen;
+                int                st_lspare;
+                long long          st_qspare[2];
+            };
+        ]]
+    end
+
+    --- ******* File system *******
+    ffi.cdef[[
+        int syscall(int number, ...);
+        int fstat(int fd, struct stat *buf);
+    ]]
+end
 
 if _G.TURBO_SSL then
     --- *******OpenSSL *******
@@ -611,7 +648,7 @@ if _G.TURBO_SSL then
             const char *file,
             int type);
         int SSL_CTX_use_certificate_chain_file(
-            SSL_CTX *ctx, 
+            SSL_CTX *ctx,
             const char *file);
         int SSL_CTX_load_verify_locations(
             SSL_CTX *ctx,

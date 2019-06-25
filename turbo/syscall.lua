@@ -16,6 +16,7 @@
 -- modes
 
 local ffi = require "ffi"
+local platform = require "turbo.platform"
 local util = require "turbo.util"
 local tm = util.tablemerge
 local octal = function (s) return tonumber(s, 8) end
@@ -51,7 +52,13 @@ local flags = {
 
 local cmds
 --- ******* syscalls *******
-if ffi.arch == "x86" then
+if platform.__DARWIN__ then
+    cmds = {
+        SYS_stat             = 338,
+        SYS_fstat            = 339,
+        SYS_lstat            = 340
+    }
+elseif ffi.arch == "x86" then
     cmds = {
         SYS_stat             = 106,
         SYS_fstat            = 108,
