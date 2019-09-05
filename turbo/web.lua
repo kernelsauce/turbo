@@ -483,7 +483,7 @@ function web.RequestHandler:write(chunk)
     elseif t == "string" and chunk:len() == 0 then
         return
     elseif t == "table" then
-        self:add_header("Content-Type", "application/json; charset=UTF-8")
+        self:set_header("Content-Type", "application/json; charset=UTF-8")
         chunk = escape.json_encode(chunk)
     elseif t ~= "string" and t ~= "table" then
         error("Unsupported type written as response; "..t)
