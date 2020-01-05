@@ -197,6 +197,7 @@ function iostream.IOStream:read_until(delimiter, callback, arg)
     self._read_callback = callback
     self._read_callback_arg = arg
     self._read_scan_offset = 0
+    self._raw_buffer = false
     self:_initial_read()
 end
 
@@ -214,6 +215,7 @@ function iostream.IOStream:read_until_pattern(pattern, callback, arg)
     self._read_callback_arg = arg
     self._read_pattern = pattern
     self._read_scan_offset = 0
+    self._raw_buffer = false
     self:_initial_read()
 end
 
@@ -240,8 +242,24 @@ function iostream.IOStream:read_bytes(num_bytes, callback, arg,
     self._read_callback_arg = arg
     self._streaming_callback = streaming_callback
     self._streaming_callback_arg = streaming_arg
+    self._raw_buffer = false
     self:_initial_read()
 end
+
+function iostream.IOStream:read_bytes_raw_buffer(num_bytes, callback, arg,
+    streaming_callback, streaming_arg)
+    assert((not self._read_callback), "Already reading.")
+    assert(type(num_bytes) == 'number',
+        'argument #1, num_bytes, is not a number')
+    self._read_bytes = num_bytes
+    self._read_callback = callback
+    self._read_callback_arg = arg
+    self._streaming_callback = streaming_callback
+    self._streaming_callback_arg = streaming_arg
+    self._raw_buffer = true
+    self:_initial_read()
+end
+
 
 
 --- Reads all data from the socket until it is closed.
@@ -272,6 +290,7 @@ function iostream.IOStream:read_until_close(callback, arg, streaming_callback,
     self._read_callback_arg = arg
     self._streaming_callback = streaming_callback
     self._streaming_callback_arg = streaming_arg
+    self._raw_buffer = false
     self:_add_io_state(ioloop.READ)
 end
 
@@ -760,17 +779,17 @@ function iostream.IOStream:_read_from_buffer()
     -- Handle streaming callbacks first.
     if self._streaming_callback ~= nil and self._read_buffer_size ~= 0 then
         local bytes_to_consume = self._read_buffer_size
+        local success
         if self._read_bytes ~= nil then
             bytes_to_consume = min(self._read_bytes, bytes_to_consume)
             self._read_bytes = self._read_bytes - bytes_to_consume
-            self:_run_callback(self._streaming_callback,
-                self._streaming_callback_arg,
-                self:_consume(bytes_to_consume))
+            success = xpcall(self._streaming_callback, _run_callback_error_handler,
+                self._streaming_callback_arg, self:_consume(bytes_to_consume))
         else
-            self:_run_callback(self._streaming_callback,
-                self._streaming_callback_arg,
-                self:_consume(bytes_to_consume))
+            success = xpcall(self._streaming_callback, _run_callback_error_handler,
+                self._streaming_callback_arg, self:_consume(bytes_to_consume))
         end
+        if not success then self:close() end
     end
     -- Handle read_bytes.
     if self._read_bytes ~= nil and
@@ -784,6 +803,7 @@ function iostream.IOStream:_read_from_buffer()
         self._streaming_callback_arg = nil
         self._read_bytes = nil
         self:_run_callback(callback, arg, self:_consume(num_bytes))
+        self._raw_buffer = nil
         return true
     -- Handle read_until.
     elseif self._read_delimiter ~= nil then
@@ -815,6 +835,7 @@ function iostream.IOStream:_read_from_buffer()
                 else
                     self:_run_callback(callback, self:_consume(delimiter_end))
                 end
+                self._raw_buffer = nil
                 return true
             end
             self._read_scan_offset = sz
@@ -841,6 +862,7 @@ function iostream.IOStream:_read_from_buffer()
                 self:_run_callback(callback, arg, self:_consume(
                     s_end + self._read_scan_offset))
                 self._read_scan_offset = s_end
+                self._raw_buffer = nil
                 return true
             end
             self._read_scan_offset = sz
@@ -1026,11 +1048,20 @@ end
 
 function iostream.IOStream:_consume(loc)
     if loc == 0 then
-        return ""
+        if self._raw_buffer then
+            return {ptr=ffi.cast("char*", ""), len=0}
+        else
+            return ""
+        end
     end
     self._read_buffer_size = self._read_buffer_size - loc
     local ptr, sz = self._read_buffer:get()
-    local chunk = ffi.string(ptr + self._read_buffer_offset, loc)
+    local chunk
+    if self._raw_buffer then
+        chunk = {ptr = ptr + self._read_buffer_offset, len=loc}
+    else
+        chunk = ffi.string(ptr + self._read_buffer_offset, loc)
+    end
     self._read_buffer_offset = self._read_buffer_offset + loc
     if self._read_buffer_offset == sz then
         -- Buffer reached end. Reset offset and size.
