@@ -32,7 +32,7 @@ F.F_GETFL =             3
 F.F_SETFL =             4
 
 local O = {}
-if ffi.arch == "mipsel" then
+if ffi.arch == "mipsel" or ffi.arch == "mips" then
 	O.O_ACCMODE =           octal("0003")
 	O.O_RDONLY =            octal("00")
 	O.O_WRONLY =            octal("01")
@@ -65,7 +65,7 @@ else
 end
 
 local SOCK = {}
-if ffi.arch == "mipsel" then
+if ffi.arch == "mipsel" or ffi.arch == "mips" then
 	SOCK.SOCK_STREAM =      2
 	SOCK.SOCK_DGRAM =       1
 	SOCK.SOCK_RAW =         3
@@ -179,14 +179,14 @@ AF.AF_NFC =             PF.PF_NFC
 AF.AF_MAX =             PF.PF_MAX
 
 local SOL = {}
-if ffi.arch == "mipsel" then
+if ffi.arch == "mipsel" or ffi.arch == "mips" then
 SOL.SOL_SOCKET =        octal("177777")	-- 0xFFFF
 else
 SOL.SOL_SOCKET =        1
 end
 
 local SO = {}
-if ffi.arch == "mipsel" then
+if ffi.arch == "mipsel" or ffi.arch == "mips" then
 SO.SO_DEBUG =           1
 SO.SO_REUSEADDR =       4
 SO.SO_TYPE =            hex("1008")
@@ -283,7 +283,7 @@ SO.SO_NOFCS =           43
 end
 
 local E
-if ffi.arch == "mipsel" then
+if ffi.arch == "mipsel" or ffi.arch == "mips" then
 E = {
     EAGAIN =            11,
     EWOULDBLOCK =       11,
