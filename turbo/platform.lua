@@ -39,5 +39,5 @@ return {
     __PPC__ = ffi.arch == "ppc",
     __PPC64__ = ffi.arch == "ppc64le",
     __ARM__ = ffi.arch == "arm",
-    __MIPSEL__ = ffi.arch == "mipsel",
+    __MIPSEL__ = ffi.arch == "mipsel" or ffi.arch == "mips",
 }

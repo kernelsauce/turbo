@@ -24,7 +24,7 @@ local ffi = require "ffi"
 require "turbo.cdef"
 local platform = require "turbo.platform"
 
-if ffi.arch == "mipsel" then
+if ffi.arch == "mipsel" or ffi.arch == "mips" then
 return {
 	signal = ffi.C.signal
     -- For sigprocmask(2)
