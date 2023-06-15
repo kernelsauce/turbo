@@ -136,8 +136,8 @@ function httputil.HTTPParser:parse_url(url)
     if htpurl == nil then
         error("Could not allocate memory")
     end
-    ffi.gc(htpurl, ffi.C.free)
     self.http_parser_url = ffi.cast("struct http_parser_url *", htpurl)
+    ffi.gc(self.http_parser_url, ffi.C.free)
     local rc = libturbo_parser.http_parser_parse_url(
         url,
         url:len(),
