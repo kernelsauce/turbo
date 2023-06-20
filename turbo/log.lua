@@ -89,7 +89,7 @@ if platform.__UNIX__ then
     end
 else
     function log.success(str)
-        if log.categories.warning == false then
+        if log.categories.success == false then
             return
         end
         io.stdout:write(
@@ -123,7 +123,7 @@ if platform.__UNIX__ then
     end
 else
     function log.notice(str)
-        if log.categories.warning == false then
+        if log.categories.notice == false then
             return
         end
         io.stdout:write(
@@ -195,7 +195,7 @@ if platform.__UNIX__ then
     end
 else
     function log.error(str)
-        if log.categories.warning == false then
+        if log.categories.error == false then
             return
         end
         io.stdout:write(
@@ -229,7 +229,7 @@ if platform.__UNIX__ then
     end
 else
     function log.debug(str)
-        if log.categories.warning == false then
+        if log.categories.debug == false then
             return
         end
         io.stdout:write(
@@ -263,7 +263,7 @@ if platform.__UNIX__ then
     end
 else
     function log.devel(str)
-        if log.categories.warning == false then
+        if log.categories.development == false then
             return
         end
         io.stdout:write(
