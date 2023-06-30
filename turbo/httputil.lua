@@ -61,6 +61,10 @@ local method_map = {
     "PROPPATCH",
     "SEARCH",
     "UNLOCK",
+    "BIND",
+    "REBIND",
+    "UNBIND",
+    "ACL",
     "REPORT",
     "MKACTIVITY",
     "CHECKOUT",
@@ -70,8 +74,13 @@ local method_map = {
     "SUBSCRIBE",
     "UNSUBSCRIBE",
     "PATCH",
-    "PURGE"
+    "PURGE",
+    "MKCALENDAR",
+    "LINK",
+    "UNLINK",
+    "SOURCE"
 }
+
 
 local function MAX(a,b) return a > b and a or b end
 
@@ -195,6 +204,9 @@ end
 function httputil.HTTPParser:get_method()
     if not self.tpw then
         error("No header has been parsed. Can not return method.")
+    end
+    if self.tpw.parser.method > #method_map then
+        error("Unknown method. Can not return method.")
     end
     return method_map[self.tpw.parser.method]
 end
