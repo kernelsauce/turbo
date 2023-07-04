@@ -122,7 +122,7 @@ elseif ffi.arch == "arm" then
         SYS_clock_getres     = 264,
         SYS_clock_nanosleep  = 265
     }
-elseif ffi.arch == "mipsel" then
+elseif ffi.arch == "mipsel" or ffi.arch == "mips" then
     cmds = {
         SYS_stat             = 4106,
         SYS_fstat            = 4108,
