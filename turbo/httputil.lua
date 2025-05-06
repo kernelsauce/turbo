@@ -465,6 +465,47 @@ local function getRFC822Atom(str,pos)
 end
 
 --- Parse multipart form data.
+
+local function parse_multipart_headers(boundary_headers)
+    local argument = {}
+
+    for fname, fvalue, content_kvs in
+        boundary_headers:gmatch("([^%c%s:]+):%s*([^\r\n;]*);?([^\n\r]*)") do
+        fname = fname:lower()
+        if fvalue == "form-data" and fname=="content-disposition" then
+            argument[fname] = {}
+            local p = 1
+            repeat
+                p, key = getRFC822Atom(content_kvs,p)
+                if p == nil then break end
+                if content_kvs:byte(p+1) ~= string.byte('=') then
+                    break
+                end
+                p=p+2
+                local _, p2, val = content_kvs:find('^"([^"]+)"',p)
+                if not p2 then
+                    p2, val = getRFC822Atom(content_kvs,p)
+                    if not p2 then break end
+                end
+                p = p2+1
+                if key=="name" then
+                    name=val
+                end
+                argument[fname][key] = val
+            until false
+        else
+            if fname=="content-type" then
+                fvalue = fvalue:lower()
+            elseif fname=="charset" or
+                fname=="content-transfer-encoding" then
+                fvalue = fvalue:lower()
+            end
+            argument[fname] = fvalue
+        end
+    end
+    return argument, name
+end
+
 function httputil.parse_multipart_data(data, boundary)
     local arguments = {}
     local p1, p2, b1, b2
@@ -499,42 +540,7 @@ function httputil.parse_multipart_data(data, boundary)
                 goto next_boundary
             end
             do
-                local name, ctype
-                local argument = { }
-                for fname, fvalue, content_kvs in
-                   boundary_headers:gmatch("([^%c%s:]+):%s*([^\r\n;]*);?([^\n\r]*)") do
-                    if fvalue == "form-data" and fname=="content-disposition" then
-                        argument[fname] = {}
-                        local p = 1
-                        repeat
-                            p, key = getRFC822Atom(content_kvs,p)
-                            if p == nil then break end
-                            if content_kvs:byte(p+1) ~= string.byte('=') then
-                                break
-                            end
-                            p=p+2
-                            local _, p2, val = content_kvs:find('^"([^"]+)"',p)
-                            if not p2 then
-                                p2, val = getRFC822Atom(content_kvs,p)
-                                if not p2 then break end
-                            end
-                            p = p2+1
-                            if key=="name" then
-                                name=val
-                            end
-                            argument[fname][key] = val
-                        until false
-                    else
-                        if fname=="content-type" then
-                            ctype = fvalue
-                            fvalue = fvalue:lower()
-                        elseif fname=="charset" or
-                                fname=="content-transfer-encoding" then
-                            fvalue = fvalue:lower()
-                        end
-                        argument[fname] = fvalue
-                    end
-                end
+                local argument, name = parse_multipart_headers(boundary_headers)
                 if not name then
                     goto next_boundary
                 end
@@ -557,6 +563,308 @@ function httputil.parse_multipart_data(data, boundary)
     until (b1+1 > #data) or
         (data:byte(p2+1) == DASH and data:byte(p2+2) == DASH)
     return arguments
+end
+
+--- streaming parsing multipart/form data
+
+ffi.cdef[[
+typedef void FILE;
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+int fflush ( FILE * stream );
+]]
+
+httputil.StreamingParser = class("StreamingParser")
+
+function httputil.StreamingParser:initialize(serverhandle)
+    self.connection = serverhandle
+
+    local content_length = serverhandle._request.headers:get("Content-Length")
+    content_length = tonumber(content_length)
+    self.content_length = content_length
+
+    local content_type = serverhandle._request.headers:get("Content-Type")
+    self.content_type = content_type
+    -- RFC2046
+    local boundary = content_type:match(
+        "boundary=[\"]?([0-9a-zA-Z'()+_,-./:=? ]*[0-9a-zA-Z'()+_,-./:=?])")
+    if boundary then
+        self.boundary = boundary
+        boundary = "--" .. boundary
+        local begin_boundary = boundary
+        local next_boundary = "\r\n" .. boundary
+        local close_boundary = "\r\n" .. boundary .. "--"
+
+        self.begin_boundary = begin_boundary
+        self.begin_boundary_ptr = ffi.cast("char*", begin_boundary)
+        self.next_boundary = next_boundary
+        self.next_boundary_ptr = ffi.cast("char*", next_boundary)
+        self.close_boundary = close_boundary
+        self.close_boundary_ptr = ffi.cast("char*", close_boundary)
+        self.next_boundary_size = #next_boundary
+        self.close_boundary_size = #close_boundary
+
+    end
+
+    self.consumed_bytes = 0
+    self.processed_bytes = 0
+
+    serverhandle.arguments = {}
+    self.arguments = serverhandle.arguments
+    self.streaming_buffer = buffer(5120)
+    self._ptr = ffi.cast("char *", "")
+    self._len = 0
+    self._used = 0
+    self.state = "start"
+    self._total_used = 0
+    self._total_get = 0
+
+    local kwargs = serverhandle.kwargs
+    local large_body_bytes
+    if kwargs then
+        large_body_bytes = kwargs.large_body_bytes
+    end
+    self.large_body_bytes = large_body_bytes or 512
+
+    return self
+end
+
+function httputil.StreamingParser:load_chunk(chunk)
+    self.streaming_buffer:append_right(chunk.ptr, chunk.len)
+    self._ptr, self._len = self.streaming_buffer:get()
+    self._used = 0
+    self._total_get = self._total_get + self._len
+end
+
+function httputil.StreamingParser:unused()
+    return self._ptr + self._used
+end
+
+function httputil.StreamingParser:unused_len()
+    return self._len - self._used
+end
+
+function httputil.StreamingParser:shift(bytes)
+    self._used = self._used + bytes
+    self._total_used = self._total_used + bytes
+end
+
+function httputil.StreamingParser:substrbytes(bytes)
+    return ffi.string(self:unused(), bytes)
+end
+
+function httputil.StreamingParser:strfind(fstr, flen)
+    local ptr = util.str_find(self:unused(), fstr, self:unused_len(), flen)
+    if ptr then
+        return ptr - self:unused()
+    else
+        return nil
+    end
+end
+
+function httputil.StreamingParser:possible_boundary()
+    local boundary = self.next_boundary_ptr
+    local boundary_size = self.next_boundary_size
+    local start_find, rest_len
+    if self:unused_len() > boundary_size then
+        start_find = self._ptr + self._len - boundary_size
+        rest_len = boundary_size
+    else
+        start_find = self:unused()
+        rest_len = self:unused_len()
+    end
+    -- find just onebyte consider as possible
+    local ptr = util.str_find(start_find, boundary, rest_len, 1)
+    if ptr then
+        return ptr - self:unused()
+    else
+        return nil
+    end
+end
+
+function httputil.StreamingParser:buffer_keep_unused()
+    local buf_start_ptr, sz = self.streaming_buffer:get()
+    local all_used = self._ptr - buf_start_ptr + self._used
+    if self:unused_len() > 0 then
+        self.streaming_buffer:pop_left(all_used)
+    else
+        self.streaming_buffer:clear()
+    end
+end
+
+function httputil.StreamingParser:parse_large_multipart_body(chunk)
+    self:load_chunk(chunk)
+    assert(self.boundary, "need boundary")
+
+    local state_function_map = {
+        start = self._state_begin_boundary,
+        headers = self._state_part_headers,
+        body = self._state_part_body,
+        large_body = self._state_part_large_body,
+        close = self._state_close,
+    }
+
+    -- state transfer
+    local next_state
+    local state = self.state
+    repeat
+        next_state = state_function_map[state](self)
+        state = next_state or state
+        self.state = state
+    until next_state == false
+
+    self:buffer_keep_unused()
+end
+
+function httputil.StreamingParser:_state_begin_boundary()
+    local start_offset = self:strfind(self.begin_boundary_ptr, self.next_boundary_size -2)
+    if start_offset then
+        -- ignore all data before begin boundary
+        self:shift(self.next_boundary_size -2)
+        return "headers"
+    else
+        return false
+    end
+end
+
+function httputil.StreamingParser:_state_part_headers()
+    local start_offset = self:strfind(ffi.cast("char*", "\r\n\r\n"), 4)
+    if start_offset ~= nil then
+        if start_offset > 512 then error("part header too long") end
+        self:_push_streaming_multipart_headers(self:substrbytes(start_offset))
+        self:shift(start_offset + 4)
+        return "body"
+    else
+        return false
+    end
+end
+
+function httputil.StreamingParser:_push_streaming_multipart_headers(headers_string)
+    local arguments = self.arguments
+    local argument, name = parse_multipart_headers(headers_string)
+    assert(name, "part header Content-Disposition: MUST contains name=\"xxx\"")
+
+    self._name = name
+    if arguments[name] then
+        arguments[name][#arguments[name] +1] = argument
+    else
+        arguments[name] = { argument }
+    end
+end
+
+
+function httputil.StreamingParser:_state_part_body()
+    local boundary_size = self.next_boundary_size
+    local nb_start_offset = self:strfind(self.next_boundary_ptr, self.next_boundary_size)
+    local cb_start_offset = self:strfind(self.close_boundary_ptr, self.close_boundary_size)
+    local is_large_body = false
+    if self:unused_len() >= self.large_body_bytes then
+        if nb_start_offset then
+            is_large_body = nb_start_offset >= self.large_body_bytes
+        elseif cb_start_offset then
+            is_large_body = cb_start_offset >= self.large_body_bytes
+        else
+            is_large_body = true
+        end
+    end
+    if is_large_body then
+        local tmpname = os.tmpname()
+        local file = io.open(tmpname, "w")
+        assert(file, "open file faild:" .. tmpname)
+        self._tmpname = tmpname
+        self._tmpfile = file
+        self._tmplen = 0
+        return "large_body"
+    elseif nb_start_offset then
+        self:_push_streaming_multipart_body(self:substrbytes(nb_start_offset))
+        self:shift(nb_start_offset + boundary_size)
+        return "headers"
+    elseif cb_start_offset then
+        self:_push_streaming_multipart_body(self:substrbytes(cb_start_offset))
+        self:shift(cb_start_offset + boundary_size)
+        return "close"
+    else
+        return false
+    end
+end
+
+function httputil.StreamingParser:_push_streaming_multipart_body(body_string)
+    local name = self._name
+    local arguments = self.arguments
+    local argument = arguments[name][#arguments[name]]
+    argument[1] = body_string
+    if argument["content-transfer-encoding"] == "base64" then
+        argument[1] = escape.base64_decode(argument[1])
+    end
+    if javascript_types[argument["content-type"]] then
+        argument[1] = escape.unescape(argument[1])
+    end
+end
+
+function httputil.StreamingParser:_state_part_large_body()
+    local boundary_size = self.next_boundary_size
+    local nb_start_offset = self:strfind(self.next_boundary_ptr, self.next_boundary_size)
+    local cb_start_offset = self:strfind(self.close_boundary_ptr, self.close_boundary_size)
+    local tmpname = self._tmpname
+    if not tmpname then
+        tmpname = os.tmpname()
+        self._tmpname = tmpname
+    end
+    local file = self._tmpfile
+    if not file then
+        file = io.open(tmpname, "a")
+        self._tmpfile = file
+    end
+
+    if nb_start_offset then
+        self:_write_to_file(nb_start_offset, file)
+        self:_push_streaming_multipart_large_body()
+        self:shift(nb_start_offset + boundary_size)
+        return "headers"
+    elseif cb_start_offset then
+        self:_write_to_file(cb_start_offset, file)
+        self:_push_streaming_multipart_large_body()
+        self:shift(cb_start_offset + boundary_size)
+        return "close"
+    elseif self:unused_len() >= 2*boundary_size then
+        -- to keep possiblely boundary data in buffer for checking in next reading
+        local offset = self:possible_boundary()
+        if offset ~= nil then
+            self:_write_to_file(offset, file)
+            self:shift(offset)
+        else
+            self:_write_to_file(self:unused_len(), file)
+            self:shift(self:unused_len())
+        end
+        return "large_body"
+    else
+        return false
+    end
+end
+
+function httputil.StreamingParser:_write_to_file(len, file)
+    ffi.C.fwrite(self:unused(), len, 1, file)
+    ffi.C.fflush(file)
+    self._tmplen = self._tmplen + len
+end
+
+
+function httputil.StreamingParser:_push_streaming_multipart_large_body()
+    local name = self._name
+    local arguments = self.arguments
+    local argument = arguments[name][#arguments[name]]
+    self._tmpfile:close()
+    argument[1] = string.format("(save in %s)", self._tmpname)
+    argument["filepath"] = self._tmpname
+    argument["filelen"] = tonumber(self._tmplen)
+    self._tmpname = nil
+    self._tmpfile = nil
+    self._name = nil
+    self._tmplen = nil
+end
+
+function httputil.StreamingParser:_state_close()
+    --collectgarbage()
+    return false
 end
 
 

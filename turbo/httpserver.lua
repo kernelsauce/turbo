@@ -244,7 +244,19 @@ function httpserver.HTTPConnection:_on_headers(data)
             if headers:get("Expect") == "100-continue" then
                 self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
             end
-            self.stream:read_bytes(content_length, self._on_request_body, self)
+
+            local content_type = self._request.headers:get("Content-Type") or ""
+            if type(self.kwargs.streaming_multipart_bytes) == "number" and
+                content_length >= self.kwargs.streaming_multipart_bytes and
+                content_type:find("multipart/form-data", 1, true) then
+                local final_callback = function(self) self.request_callback(self._request) end
+                local stream_parse = httputil.StreamingParser:new(self)
+
+                self.stream:read_bytes_raw_buffer(content_length, final_callback, self,
+                    stream_parse.parse_large_multipart_body, stream_parse)
+            else
+                self.stream:read_bytes(content_length, self._on_request_body, self)
+            end
             return
         end
     end
