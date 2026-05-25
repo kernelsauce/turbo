@@ -1,6 +1,6 @@
 --[[ Turbo Unit test
 
-Copyright 2013 John Abrahamsen
+Copyright 2013, 2026 John Abrahamsen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -92,6 +92,17 @@ describe("turbo.httputil Namespace", function()
         assert.equal(headers:get_argument("param2")[1], "somethingelse")
         assert.equal(headers:get_argument("param2")[2], "somethingelseelse")
         assert.equal(type(headers:get_arguments()), "table")
+    end)
+
+    it("should return an empty string for an empty URL parameter", function()
+        local raw =
+            "GET /x?empty=&filled=value&trailing= HTTP/1.1\r\n"..
+            "Host: somehost.no\r\n\r\n"
+        local headers = turbo.httputil.HTTPParser(
+            raw, turbo.httputil.hdr_t["HTTP_REQUEST"])
+        assert.equal(headers:get_argument("empty")[1], "")
+        assert.equal(headers:get_argument("filled")[1], "value")
+        assert.equal(headers:get_argument("trailing")[1], "")
     end)
 
     it("should parse URLs correctly", function()

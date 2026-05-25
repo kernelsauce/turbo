@@ -1,6 +1,6 @@
 --- Turbo.lua C function declarations
 --
--- Copyright 2013, 2014 John Abrahamsen
+-- Copyright 2013, 2014, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -511,6 +511,29 @@ if platform.__LINUX__ then
                 unsigned long   __unused5;
               };
             ]]
+        elseif platform.__ARM64__ then
+            ffi.cdef [[
+              struct stat {
+                unsigned long   st_dev;
+                unsigned long   st_ino;
+                unsigned long   st_nlink;
+                unsigned int    st_mode;
+                unsigned int    st_uid;
+                unsigned int    st_gid;
+                unsigned int    __pad0;
+                unsigned long   st_rdev;
+                long            st_size;
+                long            st_blksize;
+                long            st_blocks;
+                unsigned long   st_atime;
+                unsigned long   st_atime_nsec;
+                unsigned long   st_mtime;
+                unsigned long   st_mtime_nsec;
+                unsigned long   st_ctime;
+                unsigned long   st_ctime_nsec;
+                long            __unused[3];
+              };
+            ]]
         elseif platform.__MIPSEL__ then
             ffi.cdef[[
               struct stat {
@@ -636,6 +659,7 @@ if _G.TURBO_SSL then
         void SSL_load_error_strings(void);
         void ERR_free_strings(void);
         int SSL_library_init(void);
+        int OPENSSL_init_ssl(uint64_t opts, const void *settings);
         void EVP_cleanup(void);
         SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth);
         void SSL_CTX_free(SSL_CTX *);

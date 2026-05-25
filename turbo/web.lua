@@ -7,7 +7,7 @@
 -- Some modifications has been made to make it fit better into the Lua
 -- eco system.
 --
--- Copyright 2011, 2012, 2013 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -51,6 +51,17 @@ local unpack = util.funpack
 local is_in = util.is_in
 local _std_supported_met = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 local _ssl_enabled = _G.TURBO_SSL
+
+--- Constant-time string comparison to prevent timing attacks on HMAC values.
+local function secure_compare(a, b)
+    if type(a) ~= "string" or type(b) ~= "string" then return false end
+    if #a ~= #b then return false end
+    local result = 0
+    for i = 1, #a do
+        result = bit.bor(result, bit.bxor(a:byte(i), b:byte(i)))
+    end
+    return result == 0
+end
 
 local web = {} -- web namespace
 web.Mustache = require "turbo.mustache" -- include the Mustache templater.
@@ -375,7 +386,7 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
                                              len,
                                              tostring(timestamp),
                                              value))
-    assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
+    assert(secure_compare(hmac, hmac_cmp), "Secure cookie does not match hash. \
                               Either the cookie is forged or the cookie secret \
                               has been changed")
     return value

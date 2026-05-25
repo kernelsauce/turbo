@@ -1,6 +1,6 @@
 --- Turbo.lua Unit test
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -88,6 +88,20 @@ describe("turbo.structs Namespace", function()
             local buf = turbo.structs.buffer()
             buf:append_luastr_left("test"):append_luastr_left("test")
             assert.equal(tostring(buf), "testtest")
+        end)
+        it("should grow past the 1MB threshold without corrupting data", function()
+            local buf = turbo.structs.buffer()
+            local chunk = string.rep("A", 64 * 1024)  -- 64KB
+            local n = 40                                -- 2.5MB total
+            for _ = 1, n do
+                buf:append_luastr_right(chunk)
+            end
+            local total = #chunk * n
+            assert.equal(buf:len(), total)
+            local s = tostring(buf)
+            assert.equal(#s, total)
+            -- Every byte must still be "A" -- no garbage from a bad realloc.
+            assert.is_nil(s:find("[^A]"))
         end)
     end)
 

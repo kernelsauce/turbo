@@ -1,7 +1,7 @@
 --- Turbo Web Cryto module
 -- C defs for LuaJIT FFI and wrappers.
 --
--- Copyright 2011, 2012, 2013 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -77,9 +77,16 @@ end
 function crypto.ssl_init()
     if not _G._TURBO_SSL_INITED then
        _TURBO_SSL_INITED = true
-        lssl.SSL_load_error_strings()
-        lssl.SSL_library_init()
-        lssl.OPENSSL_add_all_algorithms_noconf()
+        -- OpenSSL >= 1.1.0 initializes itself lazily and removed the legacy
+        -- init symbols (SSL_load_error_strings/SSL_library_init became no-op
+        -- macros, so the symbols are absent from libssl.so.3). Prefer the
+        -- modern OPENSSL_init_ssl(); fall back to the legacy calls only for
+        -- OpenSSL < 1.1.0 where OPENSSL_init_ssl does not exist.
+        if not pcall(function() lssl.OPENSSL_init_ssl(0, nil) end) then
+            lssl.SSL_load_error_strings()
+            lssl.SSL_library_init()
+            lssl.OPENSSL_add_all_algorithms_noconf()
+        end
     end
 end
 if _G.TURBO_SSL then

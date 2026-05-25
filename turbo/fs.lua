@@ -1,6 +1,6 @@
 --- Turbo.lua file system Module
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 -- limitations under the License.
 
 local ffi = require "ffi"
+local platform = require "turbo.platform"
 local syscall = require "turbo.syscall"
 
 local fs = {}
@@ -28,7 +29,13 @@ fs.PATH_MAX = 4096
 function fs.stat(path, buf)
     local stat_t = ffi.typeof("struct stat")
     if not buf then buf = stat_t() end
-    local ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
+    local ret
+    if platform.__ARM64__ then
+        -- ARM64 has no stat() syscall; use newfstatat(AT_FDCWD=-100, path, buf, 0)
+        ret = ffi.C.syscall(syscall.SYS_stat, -100, path, buf, 0)
+    else
+        ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
+    end
     if ret == -1 then
         return -1, ffi.string(ffi.C.strerror(ffi.errno()))
     end

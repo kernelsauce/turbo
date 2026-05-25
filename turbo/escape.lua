@@ -1,6 +1,6 @@
 --- Turbo.lua Escape module
 --
--- Copyright John Abrahamsen 2011, 2012, 2013 < JhnAbrhmsn@gmail.com >
+-- Copyright John Abrahamsen 2011, 2012, 2013, 2026 < JhnAbrhmsn@gmail.com >
 --
 -- "Permission is hereby granted, free of charge, to any person obtaining a copy of
 -- this software and associated documentation files (the "Software"), to deal in
@@ -58,7 +58,7 @@ end
 --- Encodes the HTML entities in a string. Helpfull to avoid XSS.
 -- @param s (String) String to escape.
 function escape.html_escape(s)
-    assert("Expected string in argument #1.")
+    assert(type(s) == "string", "Expected string in argument #1.")
     return (string.gsub(s, "[}{\">/<'&]", {
         ["&"] = "&amp;",
         ["<"] = "&lt;",

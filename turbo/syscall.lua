@@ -1,6 +1,6 @@
 --- Turbo.lua syscall Module
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -121,6 +121,23 @@ elseif ffi.arch == "arm" then
         SYS_clock_gettime    = 263,
         SYS_clock_getres     = 264,
         SYS_clock_nanosleep  = 265
+    }
+elseif ffi.arch == "arm64" then
+    cmds = {
+        -- ARM64 has no stat/lstat syscalls; use newfstatat (262) with AT_FDCWD=-100
+        SYS_stat             = 262,
+        SYS_fstat            = 80,
+        SYS_lstat            = 262,
+        SYS_getdents         = 61,
+        SYS_io_setup         = 0,
+        SYS_io_destroy       = 1,
+        SYS_io_getevents     = 4,
+        SYS_io_submit        = 2,
+        SYS_io_cancel        = 3,
+        SYS_clock_settime    = 112,
+        SYS_clock_gettime    = 113,
+        SYS_clock_getres     = 114,
+        SYS_clock_nanosleep  = 115
     }
 elseif ffi.arch == "mipsel" or ffi.arch == "mips" then
     cmds = {

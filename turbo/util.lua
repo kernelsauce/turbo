@@ -1,6 +1,6 @@
 -- Turbo.lua Utilities module.
 --
--- Copyright 2011, 2012, 2013, 2014 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2014, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -78,16 +78,36 @@ function util.strsubstr(str, from, to)
     return ffi.string(ptr + from, to - from)
 end
 
---- Create a random string.
-function util.rand_str(len)
-    math.randomseed(util.gettimeofday()+math.random(0x0,0xffffffff))
-    len = len or 64
-    local bytes = buffer(len)
-    for i = 1, len do
-        bytes:append_char_right(ffi.cast("char", math.random(0x0, 0x80)))
+--- Read n cryptographically secure random bytes from the OS.
+-- Uses BCryptGenRandom on Windows, /dev/urandom on Unix.
+function util.secure_random_bytes(n)
+    if platform.__WINDOWS__ then
+        pcall(ffi.cdef, [[
+            long BCryptGenRandom(void *hAlgorithm, unsigned char *pbBuffer,
+                                 unsigned long cbBuffer, unsigned long dwFlags);
+        ]])
+        local bcrypt = ffi.load("bcrypt")
+        local buf = ffi.new("unsigned char[?]", n)
+        -- BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002
+        local status = bcrypt.BCryptGenRandom(nil, buf, n, 0x00000002)
+        if status ~= 0 then
+            error("util.secure_random_bytes: BCryptGenRandom failed: " .. status)
+        end
+        return ffi.string(buf, n)
+    else
+        local f = io.open("/dev/urandom", "rb")
+        if not f then
+            error("util.secure_random_bytes: could not open /dev/urandom")
+        end
+        local bytes = f:read(n)
+        f:close()
+        return bytes
     end
-    bytes = tostring(bytes)
-    return bytes
+end
+
+--- Create a random string using OS-provided entropy.
+function util.rand_str(len)
+    return util.secure_random_bytes(len or 64)
 end
 
 

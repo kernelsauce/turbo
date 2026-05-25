@@ -5,7 +5,7 @@
 -- Also offers a few functions for parsing GET URL parameters, and different
 -- POST data types.
 --
--- Copyright John Abrahamsen 2011, 2012, 2013
+-- Copyright John Abrahamsen 2011, 2012, 2013, 2026
 --
 -- "Permission is hereby granted, free of charge, to any person obtaining a copy of
 -- this software and associated documentation files (the "Software"), to deal in
@@ -237,7 +237,9 @@ local function _parse_arguments(uri)
     local arguments = {}
     local elements = 0;
 
-    for k, v in uri:gmatch("([^&=]+)=([^&]+)") do
+    -- Match values with [^&]* (not +) so an empty parameter such as "?foo="
+    -- yields an empty string instead of being dropped.
+    for k, v in uri:gmatch("([^&=]+)=([^&]*)") do
         elements = elements + 1;
         if (elements > 256) then
             -- Limit to 256 elements, which "should be enough for everyone".

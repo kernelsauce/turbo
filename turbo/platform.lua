@@ -1,6 +1,6 @@
 --- Turbo.lua C Platform / OS variables.
 --
--- Copyright 2014 John Abrahamsen
+-- Copyright 2014, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -39,5 +39,6 @@ return {
     __PPC__ = ffi.arch == "ppc",
     __PPC64__ = ffi.arch == "ppc64le",
     __ARM__ = ffi.arch == "arm",
+    __ARM64__ = ffi.arch == "arm64",
     __MIPSEL__ = ffi.arch == "mipsel" or ffi.arch == "mips",
 }

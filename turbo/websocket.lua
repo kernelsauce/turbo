@@ -12,7 +12,7 @@
 -- NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be
 -- installed to use this module.
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -46,7 +46,6 @@ local le = ffi.abi("le")
 local be = not le
 local strf = string.format
 local bor = bit.bor
-math.randomseed(util.gettimeofday())
 
 local ENDIAN_SWAP_U64
 if jit and jit.version_num >= 20100 then
@@ -305,12 +304,13 @@ if le then
         end
 
         if self.mask_outgoing == true then
-            -- Create a random mask.
+            -- Create a random mask from OS entropy.
             local ws_mask = ffi.new("unsigned char[4]")
-            ws_mask[0] = math.random(0x0, 0xff)
-            ws_mask[1] = math.random(0x0, 0xff)
-            ws_mask[2] = math.random(0x0, 0xff)
-            ws_mask[3] = math.random(0x0, 0xff)
+            local rnd = util.secure_random_bytes(4)
+            ws_mask[0] = rnd:byte(1)
+            ws_mask[1] = rnd:byte(2)
+            ws_mask[2] = rnd:byte(3)
+            ws_mask[3] = rnd:byte(4)
             self.stream:write(ffi.string(ws_mask, 4))
             self.stream:write(_unmask_payload(ws_mask, data), callback, callback_arg)
             return
