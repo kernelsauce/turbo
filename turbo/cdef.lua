@@ -322,7 +322,11 @@ if platform.__LINUX__ then
                 uint64_t u64;
             } epoll_data_t;
         ]]
-        if platform.__ABI32__ or platform.__PPC64__ then
+        if platform.__ABI32__ or platform.__PPC64__ or platform.__ARM64__ then
+            -- epoll_event is packed only on x86/x86_64 (to match the i386
+            -- layout). On aarch64, ppc64 etc. it is naturally aligned, so
+            -- packing it here misreads epoll_wait results (events appear with
+            -- fd 0) and spins the loop.
             ffi.cdef[[
                 struct epoll_event{
                     unsigned int events;

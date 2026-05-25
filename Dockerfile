@@ -53,4 +53,5 @@ CMD ["spec/security_spec.lua", \
      "spec/util_spec.lua", \
      "spec/structs_spec.lua", \
      "spec/hash_spec.lua", \
-     "spec/httputil_spec.lua"]
+     "spec/httputil_spec.lua", \
+     "spec/server_spec.lua"]
