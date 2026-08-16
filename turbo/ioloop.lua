@@ -375,14 +375,20 @@ function ioloop.IOLoop:start()
         self._callbacks_buf = callbacks
         if self._timeouts_sz ~= 0 then
             local current_time = util.gettimemonotonic()
+            -- Safe to add/remove timeouts from callbacks run in here: the keys
+            -- are array-part integers, so next() walks by index despite rehash.
             for i, timeout in pairs(self._timeouts) do
                 local time_until_timeout = timeout:timed_out(current_time)
                 if time_until_timeout == 0 then
                     self:_run_callback({timeout:callback()})
                     self._timeouts[i] = nil
                     self._timeouts_sz = self._timeouts_sz - 1
-                    -- Function may have scheduled work for next iteration.
-                    -- Must drop timeout to avoid missing the wake-up.
+                    -- Function may have scheduled work for next iteration
+                    -- must Drop timeout, without this, yielding from a request
+                    -- handler that adds a timeout couroutine task will not wake
+                    -- up the request handler at the end of the timeout until the
+                    -- next poll_timeout occurs which may be as long as the default
+                    -- timeout of 3.6 seconds.
                     poll_timeout = 0
                 elseif poll_timeout > time_until_timeout then
                     poll_timeout = time_until_timeout
@@ -397,6 +403,7 @@ function ioloop.IOLoop:start()
                     self:_run_callback({interval.callback, interval.arg})
                     -- Get current time to protect against building
                     -- diminishing interval time on heavy functions.
+                    -- It is debatable wether this feature is wanted or not.
                     time_now = util.gettimemonotonic()
                     local next_call = interval:set_last_call(time_now)
                     if next_call < poll_timeout then
