@@ -7,7 +7,7 @@
 -- For more information on Mustache, please see this:
 -- http://mustache.github.io/mustache.5.html
 --
--- Copyright 2011, 2012, 2013 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -223,8 +223,8 @@ function Mustache.compile(template)
                     -- Check if section end is actually opened somewhere.
                     if not CHECK_TABLE_SEC(vmtbl, mark + 1, (temp - mark - 1)) then
                         error(string.format(
-                            "Trying to end section '%s', but it was never opened."),
-                        ffi.string(mark + 1, (temp - mark - 1)))
+                            "Trying to end section '%s', but it was never opened.",
+                        ffi.string(mark + 1, (temp - mark - 1))))
                     end
                     SECTION_END(vmtbl, mark + 1, (temp - mark - 1))
                     state = PNONE
@@ -342,7 +342,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                         buf:append_luastr_right(tostring(obj[y][arg]))
                     elseif type(obj[y][arg]) == "function" then
                         -- May also be a function.
-                        buf:append_luastr_right(obj[y][arg](arg) or "")
+                        buf:append_luastr_right(
+                            tostring(obj[y][arg](arg) or ""))
                     end
                 else
                     local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -353,7 +354,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
-                            buf:append_luastr_right(in_parent(arg) or "")
+                            buf:append_luastr_right(
+                                tostring(in_parent(arg) or ""))
                         end
                     elseif safe == true then
                         error(
@@ -373,8 +375,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                         buf:append_luastr_right(tostring(obj[y][arg]))
                     elseif type(obj[y][arg]) == "function" then
                         -- May also be a function.
-                        buf:append_luastr_right(
-                            escape.html_escape(obj[y][arg](arg) or ""))
+                        buf:append_luastr_right(escape.html_escape(
+                            tostring(obj[y][arg](arg) or "")))
                     end
                 else
                     local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -385,8 +387,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
-                            buf:append_luastr_right(
-                                escape.html_escape(in_parent(arg)) or "")
+                            buf:append_luastr_right(escape.html_escape(
+                                tostring(in_parent(arg) or "")))
                         end
                     elseif safe == true then
                         error(
@@ -482,6 +484,10 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                     buf:append_luastr_right(esc)
                 elseif type(obj[arg]) == "number" then
                     buf:append_luastr_right(tostring(obj[arg]))
+                elseif type(obj[arg]) == "function" then
+                    -- May also be a function.
+                    buf:append_luastr_right(escape.html_escape(
+                        tostring(obj[arg](arg) or "")))
                 end
             else
                 local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -492,7 +498,8 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
-                            buf:append_luastr_right(in_parent(arg) or "")
+                            buf:append_luastr_right(
+                                tostring(in_parent(arg) or ""))
                         end
 
                     elseif safe == true then
@@ -506,6 +513,12 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
             if obj[arg] then
                 if type(obj[arg]) == "string" then
                     buf:append_luastr_right(obj[arg])
+                elseif type(obj[arg]) == "number" then
+                    buf:append_luastr_right(tostring(obj[arg]))
+                elseif type(obj[arg]) == "function" then
+                    -- May also be a function.
+                    buf:append_luastr_right(
+                        tostring(obj[arg](arg) or ""))
                 end
             else
                 local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -548,7 +561,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                 -- Just fast-forward until SECE is found.
                 while 1 do
                     i = i + 1
-                    if vmtbl[i][1] == SECE then
+                    if vmtbl[i][1] == SECE and vmtbl[i][2] == arg then
                         goto start
                     end
                 end
@@ -559,7 +572,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                 -- Fast-forward towards SECE.
                 while 1 do
                     i = i + 1
-                    if vmtbl[i][1] == SECE then
+                    if vmtbl[i][1] == SECE and vmtbl[i][2] == arg then
                         goto start
                     end
                 end
@@ -574,7 +587,7 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                     obj,
                     obj_parents,
                     partials,
-                    allow_blank)
+                    safe)
                 buf:append_luastr_right(partial)
             end
         end
@@ -604,6 +617,10 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                     buf:append_luastr_right(esc)
                 elseif type(obj[arg]) == "number" then
                     buf:append_luastr_right(tostring(obj[arg]))
+                elseif type(obj[arg]) == "function" then
+                    -- May also be a function.
+                    buf:append_luastr_right(escape.html_escape(
+                        tostring(obj[arg](arg) or "")))
                 end
             elseif safe == true then
                 error(
@@ -615,6 +632,12 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
             if obj[arg] then
                 if type(obj[arg]) == "string" then
                     buf:append_luastr_right(obj[arg])
+                elseif type(obj[arg]) == "number" then
+                    buf:append_luastr_right(tostring(obj[arg]))
+                elseif type(obj[arg]) == "function" then
+                    -- May also be a function.
+                    buf:append_luastr_right(
+                        tostring(obj[arg](arg) or ""))
                 end
             elseif safe == true then
                 error(
@@ -671,7 +694,7 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                 local partial = Mustache.render(partials[arg],
                                                 obj,
                                                 partials,
-                                                allow_blank)
+                                                safe)
 
                 buf:append_luastr_right(partial)
             end

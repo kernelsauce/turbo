@@ -7,7 +7,7 @@
 -- The IOLoop class is written in such a way that adding new poll
 -- implementations is easy.
 --
--- Copyright 2011, 2012, 2013 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -83,11 +83,13 @@ ioloop.IOLoop = class('IOLoop')
 --- Create a new IOLoop class instance.
 function ioloop.IOLoop:initialize()
     self._co_cbs = {}
+    self._co_cbs_buf = {}
     self._co_ctxs = {}
     self._handlers = {}
     self._timeouts = {}
     self._intervals = {}
     self._callbacks = {}
+    self._callbacks_buf = {}
     self._signalfds = {}
     self._timeouts_sz = 0
     self._intervals_sz = 0
@@ -343,7 +345,7 @@ function ioloop.IOLoop:start()
         local co_cbs_sz = #self._co_cbs
         if co_cbs_sz > 0 then
             local co_cbs = self._co_cbs
-            self._co_cbs = {}
+            self._co_cbs = self._co_cbs_buf
             for i = 1, co_cbs_sz do
                 if co_cbs[i] ~= nil then
                     -- co_cbs[i][1] = coroutine (Lua thread).
@@ -355,79 +357,61 @@ function ioloop.IOLoop:start()
                         poll_timeout = 0
                     end
                 end
+                co_cbs[i] = nil
             end
+            self._co_cbs_buf = co_cbs
         end
         local callbacks = self._callbacks
-        self._callbacks = {}
-        for i = 1, #callbacks, 1 do
+        self._callbacks = self._callbacks_buf
+        local n = #callbacks
+        for i = 1, n do
             if self:_run_callback(callbacks[i]) ~= 0 then
                 -- Function yielded and has been scheduled for next iteration.
                 -- Drop timeout.
                 poll_timeout = 0
             end
+            callbacks[i] = nil
         end
-        local timeout_sz = self._timeouts_sz
-        if timeout_sz ~= 0 then
+        self._callbacks_buf = callbacks
+        if self._timeouts_sz ~= 0 then
             local current_time = util.gettimemonotonic()
-            local timeouts_run = 0
-            local i = 0
-            while timeouts_run ~= timeout_sz do
-                if self._timeouts[i] ~= nil then
-                    timeouts_run = timeouts_run + 1
-                    local time_until_timeout = 
-                        self._timeouts[i]:timed_out(current_time)
-                    if time_until_timeout == 0 then
-                        self:_run_callback({self._timeouts[i]:callback()})
-                        self._timeouts[i] = nil
-                        self._timeouts_sz = self._timeouts_sz - 1
-                        -- Function may have scheduled work for next iteration
-                        -- must Drop timeout, without this, yielding from a request
-                        -- handler that adds a timeout couroutine task will not wake
-                        -- up the request handler at the end of the timeout until the
-                        -- next poll_timeout occurs which may be as long as the default
-                        -- timeout of 3.6 seconds.
-                        poll_timeout = 0
-                    else
-                        if poll_timeout > time_until_timeout then
-                           poll_timeout = time_until_timeout
-                        end
-                    end
+            -- Safe to add/remove timeouts from callbacks run in here: the keys
+            -- are array-part integers, so next() walks by index despite rehash.
+            for i, timeout in pairs(self._timeouts) do
+                local time_until_timeout = timeout:timed_out(current_time)
+                if time_until_timeout == 0 then
+                    self:_run_callback({timeout:callback()})
+                    self._timeouts[i] = nil
+                    self._timeouts_sz = self._timeouts_sz - 1
+                    -- Function may have scheduled work for next iteration
+                    -- must Drop timeout, without this, yielding from a request
+                    -- handler that adds a timeout couroutine task will not wake
+                    -- up the request handler at the end of the timeout until the
+                    -- next poll_timeout occurs which may be as long as the default
+                    -- timeout of 3.6 seconds.
+                    poll_timeout = 0
+                elseif poll_timeout > time_until_timeout then
+                    poll_timeout = time_until_timeout
                 end
-                i = i + 1
             end
         end
-        local intervals_sz = self._intervals_sz
-        if intervals_sz ~= 0 then
+        if self._intervals_sz ~= 0 then
             local time_now = util.gettimemonotonic()
-            local intervals_run = 0
-            local i = 0
-            while intervals_run ~= intervals_sz do
-                local interval = self._intervals[i]
-                if interval ~= nil then
-                    intervals_run = intervals_run + 1
-                    local timed_out = interval:timed_out(time_now)
-                    if timed_out == 0 then
-                        self:_run_callback({
-                            interval.callback,
-                            interval.arg
-                            })
-                        -- Get current time to protect against building
-                        -- diminishing interval time on heavy functions.
-                        -- It is debatable wether this feature is wanted or not.
-                        time_now = util.gettimemonotonic()
-                        local next_call = interval:set_last_call(
-                            time_now)
-                        if next_call < poll_timeout then
-                            poll_timeout = next_call
-                        end
-                    else
-                        if timed_out < poll_timeout then
-                            -- Adjust timeout to not miss time out.
-                            poll_timeout = timed_out
-                        end
+            for _, interval in pairs(self._intervals) do
+                local timed_out = interval:timed_out(time_now)
+                if timed_out == 0 then
+                    self:_run_callback({interval.callback, interval.arg})
+                    -- Get current time to protect against building
+                    -- diminishing interval time on heavy functions.
+                    -- It is debatable wether this feature is wanted or not.
+                    time_now = util.gettimemonotonic()
+                    local next_call = interval:set_last_call(time_now)
+                    if next_call < poll_timeout then
+                        poll_timeout = next_call
                     end
+                elseif timed_out < poll_timeout then
+                    poll_timeout = timed_out
                 end
-                i = i + 1
             end
         end
         if self._stopped == true then

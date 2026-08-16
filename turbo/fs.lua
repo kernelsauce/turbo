@@ -1,6 +1,6 @@
 --- Turbo.lua file system Module
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -15,9 +15,20 @@
 -- limitations under the License.
 
 local ffi = require "ffi"
+local platform = require "turbo.platform"
 local syscall = require "turbo.syscall"
 
 local fs = {}
+
+-- Numbers passed to a vararg C function become doubles, which do not land in
+-- the registers the syscall reads its args from. A declared prototype does.
+-- Only the newfstatat arches pass numbers; the rest pass pointers only.
+local syscall_stat
+if platform.__ARM64__ then
+    syscall_stat = ffi.cast(
+        "long (*)(long, long, const char *, void *, long)",
+        ffi.C.syscall)
+end
 
 --- File system constants
 fs.NAME_MAX = 255
@@ -28,7 +39,13 @@ fs.PATH_MAX = 4096
 function fs.stat(path, buf)
     local stat_t = ffi.typeof("struct stat")
     if not buf then buf = stat_t() end
-    local ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
+    local ret
+    if platform.__ARM64__ then
+        ret = syscall_stat(
+            syscall.SYS_stat, syscall.AT_FDCWD, path, buf, 0)
+    else
+        ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
+    end
     if ret == -1 then
         return -1, ffi.string(ffi.C.strerror(ffi.errno()))
     end

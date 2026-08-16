@@ -1,6 +1,6 @@
 --- Turbo.lua syscall Module
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ local flags = {
     O_DIRECTORY = octal('0200000'),
     O_NOFOLLOW  = octal('0400000'),
     O_DIRECT    = octal('040000'),
+    AT_FDCWD             = -100,
+    AT_SYMLINK_NOFOLLOW  = octal('0400'),
     S_IFMT   = octal('0170000'),
     S_IFSOCK = octal('0140000'),
     S_IFLNK  = octal('0120000'),
@@ -121,6 +123,24 @@ elseif ffi.arch == "arm" then
         SYS_clock_gettime    = 263,
         SYS_clock_getres     = 264,
         SYS_clock_nanosleep  = 265
+    }
+elseif ffi.arch == "arm64" then
+    cmds = {
+        -- No stat or lstat on this arch. Both are done with newfstatat,
+        -- relative to AT_FDCWD. lstat adds AT_SYMLINK_NOFOLLOW.
+        SYS_stat             = 79,
+        SYS_fstat            = 80,
+        SYS_lstat            = 79,
+        SYS_getdents         = 61,
+        SYS_io_setup         = 0,
+        SYS_io_destroy       = 1,
+        SYS_io_getevents     = 4,
+        SYS_io_submit        = 2,
+        SYS_io_cancel        = 3,
+        SYS_clock_settime    = 112,
+        SYS_clock_gettime    = 113,
+        SYS_clock_getres     = 114,
+        SYS_clock_nanosleep  = 115
     }
 elseif ffi.arch == "mipsel" or ffi.arch == "mips" then
     cmds = {

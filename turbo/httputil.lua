@@ -5,7 +5,7 @@
 -- Also offers a few functions for parsing GET URL parameters, and different
 -- POST data types.
 --
--- Copyright John Abrahamsen 2011, 2012, 2013
+-- Copyright John Abrahamsen 2011, 2012, 2013, 2026
 --
 -- "Permission is hereby granted, free of charge, to any person obtaining a copy of
 -- this software and associated documentation files (the "Software"), to deal in
@@ -237,7 +237,9 @@ local function _parse_arguments(uri)
     local arguments = {}
     local elements = 0;
 
-    for k, v in uri:gmatch("([^&=]+)=([^&]+)") do
+    -- Match values with [^&]* (not +) so an empty parameter such as "?foo="
+    -- yields an empty string instead of being dropped.
+    for k, v in uri:gmatch("([^&=]+)=([^&]*)") do
         elements = elements + 1;
         if (elements > 256) then
             -- Limit to 256 elements, which "should be enough for everyone".
@@ -989,8 +991,9 @@ function httputil.HTTPHeaders:add(key, value)
     end
     local t = type(value)
     if t == "string" then
-        if value:find("\r\n", 1, true) then
-            error("String value contain <CR><LF>, not allowed.")
+        -- A lone <CR> or <LF> injects a header line too, not just the pair.
+        if value:find("[\r\n]") then
+            error("String value contain <CR> or <LF>, not allowed.")
         end
     elseif t ~= "number" then
         error("Value parameter must be a string or number.")
@@ -1008,8 +1011,9 @@ function httputil.HTTPHeaders:set(key, value, caseinsensitive)
     end
     local t = type(value)
     if t == "string" then
-        if value:find("\r\n", 1, true) then
-            error("String value contain <CR><LF>, not allowed.")
+        -- See :add. A bare <CR> or <LF> is a header-injection vector too.
+        if value:find("[\r\n]") then
+            error("String value contain <CR> or <LF>, not allowed.")
         end
     elseif t ~= "number" then
         error("Value parameter must be a string or number.")
@@ -1059,30 +1063,51 @@ function httputil.HTTPHeaders:stringify_as_request()
         tostring(buffer))
 end
 
+-- Scratch buffer for response serialization. stringify_as_response does not
+-- yield, so nothing can re-enter it.
+local _resp_buf = buffer(1024)
+
+-- The Date field has one second granularity. No point in formatting it
+-- more often than that.
+local _date_sec, _date_str = -1, ""
+local function _http_date()
+    local now = util.gettimeofday()
+    local sec = math.floor(now / 1000)
+    if sec ~= _date_sec then
+        _date_sec = sec
+        _date_str = util.time_format_http_header(now)
+    end
+    return _date_str
+end
+
 --- Stringify data set in class as a HTTP response header.
 -- If not "Date" field is set, it will be generated automatically.
 -- @return (String) HTTP header string excluding final delimiter.
 function httputil.HTTPHeaders:stringify_as_response()
-    local buf = buffer:new()
     if not self:get("Date") then
         -- Add current time as Date header if not set already.
-        self:add("Date", util.time_format_http_header(util.gettimeofday()))
+        self:add("Date", _http_date())
     end
+    -- string.format causes trace abort here.
+    -- Just build keyword values by abuse. Status line goes in the buffer too,
+    -- so the response is only materialized once.
+    local buf = _resp_buf
+    buf:clear()
+    buf:append_luastr_right(self.version)
+    buf:append_luastr_right(" ")
+    buf:append_luastr_right(tostring(self.status_code))
+    buf:append_luastr_right(" ")
+    buf:append_luastr_right(status_codes[self.status_code])
+    buf:append_luastr_right("\r\n")
     for i = 1 , #self._fields do
         if self._fields[i] then
-            -- string.format causes trace abort here.
-            -- Just build keyword values by abuse.
             buf:append_luastr_right(self._fields[i][1])
             buf:append_luastr_right(": ")
             buf:append_luastr_right(tostring(self._fields[i][2]))
             buf:append_luastr_right("\r\n")
         end
     end
-    return string.format("%s %d %s\r\n%s",
-        self.version,
-        self.status_code,
-        status_codes[self.status_code],
-        tostring(buf))
+    return tostring(buf)
 end
 
 --- Convinience method to return HTTPHeaders:stringify_as_response on string

@@ -1,0 +1,14 @@
+# Keep host build artifacts out of the image; they are rebuilt inside it and
+# platform-specific objects (e.g. macOS .dylib/.o) break the Linux link step.
+.git
+*.dylib
+*.dylib.dSYM
+*.dSYM
+*.so
+*.so.*
+*.o
+*.luac
+deps/http-parser/*.o
+deps/http-parser/libhttp_parser*
+package/
+*.tar.gz

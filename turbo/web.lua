@@ -7,7 +7,7 @@
 -- Some modifications has been made to make it fit better into the Lua
 -- eco system.
 --
--- Copyright 2011, 2012, 2013 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ local mime_types =      require "turbo.mime_types"
 local util =            require "turbo.util"
 local hash =            require "turbo.hash"
 local socket =          require "turbo.socket_ffi"
+local bit = jit and require "bit" or require "bit32"
 local syscall =         require "turbo.syscall"
 local fs
 if platform.__WINDOWS__ then
@@ -51,6 +52,17 @@ local unpack = util.funpack
 local is_in = util.is_in
 local _std_supported_met = {"GET", "HEAD", "POST", "DELETE", "PUT", "OPTIONS"}
 local _ssl_enabled = _G.TURBO_SSL
+
+--- Constant-time string comparison to prevent timing attacks on HMAC values.
+local function secure_compare(a, b)
+    if type(a) ~= "string" or type(b) ~= "string" then return false end
+    if #a ~= #b then return false end
+    local result = 0
+    for i = 1, #a do
+        result = bit.bor(result, bit.bxor(a:byte(i), b:byte(i)))
+    end
+    return result == 0
+end
 
 local web = {} -- web namespace
 web.Mustache = require "turbo.mustache" -- include the Mustache templater.
@@ -363,21 +375,28 @@ function web.RequestHandler:get_secure_cookie(name, default, max_age)
         return default
     end
     local hmac, len, timestamp, value = cookie:match("(%w*)|(%d*)|(%d*)|(.*)")
-    assert(tonumber(len) == value:len(), "Cookie value length has changed!")
-    assert(hmac:len() == 40, "Could not get secure cookie. Hash to short.")
+    -- Not a cookie we issued. Return the default rather than raise; a forged
+    -- cookie must not 500 the handler.
+    if not hmac or hmac:len() ~= 40 or tonumber(len) ~= value:len() then
+        return default
+    end
     if max_age then
         max_age = max_age * 1000 -- Get milliseconds.
-        local cookietime = tonumber(timestamp)
-        assert(util.gettimeofday() - timestamp < max_age, "Cookie has expired.")
+        if util.gettimeofday() - tonumber(timestamp) >= max_age then
+            return default -- Cookie has expired.
+        end
     end
+    -- The cookie name is part of the signed message, see set_secure_cookie.
     local hmac_cmp = hash.HMAC(self.application.kwargs.cookie_secret,
-                               string.format("%d|%s|%s",
+                               string.format("%s|%s|%s|%s",
+                                             name,
                                              len,
-                                             tostring(timestamp),
+                                             timestamp,
                                              value))
-    assert(hmac == hmac_cmp, "Secure cookie does not match hash. \
-                              Either the cookie is forged or the cookie secret \
-                              has been changed")
+    if not secure_compare(hmac, hmac_cmp) then
+        -- Forged, or the cookie secret has been changed.
+        return default
+    end
     return value
 end
 
@@ -420,14 +439,18 @@ function web.RequestHandler:set_secure_cookie(name, value, domain, expire_hours)
     if type(value) ~= "string" then
         value = tostring(value)
     end
-    local to_hash = string.format("%d|%s|%s",
+    -- Integer timestamp so it round-trips through the (%d*) parse in
+    -- get_secure_cookie (gettimeofday is fractional on the Linux path).
+    local to_hash = string.format("%d|%d|%s",
                                   value:len(),
-                                  tostring(util.gettimeofday()),
+                                  util.gettimeofday(),
                                   value)
+    -- The name is part of the signed message (not stored) so a value signed
+    -- under one cookie name cannot be replayed under another.
     local cookie = string.format("%s|%s",
                                  hash.HMAC(
                                     self.application.kwargs.cookie_secret,
-                                    to_hash),
+                                    name.."|"..to_hash),
                                  to_hash)
     return self:set_cookie(name, cookie, domain, expire_hours)
 end
@@ -1070,21 +1093,25 @@ function web.StaticFileHandler:head(path)
     if #self._url_args == 0 or self._url_args[1]:len() == 0 then
         error(web.HTTPError(404))
     end
-    local filename = self._url_args[1]
+    -- Unescape before the check, like :get, or %2e%2e slips past it.
+    local filename = escape.unescape(self._url_args[1])
     if filename:match("%.%.", 0, true) then -- Prevent dir traversing.
         error(web.HTTPError(401))
     end
-    local full_path = string.format("%s%s", self.path,
-        escape.unescape(filename))
-    local rc, buf, mime = STATIC_CACHE:get_file(full_path)
-    if rc == 0 then
-        if mime then
-            self:add_header("Content-Type", mime_type)
-        end
-        self:add_header("Content-Length", tonumber(buf:len()))
-    else
+    local full_path = string.format("%s%s", self.path, filename)
+    -- get_file returns (rc, stat, buf_or_file, mime, sha1).
+    local rc, stat, buf, mime = STATIC_CACHE:get_file(full_path)
+    if rc == SWCRC_NOT_FOUND then
         error(web.HTTPError(404)) -- Not found
     end
+    -- get_file opens a handle for a too-big file; HEAD does not need it.
+    if rc == SWCRC_TOO_BIG and buf then
+        buf:close()
+    end
+    if mime then
+        self:add_header("Content-Type", mime)
+    end
+    self:add_header("Content-Length", tonumber(stat.st_size))
 end
 
 --- HTTPError class.

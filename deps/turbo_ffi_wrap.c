@@ -309,6 +309,10 @@ void turbo_parser_wrapper_exit(struct turbo_parser_wrapper *src)
     for (; i < src->hkv_sz; i++){
         free(src->hkv[i]);
     }
+    /* A trailing field with no value is allocated at hkv[hkv_sz] but not yet
+     * counted (hkv_sz bumps on the value), so free it here or it leaks. */
+    if (src->_state == FIELD)
+        free(src->hkv[src->hkv_sz]);
     free(src->hkv);
     free(src);
 }

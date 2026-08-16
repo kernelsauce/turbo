@@ -27,8 +27,8 @@ It's main features and design principles are:
 
 - SSL support (requires OpenSSL or LuaSec module for Windows)
 
-.. image:: https://api.travis-ci.org/kernelsauce/turbo.png
-   :target: http://travis-ci.org/kernelsauce/turbo
+.. image:: https://github.com/kernelsauce/turbo/actions/workflows/test.yml/badge.svg
+   :target: https://github.com/kernelsauce/turbo/actions/workflows/test.yml
 
 Supported Architectures
 -----------------------

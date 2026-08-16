@@ -1,6 +1,6 @@
 ########
 ## Turbo.lua Makefile for installation.
-## Copyright (C) 2013 John Abrahamsen.
+## Copyright (C) 2013, 2026 John Abrahamsen.
 ## See LICENSE file for license information.
 ########
 
@@ -188,6 +188,19 @@ package: all minimize
 	$(TAR) turbo.$(MAJVER).$(MINVER).$(MICVER).tar.gz package
 	@echo "==== Created turbo.$(MAJVER).$(MINVER).$(MICVER).tar.gz package: ===="
 	md5sum turbo.$(MAJVER).$(MINVER).$(MICVER).tar.gz
+
+DOCKER_IMAGE ?= turbo-test
+
+docker-build:
+	@echo "==== Building Turbo.lua test image ($(DOCKER_IMAGE)) ===="
+	docker build -t $(DOCKER_IMAGE) .
+
+# Run the unit test suite in a reproducible Linux/LuaJIT container. Pass extra
+# busted arguments via ARGS, e.g. `make docker-test ARGS="spec/web_spec.lua"`.
+# See Dockerfile for why the HTTP/async specs are excluded from the default run.
+docker-test: docker-build
+	@echo "==== Running Turbo.lua tests in container ===="
+	docker run --rm $(DOCKER_IMAGE) $(ARGS)
 
 test:
 	@echo "==== Running tests for Turbo.lua. NOTICE: busted module is required ===="

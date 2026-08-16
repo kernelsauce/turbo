@@ -12,7 +12,7 @@
 -- NOTICE: _G.TURBO_SSL MUST be set to true and OpenSSL or axTLS MUST be
 -- installed to use this module.
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -46,7 +46,6 @@ local le = ffi.abi("le")
 local be = not le
 local strf = string.format
 local bor = bit.bor
-math.randomseed(util.gettimeofday())
 
 local ENDIAN_SWAP_U64
 if jit and jit.version_num >= 20100 then
@@ -203,6 +202,15 @@ function websocket.WebSocketStream:_accept_frame(header)
     self._rsv3_bit = bit.band(ws_header.flags, 0x10) ~= 0
     self._opcode = bit.band(ws_header.flags, 0xf)
     self._mask_bit = bit.band(ws_header.len, 0x80) ~= 0
+    -- A server MUST reject any unmasked frame from a client (RFC 6455 5.1).
+    -- mask_outgoing is only truthy on the client side of the stream, so this
+    -- fires for server handlers and is skipped for clients reading the server.
+    if not self.mask_outgoing and not self._mask_bit then
+        self:_error(
+            "WebSocket protocol error: \
+            received an unmasked frame from a client.")
+        return
+    end
     local payload_len = bit.band(ws_header.len, 0x7f)
     if self._opcode == websocket.opcode.CLOSE and payload_len >= 126 then
         self:_error(
@@ -305,12 +313,13 @@ if le then
         end
 
         if self.mask_outgoing == true then
-            -- Create a random mask.
+            -- Create a random mask from OS entropy.
             local ws_mask = ffi.new("unsigned char[4]")
-            ws_mask[0] = math.random(0x0, 0xff)
-            ws_mask[1] = math.random(0x0, 0xff)
-            ws_mask[2] = math.random(0x0, 0xff)
-            ws_mask[3] = math.random(0x0, 0xff)
+            local rnd = util.secure_random_bytes(4)
+            ws_mask[0] = rnd:byte(1)
+            ws_mask[1] = rnd:byte(2)
+            ws_mask[2] = rnd:byte(3)
+            ws_mask[3] = rnd:byte(4)
             self.stream:write(ffi.string(ws_mask, 4))
             self.stream:write(_unmask_payload(ws_mask, data), callback, callback_arg)
             return
@@ -524,6 +533,15 @@ function websocket.WebSocketHandler:_frame_payload(data)
     if self._final_bit == true then
         self:_handle_opcode(opcode, data)
     end
+    -- Fragments are only cleared on the final frame (above), so a peer that
+    -- never sends one would grow the reassembly buffer without limit. Bound it
+    -- to the same max the stream enforces per read.
+    if self._fragmented_message_buffer:len() > self.stream.max_buffer_size then
+        self:_error(
+            "WebSocket protocol error: \
+            fragmented message exceeds max buffer size.")
+        return
+    end
     if self._closed ~= true then
         self.stream:read_bytes(2, self._accept_frame, self)
     end
@@ -588,7 +606,9 @@ function websocket.WebSocketClient:initialize(address, kwargs)
     self.http_cli = async.HTTPClient(self.kwargs.ssl_options,
                                      self.kwargs.ioloop,
                                      self.kwargs.max_buffer_size)
-    local websocket_key = escape.base64_encode(util.rand_str(16))
+    -- RFC 6455 wants 16 raw bytes of entropy, base64 encoded.
+    local websocket_key = escape.base64_encode(
+        util.secure_random_bytes(16))
     -- Reusing async.HTTPClient.
     local _modify_headers_success = true
     local res = coroutine.yield(self.http_cli:fetch(address, {
@@ -751,6 +771,14 @@ function websocket.WebSocketClient:_frame_payload(data)
     end
     if self._final_bit == true then
         self:_handle_opcode(opcode, data)
+    end
+    -- Bound the reassembly buffer; a server that never sends a final frame
+    -- would otherwise grow it without limit (see WebSocketHandler).
+    if self._fragmented_message_buffer:len() > self.stream.max_buffer_size then
+        self:_error(websocket.errors.WEBSOCKET_PROTOCOL_ERROR,
+            "WebSocket protocol error: \
+            fragmented message exceeds max buffer size.")
+        return
     end
     if self._closed ~= true then
         self.stream:read_bytes(2, self._accept_frame, self)

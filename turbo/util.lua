@@ -1,6 +1,6 @@
 -- Turbo.lua Utilities module.
 --
--- Copyright 2011, 2012, 2013, 2014 John Abrahamsen
+-- Copyright 2011, 2012, 2013, 2014, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -78,16 +78,54 @@ function util.strsubstr(str, from, to)
     return ffi.string(ptr + from, to - from)
 end
 
---- Create a random string.
-function util.rand_str(len)
-    math.randomseed(util.gettimeofday()+math.random(0x0,0xffffffff))
-    len = len or 64
-    local bytes = buffer(len)
-    for i = 1, len do
-        bytes:append_char_right(ffi.cast("char", math.random(0x0, 0x80)))
+-- Entropy source, kept open for the process. Reopening it per call is far too
+-- expensive for the paths that use it, e.g Websocket frame masking.
+local _urandom
+local _bcrypt
+
+--- Read n cryptographically secure random bytes from the OS.
+-- Uses BCryptGenRandom on Windows, /dev/urandom on the rest.
+-- @param n (Number) Number of bytes to read.
+-- @return (String) n bytes of entropy.
+function util.secure_random_bytes(n)
+    if platform.__WINDOWS__ then
+        _bcrypt = _bcrypt or ffi.load("bcrypt")
+        local buf = ffi.new("unsigned char[?]", n)
+        -- BCRYPT_USE_SYSTEM_PREFERRED_RNG.
+        local status = _bcrypt.BCryptGenRandom(nil, buf, n, 0x00000002)
+        if status ~= 0 then
+            error(string.format(
+                "util.secure_random_bytes, BCryptGenRandom failed: 0x%x",
+                status))
+        end
+        return ffi.string(buf, n)
     end
-    bytes = tostring(bytes)
+    if not _urandom then
+        _urandom = io.open("/dev/urandom", "rb")
+        if not _urandom then
+            error("util.secure_random_bytes, could not open /dev/urandom.")
+        end
+    end
+    local bytes = _urandom:read(n)
+    if not bytes or bytes:len() ~= n then
+        error("util.secure_random_bytes, short read from /dev/urandom.")
+    end
     return bytes
+end
+
+--- Create a random string of hex characters, safe for headers and cookies.
+-- Use util.secure_random_bytes for raw entropy.
+-- @param len (Number) Length of the string. Defaults to 64.
+-- @return (String) Random string of len characters.
+function util.rand_str(len)
+    len = len or 64
+    -- Two characters per byte, one to spare for a odd length.
+    local bytes = util.secure_random_bytes(math.ceil(len / 2))
+    local hex = buffer(len + 1)
+    for i = 1, bytes:len() do
+        hex:append_luastr_right(string.format("%02x", bytes:byte(i)))
+    end
+    return tostring(hex):sub(1, len)
 end
 
 

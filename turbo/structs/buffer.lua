@@ -1,6 +1,6 @@
 -- Turbo.lua Low-level buffer implementation
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -67,9 +67,9 @@ function Buffer:append_right(data, len)
         ffi.copy(self.tbuffer.data + self.tbuffer.sz, data, len)
         self.tbuffer.sz = self.tbuffer.sz + len
     else
-        -- Realloc and double required memory size.
+        -- Realloc: double up to 1MB, then grow by 1MB at a time.
         local new_sz = self.tbuffer.sz + len
-        local new_mem  = new_sz * 2
+        local new_mem = new_sz + (new_sz < 1048576 and new_sz or 1048576)
         local ptr = ffi.C.realloc(self.tbuffer.data, new_mem)
         if ptr == nil then
             error("No memory.")
@@ -87,9 +87,9 @@ function Buffer:append_char_right(char)
         self.tbuffer.data[self.tbuffer.sz] = char
         self.tbuffer.sz = self.tbuffer.sz + 1
     else
-        -- Realloc and double required memory size.
+        -- Realloc: double up to 1MB, then grow by 1MB at a time.
         local new_sz = self.tbuffer.sz + 1
-        local new_mem  = new_sz * 2
+        local new_mem = new_sz + (new_sz < 1048576 and new_sz or 1048576)
         local ptr = ffi.C.realloc(self.tbuffer.data, new_mem)
         if ptr == nil then
             error("No memory.")

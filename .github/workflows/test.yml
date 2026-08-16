@@ -1,0 +1,23 @@
+# Turbo.lua continuous integration.
+#
+# Copyright 2026 John Abrahamsen
+# See LICENSE file for license information.
+#
+# Builds the test image (see Dockerfile) and runs the unit test suite under
+# LuaJIT on Linux. Replaces the defunct Travis CI setup.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker:
+    name: Unit tests (Docker / LuaJIT)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run unit test suite in Docker
+        run: make docker-test

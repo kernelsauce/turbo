@@ -1,6 +1,6 @@
 --- Turbo.lua Mustache test
 --
--- Copyright 2013 John Abrahamsen
+-- Copyright 2013, 2026 John Abrahamsen
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -105,5 +105,72 @@ describe("turbo.web.Mustache Namespace", function()
         assert.equal(turbo.web.Mustache.render(
             "{{  #test  }}Klein{{  /test     }}",
             {test="My website"}), "Klein")
+    end)
+
+    it("should render number values without escaping (triple mustache)", function()
+        assert.equal(turbo.web.Mustache.render(
+            "count={{{n}}}", {n=42}), "count=42")
+    end)
+
+    it("should render number values", function()
+        assert.equal(turbo.web.Mustache.render(
+            "I am {{age}} years old.", {age=27}),
+            "I am 27 years old.")
+        assert.equal(turbo.web.Mustache.render(
+            "{{>p}}", {n=7}, {p="n={{n}}"}), "n=7")
+    end)
+
+    it("should skip a falsey section that contains a nested section", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{#missing}}{{#inner}}x{{/inner}}LEAK{{/missing}}TAIL", {}),
+            "TAIL")
+    end)
+
+    it("should propagate safe mode into partials", function()
+        assert.has_error(function()
+            turbo.web.Mustache.render("{{>p}}", {}, {p="{{missing}}"}, true)
+        end)
+        assert.has_no.errors(function()
+            turbo.web.Mustache.render("{{>p}}", {}, {p="{{missing}}"})
+        end)
+    end)
+
+    it("should call a function value and render its result", function()
+        assert.equal(turbo.web.Mustache.render(
+            "Hello {{name}}!", {name=function() return "World" end}),
+            "Hello World!")
+    end)
+
+    it("should escape the result of a function value ({{x}})", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{html}}", {html=function() return "<b>" end}),
+            "&lt;b&gt;")
+    end)
+
+    it("should not escape the result of a function value ({{{x}}})", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{{html}}}", {html=function() return "<b>" end}),
+            "<b>")
+    end)
+
+    it("should call a function value inside a partial", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{>p}}", {name=function() return "Bob" end}, {p="Hi {{name}}"}),
+            "Hi Bob")
+    end)
+
+    it("should render a function value that returns a number", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{n}} and {{{n}}}", {n=function() return 42 end}),
+            "42 and 42")
+        assert.equal(turbo.web.Mustache.render(
+            "{{#s}}{{v}}{{/s}}", {s={{v=function() return 5 end}}}),
+            "5")
+    end)
+
+    it("should render an empty string for a function value that returns nil",
+        function()
+        assert.equal(turbo.web.Mustache.render(
+            "[{{n}}]", {n=function() return nil end}), "[]")
     end)
 end)

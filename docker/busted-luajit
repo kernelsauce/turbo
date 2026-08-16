@@ -1,0 +1,26 @@
+#!/bin/sh
+# Run busted under LuaJIT.
+#
+# Copyright 2026 John Abrahamsen
+# See LICENSE file for license information.
+#
+# luarocks installs busted into the lua 5.1 rock tree and generates a wrapper
+# that execs the PUC `lua5.1` interpreter -- which has no FFI, so Turbo fails
+# to load. Instead we invoke the rock's actual busted entry point directly
+# under luajit, with the luarocks module paths prepended.
+set -e
+
+BUSTED_ENTRY=$(ls /usr/local/lib/luarocks/rocks-5.1/busted/*/bin/busted 2>/dev/null | head -1)
+if [ -z "$BUSTED_ENTRY" ]; then
+    echo "busted-luajit: could not locate the busted rock entry point" >&2
+    exit 1
+fi
+
+# Run with stdin from /dev/null. Without a real stdin (e.g. `docker run`
+# without -i), the ioloop's poll can spin on fd 0, busy-looping with
+# "no handler for fd: 0" and starving the tests. The test runner never reads
+# stdin, so detaching it is safe.
+exec luajit \
+    -e 'package.path="/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;"..package.path' \
+    -e 'package.cpath="/usr/local/lib/lua/5.1/?.so;"..package.cpath' \
+    "$BUSTED_ENTRY" "$@" </dev/null
