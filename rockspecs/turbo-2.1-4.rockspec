@@ -2,7 +2,7 @@ package = "turbo"
 version = "2.1-4"
 supported_platforms = {"linux", "macosx"}
 source = {
-    url = "git://github.com/kernelsauce/turbo",
+    url = "git+https://github.com/kernelsauce/turbo.git",
     tag = "v2.1.4"
 }
 description = {
