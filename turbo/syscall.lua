@@ -25,6 +25,8 @@ local flags = {
     O_DIRECTORY = octal('0200000'),
     O_NOFOLLOW  = octal('0400000'),
     O_DIRECT    = octal('040000'),
+    AT_FDCWD             = -100,
+    AT_SYMLINK_NOFOLLOW  = octal('0400'),
     S_IFMT   = octal('0170000'),
     S_IFSOCK = octal('0140000'),
     S_IFLNK  = octal('0120000'),
@@ -124,10 +126,11 @@ elseif ffi.arch == "arm" then
     }
 elseif ffi.arch == "arm64" then
     cmds = {
-        -- ARM64 has no stat/lstat syscalls; use newfstatat (262) with AT_FDCWD=-100
-        SYS_stat             = 262,
+        -- No stat or lstat on this arch. Both are done with newfstatat,
+        -- relative to AT_FDCWD. lstat adds AT_SYMLINK_NOFOLLOW.
+        SYS_stat             = 79,
         SYS_fstat            = 80,
-        SYS_lstat            = 262,
+        SYS_lstat            = 79,
         SYS_getdents         = 61,
         SYS_io_setup         = 0,
         SYS_io_destroy       = 1,

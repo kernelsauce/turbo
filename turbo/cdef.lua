@@ -51,6 +51,14 @@ if platform.__WINDOWS__ then
             const char *string2,
             size_t count);
     ]]
+    -- Windows entropy source. Stands in for /dev/urandom.
+    ffi.cdef[[
+        long BCryptGenRandom(
+            void *hAlgorithm,
+            unsigned char *pbBuffer,
+            unsigned long cbBuffer,
+            unsigned long dwFlags);
+    ]]
 end
 
 
@@ -516,26 +524,30 @@ if platform.__LINUX__ then
               };
             ]]
         elseif platform.__ARM64__ then
+            -- asm-generic layout, not the x86_64 one: st_mode/st_nlink are two
+            -- ints right after st_ino, and swapping them reads st_mode as st_uid.
             ffi.cdef [[
               struct stat {
                 unsigned long   st_dev;
                 unsigned long   st_ino;
-                unsigned long   st_nlink;
                 unsigned int    st_mode;
+                unsigned int    st_nlink;
                 unsigned int    st_uid;
                 unsigned int    st_gid;
-                unsigned int    __pad0;
                 unsigned long   st_rdev;
+                unsigned long   __pad1;
                 long            st_size;
-                long            st_blksize;
+                int             st_blksize;
+                int             __pad2;
                 long            st_blocks;
-                unsigned long   st_atime;
+                long            st_atime;
                 unsigned long   st_atime_nsec;
-                unsigned long   st_mtime;
+                long            st_mtime;
                 unsigned long   st_mtime_nsec;
-                unsigned long   st_ctime;
+                long            st_ctime;
                 unsigned long   st_ctime_nsec;
-                long            __unused[3];
+                unsigned int    __unused4;
+                unsigned int    __unused5;
               };
             ]]
         elseif platform.__MIPSEL__ then

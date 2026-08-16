@@ -20,6 +20,16 @@ local syscall = require "turbo.syscall"
 
 local fs = {}
 
+-- Numbers passed to a vararg C function become doubles, which do not land in
+-- the registers the syscall reads its args from. A declared prototype does.
+-- Only the newfstatat arches pass numbers; the rest pass pointers only.
+local syscall_stat
+if platform.__ARM64__ then
+    syscall_stat = ffi.cast(
+        "long (*)(long, long, const char *, void *, long)",
+        ffi.C.syscall)
+end
+
 --- File system constants
 fs.NAME_MAX = 255
 fs.PATH_MAX = 4096
@@ -31,8 +41,8 @@ function fs.stat(path, buf)
     if not buf then buf = stat_t() end
     local ret
     if platform.__ARM64__ then
-        -- ARM64 has no stat() syscall; use newfstatat(AT_FDCWD=-100, path, buf, 0)
-        ret = ffi.C.syscall(syscall.SYS_stat, -100, path, buf, 0)
+        ret = syscall_stat(
+            syscall.SYS_stat, syscall.AT_FDCWD, path, buf, 0)
     else
         ret = ffi.C.syscall(syscall.SYS_stat, path, buf)
     end
