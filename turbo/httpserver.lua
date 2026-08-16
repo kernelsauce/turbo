@@ -228,19 +228,33 @@ function httpserver.HTTPConnection:_on_headers(data)
             headers = headers,
             remote_ip = self.address
         })
+    -- Bodies are framed by Content-Length only, so a Transfer-Encoding body
+    -- would be left in the stream and read as the next request. Refuse it.
+    if headers:get("Transfer-Encoding") then
+        log.error("[httpserver.lua] Transfer-Encoding is not supported.")
+        self.stream:write(
+            "HTTP/1.1 501 Not Implemented\r\nConnection: close\r\n\r\n",
+            self.stream.close, self.stream)
+        return
+    end
     if self.kwargs.read_body ~= false then
         local content_length = headers:get("Content-Length")
         if content_length then
             content_length = tonumber(content_length)
-            -- Set max buffer size to 128MB.
-            self.stream:set_max_buffer_size(
-                self.kwargs.max_body_size or math.max(content_length, 1024*18))
-            if content_length > self.stream.max_buffer_size then
+            -- A fixed default, NOT derived from content_length, or the check
+            -- below could never fire. Reject before buffering anything.
+            local max_body_size = self.kwargs.max_body_size or 1024*1024*128
+            if not content_length or content_length < 0 or
+                content_length > max_body_size then
                 log.error(
-                    "[httpserver.lua] Content-Length too long \
-                    compared to current max body size.")
-                self.stream:close()
+                    "[httpserver.lua] Content-Length exceeds max body size.")
+                self.stream:write(
+                    "HTTP/1.1 413 Request Entity Too Large\r\n"..
+                    "Connection: close\r\n\r\n",
+                    self.stream.close, self.stream)
+                return
             end
+            self.stream:set_max_buffer_size(math.max(content_length, 1024*18))
             if headers:get("Expect") == "100-continue" then
                 self.stream:write("HTTP/1.1 100 (Continue)\r\n\r\n")
             end

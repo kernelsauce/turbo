@@ -73,10 +73,12 @@ describe("Security fixes", function()
         local secret = "test_cookie_secret_key"
 
         -- Build a valid cookie string the same way set_secure_cookie does.
-        local function make_cookie(value, s)
+        -- The cookie name is part of the signed message (but not stored).
+        local function make_cookie(name, value, s)
             local ts = tostring(math.floor(turbo.util.gettimeofday()))
             local len = tostring(#value)
-            local sig = hash.HMAC(s, string.format("%s|%s|%s", len, ts, value))
+            local sig = hash.HMAC(s,
+                string.format("%s|%s|%s|%s", name, len, ts, value))
             return string.format("%s|%s|%s|%s", sig, len, ts, value)
         end
 
@@ -95,29 +97,47 @@ describe("Security fixes", function()
 
         it("should accept a valid signed cookie", function()
             local val = "mysessiontoken"
-            local handler = make_handler("session", make_cookie(val, secret), secret)
+            local handler = make_handler("session",
+                make_cookie("session", val, secret), secret)
             assert.equal(handler:get_secure_cookie("session"), val)
         end)
 
-        it("should reject a cookie with a tampered HMAC", function()
-            local val = "mysessiontoken"
-            local cookie_str = make_cookie(val, secret)
-            -- Flip the first hex digit of the HMAC
-            local tampered = string.char((cookie_str:byte(1) + 1) % 256) ..
-                             cookie_str:sub(2)
+        -- Forged/stale cookies return the default, they do not raise.
+        it("should return the default for a tampered HMAC", function()
+            local cookie_str = make_cookie("session", "mysessiontoken", secret)
+            -- Flip one hex digit of the HMAC, keeping the format intact.
+            local c = cookie_str:sub(5, 5) == "a" and "b" or "a"
+            local tampered = cookie_str:sub(1, 4)..c..cookie_str:sub(6)
             local handler = make_handler("session", tampered, secret)
-            assert.has_error(function()
-                handler:get_secure_cookie("session")
-            end)
+            assert.equal(handler:get_secure_cookie("session", "fallback"),
+                "fallback")
         end)
 
-        it("should reject a cookie signed with a different secret", function()
-            local val = "mysessiontoken"
-            local cookie_str = make_cookie(val, "wrong_secret")
-            local handler = make_handler("session", cookie_str, secret)
-            assert.has_error(function()
-                handler:get_secure_cookie("session")
-            end)
+        it("should return the default for a cookie signed with another secret",
+            function()
+            local handler = make_handler("session",
+                make_cookie("session", "mysessiontoken", "wrong_secret"),
+                secret)
+            assert.is_nil(handler:get_secure_cookie("session"))
+        end)
+
+        it("should return the default for a malformed cookie", function()
+            local handler = make_handler("session", "not-a-cookie", secret)
+            assert.equal(handler:get_secure_cookie("session", "fallback"),
+                "fallback")
+        end)
+
+        -- Regression: the signature binds the name, so a value signed for one
+        -- cookie name must not validate under a different name.
+        it("should reject a value replayed under a different cookie name",
+            function()
+            local cookie_str = make_cookie("session", "mysessiontoken", secret)
+            local as_admin = make_handler("admin", cookie_str, secret)
+            assert.is_nil(as_admin:get_secure_cookie("admin"))
+            -- Sanity: still valid under its real name.
+            local as_session = make_handler("session", cookie_str, secret)
+            assert.equal(as_session:get_secure_cookie("session"),
+                "mysessiontoken")
         end)
 
     end)
@@ -154,25 +174,38 @@ describe("Security fixes", function()
             assert.equal(#turbo.util.rand_str(), 64)
         end)
 
-    end)
-
-    describe("crypto.ssl_init", function()
-
-        it("should initialize SSL without error", function()
-            local crypto = require "turbo.crypto"
-            assert.has_no.errors(function()
-                crypto.ssl_init()
-            end)
-        end)
-
-        it("should be idempotent when called repeatedly", function()
-            local crypto = require "turbo.crypto"
-            assert.has_no.errors(function()
-                crypto.ssl_init()
-                crypto.ssl_init()
-            end)
+        it("util.rand_str should only return printable characters", function()
+            -- Callers put this straight into cookies and headers.
+            for _, n in ipairs({1, 7, 20, 64}) do
+                local s = turbo.util.rand_str(n)
+                assert.equal(#s, n)
+                assert.truthy(s:match("^[0-9a-f]+$"))
+            end
         end)
 
     end)
+
+    -- ssl_init only exists in the OpenSSL backend. The LuaSocket builds use
+    -- LuaSec, which initializes itself.
+    if turbo.platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
+        describe("crypto.ssl_init", function()
+
+            it("should initialize SSL without error", function()
+                local crypto = require "turbo.crypto"
+                assert.has_no.errors(function()
+                    crypto.ssl_init()
+                end)
+            end)
+
+            it("should be idempotent when called repeatedly", function()
+                local crypto = require "turbo.crypto"
+                assert.has_no.errors(function()
+                    crypto.ssl_init()
+                    crypto.ssl_init()
+                end)
+            end)
+
+        end)
+    end
 
 end)
