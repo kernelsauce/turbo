@@ -342,7 +342,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                         buf:append_luastr_right(tostring(obj[y][arg]))
                     elseif type(obj[y][arg]) == "function" then
                         -- May also be a function.
-                        buf:append_luastr_right(obj[y][arg](arg) or "")
+                        buf:append_luastr_right(
+                            tostring(obj[y][arg](arg) or ""))
                     end
                 else
                     local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -353,7 +354,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
-                            buf:append_luastr_right(in_parent(arg) or "")
+                            buf:append_luastr_right(
+                                tostring(in_parent(arg) or ""))
                         end
                     elseif safe == true then
                         error(
@@ -373,8 +375,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                         buf:append_luastr_right(tostring(obj[y][arg]))
                     elseif type(obj[y][arg]) == "function" then
                         -- May also be a function.
-                        buf:append_luastr_right(
-                            escape.html_escape(obj[y][arg](arg) or ""))
+                        buf:append_luastr_right(escape.html_escape(
+                            tostring(obj[y][arg](arg) or "")))
                     end
                 else
                     local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -385,8 +387,8 @@ function Mustache._render_section(vmtbl, obj, i, safe, partials, obj_parents)
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
-                            buf:append_luastr_right(
-                                escape.html_escape(in_parent(arg)) or "")
+                            buf:append_luastr_right(escape.html_escape(
+                                tostring(in_parent(arg) or "")))
                         end
                     elseif safe == true then
                         error(
@@ -484,8 +486,8 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                     buf:append_luastr_right(tostring(obj[arg]))
                 elseif type(obj[arg]) == "function" then
                     -- May also be a function.
-                    buf:append_luastr_right(
-                        escape.html_escape(obj[arg](arg) or ""))
+                    buf:append_luastr_right(escape.html_escape(
+                        tostring(obj[arg](arg) or "")))
                 end
             else
                 local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -496,7 +498,8 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                             buf:append_luastr_right(tostring(in_parent))
                         elseif type(in_parent) == "function" then
                             -- May also be a function.
-                            buf:append_luastr_right(in_parent(arg) or "")
+                            buf:append_luastr_right(
+                                tostring(in_parent(arg) or ""))
                         end
 
                     elseif safe == true then
@@ -514,7 +517,8 @@ function Mustache._render_partial(vmtbl, obj, obj_parents, partials, safe)
                     buf:append_luastr_right(tostring(obj[arg]))
                 elseif type(obj[arg]) == "function" then
                     -- May also be a function.
-                    buf:append_luastr_right(obj[arg](arg) or "")
+                    buf:append_luastr_right(
+                        tostring(obj[arg](arg) or ""))
                 end
             else
                 local in_parent = Mustache._find_in_obj_parents(arg, obj_parents)
@@ -615,8 +619,8 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                     buf:append_luastr_right(tostring(obj[arg]))
                 elseif type(obj[arg]) == "function" then
                     -- May also be a function.
-                    buf:append_luastr_right(
-                        escape.html_escape(obj[arg](arg) or ""))
+                    buf:append_luastr_right(escape.html_escape(
+                        tostring(obj[arg](arg) or "")))
                 end
             elseif safe == true then
                 error(
@@ -632,7 +636,8 @@ function Mustache._render_template(vmtbl, obj, partials, safe)
                     buf:append_luastr_right(tostring(obj[arg]))
                 elseif type(obj[arg]) == "function" then
                     -- May also be a function.
-                    buf:append_luastr_right(obj[arg](arg) or "")
+                    buf:append_luastr_right(
+                        tostring(obj[arg](arg) or ""))
                 end
             elseif safe == true then
                 error(

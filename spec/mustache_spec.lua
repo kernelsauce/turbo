@@ -158,4 +158,19 @@ describe("turbo.web.Mustache Namespace", function()
             "{{>p}}", {name=function() return "Bob" end}, {p="Hi {{name}}"}),
             "Hi Bob")
     end)
+
+    it("should render a function value that returns a number", function()
+        assert.equal(turbo.web.Mustache.render(
+            "{{n}} and {{{n}}}", {n=function() return 42 end}),
+            "42 and 42")
+        assert.equal(turbo.web.Mustache.render(
+            "{{#s}}{{v}}{{/s}}", {s={{v=function() return 5 end}}}),
+            "5")
+    end)
+
+    it("should render an empty string for a function value that returns nil",
+        function()
+        assert.equal(turbo.web.Mustache.render(
+            "[{{n}}]", {n=function() return nil end}), "[]")
+    end)
 end)
