@@ -874,6 +874,22 @@ end
 if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
     function iostream.IOStream:_handle_write_nonconst()
         local errno, fd
+        if self._write_buffer_size == 0 then
+            -- Nothing to send, e.g. write("", callback). send() of a
+            -- zero-length buffer legitimately returns 0, indistinguishable
+            -- from EWOULDBLOCK below, so complete immediately instead of
+            -- calling send() at all, otherwise the callback never fires.
+            self._write_buffer:clear()
+            self._write_buffer_offset = 0
+            if self._write_callback then
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
+            return
+        end
         local ptr, sz = self._write_buffer:get()
         local buf = ptr + self._write_buffer_offset
         local num_bytes = tonumber(C.send(
@@ -924,6 +940,23 @@ if platform.__LINUX__ and not _G.__TURBO_USE_LUASOCKET__ then
         local errno, fd
         -- The reference is removed once the write is complete.
         local buf, sz = self._const_write_buffer:get()
+        if sz == 0 then
+            -- send() of a zero-length buffer legitimately returns 0, which
+            -- is indistinguishable from EWOULDBLOCK below. Complete an empty
+            -- buffer immediately instead of calling send() at all, otherwise
+            -- the write never finishes and the ioloop spins on EPOLLOUT
+            -- forever (e.g. serving a zero-length static file).
+            self._write_buffer_offset = 0
+            self._const_write_buffer = nil
+            if self._write_callback then
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
+            return
+        end
         local ptr = buf + self._write_buffer_offset
         local _sz = sz - self._write_buffer_offset
         local num_bytes = C.send(
@@ -1350,6 +1383,24 @@ if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
             return nil
         end
 
+        if self._write_buffer_size == 0 then
+            -- Nothing to send, e.g. write("", callback). SSL_write() of a
+            -- zero-length buffer legitimately returns 0, indistinguishable
+            -- from EAGAIN/WANT_WRITE below, so complete immediately instead
+            -- of calling SSL_write() at all, otherwise the callback never
+            -- fires.
+            self._write_buffer:clear()
+            self._write_buffer_offset = 0
+            if self._write_callback then
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
+            return
+        end
+
         local ptr = self._write_buffer:get()
         ptr = ptr + self._write_buffer_offset
         local n = crypto.SSL_write(self._ssl, ptr, self._write_buffer_size)
@@ -1407,6 +1458,24 @@ if _G.TURBO_SSL and platform.__LINUX__  and not _G.__TURBO_USE_LUASOCKET__ then
         end
 
         local buf, sz = self._const_write_buffer:get()
+        if sz == 0 then
+            -- SSL_write() of a zero-length buffer legitimately returns 0,
+            -- which is indistinguishable from EAGAIN/WANT_WRITE below.
+            -- Complete an empty buffer immediately instead of calling
+            -- SSL_write() at all, otherwise the write never finishes and
+            -- the ioloop spins on EPOLLOUT forever (e.g. serving a
+            -- zero-length static file).
+            self._write_buffer_offset = 0
+            self._const_write_buffer = nil
+            if self._write_callback then
+                local callback = self._write_callback
+                local arg = self._write_callback_arg
+                self._write_callback = nil
+                self._write_callback_arg = nil
+                self:_run_callback(callback, arg)
+            end
+            return
+        end
         buf = buf + self._write_buffer_offset
         sz = sz - self._write_buffer_offset
         local n = crypto.SSL_write(self._ssl, buf, sz)

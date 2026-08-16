@@ -2,7 +2,7 @@ package = "turbo"
 version = "dev-1"
 supported_platforms = {"linux"}
 source = {
-    url = "git://github.com/kernelsauce/turbo"
+    url = "git+https://github.com/kernelsauce/turbo.git"
 }
 description = {
     summary = "A networking suite for LuaJIT2 and Linux, optimized for performance.",
