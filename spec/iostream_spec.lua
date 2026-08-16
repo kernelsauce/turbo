@@ -573,5 +573,112 @@ describe("turbo.iostream Namespace", function()
             assert.truthy(streamed > 1)
         end)
 
+        -- Regression: a zero-length write_zero_copy buffer (e.g. serving a
+        -- zero-length static file) used to never complete, because send()/
+        -- SSL_write() legitimately return 0 for an empty buffer, which the
+        -- write handler mistook for EWOULDBLOCK and kept retrying forever,
+        -- spinning the ioloop on EPOLLOUT. Without the fix this test times
+        -- out instead of completing.
+        it("IOStream:write_zero_copy, empty buffer completes", function()
+            local io = turbo.ioloop.instance()
+            local port = math.random(10000,40000)
+            local connected, failed = false, false
+            local completed = false
+
+            -- Server
+            local Server = class("TestServer", turbo.tcpserver.TCPServer)
+            function Server:handle_stream(stream)
+                io:add_callback(function()
+                    local empty = turbo.structs.buffer()
+                    stream:write_zero_copy(empty, function()
+                        completed = true
+                        stream:close()
+                    end)
+                end)
+            end
+            local srv = Server(io)
+            srv:listen(port)
+
+            io:add_callback(function()
+                -- Client
+                local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+                    turbo.socket.SOCK_STREAM,
+                    0)
+                local stream = turbo.iostream.IOStream(fd, io)
+                assert.equal(stream:connect("127.0.0.1",
+                    port,
+                    turbo.socket.AF_INET,
+                    function()
+                        connected = true
+                        coroutine.yield (turbo.async.task(
+                            stream.read_until_close, stream))
+                        io:close()
+                    end,
+                    function(err)
+                        failed = true
+                        io:close()
+                        error("Could not connect.")
+                    end), 0)
+            end)
+
+            io:wait(5)
+            srv:stop()
+            assert.falsy(failed)
+            assert.truthy(connected)
+            assert.truthy(completed)
+        end)
+
+        -- Regression: the same bug as above also existed in the ordinary
+        -- buffered write path (write(), not write_zero_copy()). write("")
+        -- with nothing else pending left _write_buffer_size at 0, send()
+        -- returned 0, and the write handler's callback never fired.
+        it("IOStream:write, empty string still fires the callback", function()
+            local io = turbo.ioloop.instance()
+            local port = math.random(10000,40000)
+            local connected, failed = false, false
+            local completed = false
+
+            -- Server
+            local Server = class("TestServer", turbo.tcpserver.TCPServer)
+            function Server:handle_stream(stream)
+                io:add_callback(function()
+                    stream:write("", function()
+                        completed = true
+                        stream:close()
+                    end)
+                end)
+            end
+            local srv = Server(io)
+            srv:listen(port)
+
+            io:add_callback(function()
+                -- Client
+                local fd = turbo.socket.new_nonblock_socket(turbo.socket.AF_INET,
+                    turbo.socket.SOCK_STREAM,
+                    0)
+                local stream = turbo.iostream.IOStream(fd, io)
+                assert.equal(stream:connect("127.0.0.1",
+                    port,
+                    turbo.socket.AF_INET,
+                    function()
+                        connected = true
+                        coroutine.yield (turbo.async.task(
+                            stream.read_until_close, stream))
+                        io:close()
+                    end,
+                    function(err)
+                        failed = true
+                        io:close()
+                        error("Could not connect.")
+                    end), 0)
+            end)
+
+            io:wait(5)
+            srv:stop()
+            assert.falsy(failed)
+            assert.truthy(connected)
+            assert.truthy(completed)
+        end)
+
     end)
 end)
