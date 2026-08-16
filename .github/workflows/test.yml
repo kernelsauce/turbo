@@ -1,6 +1,6 @@
 # Turbo.lua continuous integration.
 #
-# Copyright (C) 2026 John Abrahamsen.
+# Copyright 2026 John Abrahamsen
 # See LICENSE file for license information.
 #
 # Builds the test image (see Dockerfile) and runs the unit test suite under

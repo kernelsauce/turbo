@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run busted under LuaJIT.
 #
-# Copyright (C) 2026 John Abrahamsen.
+# Copyright 2026 John Abrahamsen
 # See LICENSE file for license information.
 #
 # luarocks installs busted into the lua 5.1 rock tree and generates a wrapper

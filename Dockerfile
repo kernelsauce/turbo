@@ -1,6 +1,6 @@
 # Turbo.lua test image.
 #
-# Copyright (C) 2026 John Abrahamsen.
+# Copyright 2026 John Abrahamsen
 # See LICENSE file for license information.
 #
 # Builds Turbo against LuaJIT on Debian and runs the busted test suite.
