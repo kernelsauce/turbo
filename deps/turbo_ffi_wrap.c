@@ -77,7 +77,12 @@ static int matches_common_name(const char *hostname, const X509 *server_cert)
     if (!common_name_asn1) {
         return Error;
     }
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000
+    common_name_str = (char *) ASN1_STRING_get0_data(common_name_asn1);
+#else
     common_name_str = (char *) ASN1_STRING_data(common_name_asn1);
+#endif
     if (ASN1_STRING_length(common_name_asn1) != strlen(common_name_str)) {
         return MalformedCertificate;
     }
@@ -113,7 +118,11 @@ static int32_t matches_subject_alternative_name(
     for (i=0; i<san_names_nb; i++){
         const GENERAL_NAME *current_name = sk_GENERAL_NAME_value(san_names, i);
         if (current_name->type == GEN_DNS){
+#if OPENSSL_VERSION_NUMBER >= 0x10100000
+            char *dns_name = (char *)ASN1_STRING_get0_data(current_name->d.dNSName);
+#else
             char *dns_name = (char *)ASN1_STRING_data(current_name->d.dNSName);
+#endif
             dns_name_sz = strlen(dns_name);
             if (ASN1_STRING_length(current_name->d.dNSName) != dns_name_sz){
                 result = MalformedCertificate;
