@@ -15,7 +15,7 @@ Table tools
 
 	:param str: String to split
 	:type str: String
-	:param sep: String that seperate elements.
+	:param sep: String that separate elements.
 	:type sep: String
 	:param max: Max elements to split
 	:type max: Number
@@ -68,7 +68,7 @@ Low level
 .. function:: TBM(x, m, y, n)
 
 	Turbo Booyer-Moore memory search algorithm.
-	Search through arbitrary memory and find first occurence of given byte sequence. Effective when looking
+	Search through arbitrary memory and find first occurrence of given byte sequence. Effective when looking
 	for large needles in a large haystack.
 
 	:param x: Needle memory pointer.
@@ -79,7 +79,7 @@ Low level
 	:type y: char*
 	:param n: Haystack size.
 	:type n: int
-	:rtype: First occurence of byte sequence in y defined in x or nil if not found.
+	:rtype: First occurrence of byte sequence in y defined in x or nil if not found.
 
 Misc
 ----
